@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>家</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #111;
+      font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    }
+    body { min-height: 100vh; display: grid; place-items: center; }
+    button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+    button:focus { outline: none; }
+    .hub {
+      --accent: #009ac7;
+      --card: #fff;
+      --muted: #5e5e5e;
+      --ink: #141414;
+      --line: rgba(0, 0, 0, 0.12);
+      --chip: #fff;
+      --off-ico: #eee;
+      --off-fg: #9e9e9e;
+      width: min(96vw, 1024px);
+      height: min(92vh, 600px);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      color: var(--ink);
+      background: #fafafa;
+      position: relative;
+      user-select: none;
+    }
+    .hub.dark {
+      --accent: #009ac7;
+      --card: #1c1c1c;
+      --muted: #a0a0a0;
+      --ink: #e1e1e1;
+      --line: rgba(255, 255, 255, 0.12);
+      --chip: #1c1c1c;
+      --off-ico: #2a2a2a;
+      --off-fg: #8a8a8a;
+      background: #111;
+    }
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px 10px;
+      min-height: 56px;
+    }
+    .bar .title {
+      font-size: 22px;
+      font-weight: 400;
+      margin-right: auto;
+    }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 16px;
+      background: var(--chip);
+      border: 0.8px solid var(--line);
+      font-size: 13px;
+    }
+    .badge i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+    .badge .red { background: #e53935; }
+    .badge .indigo { background: #3f51b5; }
+    .tools { display: flex; gap: 8px; margin-left: 8px; }
+    .tools button {
+      background: none;
+      opacity: 0.55;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+    }
+    .tools button[disabled] { opacity: 0.2; }
+    .tools svg { width: 22px; height: 22px; display: block; }
+    .body {
+      flex: 1;
+      overflow: auto;
+      padding: 4px 20px 8px;
+    }
+    .sec-h {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 4px 8px;
+      font-size: 16px;
+    }
+    .sec-h span { margin-left: auto; font-size: 13px; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .tile {
+      background: var(--card);
+      border-radius: 12px;
+      border: 0.8px solid var(--line);
+      min-height: 72px;
+      padding: 12px 14px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tile.is-on { border-color: var(--accent); }
+    .ico {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex: none;
+      background: #eee;
+      color: #9e9e9e;
+    }
+    .ico svg { width: 18px; height: 18px; }
+    .tile.d-light:not(.off) .ico,
+    .tile.d-switch:not(.off) .ico { background: #ffe082; color: #f9a825; }
+    .tile.d-cover:not(.off) .ico { background: #ede7f6; color: #7e57c2; }
+    .tile.d-lock:not(.off) .ico { background: #e8f5e9; color: #43a047; }
+    .tile.d-climate:not(.off) .ico { background: #ffe0b2; color: #fb8c00; }
+    .tile.d-media_player:not(.off) .ico,
+    .tile.d-media:not(.off) .ico { background: #e1f5fe; color: #039be5; }
+    .tile.d-scene:not(.off) .ico { background: #eceff1; color: #607d8b; }
+    .tile.d-sensor:not(.off) .ico { background: #ffe0b2; color: #e65100; }
+    .tile.d-binary_sensor:not(.off) .ico { background: #e8f5e9; color: #2e7d32; }
+    .tile.off .ico { background: var(--off-ico); color: var(--off-fg); }
+    .meta { min-width: 0; }
+    .tile .n { display: block; font-size: 15px; font-weight: 500; }
+    .tile .s { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+    .foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px 16px;
+      border-top: 0.8px solid var(--line);
+      background: var(--card);
+    }
+    .foot .who strong { display: block; font-size: 15px; }
+    .foot .who span { font-size: 12px; color: var(--muted); }
+    .foot .run { display: flex; align-items: center; gap: 10px; }
+    .foot .run button {
+      height: 36px;
+      padding: 0 16px;
+      border-radius: 18px;
+      background: var(--off-ico);
+    }
+    .foot .run .go { background: var(--accent); color: #fff; }
+    .dots { display: flex; gap: 8px; margin-left: 8px; }
+    .dots i {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      display: block;
+      cursor: pointer;
+    }
+    .dots i.on { background: var(--accent); }
+    .menu {
+      display: none;
+      position: absolute;
+      top: 52px;
+      right: 16px;
+      width: 180px;
+      background: var(--card);
+      border: 0.8px solid var(--line);
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    }
+    .menu.open { display: block; }
+    .menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      height: 36px;
+      padding: 0 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="hub" id="hub">
+    <div class="bar">
+      <div class="title">家</div>
+      <div class="badges" id="badges"></div>
+      <div class="tools">
+        <button type="button" id="prev" title="上页">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <button type="button" id="next" title="下页">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <button type="button" id="more" title="更多">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+            <circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M3 12h2M19 12h2M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="body" id="body"></div>
+    <div class="foot">
+      <div class="who" id="who"></div>
+      <div class="run" id="run"></div>
+    </div>
+    <div class="menu" id="menu">
+      <button type="button" id="bind">注册 ID</button>
+      <button type="button" id="add">添加设备</button>
+      <button type="button" id="unbind">解绑</button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var ICO = {
+        light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21h6M12 3a6 6 0 00-3.8 10.6c.5.5.8 1.2.8 2V17h6v-1.4c0-.8.3-1.5.8-2A6 6 0 0012 3z"/></svg>',
+        switch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="4" width="8" height="16" rx="4"/><circle cx="12" cy="8" r="1.6" fill="currentColor"/></svg>',
+        cover: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M6 6v12M18 6v12M4 18h16"/></svg>',
+        lock: '<svg viewBox="0 0 24 24"><rect x="6" y="11" width="12" height="9" rx="1.4" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="M8 11V8a4 4 0 018 0v3"/></svg>',
+        climate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v10M9 6l3-3 3 3"/><path d="M7 14a5 5 0 0010 0"/></svg>',
+        media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M9 7v10l9-5z"/></svg>',
+        media_player: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M9 7v10l9-5z"/></svg>',
+        scene: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 4l8 7h-2v7h-4v-4h-4v4H6v-7H4z"/></svg>',
+        sensor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 3L6 13h5l-1 8 8-12h-5z"/></svg>',
+        binary_sensor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="8" rx="2"/><path d="M7 10V8a5 5 0 0110 0v2"/></svg>'
+      };
+      var seed = [
+        { name: '客厅灯', room: '客厅', domain: 'light', state: 'on', entity_id: 'light.living_room' },
+        { name: '窗帘', room: '客厅', domain: 'cover', state: 'open', entity_id: 'cover.living_curtain' },
+        { name: '射灯', room: '客厅', domain: 'light', state: 'on', entity_id: 'light.living_spotlights' },
+        { name: '音响', room: '客厅', domain: 'media_player', state: 'playing', entity_id: 'media_player.living_nest' },
+        { name: '门锁', room: '入户', domain: 'lock', state: 'locked', entity_id: 'lock.front_door' },
+        { name: '专注', room: '全屋', domain: 'scene', state: 'off', entity_id: 'scene.focus' },
+        { name: '空调', room: '客厅', domain: 'climate', state: 'cool', entity_id: 'climate.living_ac' },
+        { name: '书桌灯', room: '书房', domain: 'light', state: 'off', entity_id: 'light.study' },
+        { name: 'EV', room: '能源', domain: 'binary_sensor', state: 'off', entity_id: 'binary_sensor.tesla_wall_connector_vehicle_connected' },
+        { name: 'Last charge', room: '能源', domain: 'sensor', state: '16.3 kWh', entity_id: 'sensor.tesla_wall_connector_session_energy' },
+        { name: 'Home power', room: '能源', domain: 'sensor', state: '797.86 W', entity_id: 'sensor.electric_meter_power' },
+        { name: 'Voltage', room: '能源', domain: 'sensor', state: '232.19 V', entity_id: 'sensor.eletric_meter_voltage' }
+      ];
+      function slugify(text) {
+        var src = String(text || '').toLowerCase();
+        var out = '', gap = false, i, c, ok;
+        for (i = 0; i < src.length; i++) {
+          c = src.charCodeAt(i);
+          ok = (c >= 48 && c <= 57) || (c >= 97 && c <= 122);
+          if (ok) { out += src.charAt(i); gap = false; }
+          else if (out.length && !gap) { out += '_'; gap = true; }
+        }
+        if (out.length && out.charAt(out.length - 1) === '_') out = out.slice(0, -1);
+        return out || 'unknown';
+      }
+      function validSlug(text, isDomain) {
+        var s = String(text || '');
+        if (!s.length || s.charAt(0) === '_' || s.charAt(s.length - 1) === '_') return false;
+        if (isDomain && s.indexOf('__') >= 0) return false;
+        var i, c;
+        for (i = 0; i < s.length; i++) {
+          c = s.charCodeAt(i);
+          if (!((c >= 48 && c <= 57) || (c >= 97 && c <= 122) || c === 95)) return false;
+        }
+        return true;
+      }
+      function validEntityId(entityId) {
+        var id = String(entityId || '');
+        var i = id.indexOf('.');
+        if (i < 1 || id.indexOf('.', i + 1) >= 0) return false;
+        return validSlug(id.slice(0, i), true) && validSlug(id.slice(i + 1), false);
+      }
+      function splitEntityId(entityId) {
+        var id = String(entityId || '');
+        var i = id.indexOf('.');
+        if (i < 1 || id.indexOf('.', i + 1) >= 0) return null;
+        var domain = id.slice(0, i), objectId = id.slice(i + 1);
+        return domain && objectId ? [domain, objectId] : null;
+      }
+      function randomUuidHex() {
+        var s = '', i;
+        for (i = 0; i < 32; i++) s += '0123456789abcdef'.charAt((Math.random() * 16) | 0);
+        return s;
+      }
+      function isUuidHex(value) {
+        var s = String(value || '');
+        if (s.length !== 32) return false;
+        var i, c;
+        for (i = 0; i < 32; i++) {
+          c = s.charCodeAt(i);
+          if (!((c >= 48 && c <= 57) || (c >= 97 && c <= 102))) return false;
+        }
+        return true;
+      }
+      function normalizeEntityId(value) {
+        var raw = String(value || '').trim().toLowerCase();
+        var parts = splitEntityId(raw);
+        if (!parts) return '';
+        var id = slugify(parts[0]) + '.' + slugify(parts[1]);
+        return validEntityId(id) ? id : '';
+      }
+      function normalizeEntry(raw, index) {
+        raw = raw || {};
+        var entityId = normalizeEntityId(raw.entity_id);
+        if (!entityId) {
+          entityId = slugify(raw.domain || 'sensor') + '.' +
+                     slugify(raw.unique_id || ('device_' + index));
+        }
+        var parts = splitEntityId(entityId);
+        var objectId = parts[1];
+        var domain = parts[0];
+        return {
+          id: isUuidHex(raw.id) ? raw.id : randomUuidHex(),
+          entity_id: entityId,
+          unique_id: String(raw.unique_id || objectId),
+          platform: slugify(raw.platform || 'hub'),
+          domain: domain,
+          name: raw.name || raw.original_name || objectId,
+          original_name: raw.original_name || raw.name || objectId,
+          device_id: raw.device_id || null,
+          area_id: raw.area_id || raw.room || null,
+          room: raw.room || raw.area_id || '未分区',
+          state: raw.state || 'unavailable'
+        };
+      }
+      function isRegistered(entityId) {
+        var i;
+        for (i = 0; i < items.length; i++) {
+          if (items[i].entity_id === entityId) return true;
+        }
+        return false;
+      }
+      function findByKey(domain, platform, uniqueId) {
+        var i;
+        for (i = 0; i < items.length; i++) {
+          if (items[i].domain === domain &&
+              items[i].platform === platform &&
+              items[i].unique_id === uniqueId) return i;
+        }
+        return -1;
+      }
+      function getAvailableEntityId(domain, suggested, current) {
+        var preferred = domain + '.' + slugify(suggested);
+        var test = preferred, n = 1;
+        while (isRegistered(test) && test !== current) {
+          n++;
+          test = preferred + '_' + n;
+        }
+        return test;
+      }
+      function findDeleted(domain, platform, uniqueId) {
+        var i;
+        for (i = 0; i < deleted.length; i++) {
+          if (deleted[i].domain === domain &&
+              deleted[i].platform === platform &&
+              deleted[i].unique_id === uniqueId) return i;
+        }
+        return -1;
+      }
+      function saveDeleted() {
+        try { localStorage.setItem('ha_deleted', JSON.stringify(deleted)); } catch (e) {}
+      }
+      function pushDeleted(entry) {
+        if (!entry || !entry.entity_id) return;
+        var key = findDeleted(entry.domain, entry.platform, entry.unique_id);
+        var row = {
+          id: entry.id,
+          entity_id: entry.entity_id,
+          unique_id: entry.unique_id,
+          platform: entry.platform,
+          domain: entry.domain,
+          name: entry.name,
+          original_name: entry.original_name,
+          area_id: entry.area_id,
+          room: entry.room,
+          orphaned_timestamp: Date.now() / 1000
+        };
+        if (key >= 0) deleted[key] = row;
+        else deleted.push(row);
+        while (deleted.length > 8) deleted.shift();
+        saveDeleted();
+      }
+      function getOrCreate(domain, platform, uniqueId, extras) {
+        extras = extras || {};
+        var hit = findByKey(domain, platform, uniqueId);
+        if (hit >= 0) return items[hit];
+        var tomb = findDeleted(domain, platform, uniqueId);
+        var restored = null;
+        if (tomb >= 0) {
+          restored = deleted[tomb];
+          deleted.splice(tomb, 1);
+          saveDeleted();
+        }
+        var objectId = slugify(extras.suggested_object_id || uniqueId);
+        var wanted = restored && restored.entity_id;
+        var entry = {
+          id: restored && isUuidHex(restored.id) ? restored.id : randomUuidHex(),
+          entity_id: wanted && !isRegistered(wanted) ?
+                     wanted : getAvailableEntityId(domain, objectId, null),
+          unique_id: String(uniqueId),
+          platform: slugify(platform || 'hub'),
+          domain: domain,
+          name: extras.name || (restored && restored.name) || objectId,
+          original_name: extras.original_name || extras.name ||
+                         (restored && restored.original_name) || objectId,
+          device_id: extras.device_id || null,
+          area_id: extras.area_id || extras.room ||
+                   (restored && restored.area_id) || null,
+          room: extras.room || extras.area_id ||
+                (restored && restored.room) || '未分区',
+          state: extras.state || (restored && restored.state) || 'unavailable'
+        };
+        items.push(entry);
+        return entry;
+      }
+      function loadItems() {
+        try {
+          var raw = localStorage.getItem('ha_slots');
+          var list = raw ? JSON.parse(raw) : null;
+          if (list && list.length) {
+            return list.map(function (d, i) { return normalizeEntry(d, i); });
+          }
+        } catch (e) {}
+        return seed.map(function (d, i) { return normalizeEntry(d, i); });
+      }
+      var items = loadItems();
+      var deleted = [];
+      try {
+        var rawDel = localStorage.getItem('ha_deleted');
+        deleted = rawDel ? JSON.parse(rawDel) : [];
+      } catch (e) { deleted = []; }
+      if (!Array.isArray(deleted)) deleted = [];
+      function saveItems() {
+        try { localStorage.setItem('ha_slots', JSON.stringify(items)); } catch (e) {}
+      }
+      saveItems();
+      var copy = {
+        on: '开启', off: '关闭', open: '已打开', closed: '已关闭',
+        locked: '已上锁', unlocked: '已解锁', playing: '正在播放',
+        idle: '待机', cool: '制冷中', heat: '制热中',
+        unavailable: '离线', unknown: '未知'
+      };
+      var on = { on: 1, open: 1, unlocked: 1, playing: 1, cool: 1, heat: 1, locked: 1 };
+      var page = 0, pick = 0, dark = false, more = false;
+      function sections() {
+        var order = [], map = {};
+        items.forEach(function (d, i) {
+          var key = d.room || d.area_id || '未分区';
+          if (!map[key]) { map[key] = []; order.push(key); }
+          map[key].push(i);
+        });
+        return order.map(function (k) { return { title: k, idxs: map[k] }; });
+      }
+      function pageCount() { return Math.max(1, sections().length); }
+      function lab(s) { return copy[s] || s; }
+      function isOn(s) { return !!on[s]; }
+      function primary(it) {
+        if (it.domain === 'light' || it.domain === 'switch') {
+          return isOn(it.state) ? '关闭' : '打开';
+        }
+        if (it.domain === 'cover') return it.state === 'open' ? '关闭' : '打开';
+        if (it.domain === 'lock') return it.state === 'locked' ? '解锁' : '上锁';
+        if (it.domain === 'scene') return '执行';
+        if (it.domain === 'climate') return it.state === 'off' ? '开启' : '关闭';
+        if (it.domain === 'media' || it.domain === 'media_player') {
+          return it.state === 'playing' ? '暂停' : '播放';
+        }
+        return '打开';
+      }
+      function flip(it) {
+        if (it.domain === 'light' || it.domain === 'switch') {
+          it.state = it.state === 'on' ? 'off' : 'on';
+        } else if (it.domain === 'cover') it.state = it.state === 'open' ? 'closed' : 'open';
+        else if (it.domain === 'lock') it.state = it.state === 'locked' ? 'unlocked' : 'locked';
+        else if (it.domain === 'climate') it.state = it.state === 'off' ? 'cool' : 'off';
+        else if (it.domain === 'media' || it.domain === 'media_player') {
+          it.state = it.state === 'playing' ? 'idle' : 'playing';
+        }
+      }
+      function syncPageToPick() {
+        var secs = sections();
+        var i, j;
+        for (i = 0; i < secs.length; i++) {
+          for (j = 0; j < secs[i].idxs.length; j++) {
+            if (secs[i].idxs[j] === pick) { page = i; return; }
+          }
+        }
+      }
+
+      function paint() {
+        var secs = sections();
+        if (page >= secs.length) page = secs.length - 1;
+        if (page < 0) page = 0;
+        var sec = secs[page] || { title: '家', idxs: [] };
+        document.getElementById('hub').className = 'hub' + (dark ? ' dark' : '');
+        document.getElementById('prev').disabled = page <= 0;
+        document.getElementById('next').disabled = page >= pageCount() - 1;
+        document.getElementById('menu').className = 'menu' + (more ? ' open' : '');
+        document.getElementById('badges').innerHTML =
+          '<span class="badge"><i class="red"></i>16.0 °C</span>' +
+          '<span class="badge"><i class="indigo"></i>57%</span>' +
+          '<span class="badge">离家</span>';
+        var body = document.getElementById('body');
+        var html = '<div class="sec-h">' + sec.title +
+          '<span>' + sec.idxs.length + ' 个实体</span></div><div class="grid"></div>';
+        body.innerHTML = html;
+        var g = body.querySelector('.grid');
+        var i;
+        for (i = 0; i < sec.idxs.length; i++) {
+          var idx = sec.idxs[i];
+          var d = items[idx];
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'tile d-' + d.domain + (isOn(d.state) ? '' : ' off') +
+                        (idx === pick ? ' is-on' : '');
+          b.innerHTML = '<span class="ico">' + (ICO[d.domain] || ICO.scene) + '</span>' +
+            '<span class="meta"><span class="n">' + d.name + '</span>' +
+            '<span class="s">' + lab(d.state) + '</span></span>';
+          b.onclick = (function (n) {
+            return function () {
+              pick = n;
+              more = false;
+              var it = items[n];
+              if (it.domain === 'light' || it.domain === 'switch') flip(it);
+              paint();
+            };
+          }(idx));
+          g.appendChild(b);
+        }
+        var it = items[pick];
+        if (!it) return;
+        document.getElementById('who').innerHTML =
+          '<strong>' + it.name + '</strong><span>' +
+          it.entity_id + ' · ' + it.platform + '</span>';
+        document.getElementById('run').innerHTML =
+          '<button type="button" class="go" id="go">' + primary(it) + '</button>' +
+          '<span class="dots">' +
+            '<i class="' + (dark ? '' : 'on') + '" id="d2" title="浅色"></i>' +
+            '<i class="' + (dark ? 'on' : '') + '" id="d1" title="深色"></i>' +
+          '</span>';
+        document.getElementById('go').onclick = function () { flip(it); paint(); };
+        document.getElementById('d1').onclick = function () { dark = true; paint(); };
+        document.getElementById('d2').onclick = function () { dark = false; paint(); };
+      }
+
+      document.getElementById('prev').onclick = function () {
+        if (page > 0) page--;
+        var secs = sections();
+        if (secs[page]) pick = secs[page].idxs[0];
+        more = false;
+        paint();
+      };
+      document.getElementById('next').onclick = function () {
+        if (page < pageCount() - 1) page++;
+        var secs = sections();
+        if (secs[page]) pick = secs[page].idxs[0];
+        more = false;
+        paint();
+      };
+      document.getElementById('more').onclick = function () { more = !more; paint(); };
+      document.getElementById('bind').onclick = function () {
+        var it = items[pick];
+        var v = window.prompt('注册 entity_id\n' + it.entity_id, it.entity_id);
+        if (!v) return;
+        var entityId = normalizeEntityId(v);
+        var parts = splitEntityId(entityId);
+        if (!parts) return;
+        var i;
+        for (i = 0; i < items.length; i++) {
+          if (i !== pick && items[i].entity_id === entityId) return;
+        }
+        var platform = it.platform || 'hub';
+        if (findByKey(parts[0], platform, parts[1]) >= 0 &&
+            findByKey(parts[0], platform, parts[1]) !== pick) return;
+        if (it.domain !== parts[0] || it.unique_id !== parts[1]) pushDeleted(it);
+        it.entity_id = entityId;
+        it.domain = parts[0];
+        it.unique_id = parts[1];
+        it.platform = platform;
+        if (!isUuidHex(it.id)) it.id = randomUuidHex();
+        more = false;
+        saveItems();
+        paint();
+      };
+      document.getElementById('add').onclick = function () {
+        var v = window.prompt('新设备 entity_id', 'light.');
+        if (!v) return;
+        var entityId = normalizeEntityId(v);
+        var parts = splitEntityId(entityId);
+        if (!parts) return;
+        var existed = findByKey(parts[0], 'hub', parts[1]) >= 0;
+        var entry = getOrCreate(parts[0], 'hub', parts[1], {
+          suggested_object_id: parts[1],
+          name: parts[1],
+          original_name: parts[1],
+          room: '未分区',
+          state: existed ? undefined : 'off'
+        });
+        if (!existed) entry.state = 'off';
+        pick = items.indexOf(entry);
+        if (pick < 0) pick = items.length - 1;
+        syncPageToPick();
+        more = false;
+        saveItems();
+        paint();
+      };
+      document.getElementById('unbind').onclick = function () {
+        if (items.length <= 1) return;
+        pushDeleted(items[pick]);
+        items.splice(pick, 1);
+        if (pick >= items.length) pick = items.length - 1;
+        syncPageToPick();
+        more = false;
+        saveItems();
+        paint();
+      };
+      paint();
+      setInterval(function () {
+        var i, n;
+        for (i = 0; i < items.length; i++) {
+          if (items[i].entity_id !== 'sensor.electric_meter_power') continue;
+          n = parseFloat(items[i].state);
+          if (!isFinite(n)) n = 800;
+          n = Math.max(120, n + (Math.random() * 40 - 20));
+          items[i].state = n.toFixed(2) + ' W';
+        }
+        paint();
+      }, 4000);
+    }());
+  </script>
+</body>
+</html>

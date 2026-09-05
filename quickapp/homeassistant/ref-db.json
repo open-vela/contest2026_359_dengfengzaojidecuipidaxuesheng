@@ -1,0 +1,135 @@
+{
+  "source": [
+    "https://github.com/lvgl/lvgl/tree/master/demos",
+    "https://github.com/lvgl/lvgl/tree/master/examples/widgets",
+    "https://lvgl.io/demos",
+    "https://lvgl.io/case-studies",
+    "mi-home",
+    "https://github.com/home-assistant/core",
+    "https://demo.home-assistant.io/#/lovelace/home"
+  ],
+  "github": {
+    "widgets": {
+      "file": "demos/widgets/lv_demo_widgets.c",
+      "use": ["tabview", "color-changer-fab", "analytics-chart"],
+      "palette": ["#2196F3", "#4CAF50", "#607D8B", "#FF9800", "#F44336", "#9C27B0", "#009688"]
+    },
+    "music": {
+      "file": "demos/music/lv_demo_music.c",
+      "bg": "#343247",
+      "slider": ["#569af8", "#a666f1"]
+    },
+    "switch": { "file": "examples/widgets/switch" },
+    "arc": { "file": "examples/widgets/arc" },
+    "slider": { "file": "examples/widgets/slider" },
+    "chart": { "file": "examples/widgets/chart" }
+  },
+  "demos": {
+    "smarthub": {
+      "size": [800, 480],
+      "use": "home-shell",
+      "tokens": {
+        "bg": "#261812",
+        "card": "#4a2e2a",
+        "text": "#ffffff",
+        "muted": "#c4b0a8",
+        "accent": "#e53935",
+        "iconOn": "#ffffff"
+      },
+      "layout": ["clock", "weather", "tile-row", "theme-toggle"]
+    },
+    "widgets": {
+      "size": [480, 272],
+      "use": "tabs-and-cards",
+      "tokens": { "accent": "#2196f3", "card": "#ffffff", "bg": "#f5f5f5" }
+    },
+    "thermostat": {
+      "size": [320, 240],
+      "use": "vector-only",
+      "rule": "no-bitmaps"
+    },
+    "music": { "use": "spectrum-motion", "bg": "#343247" },
+    "printer": { "size": [800, 480], "use": "app-chrome" },
+    "smartwatch": { "use": "swipe-pages" },
+    "ebike": { "use": "lottie-locale" }
+  },
+  "cases": {
+    "xiaomi-watch-s1-pro": { "use": "hyperos-polish", "brand": "xiaomi" },
+    "whisker": { "use": "mcu-consumer-panel" },
+    "lit-duo": { "use": "knob-plus-screen" }
+  },
+  "mihome": {
+    "use": "device-card",
+    "tokens": {
+      "bg": "#f5f6fa",
+      "card": "#ffffff",
+      "text": "#1a1a1a",
+      "muted": "#8a8a8a",
+      "accent": "#ff8a00",
+      "onSoft": "#fff4e8"
+    },
+    "copy": {
+      "on": "已开启",
+      "off": "已关闭",
+      "open": "已打开",
+      "closed": "已关闭",
+      "locked": "已上锁",
+      "unlocked": "已解锁"
+    },
+    "scenes": ["回家", "离家", "专注", "影院"]
+  },
+  "homeassistant": {
+    "core": {
+      "repo": "https://github.com/home-assistant/core",
+      "file": "homeassistant/helpers/entity_registry.py",
+      "storage": "core.entity_registry",
+      "identity": ["domain", "platform", "unique_id"],
+      "entity_id": "domain.object_id",
+      "entry": ["id", "entity_id", "unique_id", "platform", "domain", "name", "original_name", "device_id", "area_id"],
+      "apis": [
+        "valid_entity_id",
+        "split_entity_id",
+        "slugify",
+        "async_get_or_create",
+        "async_is_registered",
+        "async_get_available_entity_id",
+        "write_unavailable_state",
+        "deleted_entities"
+      ]
+    },
+    "lovelace": {
+      "url": "https://demo.home-assistant.io/#/lovelace/home",
+      "file": "demo/src/configs/sections/lovelace.ts",
+      "view": "sections",
+      "cards": ["hui-entity-badge", "hui-heading-card", "hui-tile-card"],
+      "tokens": {
+        "bg": "#fafafa",
+        "card": "#ffffff",
+        "text": "#141414",
+        "muted": "#5e5e5e",
+        "primary": "#009ac7",
+        "accent": "#ff9800",
+        "radius": 12
+      },
+      "copy": {
+        "on": "开启",
+        "off": "关闭",
+        "open": "已打开",
+        "playing": "正在播放",
+        "not_home": "离家"
+      }
+    }
+  },
+  "compose": {
+    "shell": "lovelace",
+    "tiles": "hui-tile-card",
+    "tabs": "widgets",
+    "switch": "examples/switch",
+    "arc": "examples/arc",
+    "fab": "widgets-color-changer",
+    "icons": "thermostat",
+    "swipe": "smartwatch",
+    "themeToggle": true,
+    "defaultTheme": "light"
+  }
+}

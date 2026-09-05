@@ -1,0 +1,11 @@
+{
+  "package": "com.openvela.homeassistant.hub",
+  "name": "家居",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "minPlatformVersion": 1,
+  "features": [],
+  "router": {
+    "entry": "app.js"
+  }
+}

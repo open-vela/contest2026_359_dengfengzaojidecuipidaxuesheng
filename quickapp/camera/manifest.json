@@ -1,0 +1,11 @@
+{
+  "package": "com.openvela.camera.preview",
+  "name": "相机",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "minPlatformVersion": 1,
+  "features": ["camera"],
+  "router": {
+    "entry": "app.js"
+  }
+}

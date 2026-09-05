@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>番茄钟</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #f3efe8;
+      color: #2a2724;
+      font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+    }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+    .timer {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .phase {
+      text-align: center;
+      margin-bottom: 18px;
+      font-size: 15px;
+      letter-spacing: 0.42em;
+      color: #8a847c;
+      cursor: pointer;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      touch-action: none;
+    }
+    .hours, .hour-colon {
+      overflow: hidden;
+      max-width: 0;
+      opacity: 0;
+      transform-origin: right center;
+      transform: perspective(720px) rotateY(82deg);
+      pointer-events: none;
+      transition: max-width 0.5s ease, opacity 0.35s ease, transform 0.5s ease;
+    }
+    .hours.is-on {
+      max-width: 232px;
+      opacity: 1;
+      transform: perspective(720px) rotateY(0deg);
+      pointer-events: auto;
+    }
+    .hour-colon.is-on {
+      max-width: 40px;
+      opacity: 1;
+      transform: none;
+    }
+    .fold {
+      position: relative;
+      width: 18px;
+      height: 168px;
+      margin-right: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .timer.has-hours .fold {
+      width: 0;
+      margin: 0;
+      opacity: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .fold-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 6px 2px 2px 6px;
+      background: linear-gradient(90deg, #e4dac8 0%, #f0e6d4 48%, #d8ccb8 100%);
+      box-shadow:
+        inset -2px 0 0 rgba(90, 72, 48, 0.1),
+        0 10px 22px rgba(60, 48, 32, 0.08);
+    }
+    .fold-crease {
+      position: absolute;
+      right: 5px;
+      top: 10px;
+      bottom: 10px;
+      width: 1px;
+      background: rgba(90, 72, 48, 0.16);
+    }
+    .fold-lip {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      border-radius: 0 2px 2px 0;
+      background: linear-gradient(90deg, #d6cbb8, #efe6d6);
+    }
+    .hint {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      color: #b5aea4;
+      min-height: 20px;
+      transition: opacity 0.4s ease;
+    }
+    .hint.is-gone { opacity: 0; }
+    .pair {
+      display: flex;
+      gap: 8px;
+    }
+    .colon {
+      font-size: 64px;
+      line-height: 1;
+      color: #2a2724;
+      padding: 0 6px 6px;
+    }
+    .board {
+      position: relative;
+      width: 104px;
+      touch-action: none;
+      cursor: ns-resize;
+      background: #faf8f4;
+      border-radius: 6px;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.8) inset,
+        0 18px 40px rgba(60, 48, 32, 0.12);
+    }
+    .flip {
+      position: relative;
+      height: 168px;
+      perspective: 900px;
+    }
+    .half, .leaf {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 50%;
+      overflow: hidden;
+      background: #faf8f4;
+    }
+    .half span, .leaf span {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 168px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 96px;
+      font-weight: 500;
+      line-height: 1;
+    }
+    .top { top: 0; border-radius: 6px 6px 0 0; }
+    .top span, .leaf.drop span { top: 0; }
+    .bottom { bottom: 0; border-radius: 0 0 6px 6px; }
+    .bottom span, .leaf.rise span { bottom: 0; }
+    .hinge {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: rgba(42, 39, 36, 0.12);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .leaf {
+      visibility: hidden;
+      backface-visibility: hidden;
+    }
+    .leaf.drop {
+      top: 0;
+      border-radius: 6px 6px 0 0;
+      transform-origin: bottom;
+      z-index: 3;
+    }
+    .leaf.rise {
+      bottom: 0;
+      border-radius: 0 0 6px 6px;
+      transform-origin: top;
+      z-index: 2;
+      transform: rotateX(90deg);
+    }
+    .board.animating .leaf,
+    .board.animating-up .leaf { visibility: visible; }
+    .board.animating .leaf.drop { animation: drop 0.32s ease-in forwards; }
+    .board.animating .leaf.rise { animation: rise 0.32s ease-out 0.16s forwards; }
+    .board.animating-up .leaf.drop {
+      transform-origin: bottom;
+      transform: rotateX(-90deg);
+      animation: riseUp 0.32s ease-out 0.16s forwards;
+      z-index: 2;
+    }
+    .board.animating-up .leaf.rise {
+      transform-origin: top;
+      transform: rotateX(0deg);
+      animation: dropUp 0.32s ease-in forwards;
+      z-index: 3;
+    }
+    @keyframes drop { to { transform: rotateX(-90deg); } }
+    @keyframes rise {
+      from { transform: rotateX(90deg); }
+      to { transform: rotateX(0deg); }
+    }
+    @keyframes dropUp { to { transform: rotateX(90deg); } }
+    @keyframes riseUp {
+      from { transform: rotateX(-90deg); }
+      to { transform: rotateX(0deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="timer" id="timer">
+    <div class="phase" id="phase">准备</div>
+    <div class="row" id="row">
+      <div class="fold" id="fold" title="右滑展开小时">
+        <div class="fold-face"></div>
+        <div class="fold-crease"></div>
+        <div class="fold-lip"></div>
+      </div>
+      <div class="pair hours" id="hours">
+        <div class="board" data-flip></div>
+        <div class="board" data-flip></div>
+      </div>
+      <div class="colon hour-colon" id="hourColon">:</div>
+      <div class="pair">
+        <div class="board" data-flip></div>
+        <div class="board" data-flip></div>
+      </div>
+      <div class="colon">:</div>
+      <div class="pair">
+        <div class="board" data-flip></div>
+        <div class="board" data-flip></div>
+      </div>
+    </div>
+    <div class="hint" id="hint">右滑添加小时 · 上下翻页调时</div>
+  </div>
+  <script src="engine.js"></script>
+  <script>
+    (function () {
+      var boardHtml =
+        '<div class="flip">' +
+          '<div class="half top"><span>0</span></div>' +
+          '<div class="half bottom"><span>0</span></div>' +
+          '<div class="leaf drop"><span></span></div>' +
+          '<div class="leaf rise"><span></span></div>' +
+          '<div class="hinge"></div>' +
+        '</div>';
+
+      function Flip(el) {
+        el.innerHTML = boardHtml;
+        this.el = el;
+        this.top = el.querySelector('.top span');
+        this.bot = el.querySelector('.bottom span');
+        this.drop = el.querySelector('.drop span');
+        this.rise = el.querySelector('.rise span');
+        this.value = '';
+        this.busy = false;
+      }
+
+      Flip.prototype.show = function (next, instant, dir) {
+        next = String(next);
+        if (this.value === next) return;
+        if (instant || this.value === '' || this.busy) {
+          this.value = next;
+          this.top.textContent = next;
+          this.bot.textContent = next;
+          return;
+        }
+        var from = this.value;
+        var up = dir === 'up';
+        this.busy = true;
+        this.drop.textContent = up ? next : from;
+        this.rise.textContent = up ? from : next;
+        this.top.textContent = up ? from : next;
+        this.bot.textContent = up ? next : from;
+        this.el.classList.remove('animating', 'animating-up');
+        void this.el.offsetWidth;
+        this.el.classList.add(up ? 'animating-up' : 'animating');
+        var self = this;
+        setTimeout(function () {
+          self.value = next;
+          self.top.textContent = next;
+          self.bot.textContent = next;
+          self.el.classList.remove('animating', 'animating-up');
+          self.busy = false;
+        }, 520);
+      };
+
+      function pad2(n) {
+        n = String(n);
+        return n.length < 2 ? '0' + n : n;
+      }
+
+      var timer = createPomodoro();
+      var flips = Array.prototype.map.call(
+        document.querySelectorAll('[data-flip]'),
+        function (el) { return new Flip(el); }
+      );
+      var phaseEl = document.getElementById('phase');
+      var hoursEl = document.getElementById('hours');
+      var hourColon = document.getElementById('hourColon');
+      var hoursOn = false;
+      var hintEl = document.getElementById('hint');
+      var timerEl = document.getElementById('timer');
+      var hintTimer = null;
+      var PLACES = [
+        10 * 3600000, 3600000,
+        10 * 60000, 60000,
+        10 * 1000, 1000
+      ];
+
+      function digits(state) {
+        var total = Math.max(0, Math.ceil(state.remaining / 1000));
+        var h = Math.floor(total / 3600);
+        var m = hoursOn ? Math.floor(total / 60) % 60 : Math.floor(total / 60);
+        var s = total % 60;
+        var hh = pad2(h);
+        var mm = pad2(m);
+        var ss = pad2(s);
+        return [
+          hh.charAt(0), hh.charAt(1),
+          mm.charAt(0), mm.charAt(1),
+          ss.charAt(0), ss.charAt(1)
+        ];
+      }
+
+      function hideHint() {
+        if (!hintEl || hintEl.classList.contains('is-gone')) return;
+        hintEl.classList.add('is-gone');
+        clearTimeout(hintTimer);
+      }
+
+      function setHoursOn(on) {
+        if (on === hoursOn) return;
+        hoursOn = on;
+        hoursEl.classList.toggle('is-on', on);
+        hourColon.classList.toggle('is-on', on);
+        timerEl.classList.toggle('has-hours', on);
+        hintEl.textContent = on ? '上下滑动翻页调节时间' : '右滑添加小时 · 上下翻页调时';
+        if (on) hideHint();
+        paint(true);
+      }
+
+      function label(state) {
+        if (state.running && state.phase === 'work') return '专注';
+        if (state.running && state.phase === 'short') return '休息';
+        if (state.running && state.phase === 'long') return '长休';
+        return '准备';
+      }
+
+      function paint(instant, dir) {
+        var state = timer.getState();
+        if (state.remaining >= 3600000) setHoursOn(true);
+        var d = digits(state);
+        var i;
+        for (i = 0; i < 6; i++) flips[i].show(d[i], instant, dir);
+        phaseEl.textContent = label(state);
+      }
+
+      function nudgeBy(ms) {
+        if (timer.getState().running) return;
+        var before = timer.getState().remaining;
+        timer.nudge(ms);
+        var after = timer.getState().remaining;
+        if (after === before) return;
+        hideHint();
+        paint(false, after > before ? 'up' : 'down');
+      }
+
+      phaseEl.addEventListener('pointerup', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        timer.toggle();
+        paint(false);
+      });
+
+      function handleGesture(dx, dy, place) {
+        if (timer.getState().running) {
+          timer.pause();
+          paint(false, 'down');
+          return;
+        }
+        if (Math.abs(dx) >= 28 && Math.abs(dx) >= Math.abs(dy)) {
+          if (dx > 0) setHoursOn(true);
+          else if (timer.getState().remaining < 3600000) setHoursOn(false);
+          return;
+        }
+        if (dy <= -24) nudgeBy(place);
+        else if (dy >= 24) nudgeBy(-place);
+        else nudgeBy(place);
+      }
+
+      flips.forEach(function (flip, index) {
+        var place = PLACES[index];
+        var originX = 0;
+        var originY = 0;
+        var dragging = false;
+
+        flip.el.addEventListener('pointerdown', function (e) {
+          originX = e.clientX;
+          originY = e.clientY;
+          dragging = true;
+          try { flip.el.setPointerCapture(e.pointerId); } catch (err) {}
+        });
+
+        flip.el.addEventListener('pointerup', function (e) {
+          if (!dragging) return;
+          dragging = false;
+          e.preventDefault();
+          e.stopPropagation();
+          handleGesture(e.clientX - originX, e.clientY - originY, place);
+        });
+
+        flip.el.addEventListener('pointercancel', function () {
+          dragging = false;
+        });
+
+        flip.el.addEventListener('wheel', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (timer.getState().running) return;
+          if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 4) {
+            if (e.deltaX > 0) setHoursOn(true);
+            else if (timer.getState().remaining < 3600000) setHoursOn(false);
+            return;
+          }
+          nudgeBy(e.deltaY < 0 ? place : -place);
+        }, { passive: false });
+      });
+
+      document.getElementById('fold').addEventListener('pointerup', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!timer.getState().running) setHoursOn(true);
+      });
+
+      paint(true);
+      hintTimer = setTimeout(hideHint, 8000);
+      setInterval(function () {
+        timer.tick();
+        paint(false, 'down');
+      }, 1000);
+    }());
+  </script>
+</body>
+</html>
