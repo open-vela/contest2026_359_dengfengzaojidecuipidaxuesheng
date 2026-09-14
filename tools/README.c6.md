@@ -1,5 +1,23 @@
 # Optional C6 Wireless Overlay
 
+Current v3 integration status (2026-09-13): the composed C6 desktop backend,
+worker, scan results, link state, RPC mailbox, serialized RPC ownership and
+CMD53/SDIO fixes are integrated in the isolated ESP32-P4 Function-EV OpenVela
+v3 recovery tree. `CONFIG_SYSTEM_C6_DESKTOP=y` resolved, and a clean target
+compile plus final firmware link completed. The final ELF contains the desktop
+worker/backend, C6 network/RPC, SC2336/MIPI-CSI camera and ESP-Claw symbols. The
+3,816,784-byte ESP32-P4 image has a valid checksum and remains 369,328 bytes
+below the `/data` partition at `0x400000`; its SHA-256 is
+`5b3432c90032126751cdc1452bc18613fa0e707bd2911902c656877ac37e17af`.
+Host-side C6 protocol/backend tests, the JavaScript bridge tests and the v3
+LVGL headless desktop tests pass. This is still an offline integration
+candidate: no flash, C6 radio, DHCP, live Wi-Fi association, camera sensor or
+display hardware acceptance has been performed. BLE remains intentionally
+excluded because the present Hosted BLE transport is explicitly restricted to
+pre-v3 silicon. The entries below are the chronological development record;
+earlier statements that the desktop backend was not integrated are superseded
+by this status block.
+
 Backend integration candidate: composed output now includes desktop_backend.c/.h
 binding scan results and c6net_connect to the worker interface. The preparation
 adapter separates c6net_prepare from association; a cold scan can prepare the

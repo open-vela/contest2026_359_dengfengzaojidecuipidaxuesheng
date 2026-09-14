@@ -49,7 +49,23 @@ static void *run(void *arg)
               memset(result.records, 0, sizeof(result.records));
             }
         }
-      else result.error = w->backend.connect(ssid, password);
+      else if (result.operation == C6_DESKTOP_CONNECT)
+        result.error = w->backend.connect(ssid, password);
+      else if (result.operation == C6_DESKTOP_DISCONNECT)
+        result.error = w->backend.disconnect ? w->backend.disconnect() : -ENOTSUP;
+      else
+        {
+          result.error = w->backend.status ?
+            w->backend.status(&result.link) : -ENOTSUP;
+          if (!result.error &&
+              ((result.link.associated && !result.link.initialized) ||
+               (result.link.carrier_ready && !result.link.associated) ||
+               (result.link.ipv4_ready && !result.link.carrier_ready)))
+            result.error = -EPROTO;
+          if (result.error) memset(&result.link, 0, sizeof(result.link));
+          else if (!result.link.ipv4_ready)
+            memset(result.link.ipv4, 0, sizeof(result.link.ipv4));
+        }
       wipe(password, sizeof(password));
       wipe(ssid, sizeof(ssid));
       pthread_mutex_lock(&w->lock);
@@ -97,7 +113,7 @@ int c6_desktop_worker_submit(struct c6_desktop_worker *w,
                              enum c6_desktop_operation operation,
                              const char *ssid, const char *password)
 {
-  if (!w || (operation != C6_DESKTOP_SCAN && operation != C6_DESKTOP_CONNECT))
+  if (!w || operation < C6_DESKTOP_SCAN || operation > C6_DESKTOP_DISCONNECT)
     return -EINVAL;
   size_t slen = 0, plen = 0;
   if (operation == C6_DESKTOP_CONNECT)

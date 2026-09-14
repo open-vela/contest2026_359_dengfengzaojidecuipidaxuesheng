@@ -20,10 +20,17 @@ def main():
         if subprocess.run(command + ['--check', str(patch)], capture_output=True).returncode == 0:
             subprocess.run(command + [str(patch)], check=True)
         else:
-            subprocess.run(command + ['--reverse', '--check', str(patch)], check=True)
+            existing = source.read_text()
+            required = ('#include <pthread.h>', 'g_rpc_transaction_lock',
+                        'rpc_transact_locked(',
+                        'pthread_mutex_unlock(&g_rpc_transaction_lock)')
+            if not all(marker in existing for marker in required):
+                raise RuntimeError('RPC serialization patch is neither applicable nor present')
         text = source.read_text()
-        start = text.index('static pthread_mutex_t g_rpc_transaction_lock')
-        end = text.index('\n/****************************************************************************', start)
+        lock_start = text.index('static pthread_mutex_t g_rpc_transaction_lock')
+        lock_end = text.index('\n', lock_start) + 1
+        wrapper_start = text.index('static FAR Rpc *rpc_transact(', lock_end)
+        end = text.index('\n/****************************************************************************', wrapper_start)
         code = r'''
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
@@ -31,24 +38,32 @@ def main():
 #include <stdatomic.h>
 #include <time.h>
 #define FAR
-typedef struct { int failure; } Rpc;
+typedef struct { unsigned uid; int failure; } Rpc;
+typedef struct { int unused; } c6_rpc_mailbox;
+static c6_rpc_mailbox g_rpc;
 static atomic_int active, completed;
+static Rpc response;
+static unsigned c6_rpc_next_uid(c6_rpc_mailbox *mailbox) {
+ (void)mailbox;
+ return 1;
+}
 static Rpc *rpc_transact_locked(const Rpc *req, const char *label) {
  (void)label;
  assert(atomic_fetch_add(&active, 1) == 0);
  struct timespec pause = {0, 100000}; nanosleep(&pause, NULL);
  assert(atomic_fetch_sub(&active, 1) == 1);
  completed++;
- return req->failure ? NULL : (Rpc *)req;
+ return req->failure ? NULL : &response;
 }
 '''
-        code += text[start:end]
+        code += text[lock_start:lock_end]
+        code += text[wrapper_start:end]
         code += r'''
 static void *caller(void *arg) {
  (void)arg;
  for (int i = 0; i < 50; i++) {
   Rpc req = {.failure = i % 2};
-  assert(rpc_transact(&req, "test") == (req.failure ? NULL : &req));
+  assert((rpc_transact(&req, "test") != NULL) == !req.failure);
  }
  return NULL;
 }

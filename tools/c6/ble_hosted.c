@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include <nuttx/config.h>
-#ifndef CONFIG_ESP32P4_SELECTS_REV_LESS_V3
-#error "Experimental Hosted BLE transport is restricted to v1"
+#if !defined(CONFIG_ESP32P4_SELECTS_REV_LESS_V3) && \
+    !defined(CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL)
+#error "Hosted BLE requires an explicitly enabled board integration"
 #endif
 #include "ble_hosted.h"
 #include "esp_hosted.h"

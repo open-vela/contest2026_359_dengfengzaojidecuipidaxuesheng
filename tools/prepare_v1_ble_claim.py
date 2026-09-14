@@ -6,7 +6,7 @@ from pathlib import Path
 from adapt_c6_rx_dispatch import once
 
 
-def adapt(source):
+def adapt(source, *, v3=False):
     if 'static pthread_mutex_t g_rx_dispatch_lock' not in source:
         raise ValueError('Serialized RX dispatch prerequisite missing')
     if 'esp_hosted_hci_claim' in source:
@@ -76,7 +76,7 @@ int esp_hosted_hci_release(esp_hosted_rx_cb_t cb, FAR void *arg)
 #endif
 
 int esp_hosted_register(uint8_t if_type, esp_hosted_rx_cb_t cb,''')
-    return once(source, '  g_hosted.rx_cb[if_type]  = cb;', '''#ifdef CONFIG_ESP32P4_SELECTS_REV_LESS_V3
+    source = once(source, '  g_hosted.rx_cb[if_type]  = cb;', '''#ifdef CONFIG_ESP32P4_SELECTS_REV_LESS_V3
   if (if_type == ESP_HOSTED_IF_HCI && g_hci_claimed)
     {
       pthread_mutex_unlock(&g_rx_dispatch_lock);
@@ -84,6 +84,12 @@ int esp_hosted_register(uint8_t if_type, esp_hosted_rx_cb_t cb,''')
     }
 #endif
   g_hosted.rx_cb[if_type]  = cb;''')
+    if v3:
+        source = source.replace('#ifdef CONFIG_ESP32P4_SELECTS_REV_LESS_V3\nstatic bool g_hci_claimed;',
+                                '#ifdef CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL\nstatic bool g_hci_claimed;', 1)
+        source = source.replace('#ifdef CONFIG_ESP32P4_SELECTS_REV_LESS_V3\n  if (if_type == ESP_HOSTED_IF_HCI && g_hci_claimed)',
+                                '#ifdef CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL\n  if (if_type == ESP_HOSTED_IF_HCI && g_hci_claimed)', 1)
+    return source
 
 
 def main():

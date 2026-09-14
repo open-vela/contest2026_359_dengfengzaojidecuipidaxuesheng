@@ -1,5 +1,6 @@
 """Exercise the actual Hosted transport lifecycle with a blocked RX callback."""
 from pathlib import Path
+import sys
 import subprocess
 import tempfile
 
@@ -10,7 +11,8 @@ def main():
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         (root / 'nuttx/wireless/bluetooth').mkdir(parents=True)
-        (root / 'nuttx/config.h').write_text('#define CONFIG_ESP32P4_SELECTS_REV_LESS_V3 1\n')
+        board = 'CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL' if '--v3' in sys.argv else 'CONFIG_ESP32P4_SELECTS_REV_LESS_V3'
+        (root / 'nuttx/config.h').write_text('#define ' + board + ' 1\n')
         (root / 'nuttx/wireless/bluetooth/bt_driver.h').write_text(
             '#include <stddef.h>\n#include <stdint.h>\nstruct bt_driver_s;\n')
         (root / 'esp_hosted.h').write_text('''

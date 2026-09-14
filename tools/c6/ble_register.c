@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include <nuttx/config.h>
-#if !defined(CONFIG_ESP32P4_SELECTS_REV_LESS_V3) || !defined(CONFIG_UART_BTH4)
-#error "C6 BLE registration requires the v1 HCI character-device configuration"
+#if (!defined(CONFIG_ESP32P4_SELECTS_REV_LESS_V3) && \
+     !defined(CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL)) || !defined(CONFIG_UART_BTH4)
+#error "C6 BLE registration requires a supported board and UART_BTH4"
 #endif
 #include <nuttx/serial/uart_bth4.h>
 #include <errno.h>

@@ -16,11 +16,22 @@ bool esp_hosted_rpc_is_waiting(void)
 
 
 def adapt_net(text):
-    text = once(text, '#include "c6net.h"',
-                '#include "c6net.h"\n#include "esp_hosted.h"')
+    if '#include "esp_hosted.h"' not in text:
+        text = once(text, '#include "c6net.h"',
+                    '#include "c6net.h"\n#include "esp_hosted.h"')
     text = once(text, '      while (esp_hosted_poll() > 0)',
                 '      while (!esp_hosted_rpc_is_waiting() && esp_hosted_poll() > 0)')
     return text
+
+
+def adapt_header(text):
+    anchor = 'int esp_hosted_poll(void);'
+    declaration = '''int esp_hosted_poll(void);
+
+/* True while the synchronous RPC path owns the Hosted response window. */
+
+bool esp_hosted_rpc_is_waiting(void);'''
+    return once(text, anchor, declaration)
 
 
 def main():

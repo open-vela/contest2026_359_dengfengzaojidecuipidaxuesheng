@@ -1,5 +1,6 @@
 """Test registration ownership and allocation failure cleanup without hardware."""
 from pathlib import Path
+import sys
 import subprocess
 import tempfile
 
@@ -10,7 +11,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         for name, text in {
-            'nuttx/config.h': '#define CONFIG_ESP32P4_SELECTS_REV_LESS_V3 1\n#define CONFIG_UART_BTH4 1\n',
+            'nuttx/config.h': '#define ' + ('CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL' if '--v3' in sys.argv else 'CONFIG_ESP32P4_SELECTS_REV_LESS_V3') + ' 1\n#define CONFIG_UART_BTH4 1\n',
             'nuttx/wireless/bluetooth/bt_driver.h': '#include <stddef.h>\n#include <stdint.h>\nstruct bt_driver_s;\n',
             'nuttx/serial/uart_bth4.h': 'struct bt_driver_s;\nint uart_bth4_register(const char *, struct bt_driver_s *);\n',
         }.items():
@@ -54,9 +55,38 @@ int main(void) {
  return 0;
 }
 ''')
+        source = TOOLS / 'c6/ble_register.c'
+        if '--socket' in sys.argv:
+            (root / 'c6net.h').write_text('int c6net_prepare(void);\n')
+            (root / 'nuttx/config.h').write_text(
+                '#define CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL 1\n'
+                '#define CONFIG_NET_BLUETOOTH 1\n')
+            (root / 'nuttx/wireless/bluetooth/bt_driver.h').write_text(
+                '#include <stddef.h>\n#include <stdint.h>\n'
+                'struct bt_driver_s;\nint bt_netdev_register(struct bt_driver_s *);\n')
+            test = (root / 'test.c').read_text()
+            test = test.replace('static int fail,',
+                                'static int prepare_error, prepares;\n'
+                                'int c6net_prepare(void) {prepares++;return prepare_error;}\n'
+                                'static int fail,')
+            test = test.replace(' fail=1;',
+                                ' prepare_error=-ENETDOWN;\n'
+                                ' assert(c6_ble_register("/dev/ttyHCI0")==-ENETDOWN);\n'
+                                ' assert(!registered && !freed_transport);\n'
+                                ' prepare_error=0;\n fail=1;', 1)
+            test = test.replace(' return 0;\n}',
+                                ' int before=prepares;\n'
+                                ' assert(!c6_ble_register("/dev/ttyHCI0"));\n'
+                                ' assert(prepares==before && registered==2);\n'
+                                ' return 0;\n}', 1)
+            test = test.replace('int uart_bth4_register(const char *path,struct bt_driver_s *p) {',
+                                'int bt_netdev_register(struct bt_driver_s *p) {\n const char *path="/dev/ttyHCI0";')
+            (root / 'test.c').write_text(test)
+            source = TOOLS / 'c6/ble_socket_register.c'
         subprocess.run(['cc', '-std=gnu11', '-Wall', '-Wextra', '-Werror',
+                        '-pthread',
                         '-I', str(root), '-I', str(TOOLS / 'c6'),
-                        str(TOOLS / 'c6/ble_register.c'), str(root / 'test.c'),
+                        str(source), str(root / 'test.c'),
                         '-o', str(root / 'test')], check=True)
         subprocess.run([str(root / 'test')], check=True, timeout=10)
     print('PASS: registration validation, allocation failures and ownership transfer')
