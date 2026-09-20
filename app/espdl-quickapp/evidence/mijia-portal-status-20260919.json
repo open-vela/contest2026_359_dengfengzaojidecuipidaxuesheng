@@ -1,0 +1,14 @@
+[
+  {
+    "command": "desktop ui portal-status",
+    "output": "desktop ui portal-status\nportal listener=-1 running=0 accepts=0 closes=0 active=0 receives=0 errors=0 error=0 stage=0\ndesktop: ui portal-status ready\nnsh> \u001b[K"
+  },
+  {
+    "command": "hass status",
+    "output": "hass status\nconfigured=yes busy=no clients=1\nnsh> \u001b[K"
+  },
+  {
+    "command": "desktop ui navigation-status",
+    "output": "desktop ui navigation-status\nnavigation page=qapp return=home\nnsh> \u001b[K"
+  }
+]

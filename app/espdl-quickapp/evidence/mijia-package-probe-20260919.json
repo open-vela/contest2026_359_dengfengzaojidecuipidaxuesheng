@@ -1,0 +1,18 @@
+[
+  {
+    "command": "ls /sdcard",
+    "output": "ls /sdcard\n/sdcard:\n System Volume Information/\n dafeiyu/\nnsh> \u001b[K"
+  },
+  {
+    "command": "ls /data",
+    "output": "ls /data\n/data:\n qpk/\n photos/\n glass-settings-0.bin\n glass-settings-1.bin\n files/\n config/\nnsh> \u001b[K"
+  },
+  {
+    "command": "ls /data/qpk",
+    "output": "ls /data/qpk\n/data/qpk:\n .data/\n @2pmusic/\n pinyin/\n .draft/\n ai.gomoku/\n org.flash.pomodoro/\n org.flash.pomodoro.flip/\n .examples/\n ai.ox_game/\nnsh> \u001b[K"
+  },
+  {
+    "command": "ls /tmp",
+    "output": "ls /tmp\n/tmp:\nnsh> \u001b[K"
+  }
+]

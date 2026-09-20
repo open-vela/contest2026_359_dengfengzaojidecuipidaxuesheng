@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026_359_dengfengzaojidecuipidaxuesheng",
+  "github_login": "2026-09-19",
+  "kind": "hardware-validation",
+  "description": "设备启动、烧录后运行、Home Assistant UI 状态和截图记录；不包含 AI Coding 会话。",
+  "sessions": []
+}

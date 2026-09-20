@@ -16,7 +16,7 @@ CFLAGS += -I$(APPDIR)/interpreters/quickjs/quickjs
 CFLAGS += -I$(APPDIR)/system/espclaw/include
 
 CSRCS   = desktop_font.c qpk_runtime.c qpk_homeassistant.c ouo_resource.c \
-          camera_resource.c homeassistant_resource.c recorder_resource.c
+          camera_resource.c recorder_resource.c
 MAINSRC = desktop_main.c
 
 CSRCS += glass_file_service.c qpk_storage.c qpk_storage_selftest.c
@@ -51,6 +51,7 @@ CXXEXT = .cpp
 CXXFLAGS += -std=gnu++11
 glass_music_service.c_CFLAGS += -O2
 
+CSRCS += homeassistant_resource.c
 ifeq ($(CONFIG_SYSTEM_HASS),y)
 CSRCS += hass_qjs.c hass_portal.c
 CFLAGS += -I$(APPDIR)/system/hass

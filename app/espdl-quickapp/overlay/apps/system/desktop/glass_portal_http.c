@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_portal.h"
+#ifdef CONFIG_SYSTEM_HASS
+#include "hass_portal.h"
+#endif
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
@@ -335,7 +338,12 @@ static void client(int fd,char *headers)
   cJSON *o=receive_json(fd,size);
   if(!cJSON_IsObject(o)||!authorized(auth)) { cJSON_Delete(o); result(fd,-EINVAL,NULL); return; }
   int ret=-EINVAL; char error[128]="";
-  if(!strcmp(url,"/api/config")&&arg) ret=portal_config_save(arg,o);
+  if(!strcmp(url,"/api/config")&&arg) {
+    ret=portal_config_save(arg,o);
+#ifdef CONFIG_SYSTEM_HASS
+    if(!ret&&!strcmp(arg,"homeassistant")) ret=hass_portal_bootstrap();
+#endif
+  }
   else if(!strcmp(url,"/api/mkdir")&&arg) { ret=portal_public_path(arg,path,sizeof(path)); if(!ret&&mkdir(path,0700)<0) ret=-errno; }
   else if(!strcmp(url,"/api/install/begin")) { ret=portal_install_begin(o,error,sizeof(error)); }
   else if(!strcmp(url,"/api/install/commit")) ret=portal_install_commit();

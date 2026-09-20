@@ -3,5 +3,5 @@
 730f2ea65c24d64dad83fa5edf0f25fcf698ebd060e9b5cd5e3160cdb1986b19  resolved.config
 63fec5efe66a58857c11f555b434995393a528b405036945ec091d04a798786d  acceptance-boot-preview.log
 4edef20dad285a32751c578cd020c6a18e6c2b96b985a8a54256c438e94f9dc2  acceptance-open-close-cycles.log
-80c36ade93c08e6b6079a2daaba8864d55d3312cea8c7993598ff5f4f7d8b483  ../../tools/patches/0004-esp32p4-camera-rgb565-preview.patch
-c1382571bff2f404541dba2e2c96290aeb6484d9765a9869aa38ab75ebd57e87  ../../tools/patches/0005-esp32p4-desktop-camera-preview.patch
+80c36ade93c08e6b6079a2daaba8864d55d3312cea8c7993598ff5f4f7d8b483  ../../../tools/patches/0004-esp32p4-camera-rgb565-preview.patch
+c1382571bff2f404541dba2e2c96290aeb6484d9765a9869aa38ab75ebd57e87  ../../../tools/patches/0005-esp32p4-desktop-camera-preview.patch

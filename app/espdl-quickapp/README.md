@@ -1,18 +1,9 @@
 # ESP-DL 人脸跟随与物体分类
 
-> 大赛仓说明：本目录保存当前应用 overlay、模型、测试和证据。文中仍以
-> `diagnostics/...` 标出的开发辅助脚本属于完整源码集合提交 `ff5c6bd`，当前大赛树不再
-> 重复保存这些本地诊断与第三方参考目录。可使用
-> `git show ff5c6bd:diagnostics/<文件>` 查看单个脚本，或用独立 worktree 检出该提交复现
-> 原开发环境；不要把旧源码集合重新复制到当前参赛树。
-
-目录入口：[overlay](overlay/README.md)、[models](models/README.md)、
-[tests](tests/README.md)、[evidence](evidence/README.md)、[tools](tools/README.md)。
-Home Assistant 的原生入口与 HTTP 限制见 [HASS.md](HASS.md)。
-下文保留历史开发环境、路径和布局；不能据此认为任意新设备已授权擦除或当前仓库可独立全量构建。
-
 同一固件中的 ESPClaw 触屏聊天、服务配置及共用 HTTPS 说明见 [CHAT.md](CHAT.md)。
 内置录音机、GPIO／I²C／SPI／UART／PWM／舵机／音频／BLE 快应用接口与 AI 参考见 [HARDWARE.md](HARDWARE.md)。
+Home Assistant 原生米家页的实体范围、分页、状态色、控制确认和布局依据见
+[HA-TILE-DESIGN.md](HA-TILE-DESIGN.md)。
 
 大肥鱼桌宠 1.0.1 的原生浮层、`system.pet` API 和快应用源码已接入当前 overlay，
 说明与许可证见 [dafeiyu/README.md](overlay/apps/system/desktop/dafeiyu/README.md)。
@@ -67,3 +58,10 @@ P4 神经网络加速使用 ESP-DL 官方 `xespv` 向量指令、`xesploop` 硬�
 实板诊断：`desktop espdl test 0` 依次运行同核 FPU/向量抢占与重复 Gemm 自检、图像预处理对照、官方 320×240 人脸 JPEG 的两次完整推理、分类重复推理。终端等待工作线程结束再返回；`desktop espdl` 查询完成状态。自检中的图像 SIMD 差异是诊断记录，所选 C 预处理必须通过独立 RGB565 数值参考检查。`desktop ui espdl` 打开应用，`desktop ui espdl-start` 开始跟随，`desktop ui espdl-stop` 停止。UI 只从完整发布的同一帧读取图像和检测结果，工作线程不访问 LVGL。
 
 证据分别保存在 `evidence/firmware-validation.json`、`evidence/host-validation.json`、`evidence/js-validation.json` 和实板日志。构建或主机测试通过不能代替实板识别准确性、帧率和长期稳定性验证。
+## Local verified source release: 2026-09-19
+
+The application source in this directory is synchronized from the locally verified 04-v3-20260913/espdl-quickapp tree. It includes the current Home Assistant card UI, generated resource and authorization digest, BLE HID/touchpad implementation, and frontend regression test. Generated firmware images are documented as evidence and are not treated as source.
+
+The music credential header was intentionally excluded because it contains a hard-coded API key. The runtime keeps its credential fallback behavior and accepts user configuration at runtime.
+
+See the source and hardware work log at ../../docs/WORKLOG_2026-09-19.md and the 2026-09-19 hardware handoff logs at ../../logs/2026-09-19/README.md.

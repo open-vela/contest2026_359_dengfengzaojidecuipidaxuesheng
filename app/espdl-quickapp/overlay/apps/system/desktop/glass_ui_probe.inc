@@ -363,14 +363,6 @@ static void desktop_ui_probe_service(void)
         {
           glass_portal_show(glass_homeassistant);
         }
-      else if (!strcmp(command, "ha-advanced"))
-        {
-          launch_builtin_homeassistant_qapp(NULL);
-          lv_obj_update_layout(g_desktop.screen);
-          desktop_ui_probe_click(g_desktop.current_card, "设置");
-          lv_obj_update_layout(g_desktop.screen);
-          desktop_ui_probe_click(g_desktop.current_card, "高级服务");
-        }
       else if (!strcmp(command, "dropdown"))
         { glass_settings(NULL); lv_dropdown_open(g_glass.widget_dropdown); }
       else if (!strcmp(command, "files-new"))
@@ -389,7 +381,7 @@ static int desktop_ui_probe_request(const char *command)
   const char *commands[] = {"weather", "weather-status", "weather-refresh", "home", "settings", "wifi", "bluetooth", "files", "resources",
     "music", "music-status", "music-play-result", "music-toggle", "music-stop", "current", "apps", "about", "environment", "hello", "2048", "ouo", "ha", "dropdown",
     "files-new", "light", "dark", "audit", "frame", "frame-free", "wifi-scan", "ble-scan", "dialog",
-    "ha-settings", "ha-address", "ha-advanced", "toast", "camera-start", "camera-photo", "camera-mode",
+    "ha-settings", "ha-address", "toast", "camera-start", "camera-photo", "camera-mode",
     "espdl", "espdl-start", "espdl-stop", "espdl-classify", "espdl-photo",
     "navigation-status", "app-back", "edge-back", "portal", "portal-status",
     "chat", "chat-input", "chat-send", "chat-cancel", "chat-new", "chat-settings", "chat-status",

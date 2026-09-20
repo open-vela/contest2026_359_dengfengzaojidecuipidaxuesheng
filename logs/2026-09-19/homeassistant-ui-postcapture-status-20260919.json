@@ -1,0 +1,6 @@
+[
+  {
+    "command": "hass status",
+    "output": "hass status\nconfigured=yes busy=no clients=1\nnsh> \u001b[K"
+  }
+]

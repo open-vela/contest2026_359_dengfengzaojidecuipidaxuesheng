@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "hass_service.h"
 #include "hass_transport.h"
-#include <arpa/inet.h>
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
@@ -121,17 +120,18 @@ static void pump(void)
   g_kind = REQUEST_NONE;
 }
 
-static bool local_url(const char *url)
+static bool http_url(const char *url)
 {
   if (!url || strlen(url) >= sizeof(g_url) || strncmp(url, "http://", 7)) return false;
-  char host[128];
   const char *p = url + 7;
   size_t n = strcspn(p, ":/");
-  if (!n || n >= sizeof(host)) return false;
-  memcpy(host, p, n); host[n] = 0; p += n;
+  if (!n || n >= sizeof(g_url) - 7) return false;
   for (size_t i = 0; i < n; i++)
-    if (!((host[i] >= 'a' && host[i] <= 'z') || (host[i] >= '0' && host[i] <= '9') ||
-          host[i] == '.' || host[i] == '-')) return false;
+    if (!((p[i] >= 'a' && p[i] <= 'z') ||
+          (p[i] >= 'A' && p[i] <= 'Z') ||
+          (p[i] >= '0' && p[i] <= '9') ||
+          p[i] == '.' || p[i] == '-' || p[i] == '_')) return false;
+  p += n;
   if (*p == ':')
     {
       unsigned port = 0;
@@ -141,16 +141,7 @@ static bool local_url(const char *url)
       if (p == start || !port) return false;
     }
   if (*p && strcmp(p, "/")) return false;
-  struct in_addr ip;
-  if (inet_pton(AF_INET, host, &ip) == 1)
-    {
-      uint32_t v = ntohl(ip.s_addr);
-      return (v >> 24) == 10 || (v >> 24) == 127 || (v >> 16) == 0xc0a8 ||
-             (v >> 20) == 0xac1 || (v >> 16) == 0xa9fe;
-    }
-  return !strcmp(host, "localhost") ||
-         (n > 6 && !strcmp(host + n - 6, ".local")) ||
-         (n > 4 && !strcmp(host + n - 4, ".lan"));
+  return true;
 }
 
 static bool entity_valid(const char *entity)
@@ -196,18 +187,26 @@ int hass_close(uint32_t id)
 int hass_configure(uint32_t id, const char *url, const char *token, bool allow)
 {
   if (!allow) return -EACCES;
-  if (!local_url(url) || !token || !*token || strlen(token) >= sizeof(g_token)) return -EINVAL;
+  if (!http_url(url) || !token || !*token || strlen(token) >= sizeof(g_token)) return -EINVAL;
   for (const unsigned char *p = (const unsigned char *)token; *p; p++)
     if (*p < 33 || *p > 126) return -EINVAL;
   pthread_mutex_lock(&g_lock);
   pump();
   struct client_s *client = lookup(id);
   int ret = !client ? -EBADF : !(client->grants & HASS_CONFIGURE) ? -EACCES : 0;
-  if (!ret && g_owner) ret = -EBUSY;
-  for (unsigned i = 0; !ret && i < HASS_MAX_CLIENTS; i++)
-    if (g_clients[i].result.done) ret = -EBUSY;
   if (!ret)
     {
+      uint32_t owner = g_owner;
+      uint32_t request = g_request;
+      if (owner) hass_transport_stop();
+      for (unsigned i = 0; i < HASS_MAX_CLIENTS; i++)
+        hass_result_free(&g_clients[i].result);
+      struct client_s *interrupted = lookup(owner);
+      if (interrupted)
+        interrupted->result = (struct hass_result_s)
+          {request, false, true, false, 0, -ECANCELED, NULL};
+      g_owner = g_request = 0;
+      g_kind = REQUEST_NONE;
       cache_clear();
       wipe(g_token, sizeof(g_token));
       strcpy(g_url, url);

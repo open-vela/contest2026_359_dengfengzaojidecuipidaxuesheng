@@ -93,6 +93,8 @@ enum qpk_widget_type_e
   QPK_WIDGET_PANEL,
   QPK_WIDGET_BUTTON,
   QPK_WIDGET_RECT,
+  QPK_WIDGET_ARC,
+  QPK_WIDGET_LINE,
 };
 
 struct qpk_event_s
@@ -178,6 +180,7 @@ struct qpk_runtime_s
   lv_obj_t *root;
   lv_obj_t **widgets;
   uint8_t *widget_types;
+  void **widget_extra;
   uint64_t *widget_generations;
   uint64_t widget_serial;
   int widget_capacity;
@@ -666,6 +669,8 @@ static void qpk_widget_deleted(lv_event_t *event)
     {
       g_qpk.widgets[handle - 1] = NULL;
       g_qpk.widget_types[handle - 1] = 0;
+      free(g_qpk.widget_extra[handle - 1]);
+      g_qpk.widget_extra[handle - 1] = NULL;
       if ((int)handle - 1 < g_qpk.widget_hint) g_qpk.widget_hint = handle - 1;
     }
 }
@@ -681,24 +686,170 @@ static int qpk_add_widget(lv_obj_t *object, enum qpk_widget_type_e type)
     int capacity = i ? i * 2 : 32;
     lv_obj_t **widgets = calloc(capacity, sizeof(*widgets));
     uint8_t *types = calloc(capacity, sizeof(*types));
+    void **extra = calloc(capacity, sizeof(*extra));
     uint64_t *generations = calloc(capacity, sizeof(*generations));
-    if (!widgets || !types || !generations) {
-      free(widgets); free(types); free(generations); return 0;
+    if (!widgets || !types || !extra || !generations) {
+      free(widgets); free(types); free(extra); free(generations); return 0;
     }
     if (i) {
       memcpy(widgets, g_qpk.widgets, i * sizeof(*widgets));
       memcpy(types, g_qpk.widget_types, i * sizeof(*types));
+      memcpy(extra, g_qpk.widget_extra, i * sizeof(*extra));
       memcpy(generations, g_qpk.widget_generations, i * sizeof(*generations));
     }
-    free(g_qpk.widgets); free(g_qpk.widget_types);
+    free(g_qpk.widgets); free(g_qpk.widget_types); free(g_qpk.widget_extra);
     free(g_qpk.widget_generations);
-    g_qpk.widgets = widgets; g_qpk.widget_types = types; g_qpk.widget_capacity = capacity;
+    g_qpk.widgets = widgets; g_qpk.widget_types = types; g_qpk.widget_extra = extra;
+    g_qpk.widget_capacity = capacity;
     g_qpk.widget_generations = generations;
   }
   if (!lv_obj_add_event_cb(object, qpk_widget_deleted, LV_EVENT_DELETE, (void *)(uintptr_t)(i + 1))) return 0;
   g_qpk.widgets[i] = object; g_qpk.widget_types[i] = type; g_qpk.widget_hint = i + 1;
   g_qpk.widget_generations[i] = ++g_qpk.widget_serial;
   return i + 1;
+}
+
+static int qpk_arg_int(JSContext *context, int argc,
+                       JSValueConst *argv, int index, int fallback);
+static uint32_t qpk_arg_color(JSContext *context, int argc,
+                              JSValueConst *argv, int index,
+                              uint32_t fallback);
+
+static JSValue js_ui_arc(JSContext *context, JSValueConst this_value,
+                         int argc, JSValueConst *argv)
+{
+  lv_obj_t *arc;
+  int handle;
+  int value = qpk_arg_int(context, argc, argv, 4, 0);
+  uint32_t track = qpk_arg_color(context, argc, argv, 5, 0xdfe5eb);
+  uint32_t indicator = qpk_arg_color(context, argc, argv, 6, 0x129ddd);
+
+  (void)this_value;
+  arc = lv_arc_create(g_qpk.root);
+  if (arc == NULL) return JS_ThrowOutOfMemory(context);
+  lv_obj_set_pos(arc, qpk_arg_int(context, argc, argv, 0, 0),
+                 qpk_arg_int(context, argc, argv, 1, 0));
+  lv_obj_set_size(arc, qpk_arg_int(context, argc, argv, 2, 100),
+                  qpk_arg_int(context, argc, argv, 3, 100));
+  lv_arc_set_range(arc, 0, 100);
+  lv_arc_set_rotation(arc, qpk_arg_int(context, argc, argv, 7, 135));
+  lv_arc_set_angles(arc, 0, qpk_arg_int(context, argc, argv, 8, 270));
+  lv_arc_set_value(arc, value < 0 ? 0 : value > 100 ? 100 : value);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(track), LV_PART_MAIN);
+  lv_obj_set_style_arc_width(arc, 5, LV_PART_MAIN);
+  lv_obj_set_style_arc_opa(arc, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(indicator), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_width(arc, 5, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(arc, lv_color_hex(indicator), LV_PART_KNOB);
+  lv_obj_set_style_bg_opa(arc, LV_OPA_COVER, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(arc, 0, LV_PART_KNOB);
+  lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+  handle = qpk_add_widget(arc, QPK_WIDGET_ARC);
+  if (handle == 0) { lv_obj_delete(arc); return JS_ThrowOutOfMemory(context); }
+  return JS_NewInt32(context, handle);
+}
+
+static JSValue js_ui_arc_set(JSContext *context, JSValueConst this_value,
+                             int argc, JSValueConst *argv)
+{
+  int handle = qpk_arg_int(context, argc, argv, 0, 0);
+  int value = qpk_arg_int(context, argc, argv, 1, 0);
+  if (handle <= 0 || handle > g_qpk.widget_capacity ||
+      !g_qpk.widgets[handle - 1] ||
+      g_qpk.widget_types[handle - 1] != QPK_WIDGET_ARC)
+    return JS_ThrowRangeError(context, "invalid arc handle");
+  lv_arc_set_value(g_qpk.widgets[handle - 1], value < 0 ? 0 : value > 100 ? 100 : value);
+  return JS_UNDEFINED;
+}
+
+static JSValue js_ui_line(JSContext *context, JSValueConst this_value,
+                          int argc, JSValueConst *argv)
+{
+  lv_obj_t *line;
+  lv_point_precise_t *points;
+  uint32_t color;
+  int32_t count;
+  int i, handle;
+  JSValue length;
+
+  (void)this_value;
+  if (argc < 1 || !JS_IsArray(context, argv[0]))
+    return JS_ThrowTypeError(context, "line points must be an array");
+  length = JS_GetPropertyStr(context, argv[0], "length");
+  if (JS_IsException(length) || JS_ToInt32(context, &count, length) < 0)
+    { JS_FreeValue(context, length); return JS_EXCEPTION; }
+  JS_FreeValue(context, length);
+  if (count < 2 || count > 64) return JS_ThrowRangeError(context, "invalid line points");
+  points = calloc((size_t)count, sizeof(*points));
+  if (!points) return JS_ThrowOutOfMemory(context);
+  for (i = 0; i < count; i++)
+    {
+      JSValue pair = JS_GetPropertyUint32(context, argv[0], (uint32_t)i);
+      JSValue x, y;
+      int32_t px, py;
+      if (JS_IsException(pair) || !JS_IsArray(context, pair))
+        { JS_FreeValue(context, pair); free(points); return JS_ThrowTypeError(context, "invalid line point"); }
+      x = JS_GetPropertyUint32(context, pair, 0);
+      y = JS_GetPropertyUint32(context, pair, 1);
+      if (JS_ToInt32(context, &px, x) < 0 || JS_ToInt32(context, &py, y) < 0)
+        { JS_FreeValue(context, x); JS_FreeValue(context, y); JS_FreeValue(context, pair); free(points); return JS_EXCEPTION; }
+      points[i].x = px; points[i].y = py;
+      JS_FreeValue(context, x); JS_FreeValue(context, y); JS_FreeValue(context, pair);
+    }
+  color = qpk_arg_color(context, argc, argv, 6, 0x129ddd);
+  line = lv_line_create(g_qpk.root);
+  if (line == NULL) { free(points); return JS_ThrowOutOfMemory(context); }
+  lv_obj_set_pos(line, qpk_arg_int(context, argc, argv, 1, 0),
+                 qpk_arg_int(context, argc, argv, 2, 0));
+  lv_obj_set_size(line, qpk_arg_int(context, argc, argv, 3, 100),
+                  qpk_arg_int(context, argc, argv, 4, 60));
+  lv_line_set_points(line, points, count);
+  lv_obj_set_style_line_color(line, lv_color_hex(color), LV_PART_MAIN);
+  lv_obj_set_style_line_width(line, 3, LV_PART_MAIN);
+  lv_obj_set_style_line_rounded(line, true, LV_PART_MAIN);
+  lv_obj_clear_flag(line, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+  handle = qpk_add_widget(line, QPK_WIDGET_LINE);
+  if (handle == 0) { lv_obj_delete(line); free(points); return JS_ThrowOutOfMemory(context); }
+  g_qpk.widget_extra[handle - 1] = points;
+  return JS_NewInt32(context, handle);
+}
+
+static JSValue js_ui_line_set(JSContext *context, JSValueConst this_value,
+                              int argc, JSValueConst *argv)
+{
+  int handle = qpk_arg_int(context, argc, argv, 0, 0);
+  int32_t count;
+  int i;
+  JSValue length;
+  lv_point_precise_t *points;
+  if (handle <= 0 || handle > g_qpk.widget_capacity ||
+      !g_qpk.widgets[handle - 1] ||
+      g_qpk.widget_types[handle - 1] != QPK_WIDGET_LINE ||
+      argc < 2 || !JS_IsArray(context, argv[1]))
+    return JS_ThrowRangeError(context, "invalid line handle");
+  length = JS_GetPropertyStr(context, argv[1], "length");
+  if (JS_IsException(length) || JS_ToInt32(context, &count, length) < 0)
+    { JS_FreeValue(context, length); return JS_EXCEPTION; }
+  JS_FreeValue(context, length);
+  if (count < 2 || count > 64) return JS_ThrowRangeError(context, "invalid line points");
+  points = calloc((size_t)count, sizeof(*points));
+  if (!points) return JS_ThrowOutOfMemory(context);
+  for (i = 0; i < count; i++)
+    {
+      JSValue pair = JS_GetPropertyUint32(context, argv[1], (uint32_t)i);
+      JSValue x, y; int32_t px, py;
+      if (JS_IsException(pair) || !JS_IsArray(context, pair))
+        { JS_FreeValue(context, pair); free(points); return JS_ThrowTypeError(context, "invalid line point"); }
+      x = JS_GetPropertyUint32(context, pair, 0); y = JS_GetPropertyUint32(context, pair, 1);
+      if (JS_ToInt32(context, &px, x) < 0 || JS_ToInt32(context, &py, y) < 0)
+        { JS_FreeValue(context, x); JS_FreeValue(context, y); JS_FreeValue(context, pair); free(points); return JS_EXCEPTION; }
+      points[i].x = px; points[i].y = py;
+      JS_FreeValue(context, x); JS_FreeValue(context, y); JS_FreeValue(context, pair);
+    }
+  free(g_qpk.widget_extra[handle - 1]);
+  g_qpk.widget_extra[handle - 1] = points;
+  lv_line_set_points(g_qpk.widgets[handle - 1], points, count);
+  return JS_UNDEFINED;
 }
 
 static bool qpk_widget_current(int handle, uint64_t generation)
@@ -3484,6 +3635,14 @@ static void qpk_install_api(JSContext *context)
                     JS_NewCFunction(context, js_ui_remove, "remove", 1));
   JS_SetPropertyStr(context, object, "rect",
                     JS_NewCFunction(context, js_ui_rect, "rect", 5));
+  JS_SetPropertyStr(context, object, "arc",
+                    JS_NewCFunction(context, js_ui_arc, "arc", 9));
+  JS_SetPropertyStr(context, object, "arcSet",
+                    JS_NewCFunction(context, js_ui_arc_set, "arcSet", 2));
+  JS_SetPropertyStr(context, object, "line",
+                    JS_NewCFunction(context, js_ui_line, "line", 7));
+  JS_SetPropertyStr(context, object, "lineSet",
+                    JS_NewCFunction(context, js_ui_line_set, "lineSet", 2));
   JS_SetPropertyStr(context, object, "primary",
                     JS_NewUint32(context, g_qpk.primary_color));
   JS_SetPropertyStr(context, object, "secondary",
@@ -3785,7 +3944,8 @@ void qpk_runtime_stop(void)
 
   while (g_qpk.events) { struct qpk_event_s *next = g_qpk.events->next; free(g_qpk.events); g_qpk.events = next; }
   while (g_qpk.timers) { struct qpk_timer_s *next = g_qpk.timers->next; free(g_qpk.timers); g_qpk.timers = next; }
-  free(g_qpk.widgets); free(g_qpk.widget_types);
+  for (i = 0; i < g_qpk.widget_capacity; i++) free(g_qpk.widget_extra[i]);
+  free(g_qpk.widgets); free(g_qpk.widget_types); free(g_qpk.widget_extra);
   free(g_qpk.widget_generations);
   memset(&g_qpk, 0, sizeof(g_qpk));
 }

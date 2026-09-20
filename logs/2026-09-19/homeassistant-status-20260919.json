@@ -1,0 +1,10 @@
+[
+  {
+    "command": "hass status",
+    "output": "ass status\nconfigured=yes busy=no clients=0\nnsh> \u001b[K"
+  },
+  {
+    "command": "desktop ui ha",
+    "output": "desktop ui ha\n[qpk] started 米家 HA (com.openvela.homeassistant 0.7.0) with QuickJS\ndesktop: ui ha ready\nnsh> \u001b[K"
+  }
+]

@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
 """Copy WSL NuttX images to the Windows contest tree.
 
-With no arguments this refreshes the legacy ``firmware/esp32p4-nsh`` files
-used by the flash script.  ``--variant`` archives a reproducible v1.x or
-v3.2 artifact set without replacing the currently selected image.
+With no arguments this refreshes the current v3.2 NSH files used by the flash
+script. ``--variant v1.x`` writes only to the historical archive; v3 variants
+stay under the current ``firmware/v3`` entry point.
 """
 import argparse
 from pathlib import Path
 import shutil
 
 src_dir = Path("/home/flash/vela-p4/nuttx")
-dst_root = Path(
+repo_root = Path(
     "/mnt/c/Users/flash/Desktop/openvela-contest/"
-    "contest2026_359_dengfengzaojidecuipidaxuesheng/firmware/esp32p4-nsh"
+    "contest2026_359_dengfengzaojidecuipidaxuesheng"
 )
 parser = argparse.ArgumentParser()
 parser.add_argument("--variant", choices=("v1.x", "v3.2", "v3.2-usb"))
 args = parser.parse_args()
 
-dst = dst_root if args.variant is None else dst_root / args.variant
+if args.variant == "v1.x":
+    dst = repo_root / "firmware/历史测试固件/esp32p4-nsh-v1.x"
+elif args.variant == "v3.2-usb":
+    dst = repo_root / "firmware/v3/esp32p4-nsh-v3.2-usb"
+else:
+    dst = repo_root / "firmware/v3/esp32p4-nsh-v3.2"
 dst.mkdir(parents=True, exist_ok=True)
 copied = []
 # The final `make` step replaces the temporary objcopy dump with the

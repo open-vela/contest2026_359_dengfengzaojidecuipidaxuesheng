@@ -1,0 +1,10 @@
+[
+  {
+    "command": "c6ble mouse move 1 0",
+    "output": "c6ble mouse move 1 0\nc6ble mouse move: -110 (Connection timed out)\nnsh> \u001b[K"
+  },
+  {
+    "command": "c6ble mouse status",
+    "output": "c6ble mouse status\nhost_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=9 error=0 ble_error=0\nnsh> \u001b[K"
+  }
+]

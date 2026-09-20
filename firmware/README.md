@@ -1,31 +1,30 @@
-# firmware：历史固件与验收材料
+# Firmware Index
 
-本目录按用途保留特定镜像及其报告，不提供一个适配所有 revision 的“最新通用固件”。
-返回[仓库首页](../README.md)。
+本目录优先展示当前 v3 交付线。历史 v1 和早期实验镜像统一放在
+[`历史测试固件/`](历史测试固件/)，不会作为当前版本推荐或自动烧录目标。
 
-## 选择镜像
+## 当前优先版本：v3
 
-[esp32p4-desktop-v1](esp32p4-desktop-v1/README.md)对应 2026-08-30 的 v1.0 桌面验收记录；
-[esp32p4-desktop-v1.0-release](esp32p4-desktop-v1.0-release/README.md)保留另一组历史发布材料。
-[esp32p4-desktop-v3.2-candidate](esp32p4-desktop-v3.2-candidate/README.md)明确标为构建候选，
-不能当作已通过 v3.2 实机验收的正式版本。
+进入 [`v3/README.md`](v3/README.md) 查看当前 v3.2 构建候选、NSH 控制台镜像、USB Serial/JTAG 变体、芯片 revision 要求、校验和及烧录注意事项。
 
-[esp32p4-sc2336-camera-v1.0](esp32p4-sc2336-camera-v1.0/README.md)是 SC2336 取帧材料；
-[esp32p4-camera-preview-v1.0](esp32p4-camera-preview-v1.0/README.md)是 RGB565 预览交付；
-[esp32p4-nsh](esp32p4-nsh/README.md)保存早期 NSH 镜像及 revision 分类。
+| 版本 | 用途 | 状态 |
+| --- | --- | --- |
+| [`v3/esp32p4-desktop-v3.2-candidate/`](v3/esp32p4-desktop-v3.2-candidate/) | ESP32-P4 v3.x 桌面构建候选 | 已构建；没有 v3.2 实板验收，不标记为正式 release |
+| [`v3/esp32p4-nsh-v3.2/`](v3/esp32p4-nsh-v3.2/) | v3.2 UART NSH | 仅匹配 v3.x revision |
+| [`v3/esp32p4-nsh-v3.2-usb/`](v3/esp32p4-nsh-v3.2-usb/) | v3.2 USB Serial/JTAG NSH | 仅匹配 v3.x revision |
 
-## 校验与烧录
+当前已经在本地 v3 实板验证的应用固件和 UI 证据位于
+[`app/espdl-quickapp/`](../app/espdl-quickapp/README.md) 与
+[`logs/2026-09-19/`](../logs/2026-09-19/)。该实板镜像大小为 `7096868` bytes，SHA-256 为
+`25f42781e8cd0dfe3a814f0a7b9e83b7b86910887f090860655e310275fdd6fe`；提交仓库保留源码和证据，未把本地整机生成物冒充为可复用通用镜像。
 
-历史 SC2336 目录的补丁、defconfig 和 resolved.config 按 LF 字节登记摘要。Windows
-自动转换为 CRLF 时，即使 Git 未显示内容修改，工作区的逐字节哈希也可能不同。应先核对
-Git 原始内容和检出换行符，不要直接改写 SHA256SUMS 以绕过失败；这也不是固件重新验收。
+## 历史测试固件
 
-先核对同目录的 `README.md`、`BUILD-METADATA.txt`、`TEST_REPORT.md`、`SHA256SUMS`
-等实际存在的材料。不能跨目录取一个摘要去验证另一个镜像。仓库根目录可运行
-`python3 tools/check_package.py`，检查已登记的固件摘要。
+[`历史测试固件/README.md`](历史测试固件/README.md) 说明 v1.0/ECO2 桌面、SC2336、相机预览和早期 NSH 镜像。它们只用于复盘和对比，不能替代 v3，也不能烧录到不匹配的芯片 revision。
 
-历史 NSH 烧录脚本使用 `0x2000` 应用偏移并检查 `0x400000` 的数据区边界；其他布局必须
-使用该版本专门的说明。禁止不核对芯片 revision 和分区布局就烧录，禁止把模型当固件写入。
+## 校验与烧录规则
 
-当前 v3 应用源码和证据在 [app/espdl-quickapp](../app/espdl-quickapp/README.md)，并不意味着
-这里所有历史镜像都含有这些新功能。不要上传携带私有配置的整机 Flash 转储。
+每个可烧录目录的 `SHA256SUMS` 只对同目录文件生效，不能跨目录套用摘要。仓库根目录执行
+`python3 tools/check_package.py` 可检查固件清单、哈希和仓库卫生。
+
+烧录前必须确认芯片 revision、下载接口、分区布局和镜像的 README。历史 v1 镜像不能直接用于 v3.x，v3.x 镜像也不能写入 v1.0/ECO2 板。不要把模型、整机 Flash 转储或含私有配置的文件当作固件提交。

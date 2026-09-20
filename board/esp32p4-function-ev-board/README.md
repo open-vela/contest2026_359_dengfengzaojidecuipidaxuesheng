@@ -22,7 +22,8 @@ contest2026_359_dengfengzaojidecuipidaxuesheng/
 ├── chip/esp32p4/common-espressif/   # 芯片 overlay，源真值（esp_start.c 的关狗/时钟/外设 init 都在这里）
 ├── board/                           # 板级目录（esp32p4-function-ev-board 等）
 ├── tools/                           # WSL 构建/补丁/拷贝脚本 + Windows 烧录脚本
-├── firmware/esp32p4-nsh/            # 可烧录产物：nuttx（ELF）/ nuttx.bin / nuttx.hex / nuttx.map
+├── firmware/v3/                     # 当前优先的 v3.2 NSH/桌面镜像
+├── firmware/历史测试固件/             # v1.x 与早期实验镜像，仅供追溯
 └── logs/                            # 工作记录与串口日志
 ```
 
@@ -44,7 +45,7 @@ python tools/wsl_build_p4_nsh.py nsh-v3-usb
 python tools/wsl_copy_firmware.py --variant v3.2-usb
 ```
 
-产物分别位于 `firmware/esp32p4-nsh/v1.x/` 和 `firmware/esp32p4-nsh/v3.2/`，每套包含 bin、ELF、hex、map 与最终 `.config`。不要混用两个 revision 的镜像。
+产物分别位于 `firmware/历史测试固件/esp32p4-nsh-v1.x/` 和 `firmware/v3/esp32p4-nsh-v3.2/`，每套包含 bin、ELF、hex、map 与最终 `.config`。不要混用两个 revision 的镜像。
 
 ## 生成镜像与烧录
 

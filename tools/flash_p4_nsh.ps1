@@ -23,13 +23,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $PSScriptRoot
-$FirmwareRoot = Join-Path $Repo "firmware\esp32p4-nsh"
+$V3Root = Join-Path $Repo "firmware\v3"
+$HistoryRoot = Join-Path $Repo "firmware\历史测试固件"
 if ($Firmware) {
     $Fw = $Firmware
 } elseif ($Variant -eq "selected") {
-    $Fw = Join-Path $FirmwareRoot "nuttx.bin"
+    $Fw = Join-Path $V3Root "esp32p4-nsh-v3.2\esp32p4-nsh-v3.2.bin"
+} elseif ($Variant -eq "v1.x") {
+    $Fw = Join-Path $HistoryRoot "esp32p4-nsh-v1.x\esp32p4-nsh-v1.x.bin"
+} elseif ($Variant -eq "v3.2") {
+    $Fw = Join-Path $V3Root "esp32p4-nsh-v3.2\esp32p4-nsh-v3.2.bin"
+} elseif ($Variant -eq "v3.2-usb") {
+    $Fw = Join-Path $V3Root "esp32p4-nsh-v3.2-usb\esp32p4-nsh-v3.2-usb.bin"
 } else {
-    $Fw = Join-Path $FirmwareRoot "$Variant\esp32p4-nsh-$Variant.bin"
+    throw "Unsupported firmware variant: $Variant"
 }
 if (-not $ProbeOnly) {
     if (-not (Test-Path -LiteralPath $Fw -PathType Leaf)) {

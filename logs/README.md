@@ -21,3 +21,4 @@ AI 对话都被自动采集，也不能用它推断当前对话已上传。
 在仓库根目录运行 `python3 tools/check_submission.py` 检查日志字段、路径、清单与其他
 提交门槛；通过校验不代表完成全部隐私或许可审查。日志应与代码一起经过正常 Git 审查，
 不直接上传整个用户配置目录，也不把测试报告冒充 AI Coding 会话。
+Device build, flash, boot, and runtime logs from 2026-09-19 are application evidence and are stored in [app/espdl-quickapp/evidence](../app/espdl-quickapp/evidence/README.md). The summary is [the work log](../docs/WORKLOG_2026-09-19.md); these records are deliberately kept separate from the flash555588 AI Coding session manifest.

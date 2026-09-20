@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
-mp = Path("/mnt/c/Users/flash/Desktop/openvela-contest/contest2026_359_dengfengzaojidecuipidaxuesheng/firmware/esp32p4-nsh/nuttx.map")
+mp = Path("/mnt/c/Users/flash/Desktop/openvela-contest/contest2026_359_dengfengzaojidecuipidaxuesheng/firmware/v3/esp32p4-nsh-v3.2/nuttx-v3.2.map")
 text = mp.read_text(encoding="utf-8", errors="replace")
 for name in ("bootloader_init", "bootloader_hardware_init", "bootloader_ana_reset_config",
              "bootloader_init_mem", "map_rom_segments", "esp_cpu_intr_set",

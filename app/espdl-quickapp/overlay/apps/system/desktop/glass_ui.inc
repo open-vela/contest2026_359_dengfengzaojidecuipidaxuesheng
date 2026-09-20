@@ -855,7 +855,7 @@ static void glass_storage_page(void *unused)
 }
 
 #ifdef CONFIG_SYSTEM_GLASS_BLE
-#include "glass_ble.inc"
+#include "glass_mouse.inc"
 #endif
 
 static void glass_bluetooth_page(void *unused)
@@ -864,7 +864,7 @@ static void glass_bluetooth_page(void *unused)
   lv_obj_t *card = panel_card("蓝牙");
   if (card == NULL) return;
 #ifdef CONFIG_SYSTEM_GLASS_BLE
-  glass_ble_page(card);
+  glass_mouse_page(card);
 #else
 #if defined(CONFIG_SYSTEM_C6BLE_V3_EXPERIMENTAL) && defined(CONFIG_NIMBLE)
   glass_text(card, "BLE 协议栈已编译", 24, 92, 850, 28, theme_primary());
@@ -1122,11 +1122,11 @@ static void glass_apps_render(void)
   if (card == NULL) return;
   g_desktop.apps_page = true;
   lv_obj_t *grid = glass_box(card, 20, 80, 880, 336, theme_card(), 0);
-  const char *names[] = {"ESPClaw AI 助手", "相机", "录音机", "智能家居", "OuO", "2048", "你好快应用", "ESP-DL 离线识别", "大肥鱼桌宠"};
-  const char *symbols[] = {LV_SYMBOL_EDIT, LV_SYMBOL_IMAGE, LV_SYMBOL_AUDIO, LV_SYMBOL_HOME, LV_SYMBOL_EYE_OPEN,
-                           LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_PLAY};
+  const char *names[] = {"ESPClaw AI 助手", "相机", "录音机", "智能家居", "蓝牙鼠标", "OuO", "2048", "你好快应用", "ESP-DL 离线识别", "大肥鱼桌宠"};
+  const char *symbols[] = {LV_SYMBOL_EDIT, LV_SYMBOL_IMAGE, LV_SYMBOL_AUDIO, LV_SYMBOL_HOME, LV_SYMBOL_GPS,
+                           LV_SYMBOL_EYE_OPEN, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_PLAY};
   lv_event_cb_t callbacks[] = {glass_chat_open, launch_builtin_camera_qapp, launch_builtin_recorder_qapp, glass_homeassistant,
-    launch_builtin_ouo_qapp, launch_builtin_2048_qapp, launch_builtin_qapp, launch_builtin_espdl_qapp, launch_builtin_dafeiyu_qapp};
+    glass_mouse_open, launch_builtin_ouo_qapp, launch_builtin_2048_qapp, launch_builtin_qapp, launch_builtin_espdl_qapp, launch_builtin_dafeiyu_qapp};
   const int builtin_count=sizeof(names)/sizeof(names[0]);
   const int total = builtin_count + g_desktop.nqpk;
   const int pages = (total + 8) / 9;

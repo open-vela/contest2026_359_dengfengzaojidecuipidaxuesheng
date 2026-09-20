@@ -1,0 +1,6 @@
+[
+  {
+    "command": "c6ble mouse status",
+    "output": "c6ble mouse status\nUsage: c6ble register\nnsh> \u001b[K"
+  }
+]

@@ -10,7 +10,7 @@
 
 截至 2026-08-27，NuttX/apps 固定提交已推送；v1.0 与 v3.2 已在第二个干净工作区全量构建成功；v1.0 的干净固件已烧录到 COM7 上的 revision v1.0 / ECO2 实板，并连续两次硬复位进入 NSH。设备当前运行 `cd61ccdd` 干净版本，`desktop_main`、`/dev/fb0`、`/dev/input0` 和 32 MiB PSRAM 已由串口确认。
 
-v3.2 已完成无残留配置切换和全量编译，但本机没有 revision v3.2 板，因此仍是“构建候选”，不能写成实机移植完成。v1.0 的 LCD 实际画面与触摸坐标仍需操作者目视验收，串口设备节点不能替代这一项。
+2026-08-27 的 v3.2 桌面候选已完成无残留配置切换和全量编译，当时没有 revision v3.2 板，因此原记录仍是“构建候选”。后续 2026-09-19 的本地 v3 应用镜像已在 v3.2 实板完成烧录、启动、Home Assistant UI 和 BLE 触摸板验证，详见 `firmware/v3/esp32p4-application-v3-20260919.md`。
 
 成员仓当前按团队决定保持私有，以保留领先进度。内部复现使用固定 SHA 和只读本地镜像；没有修改任何 GitHub 仓库可见性。比赛正式交付前必须再执行公开/评委可访问 gate。
 
@@ -51,7 +51,7 @@ ESP32-P4 板级、芯片和桌面源代码已进入完整 NuttX/apps 成员仓�
 
 | 文件 | 大小 | SHA-256 |
 | --- | ---: | --- |
-| `firmware/esp32p4-desktop-v1.0-release/nuttx.bin` | 2908784 | `74420C66BE6A0298DBBEB21326600D47010612C27A097030DF4E47CC90E2C058` |
+| `firmware/历史测试固件/esp32p4-desktop-v1.0-release/nuttx.bin` | 2908784 | `74420C66BE6A0298DBBEB21326600D47010612C27A097030DF4E47CC90E2C058` |
 
 esptool 5.3.1 识别芯片为 revision v1.0 / ECO2，MAC `60:55:f9:fa:f4:8b`，镜像写入 `0x2000` 并校验通过。连续两次硬复位均进入 NSH，版本为 `NuttX 0.0.0 cd61ccdd`，无 dirty 标记。证据位于 `logs/v1-repro2-smoke-20260827.log` 和 `logs/v1-repro2-reset-cycle2-20260827.log`。
 
@@ -59,7 +59,7 @@ esptool 5.3.1 识别芯片为 revision v1.0 / ECO2，MAC `60:55:f9:fa:f4:8b`，�
 
 | 文件 | 大小 | SHA-256 |
 | --- | ---: | --- |
-| `firmware/esp32p4-desktop-v3.2-candidate/nuttx.bin` | 2954848 | `886A9FB5793F6EE17285C8BBE373FEFAE5450DD5BD95FF19A4E2A634B07FE80E` |
+| `firmware/v3/esp32p4-desktop-v3.2-candidate/nuttx.bin` | 2954848 | `886A9FB5793F6EE17285C8BBE373FEFAE5450DD5BD95FF19A4E2A634B07FE80E` |
 
 v3.2 解析配置为 revision ≥3.1、400 MHz，低于 v3 的兼容选项关闭。构建日志为 `logs/build-repro-v3.2-20260827.log`。由于没有对应实板，本包不能升级为 release。
 

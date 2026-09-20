@@ -1,0 +1,6 @@
+[
+  {
+    "command": "c6ble mouse status",
+    "output": "c6ble mouse status\nhost_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=240 error=0 ble_error=0\nnsh> \u001b[K"
+  }
+]
