@@ -10,3 +10,6 @@ void glass_custom_wake_reset(struct glass_custom_wake *wake);
 int glass_custom_wake_feed(struct glass_custom_wake *wake,const int16_t *pcm,size_t samples);
 unsigned glass_custom_wake_evaluations(const struct glass_custom_wake *wake);
 float glass_custom_wake_score(const struct glass_custom_wake *wake);
+
+/* Training-voice absolute-distance envelope, including a 50% margin. */
+#define GLASS_WAKE_MAX_POSITIVE_DISTANCE 0.95f

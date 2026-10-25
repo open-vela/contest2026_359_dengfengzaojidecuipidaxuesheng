@@ -38,7 +38,6 @@
 #include "glass_app_controls.h"
 #include "qpk_app_theme.h"
 #include "qpk_security.h"
-#include "qpk_cli_origin.h"
 #include "qpk_error_text.h"
 #include "glass_ime.h"
 #include "glass_icons.h"
@@ -220,7 +219,6 @@ struct qpk_runtime_s
   char package[48];
   enum qpk_volume volume;
   bool ha_config_access;
-  bool cli_control_access;
 #ifdef CONFIG_SYSTEM_HASS
   unsigned hass_grants;
 #endif
@@ -4221,7 +4219,6 @@ static JSValue js_console_log(JSContext *context,
 
 #include "qpk_espdl_ui.inc"
 #include "qpk_hardware_js.inc"
-#include "qpk_claude.inc"
 
 static void qpk_install_api(JSContext *context)
 {
@@ -4359,7 +4356,6 @@ static void qpk_install_api(JSContext *context)
 
     qpk_dl_install(context, system);
     qpk_hw_install(context, system);
-    qpk_claude_install(context, system);
 
     JS_SetPropertyStr(context, desktop, "publish",
                       JS_NewCFunction(context, js_desktop_publish,
@@ -4469,7 +4465,6 @@ int qpk_runtime_launch(lv_obj_t *root, const char *name,
                        qpk_message_cb_t dialog_cb,
                        qpk_unresponsive_cb_t unresponsive_cb)
 {
-  if(package&&!strcmp(package,QPK_CLI_PACKAGE)&&!qpk_builtin_cli_origin(package,filename))return -EACCES;
   JSValue result;
   uint32_t background;
   unsigned int brightness;
@@ -4508,7 +4503,6 @@ int qpk_runtime_launch(lv_obj_t *root, const char *name,
   g_qpk.volume=qpk_volume_from_filename(filename);
   strlcpy(g_qpk.package, package ? package : "", sizeof(g_qpk.package));
   g_qpk.ha_config_access = qpk_builtin_ha_origin(package, filename);
-  g_qpk.cli_control_access = qpk_builtin_cli_origin(package,filename);
   qpk_video_authorize(package&&filename&&!strcmp(package,"com.openvela.camera.preview")&&!strcmp(filename,"builtin:/camera/app.js"));
 #ifdef CONFIG_SYSTEM_HASS
   g_qpk.hass_grants = hass_ui_grants(package, source, source_len);
@@ -4602,7 +4596,6 @@ int qpk_runtime_launch(lv_obj_t *root, const char *name,
 void qpk_runtime_stop(void)
 {
   pthread_mutex_lock(&g_camera_lock);g_camera_ui_action=0;pthread_mutex_unlock(&g_camera_lock);
-  if(g_qpk.cli_control_access)glass_claude_abandon();
   qpk_hw_release(g_qpk_hardware); g_qpk_hardware = NULL;
   int i;
 

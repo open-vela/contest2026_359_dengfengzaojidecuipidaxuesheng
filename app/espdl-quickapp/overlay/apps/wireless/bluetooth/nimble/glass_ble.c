@@ -62,7 +62,7 @@ static void *command_thread(void *unused)
   /* Shares the host's descriptor table. NPL's mq descriptor cannot be
    * posted by callers in the desktop/NSH task group. NimBLE GAP/GATT APIs
    * take their own host lock; callbacks still run on the event thread. */
-  for(;;){glass_ble_central_poll();usleep(10000);}
+  for(;;){glass_ble_central_wait();glass_ble_central_poll();}
   return NULL;
 }
 

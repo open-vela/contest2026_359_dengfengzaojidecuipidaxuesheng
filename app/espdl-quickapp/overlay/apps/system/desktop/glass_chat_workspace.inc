@@ -86,8 +86,7 @@ static void chat_workspace_create(lv_obj_t *card,bool from_apps)
     lv_obj_set_width(caption,90);lv_obj_align(caption,LV_ALIGN_LEFT_MID,42,0);
     home_icon(button,icons[i],12,12,20,modes[i]==g_chat_ui.mode?detail_accent():detail_muted());
   }
-  glass_sidebar_item(chat_ui_button(sidebar,"电脑 CLI",12,344,140,44,false,chat_ui_cli,NULL),false);
-  lv_obj_t *task=chat_ui_button(sidebar,"还没有对话",12,402,140,38,false,chat_workspace_current_task,NULL);
+  lv_obj_t *task=chat_ui_button(sidebar,"还没有对话",12,344,140,38,false,chat_workspace_current_task,NULL);
   glass_sidebar_item(task,false);
   g_chat_ui.sidebar_task=lv_obj_get_child(task,0);
   g_chat_ui.count=chat_ui_text(sidebar,"当前模式 · 0 轮",20,418,132,16,g_chat_ui.secondary,false);

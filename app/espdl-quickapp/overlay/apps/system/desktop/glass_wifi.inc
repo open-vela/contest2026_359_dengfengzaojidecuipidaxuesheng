@@ -16,6 +16,17 @@ static lv_obj_t *g_wifi_list;
 static lv_obj_t *g_wifi_form;
 static struct c6_desktop_result g_wifi_result;
 static unsigned long g_wifi_shown;
+/* UI-owned tracking; the radio and DHCP workers outlive this page. */
+static enum c6_desktop_operation g_wifi_pending;
+static uint32_t g_wifi_started_at;
+static uint32_t g_wifi_polled_at;
+static bool g_wifi_monitor;
+static bool g_wifi_waiting_ip;
+
+#define GLASS_WIFI_POLL_MS 1000
+#define GLASS_WIFI_JOIN_MS 45000
+#define GLASS_WIFI_IP_MS 60000
+#define GLASS_WIFI_DISCONNECT_MS 15000
 
 enum glass_wifi_status_e
 {
@@ -32,33 +43,40 @@ enum glass_wifi_status_e
   GLASS_WIFI_IPV4,
   GLASS_WIFI_DISCONNECTING,
   GLASS_WIFI_DISCONNECTED,
+  GLASS_WIFI_WAIT_IP,
+  GLASS_WIFI_JOIN_TIMEOUT,
+  GLASS_WIFI_IP_TIMEOUT,
+  GLASS_WIFI_DISCONNECT_TIMEOUT,
 };
 
-/* Eight bytes of display semantics; LONG_DOT's mutable text is not a cache. */
+/* Cache display semantics rather than LVGL's mutable label buffer. */
 static struct
 {
   int value;
   uint8_t status;
-  bool busy;
 } g_wifi_display;
 
 static void glass_wifi_status_set(enum glass_wifi_status_e status, int value)
 {
   if (g_wifi_display.status == status && g_wifi_display.value == value) return;
   const char *text;
-  char buffer[48];
+  char buffer[112];
   switch (status)
     {
       case GLASS_WIFI_IDLE: text = "尚未扫描"; break;
       case GLASS_WIFI_SCANNING: text = "扫描中"; break;
-      case GLASS_WIFI_CONNECTING: text = "正在提交连接请求"; break;
-      case GLASS_WIFI_CONNECTED: text = "连接请求已接受，IP 状态未确认"; break;
+      case GLASS_WIFI_CONNECTING: text = "正在连接 Wi-Fi…"; break;
+      case GLASS_WIFI_CONNECTED: text = "正在连接热点，等待关联…"; break;
+      case GLASS_WIFI_WAIT_IP: text = "已连接热点，正在获取 IP 地址…"; break;
+      case GLASS_WIFI_JOIN_TIMEOUT: text = "连接超时，请检查密码和热点后重试"; break;
+      case GLASS_WIFI_IP_TIMEOUT: text = "获取 IP 超时，请检查路由器 DHCP 后重试"; break;
+      case GLASS_WIFI_DISCONNECT_TIMEOUT: text = "断开超时，请查询状态后重试"; break;
       case GLASS_WIFI_TIMER_ERROR: text = "状态刷新启动失败"; break;
       case GLASS_WIFI_CHECKING: text = "正在读取链路状态"; break;
       case GLASS_WIFI_DISCONNECTING: text = "正在断开"; break;
-      case GLASS_WIFI_DISCONNECTED: text = "断开请求成功，请查询状态"; break;
+      case GLASS_WIFI_DISCONNECTED: text = "Wi-Fi 已断开"; break;
       case GLASS_WIFI_IPV4:
-        snprintf(buffer, sizeof(buffer), "IPv4: %u.%u.%u.%u",
+        snprintf(buffer, sizeof(buffer), "连接成功 · IP: %u.%u.%u.%u",
                  (unsigned int)((uint32_t)value >> 24),
                  (unsigned int)(((uint32_t)value >> 16) & 255),
                  (unsigned int)(((uint32_t)value >> 8) & 255),
@@ -66,7 +84,7 @@ static void glass_wifi_status_set(enum glass_wifi_status_e status, int value)
         text = buffer;
         break;
       case GLASS_WIFI_LINK:
-        text = value == 3 ? "链路就绪，IP 状态未确认" :
+        text = value == 3 ? "正在获取 IP 地址…" :
                value == 2 ? "已关联，等待链路就绪" :
                value == 1 ? "未连接热点" : "无线设备未初始化";
         break;
@@ -79,7 +97,8 @@ static void glass_wifi_status_set(enum glass_wifi_status_e status, int value)
         text = buffer;
         break;
       case GLASS_WIFI_COUNT:
-        snprintf(buffer, sizeof(buffer), "%u 个热点", (unsigned int)value);
+        if (!value) snprintf(buffer, sizeof(buffer), "未找到网络，请重新扫描或手动添加");
+        else snprintf(buffer, sizeof(buffer), "找到 %u 个热点，请选择网络", (unsigned int)value);
         text = buffer;
         break;
       default:
@@ -156,6 +175,7 @@ static void glass_wifi_deleted(lv_event_t *e)
   if (g_wifi_timer) lv_timer_delete(g_wifi_timer);
   g_wifi_timer = NULL;
   memset(&g_wifi_display, 0, sizeof(g_wifi_display));
+  g_wifi_monitor = false;
   g_wifi_status = g_wifi_scan = g_wifi_connect = NULL;
   g_wifi_check = NULL;
   g_wifi_disconnect = NULL;
@@ -172,7 +192,8 @@ static void glass_wifi_pick(lv_event_t *e)
 {
   size_t index = (uintptr_t)lv_event_get_user_data(e);
   struct c6_desktop_result current;
-  if (c6_desktop_worker_read(&g_wifi_worker, &current) < 0 || current.busy) return;
+  if (c6_desktop_worker_read(&g_wifi_worker, &current) < 0 || current.busy ||
+      g_wifi_pending) return;
   if (index >= g_wifi_result.count) return;
   struct c6_scan_ap *ap = &g_wifi_result.records[index];
   size_t length = glass_wifi_name_length(ap);
@@ -190,7 +211,7 @@ static void glass_wifi_render_list(void)
 {
   lv_obj_clean(g_wifi_list);
   if (g_wifi_result.count == 0)
-    detail_text(g_wifi_list, "点击扫描查找附近网络", 20, 24, 680, 16, detail_muted());
+    detail_text(g_wifi_list, "未找到网络，可重新扫描或手动添加", 20, 24, 680, 16, detail_muted());
   for (size_t i = 0; i < g_wifi_result.count; i++)
     {
       char name[33];
@@ -214,6 +235,25 @@ static void glass_wifi_render_list(void)
     }
 }
 
+static void glass_wifi_controls(bool busy)
+{
+  lv_obj_t *controls[] = {g_wifi_scan, g_wifi_manual, g_wifi_connect,
+                         g_wifi_ssid, g_wifi_password, g_wifi_keyboard};
+  bool locked = busy || g_wifi_pending;
+  for (size_t i = 0; i < sizeof(controls) / sizeof(controls[0]); i++)
+    {
+      if (locked) lv_obj_add_state(controls[i], LV_STATE_DISABLED);
+      else lv_obj_remove_state(controls[i], LV_STATE_DISABLED);
+    }
+  /* Disconnect remains available between polls to cancel a pending join. */
+  lv_obj_t *actions[] = {g_wifi_check, g_wifi_disconnect};
+  for (size_t i = 0; i < sizeof(actions) / sizeof(actions[0]); i++)
+    {
+      if (busy) lv_obj_add_state(actions[i], LV_STATE_DISABLED);
+      else lv_obj_remove_state(actions[i], LV_STATE_DISABLED);
+    }
+}
+
 static void glass_wifi_update(lv_timer_t *timer)
 {
   LV_UNUSED(timer);
@@ -221,20 +261,12 @@ static void glass_wifi_update(lv_timer_t *timer)
   if (!glass_ui_can_paint(g_wifi_status)) return;
   struct c6_desktop_result result;
   if (c6_desktop_worker_read(&g_wifi_worker, &result) < 0) return;
-  if (result.busy != g_wifi_display.busy)
-    {
-      lv_obj_t *controls[] = {g_wifi_scan, g_wifi_manual, g_wifi_check, g_wifi_disconnect, g_wifi_connect, g_wifi_ssid,
-                             g_wifi_password, g_wifi_keyboard};
-      for (unsigned int i = 0; i < sizeof(controls) / sizeof(controls[0]); i++)
-        {
-          if (result.busy) lv_obj_add_state(controls[i], LV_STATE_DISABLED);
-          else lv_obj_remove_state(controls[i], LV_STATE_DISABLED);
-        }
-      g_wifi_display.busy = result.busy;
-    }
+  glass_wifi_controls(result.busy);
   if (result.busy)
     {
-      glass_wifi_status_set(result.operation == C6_DESKTOP_SCAN ?
+      /* Passive status polling must not flash a checking message each second. */
+      if (result.operation != C6_DESKTOP_STATUS)
+        glass_wifi_status_set(result.operation == C6_DESKTOP_SCAN ?
                             GLASS_WIFI_SCANNING :
                             result.operation == C6_DESKTOP_STATUS ?
                             GLASS_WIFI_CHECKING :
@@ -242,27 +274,61 @@ static void glass_wifi_update(lv_timer_t *timer)
                             GLASS_WIFI_DISCONNECTING : GLASS_WIFI_CONNECTING, 0);
       return;
     }
-  if (!result.sequence || result.sequence == g_wifi_shown) return;
+  if (!result.sequence || result.sequence == g_wifi_shown) goto poll;
   g_wifi_shown = result.sequence;
   if (result.error)
-    glass_wifi_status_set(GLASS_WIFI_OPERATION_ERROR, result.error);
+    {
+      /* A link transition can invalidate a status snapshot; retry that read. */
+      if (result.operation == C6_DESKTOP_STATUS && result.error == -EAGAIN)
+        goto poll;
+      g_wifi_pending = 0;
+      g_wifi_monitor = false;
+      glass_wifi_status_set(GLASS_WIFI_OPERATION_ERROR, result.error);
+    }
   else if (result.operation == C6_DESKTOP_CONNECT)
     {
+      g_wifi_pending = C6_DESKTOP_CONNECT;
       glass_wifi_status_set(GLASS_WIFI_CONNECTED, 0);
-      /* A manual join must also obtain a lease; the boot task only covers the
-       * network that was already known when the board started. */
       glass_net_lease(true);
+      g_wifi_polled_at = lv_tick_get() - GLASS_WIFI_POLL_MS;
     }
   else if (result.operation == C6_DESKTOP_DISCONNECT)
-    glass_wifi_status_set(GLASS_WIFI_DISCONNECTED, 0);
+    {
+      g_wifi_pending = C6_DESKTOP_DISCONNECT;
+      glass_wifi_status_set(GLASS_WIFI_DISCONNECTING, 0);
+      g_wifi_polled_at = lv_tick_get() - GLASS_WIFI_POLL_MS;
+    }
   else if (result.operation == C6_DESKTOP_STATUS)
     {
-      if (result.link.ipv4_ready)
+      bool usable = result.link.ipv4_ready &&
+                    glass_net_wifi_ready(result.link.generation);
+      if (g_wifi_pending == C6_DESKTOP_DISCONNECT)
         {
+          if (!result.link.associated && !result.link.carrier_ready)
+            {
+              g_wifi_pending = 0;
+              glass_wifi_status_set(GLASS_WIFI_DISCONNECTED, 0);
+            }
+        }
+      else if (usable)
+        {
+          bool joined = g_wifi_pending == C6_DESKTOP_CONNECT;
+          g_wifi_pending = 0;
           const uint8_t *ip = result.link.ipv4;
           uint32_t value = (uint32_t)ip[0] << 24 | (uint32_t)ip[1] << 16 |
                            (uint32_t)ip[2] << 8 | ip[3];
           glass_wifi_status_set(GLASS_WIFI_IPV4, (int)value);
+          if (joined) glass_wifi_list_view(NULL);
+        }
+      else if (g_wifi_pending == C6_DESKTOP_CONNECT)
+        {
+          if (result.link.associated && !g_wifi_waiting_ip)
+            {
+              g_wifi_waiting_ip = true;
+              g_wifi_started_at = lv_tick_get();
+            }
+          glass_wifi_status_set(result.link.associated ? GLASS_WIFI_WAIT_IP :
+                                GLASS_WIFI_CONNECTED, 0);
         }
       else glass_wifi_status_set(GLASS_WIFI_LINK, result.link.carrier_ready ? 3 :
                           result.link.associated ? 2 :
@@ -274,6 +340,36 @@ static void glass_wifi_update(lv_timer_t *timer)
       glass_wifi_render_list();
       glass_wifi_status_set(GLASS_WIFI_COUNT, (int)result.count);
     }
+poll:
+  if (g_wifi_pending)
+    {
+      uint32_t limit = g_wifi_pending == C6_DESKTOP_DISCONNECT ?
+                       GLASS_WIFI_DISCONNECT_MS : g_wifi_waiting_ip ?
+                       GLASS_WIFI_IP_MS : GLASS_WIFI_JOIN_MS;
+      if (lv_tick_elaps(g_wifi_started_at) >= limit)
+        {
+          glass_wifi_status_set(g_wifi_pending == C6_DESKTOP_DISCONNECT ?
+                                GLASS_WIFI_DISCONNECT_TIMEOUT :
+                                g_wifi_waiting_ip ? GLASS_WIFI_IP_TIMEOUT :
+                                GLASS_WIFI_JOIN_TIMEOUT, 0);
+          g_wifi_pending = 0;
+          g_wifi_monitor = false;
+        }
+    }
+  glass_wifi_controls(false);
+  if (g_wifi_monitor && lv_tick_elaps(g_wifi_polled_at) >= GLASS_WIFI_POLL_MS)
+    {
+      int ret = c6_desktop_worker_submit(&g_wifi_worker, C6_DESKTOP_STATUS,
+                                         NULL, NULL);
+      if (ret == 0) g_wifi_polled_at = lv_tick_get();
+      else if (ret != -EBUSY)
+        {
+          g_wifi_pending = 0;
+          g_wifi_monitor = false;
+          glass_wifi_status_set(GLASS_WIFI_REQUEST_ERROR, ret);
+          glass_wifi_controls(false);
+        }
+    }
 }
 
 static void glass_wifi_request(lv_event_t *e)
@@ -281,12 +377,29 @@ static void glass_wifi_request(lv_event_t *e)
   uintptr_t action = (uintptr_t)lv_event_get_user_data(e);
   bool connect = action == 1;
   if (connect) glass_ime_commit(g_wifi_keyboard);
+  if (connect && (!lv_textarea_get_text(g_wifi_ssid)[0] ||
+      strlen(lv_textarea_get_text(g_wifi_ssid)) > 32))
+    {
+      glass_wifi_status_set(GLASS_WIFI_REQUEST_ERROR, -EINVAL);
+      return;
+    }
   int ret = c6_desktop_worker_submit(&g_wifi_worker,
       connect ? C6_DESKTOP_CONNECT : action == 2 ? C6_DESKTOP_STATUS :
       action == 3 ? C6_DESKTOP_DISCONNECT : C6_DESKTOP_SCAN,
       connect ? lv_textarea_get_text(g_wifi_ssid) : NULL,
       connect ? lv_textarea_get_text(g_wifi_password) : NULL);
-  if (connect && ret == 0) lv_textarea_set_text(g_wifi_password, "");
+  if (ret == 0)
+    {
+      g_wifi_monitor = true;
+      g_wifi_polled_at = lv_tick_get();
+      if (connect || action == 3)
+        {
+          g_wifi_pending = connect ? C6_DESKTOP_CONNECT : C6_DESKTOP_DISCONNECT;
+          g_wifi_started_at = lv_tick_get();
+          g_wifi_waiting_ip = false;
+        }
+      if (connect) lv_textarea_set_text(g_wifi_password, "");
+    }
   if (ret < 0) glass_wifi_status_set(GLASS_WIFI_REQUEST_ERROR, ret);
   else glass_wifi_update(NULL);
 }
@@ -380,6 +493,21 @@ static void glass_wifi_page(void *unused)
       return;
     }
   glass_wifi_update(NULL);
+  /* Opening Settings starts discovery; an in-flight join keeps its owner. */
+  struct c6_desktop_result current;
+  if (c6_desktop_worker_read(&g_wifi_worker, &current) == 0 &&
+      !current.busy && !g_wifi_pending)
+    {
+      int ret = c6_desktop_worker_submit(&g_wifi_worker, C6_DESKTOP_SCAN,
+                                         NULL, NULL);
+      if (ret == 0)
+        {
+          g_wifi_monitor = true;
+          g_wifi_polled_at = lv_tick_get();
+        }
+      else glass_wifi_status_set(GLASS_WIFI_REQUEST_ERROR, ret);
+    }
+  else g_wifi_monitor = true;
 #else
   lv_obj_t *status = detail_tile(card, 216, 104, 784, 160);
   detail_text(status, "桌面网络管理未接入", 24, 28, 720, 20, detail_ink());

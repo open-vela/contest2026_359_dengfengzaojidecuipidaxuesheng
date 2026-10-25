@@ -5,6 +5,7 @@
 #include "glass_ble_name.h"
 #include "host/ble_hs.h"
 #include "host/ble_hs_mbuf.h"
+#include "host/ble_store.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -23,6 +24,7 @@ struct central {
   struct glass_ble_device devices[GLASS_BLE_LIMIT];
   struct glass_ble_device peer;
   bool peer_valid;
+  bool scan_truncated;
   struct glass_gatt_result reply;
   struct notification notifications[NOTIFICATIONS];
   struct glass_gatt_request command_request;
@@ -36,12 +38,23 @@ struct central {
 static struct central *g;
 static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER,api=PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t done=PTHREAD_COND_INITIALIZER;
+static pthread_cond_t command_ready=PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t command_api=PTHREAD_MUTEX_INITIALIZER;
+static bool hid_pending;
 enum {HOST_SCAN=1,HOST_CONNECT,HOST_SCAN_CANCEL,HOST_CONNECT_CANCEL,HOST_TERMINATE,HOST_GATT};
 static int gap(struct ble_gap_event *,void *);
 static int gatt_issue(const struct glass_gatt_request *,uint16_t,void *);
+void glass_ble_central_wait(void)
+{
+  pthread_mutex_lock(&lock);
+  while(!hid_pending&&(!g||!g->command_pending||g->command_running))
+    pthread_cond_wait(&command_ready,&lock);
+  pthread_mutex_unlock(&lock);
+}
 void glass_ble_central_poll(void)
 {
+  pthread_mutex_lock(&lock);bool hid=hid_pending;hid_pending=false;pthread_mutex_unlock(&lock);
+  if(hid)glass_ble_hid_poll();
   pthread_mutex_lock(&lock);
   if(!g||!g->command_pending||g->command_running){pthread_mutex_unlock(&lock);return;}
   g->command_running=true;unsigned op=g->command;uint16_t conn=g->command_conn;
@@ -66,6 +79,11 @@ void glass_ble_central_poll(void)
   pthread_mutex_lock(&lock);g->command_result=ret;g->command_pending=g->command_running=false;
   pthread_cond_broadcast(&done);pthread_mutex_unlock(&lock);
 }
+void glass_ble_central_hid_wake(void)
+{
+  pthread_mutex_lock(&lock);hid_pending=true;
+  pthread_cond_signal(&command_ready);pthread_mutex_unlock(&lock);
+}
 /* NuttX socket descriptors belong to the persistent host task group. Only
  * its event loop may issue GAP/GATT commands; caller-owned pointers are copied. */
 static int dispatch(unsigned op,uint16_t conn,uint32_t token,const ble_addr_t *peer,const struct glass_gatt_request *request)
@@ -75,11 +93,11 @@ static int dispatch(unsigned op,uint16_t conn,uint32_t token,const ble_addr_t *p
   g->command=op;g->command_conn=conn;g->command_token=token;
   if(peer)g->command_peer=*peer;if(request)g->command_request=*request;
   g->command_pending=true;g->command_running=false;
+  pthread_cond_signal(&command_ready);
   /* The NPL event queue uses task-local mq descriptors. A persistent host
    * pthread drains this mailbox; callers never post through another
    * task group's descriptor table. */
-  pthread_mutex_unlock(&lock);
-  pthread_mutex_lock(&lock);struct timespec deadline;clock_gettime(CLOCK_REALTIME,&deadline);deadline.tv_sec+=3;
+  struct timespec deadline;clock_gettime(CLOCK_REALTIME,&deadline);deadline.tv_sec+=3;
   while(g->command_pending){int rc=pthread_cond_timedwait(&done,&lock,&deadline);
     if(rc==ETIMEDOUT&&!g->command_running){g->command_pending=false;g->command_result=-ETIMEDOUT;break;}
     if(rc==ETIMEDOUT){clock_gettime(CLOCK_REALTIME,&deadline);deadline.tv_sec+=3;}}
@@ -118,7 +136,7 @@ void glass_ble_central_read(struct glass_ble_state *s)
 {
   pthread_mutex_lock(&lock);
   if(g){s->scanning=g->scanning;s->connecting=g->connecting;s->connected=g->connected;
-    if(!s->error)s->error=g->error;s->count=g->count;
+    if(!s->error)s->error=g->error;s->count=g->count;s->scan_truncated=g->scan_truncated;
     memcpy(s->devices,g->devices,sizeof(g->devices));
     s->generation=g->generation;s->scan_generation=g->scan_generation;
     s->mtu=g->mtu;s->encrypted=g->encrypted;s->bonded=g->bonded;
@@ -140,10 +158,29 @@ static int gap(struct ble_gap_event *event,void *arg)
     if(g->scanning){
       unsigned i;for(i=0;i<g->count;i++)if(g->devices[i].type==event->disc.addr.type&&
         !memcmp(g->devices[i].address,event->disc.addr.val,6))break;
-      if(i<GLASS_BLE_LIMIT){if(i==g->count){g->count++;g->devices[i].type=event->disc.addr.type;
-        memcpy(g->devices[i].address,event->disc.addr.val,6);}
-        g->devices[i].rssi=event->disc.rssi;
-        glass_ble_update_name(g->devices+i,event->disc.data,event->disc.length_data);}
+      struct glass_ble_device candidate={0};
+      if(i<g->count)candidate=g->devices[i];
+      else{
+        candidate.type=event->disc.addr.type;memcpy(candidate.address,event->disc.addr.val,6);
+        /* Called only by the persistent host callback, including controller-
+         * resolved identity addresses. Never infer a bond from a name or RPA. */
+        ble_addr_t peers[3];int count=0;
+        int rc=ble_store_util_bonded_peers(peers,&count,3);
+        if(!rc||rc==BLE_HS_ENOMEM)for(int n=0;n<count&&n<3;n++)
+          if((peers[n].type&1)==(candidate.type&1)&&!memcmp(peers[n].val,candidate.address,6))
+            candidate.bonded=true;
+      }
+      candidate.rssi=event->disc.rssi;
+      glass_ble_update_advertising(&candidate,event->disc.event_type,event->disc.data,event->disc.length_data);
+      if(i==g->count&&g->count==GLASS_BLE_LIMIT){
+        g->scan_truncated=true;
+        unsigned victim=0;
+        for(unsigned n=1;n<g->count;n++)
+          if(glass_ble_device_priority(g->devices+n)<glass_ble_device_priority(g->devices+victim))victim=n;
+        if(!g->devices[victim].bonded&&glass_ble_device_priority(&candidate)>
+           glass_ble_device_priority(g->devices+victim))i=victim;
+      }
+      if(i<GLASS_BLE_LIMIT){if(i==g->count)g->count++;g->devices[i]=candidate;}
     }break;
   case BLE_GAP_EVENT_DISC_COMPLETE:
     g->scanning=false;release=!g->connecting&&!g->connected;break;
@@ -164,7 +201,10 @@ static int gap(struct ble_gap_event *event,void *arg)
   case BLE_GAP_EVENT_ENC_CHANGE:
     if(event->enc_change.conn_handle==g->conn){struct ble_gap_conn_desc desc;
       int rc=ble_gap_conn_find(g->conn,&desc);
-      if(!rc){g->encrypted=desc.sec_state.encrypted;g->bonded=desc.sec_state.bonded;}
+      if(!rc){g->encrypted=desc.sec_state.encrypted;g->bonded=desc.sec_state.bonded;
+        if(g->peer_valid&&g->bonded){g->peer.bonded=true;
+          for(unsigned i=0;i<g->count;i++)if(g->devices[i].type==g->peer.type&&
+            !memcmp(g->devices[i].address,g->peer.address,6))g->devices[i].bonded=true;}}
       if(g->pending&&g->token==0)complete_locked(event->enc_change.status?-EACCES:(!rc&&g->encrypted?0:-EACCES));
     }break;
   case BLE_GAP_EVENT_MTU:
@@ -196,7 +236,7 @@ int glass_ble_central_scan(void)
   ret=glass_ble_role_claim(CENTRAL_ROLE);if(ret)goto out;
   pthread_mutex_lock(&lock);
   if(!g||g->scanning||g->connecting||g->connected||g->closing){ret=-EBUSY;pthread_mutex_unlock(&lock);goto out;}
-  memset(g->devices,0,sizeof(g->devices));g->count=0;g->scan_generation++;g->scanning=true;g->error=0;
+  memset(g->devices,0,sizeof(g->devices));g->count=0;g->scan_truncated=false;g->scan_generation++;g->scanning=true;g->error=0;
   uint32_t token=++g->gap_token;
   pthread_mutex_unlock(&lock);
   ret=dispatch(HOST_SCAN,0,token,NULL,NULL);
@@ -213,6 +253,7 @@ int glass_ble_central_connect(unsigned index,uint32_t scan_generation)
   if(!g||g->scanning||g->connecting||g->connected||g->closing)ret=-EBUSY;
   else if(index>=g->count)ret=-EINVAL;
   else if(scan_generation&&scan_generation!=g->scan_generation)ret=-ESTALE;
+  else if(g->devices[index].connectable_known&&!g->devices[index].connectable)ret=-ENOTSUP;
   else{peer.type=g->devices[index].type;memcpy(peer.val,g->devices[index].address,6);
     g->peer=g->devices[index];g->peer_valid=true;
     g->connecting=true;g->abandoned=false;g->error=0;token=++g->gap_token;}

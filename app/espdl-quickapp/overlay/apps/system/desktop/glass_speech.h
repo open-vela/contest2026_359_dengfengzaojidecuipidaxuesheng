@@ -38,5 +38,7 @@ int glass_speech_p4tts(int mode);
 void glass_speech_stop(void);
 /* Evict idle TTS weights; active synthesis defers eviction until return. */
 void glass_speech_clear_cache(void);
+/* UI housekeeping only; no I/O and no waiting for an active synthesis. */
+void glass_speech_trim_cache(void);
 void glass_speech_get(struct speech_snapshot *out);
 int glass_speech_cli(int argc,char **argv);

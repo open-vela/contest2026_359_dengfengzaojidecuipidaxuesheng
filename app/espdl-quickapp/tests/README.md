@@ -17,6 +17,8 @@
 
 ## 麦克风接管与连续采音
 
+`tools/test_esp_tts_voice.py --prepared <锁定的官方输入> --output <目录>` 检查真实语音文件的校验、缓存复用、60 秒空闲回收、正在借用时不回收、最后归还后重新计时，以及持锁加载期间维护调用立即返回。使用可控单调时钟，无需实际等待一分钟。`tools/test_ble_central.py --output <目录>` 同时检查命令线程空闲时零次分派，以及连续 200 个扫描／取消命令不丢唤醒；硬件描述符仍由原蓝牙常驻任务组拥有。
+
 `tools/test_voice_requests.py --output <目录>` 使用生产请求调度代码检查 A/B/C 后来者优先、资源释放顺序、旧结果/旧停止隔离和音频环形队列边界。
 
 `tools/test_voice_pipeline.py --output <目录>` 使用真实采音/发送线程，驱动和网络采用替身；模拟 1 秒连接和每包 70ms 阻塞写，检查起音、顺序和短尾完整。这不验证实板驱动或真人转写准确率。
@@ -49,11 +51,19 @@ HTTP／PCM 使用离线替身。`MUSIC_SELECTED_RESULT_OK` 检查一次搜索后
 
 ## 桌面清理回归
 
-蓝牙设置默认打开设备连接列表；无线触摸板保留单独入口。`render_bluetooth_list.c` 经 `tools/render_all_ui.py --harness-source` 运行真实 LVGL 列表和异步邮箱，以离线 BLE 夹具检查双主题、名称/地址/信号、未命名与同名设备、扫描中连接、取消初始化、连接失败、异步断开、32 行滚动、按下后被替换的设备、扫描代次过期、HID 占用、后台工作期间关页及 60 次复开。所有 BLE 操作断言运行在 UI 线程之外；HCI/GATT 仍由现有常驻主机任务组执行。
+蓝牙设置默认打开设备连接列表；无线触摸板保留单独入口。`render_bluetooth_list.c` 经 `tools/render_all_ui.py --harness-source` 运行真实 LVGL 列表和异步邮箱，以离线 BLE 夹具检查双主题、名称/地址/信号、未命名与同名设备、扫描中连接、取消初始化、连接失败、异步断开、32 行滚动、按下后被替换的设备、扫描代次过期、HID 共存、后台工作期间关页及 60 次复开。所有 BLE 操作断言运行在 UI 线程之外；HCI/GATT 仍由现有常驻主机任务组执行。
 
-`tools/test_ble_central.py --output <目录>` 另运行生产 NimBLE 边界，检查实际连接对象快照、角色互斥、连接/搜索代次、GATT、配对与取消清理。`render_wireless_ui.c` 保留 Wi-Fi 和 HID 触摸板回归。宿主夹具与交叉编译不代表已连接真实外围设备或完成实板配对。
+2026-10-25 补充蓝牙完整交互：空闲且未被触摸板占用时，打开设备页自动搜索；连接成功后可点击“配对设备”。实际加密和绑定状态分别决定“安全连接成功”与“配对成功”，仅请求被接受不能报成功。`render_bluetooth_list.c` 新增配对拒绝、超时、重试、取消、仅加密未绑定、配对期间关页重开，以及旧配对回执不得影响新设备的回归；断开完成后列表恢复正常透明度。宿主 ASan 使用 128 KB 工作线程栈，NuttX 固件维持原有 16 KB。
 
-`render_desktop_cleanup.c` 通过 `tools/render_all_ui.py --harness-source` 运行真实 LVGL 页面，检查明暗主题、全屏页面尺寸、关于页完整文字、设置四个入口与返回、60 轮关于/设置复开，以及环境图表的空记录、部分样本和满记录。界面渲染不访问串口或网络服务。CLI 与音乐分别沿用 `render_claude_control.c` 和 `render_music_full.c` 回归。
+蓝牙列表按当前连接、已配对、有名称、已知可连接排序，同级保持发现顺序；未命名且未配对的广播默认折叠，展开后仍按连接能力排列。明确不可连接的条目标记“仅广播”并禁用连接。外观和服务 UUID 仅作为广播声明提示，未知类型不猜厂商或型号。配对标记来自实际安全状态或存储中的身份地址（包括控制器已解析的身份地址）；无法解析的隐私随机地址不能仅凭名称当作已配对设备。32 条容量满后只用更高优先级设备替换低优先级条目，并显示保留上限提示。
+
+`test_ble_central.py` 检查广播／扫描响应合并不丢连接能力、畸形长度、Appearance／服务类型、已保存身份配对、满额优先保留及不可连接设备拒绝。原生 LVGL 测试另覆盖折叠／展开、无名称已配对置顶、同名地址区分、广播按钮禁用，以及停止扫描期间同槽地址被替换后拒绝旧连接请求。宿主测试不替代实体扫描和连接验收。
+
+`tools/test_ble_hid_mailbox.py --output <目录>` 提取实际 HID 请求、停止与公开 API，配合真实 `mouse_core.c` 在独立宿主线程运行。覆盖 30 次开始／停止、所有协议操作和角色释放归属主机线程、停止异常但已无广播／连接时释放角色、按键释放／点击及停止使旧启动失效。桌面／NSH 只写有界请求并唤醒主机已有命令线程，不再从外部任务组投递 NPL 的 mq 描述符；测试不运行 NPL 定时回调，确保请求无需等它触发。`test_ble_central.py` 同时验证这一条件变量能唤醒空闲主机并调用 HID 处理，空闲时仍不轮询空命令。原 50 ms callout 保留为主机侧 watchdog。
+
+`tools/test_ble_central.py --output <目录>` 另运行生产 NimBLE 边界，检查实际连接对象快照、现有角色互斥与释放、连接/搜索代次、GATT、配对与取消清理。`render_wireless_ui.c` 保留 Wi-Fi 和 HID 触摸板回归。宿主夹具与交叉编译不代表已连接真实外围设备或完成实板配对。
+
+`render_desktop_cleanup.c` 通过 `tools/render_all_ui.py --harness-source` 运行真实 LVGL 页面，检查明暗主题、全屏页面尺寸、关于页完整文字、设置四个入口与返回、60 轮关于/设置复开，以及环境图表的空记录、部分样本和满记录。界面渲染不访问串口或网络服务。音乐沿用 `render_music_full.c` 回归。
 
 `render_shell_transitions.c` 检查从全屏 ESPClaw 切到普通快应用、家居和相机时的尺寸与返回来源；60 次无控件应用启动回滚后，原聊天页面和全屏尺寸必须保留，页面数量不能增长，快应用运行时必须停止。另检查从首页取消启动后恢复桌面。该测试使用真实 LVGL/QuickJS 和离线设备夹具，不调用模型或真实摄像头。
 
@@ -332,6 +342,8 @@ TTS 的 `speech_tts_host.c` 使用真实中文模型验证首次与缓存命中�
 
 `render_wireless_ui.c` 使用实际 LVGL 页面覆盖两种主题的网络列表、选网、手动添加、连接提交、密码清除、忙碌禁用、失败与 IPv4 状态，以及蓝牙配对、安全连接、触摸板可用、Boot 模式和主机挂起。中文输入法候选栏与密码框、键盘分别占用独立区域。40 次 Wi-Fi／蓝牙打开关闭检查页面定时器与控件释放；设备服务使用离线夹具，不发出无线请求。通过 `tools/render_all_ui.py --harness-source app/espdl-quickapp/tests/render_wireless_ui.c` 运行，并用 `render_navigation_lifetime.c` 验证设置入口与切页生命周期。
 
+2026-10-25 补充完整 Wi-Fi 流程：打开页面自动扫描，提交连接后自动轮询关联和本次 DHCP 租约，成功显示 IP 并返回列表。回归包含旧地址不能提前报成功、链路快照 `-EAGAIN` 重试、45 秒关联超时、60 秒取址超时、超时后重试、确认断开，以及连接中离开页面后再进入。`python3 tools/tests/test_desktop_backend.py` 检查无线状态与断开仅操作 `C6NET_IFNAME`（`wlan0`），不读写有线 `eth0`；`python3 tools/tests/test_network_lifetime.py` 检查实际 DHCP 生命周期。工作线程回归通过 `cc -std=gnu11 -Wall -Wextra -Werror -pthread tools/tests/test_desktop_worker.c tools/c6/desktop_worker.c -o <binary>` 编译运行。固件构建器同步 `tools/c6/desktop_{worker,backend}.*` 并纳入源码哈希及清理判据，避免复用旧基线中的接口与结构定义。
+
 
 ### 原图风格横屏相机与滑动倍率（2026-10-19）
 
@@ -388,3 +400,13 @@ USB 1× 预览的六款滤镜和全部画幅统一走减采样 JPEG 快速路径
 AI 结果反馈：`wake_mini_host.c` 验证真实 LVGL 结果卡片、已确认／未确认播报、不重复播放、语音失败保留结果、历史清除时停止自身播报，以及可变高度卡片的相机快照。`render_grok_conversation.c` 使用两种主题验证大球结果面板和对应语音，AI 文本声称成功但设备未确认时仍播报未确认。`tools/test_agent.py` 验证原生工具回执的确认标记覆盖、失败不发卡、紧凑结果投影的模式／轮次隔离、UTF-8 分块和确认状态持久化。完整 AI 历史不复制到小球状态中，也不以历史卡片触发开机播报。
 
 `tools/test_voice_wake_observer.py --runtime <authenticated-model-runtime> --fixtures <pcm-fixtures> --output <output>` 使用生产唤醒观察器和真实认证模型，验证正例触发、负例不触发、原始 PCM 字节不变，以及模型缺失／坏分帧时仅关闭可选观察器。`tools/test_wake_handoff.py` 另检查共享录音发布唤醒事件时不改变前台任务、阶段或请求编号。主机输入夹具不能替代真人实板唤醒率验收。
+
+### 小球待机素材缓存与元素复用（2026-10-23）
+
+`tools/test_grok_cache.py --output <output>` 独立编译实际 `glass_grok_cache.h`，在 ASan／UBSan 下检查无损 RGB565A8 分平面 RLE、畸形数据、内存分配失败、八线程共享 512 KiB 预算和销毁归零。预算包含申请的帧数据及索引，不包含分配器管理开销；不足时继续原 SD 读取路径。
+
+`tools/test_grok_reader.py --apps <prepared-apps> --cache <LVGL-host-cache> --assets <GBS-assets> --output <output>` 使用真实 LVGL 与五种原始素材，对照缓存关闭／开启时的 1643 帧顺序、原始像素与完整帧缓冲哈希；覆盖三轮待机循环、注视、动作、隐藏、减少动态效果，以及原图片控件和双缓冲指针复用。预热后的两个循环不再读取动画帧载荷；文件状态仍每秒检查，不能将其描述为 SD 总 I/O 为零。另有素材替换、缺卡、重试和清理用例，原 `test_grok_sd.py` 继续验证全部表情与在途销毁。测试素材路径应短于固件既有 96 字节路径缓冲。
+
+只缓存表情 02 的最多 128 帧，压缩保存注视处理前的原始像素，命中时解压到既有后备缓冲。素材重开、错误及播放器退出清理缓存；FAT 时间精度无法保证识别同大小、同时间戳的原地替换。宿主帧读取减少与像素一致不能替代实板 CPU、首次预热和实体屏幕验收。
+
+本机准备区的增量依赖未自动跟踪 `glass_grok_player.inc`；修改播放器或缓存头后应确保实际重编 `glass_grok.c`，或执行完整清理构建。不能只凭链接成功认定 `.inc` 的修改已进入镜像；候选需核对冻结源码与最终 ELF。

@@ -111,6 +111,13 @@ void glass_speech_clear_cache(void)
   glass_esp_tts_cache_clear();
 #endif
 }
+void glass_speech_trim_cache(void)
+{
+#ifdef GLASS_ESP_TTS
+  size_t freed=glass_esp_tts_cache_trim();
+  if(freed)printf("[speech] idle_voice_cache_released=%u\n",(unsigned)freed);
+#endif
+}
 #ifdef GLASS_ESP_TTS
 static atomic_bool speech_prepared;
 static void *speech_prepare_worker(void *unused)

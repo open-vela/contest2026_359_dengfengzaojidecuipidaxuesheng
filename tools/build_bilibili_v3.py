@@ -78,10 +78,13 @@ def main():
                 if updated!=data:f.write_bytes(updated)
     # Apply only the requested current overlay, preserving the external tree.
     overlay=repo/'app/espdl-quickapp/overlay'
+    radio_sources=[repo/'tools/c6'/name for name in
+                   ['desktop_worker.h','desktop_worker.c','desktop_backend.h','desktop_backend.c']]
     def source_inputs():
+        files=[f for folder in [repo/'app/bilibili_live',overlay]
+               for f in folder.rglob('*') if f.is_file()]+radio_sources
         return {str(f.relative_to(repo)):hashlib.sha256(f.read_bytes()).hexdigest()
-                for folder in [repo/'app/bilibili_live',overlay]
-                for f in folder.rglob('*') if f.is_file()}
+                for f in files}
     copied_source_hashes=source_inputs()
     for src in overlay.rglob('*'):
         if not src.is_file():continue
@@ -92,6 +95,10 @@ def main():
         data=src.read_bytes()
         if src.name.startswith('Kconfig'):data=data.replace(b'\r\n',b'\n')
         if not target.exists() or target.read_bytes()!=data:target.write_bytes(data)
+    for src in radio_sources:
+        target=root/'apps/system/c6probe'/src.name
+        if not target.exists() or target.read_bytes()!=src.read_bytes():
+            target.write_bytes(src.read_bytes())
     from adapt_c6_status import apply as apply_c6_status
     apply_c6_status(root/'apps')
     from instrument_p4_timing import apply as apply_camera_timing
@@ -187,6 +194,8 @@ def main():
     # NuttX's imported chip sources do not always regenerate header dependencies.
     # A struct/extern change must not leave an old ISR in libarch.a.
     headers=hashlib.sha256()
+    for header in radio_sources:
+        headers.update(hashlib.sha256(header.read_bytes()).digest())
     for header in sorted(path for path in overlay.rglob('*') if path.suffix in ['.h','.inc']):
         headers.update(str(header.relative_to(overlay)).encode())
         headers.update(hashlib.sha256(header.read_bytes()).digest())

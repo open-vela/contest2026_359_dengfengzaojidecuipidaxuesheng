@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-25",
+  "source_base_revision": "0c7a87e3638dce8fe15fbb13b3100b5b1ac03653",
+  "verified_source_tree": "51378cb3c842868d70e6e357c17597fc1bb02251",
+  "scope": "Selected firmware/runtime changes only; browser and launcher UI excluded",
+  "host_checks": [
+    {
+      "name": "test_ble_central",
+      "exit_code": 0,
+      "seconds": 1.62
+    },
+    {
+      "name": "test_ble_hid_mailbox",
+      "exit_code": 0,
+      "seconds": 0.69
+    },
+    {
+      "name": "test_grok_cache",
+      "exit_code": 0,
+      "seconds": 0.58
+    },
+    {
+      "name": "test_wake_distance",
+      "exit_code": 0,
+      "seconds": 1.35
+    },
+    {
+      "name": "test_wake_runtime_unit",
+      "exit_code": 0,
+      "seconds": 1.34
+    },
+    {
+      "name": "test_speech_barge",
+      "exit_code": 0,
+      "seconds": 1.26
+    },
+    {
+      "name": "test_wake_handoff",
+      "exit_code": 0,
+      "seconds": 1.11
+    },
+    {
+      "name": "tts",
+      "exit_code": 0,
+      "seconds": 2.08
+    },
+    {
+      "name": "test_desktop_backend",
+      "exit_code": 0,
+      "seconds": 0.35
+    },
+    {
+      "name": "test_network_lifetime",
+      "exit_code": 0,
+      "seconds": 0.38
+    },
+    {
+      "name": "worker",
+      "exit_code": 0,
+      "seconds": 2.74
+    },
+    {
+      "name": "render_wireless_ui",
+      "exit_code": 0,
+      "seconds": 82.18
+    },
+    {
+      "name": "render_bluetooth_list",
+      "exit_code": 0,
+      "seconds": 68.13
+    },
+    {
+      "name": "render_espclaw_workspace",
+      "exit_code": 0,
+      "seconds": 87.4
+    },
+    {
+      "name": "wake_training",
+      "exit_code": 0,
+      "seconds": 10.1
+    },
+    {
+      "name": "grok_reader",
+      "exit_code": 0,
+      "seconds": 21.98
+    },
+    {
+      "name": "render_all_page_lifetime",
+      "exit_code": 0,
+      "seconds": 7.36,
+      "method": "Native LVGL/QuickJS; motion enabled; real GBS banks; ASan/UBSan; global font/LVGL exit allocations excluded from leak detection",
+      "cycles": 276
+    }
+  ],
+  "initial_test_setup_failures": [
+    {
+      "test": "render_all_page_lifetime",
+      "cause": "Animation assets omitted, sprite-read assertion failed",
+      "resolution": "Rerun with existing real GBS banks; original assertions unchanged"
+    },
+    {
+      "test": "render_all_page_lifetime rerun",
+      "cause": "Relative harness path resolved outside exported repository",
+      "resolution": "Rerun with absolute exported harness path"
+    }
+  ],
+  "firmware_build": {
+    "status": "passed",
+    "bytes": 10370076,
+    "sha256": "0022261521eeb25115ef5efa1c685ae3727fcafda67bec7ace3da60ab1f65f3a",
+    "elf_sha256": "a64ad93b010ca6c1570d55845fe25b37c6f2d1966b3b525a15a8dc06f2713219",
+    "compiler": "riscv32-esp-elf-gcc (crosstool-NG esp-14.2.0_20251107) 14.2.0",
+    "ebss": "0x4ffab5bc",
+    "flash_offset": "0x2000",
+    "program_limit": "0xc00000",
+    "data_offset": "0xc00000",
+    "data_size": "0x400000",
+    "psram_xip_enabled": false,
+    "source_files_verified": 648,
+    "board_tested": false
+  },
+  "current_board_image_sha256": "731755198bb3190eb314a7dbec5c94a156de9d5c255eff851811737ed3f61aa5",
+  "limitations": [
+    "No flash or hardware operation performed during upload preparation",
+    "No cold-power-cycle or physical no-flicker acceptance for this source combination",
+    "BLE roles remain mutually exclusive; no multi-device or connection-reuse acceptance",
+    "Historical Wi-Fi test used saved credentials; new SSID/password entry not physically tested"
+  ],
+  "log_schema_validation": {
+    "status": "passed",
+    "sessions": 50,
+    "events": 35376,
+    "tool": "contest-log-collector validate-log.py"
+  },
+  "captured_at": "2026-10-25T13:08:01.937211+00:00"
+}

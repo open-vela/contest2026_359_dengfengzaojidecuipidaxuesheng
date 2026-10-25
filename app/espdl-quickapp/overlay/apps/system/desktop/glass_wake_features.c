@@ -1,17 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_wake_features.h"
 #include <errno.h>
+#include <stdbool.h>
 #include <math.h>
 #include <string.h>
 
 #define WAKE_PI 3.14159265358979323846f
 #define WAKE_MELS 20
 static float wake_rms(const int16_t *pcm,size_t n)
-{
-  double sum=0;
-  for(size_t i=0;i<n;i++)sum+=(double)pcm[i]*pcm[i];
-  return n?sqrtf(sum/n):0;
-}
+{return glass_wake_pcm_rms(pcm,n);}
 int glass_wake_extract(const int16_t *pcm,size_t samples,float *out)
 {
   if(!pcm||!out||samples<400||samples>GLASS_WAKE_MAX_SAMPLES)return -EINVAL;
@@ -80,33 +77,49 @@ int glass_wake_extract(const int16_t *pcm,size_t samples,float *out)
   }
   return 0;
 }
-float glass_wake_dtw(const float *a,const float *b)
+static float glass_wake_dtw_bounded(const float *a,const float *b,float cutoff)
 {
   float previous[33],current[33];
   for(unsigned i=0;i<33;i++)previous[i]=1e20f;previous[0]=0;
+  /* Outside-band cells use the original finite sentinel. Only prune below
+   * that sentinel, where a later path cannot re-enter with a lower cost. */
+  float limit=cutoff<1e20f/32?cutoff*32:1e20f;
+  bool bounded=cutoff>=0&&cutoff<1e20f/32;
   for(int i=1;i<=32;i++){
     for(unsigned j=0;j<33;j++)current[j]=1e20f;
+    float row_min=1e20f;
     int first=i>8?i-8:1,last=i+8<32?i+8:32;
     for(int j=first;j<=last;j++){
       float cost=0;
       for(unsigned k=0;k<8;k++){float d=a[(i-1)*13+k]-b[(j-1)*13+k];cost+=d*d*(k<4?2:1);}
       current[j]=cost/12+fminf(previous[j-1],fminf(previous[j],current[j-1]));
+      if(current[j]<row_min)row_min=current[j];
     }
+    /* Every remaining path crosses this row and adds nonnegative costs.
+     * Equal distances cannot replace the group's third neighbor either. */
+    if(bounded&&row_min>=limit)return cutoff;
     memcpy(previous,current,sizeof(previous));
   }
   return previous[32]/32;
 }
 
-float glass_wake_ratio(const float *templates,const float *features)
+float glass_wake_dtw(const float *a,const float *b)
+{return glass_wake_dtw_bounded(a,b,1e20f);}
+
+float glass_wake_ratio_distance(const float *templates,const float *features,float *positive_distance)
 {
   float best[2][3]={{1e20f,1e20f,1e20f},{1e20f,1e20f,1e20f}};
   for(unsigned i=0;i<GLASS_WAKE_TEMPLATES;i++){
     unsigned group=i<GLASS_WAKE_POSITIVE?0:1;
-    float d=glass_wake_dtw(templates+i*GLASS_WAKE_INPUTS,features);
+    float d=glass_wake_dtw_bounded(templates+i*GLASS_WAKE_INPUTS,features,best[group][2]);
     for(unsigned j=0;j<3;j++)if(d<best[group][j]){
       for(unsigned k=2;k>j;k--)best[group][k]=best[group][k-1];best[group][j]=d;break;
     }
   }
   float p=best[0][0]+best[0][1]+best[0][2],n=best[1][0]+best[1][1]+best[1][2];
+  if(positive_distance)*positive_distance=p/3;
   return p/fmaxf(n,1e-9f);
 }
+
+float glass_wake_ratio(const float *templates,const float *features)
+{return glass_wake_ratio_distance(templates,features,NULL);}

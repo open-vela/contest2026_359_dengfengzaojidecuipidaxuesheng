@@ -42,6 +42,7 @@ static void workspace_cases(lv_display_t *display)
     g_desktop.light_theme=theme==0;glass_rebuild();review_chat_dialog_fixture(true);review_qpk_fixture(NULL);
     chat_interface_modes[0]=AGENT_MODE_CREATE;glass_chat_show(false);workspace_frames(4);
     assert(g_chat_ui.ball&&g_chat_ui.ball_mount&&g_chat_ui.task_title);
+    assert(!review_find(g_chat_ui.root,"电脑 CLI"));
     lv_obj_update_layout(g_desktop.screen);
     assert(lv_obj_get_y(g_desktop.screen)==0&&lv_obj_get_height(g_desktop.screen)==600);
     assert(lv_obj_get_height(g_chat_ui.root)==600);

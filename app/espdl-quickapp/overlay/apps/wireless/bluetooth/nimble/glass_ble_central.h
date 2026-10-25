@@ -29,6 +29,9 @@ struct glass_gatt_result {
   uint8_t data[GLASS_GATT_BYTES];
 };
 int glass_ble_central_init(void);
+/* Persistent host task group only; sleep until a mailbox command arrives. */
+void glass_ble_central_wait(void);
+void glass_ble_central_poll(void);
 void glass_ble_central_reset(void);
 void glass_ble_central_read(struct glass_ble_state *state);
 int glass_ble_central_scan(void);

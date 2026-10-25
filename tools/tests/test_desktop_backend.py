@@ -12,6 +12,7 @@ def main():
         (root / 'c6net.h').write_text('''
 #include "link_state.h"
 #include "scan_results.h"
+#define C6NET_IFNAME "wlan0"
 int c6net_get_link_snapshot(struct c6_link_snapshot *);
 int c6net_prepare(void);
 int c6net_disconnect(void);
@@ -34,7 +35,7 @@ static int mode, reads;
 static int cleared, connect_calls, disconnect_error = -ETIMEDOUT;
 static int clear_error;
 static int clear(const char *name, const struct in_addr *a, int step) {
-  assert(!strcmp(name, "eth0") && !a->s_addr);
+  assert(!strcmp(name, "wlan0") && !a->s_addr);
   assert(cleared == step - 1);
   cleared++;
   if (clear_error == step) {errno = EIO; return -1;}
@@ -49,7 +50,7 @@ int c6net_get_link_snapshot(struct c6_link_snapshot *s) {
   return 0;
 }
 int netlib_get_ipv4addr(const char *name, struct in_addr *a) {
-  assert(!strcmp(name, "eth0"));
+  assert(!strcmp(name, "wlan0"));
   if (mode == 1) {errno = EIO; return -1;}
   a->s_addr = htonl(mode == 3 ? 0 : 0xc0000201);
   return 0;
@@ -78,6 +79,7 @@ int main(void) {
   cleared = 0; clear_error = 0;
   assert(!g_c6_desktop_backend.status(&link));
   assert(link.ipv4_ready && link.ipv4[0] == 192 && link.ipv4[3] == 1);
+  assert(link.generation == 1);
   mode=1; assert(g_c6_desktop_backend.status(&link) == -EIO);
   mode=2; assert(g_c6_desktop_backend.status(&link) == -EAGAIN);
   assert(!link.ipv4_ready && !link.associated);

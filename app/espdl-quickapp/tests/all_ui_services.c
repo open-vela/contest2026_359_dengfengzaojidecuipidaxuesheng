@@ -209,7 +209,10 @@ static bool review_ble_custom;
 static struct glass_ble_state review_ble_state;
 static pthread_t review_ble_ui_thread;
 static int review_ble_error;
-static unsigned review_ble_calls[5];
+static unsigned review_ble_calls[6];
+static unsigned review_ble_pair_mode;
+void review_ble_pair_fixture(unsigned mode)
+{pthread_mutex_lock(&review_ble_lock);review_ble_pair_mode=mode;pthread_mutex_unlock(&review_ble_lock);}
 void review_ble_snapshot_fixture(const struct glass_ble_state *state)
 {
   pthread_mutex_lock(&review_ble_lock);review_ble_custom=state!=NULL;
@@ -219,7 +222,7 @@ void review_ble_snapshot_fixture(const struct glass_ble_state *state)
 void review_ble_error_fixture(int error)
 {pthread_mutex_lock(&review_ble_lock);review_ble_error=error;pthread_mutex_unlock(&review_ble_lock);}
 unsigned review_ble_call_count(unsigned operation)
-{pthread_mutex_lock(&review_ble_lock);unsigned n=operation<5?review_ble_calls[operation]:0;pthread_mutex_unlock(&review_ble_lock);return n;}
+{pthread_mutex_lock(&review_ble_lock);unsigned n=operation<6?review_ble_calls[operation]:0;pthread_mutex_unlock(&review_ble_lock);return n;}
 void review_ble_hold_fixture(unsigned operation)
 {pthread_mutex_lock(&review_ble_lock);review_ble_hold_operation=operation;pthread_cond_broadcast(&review_ble_gate);pthread_mutex_unlock(&review_ble_lock);}
 bool review_ble_hold_arrived(void)
@@ -265,12 +268,29 @@ int glass_ble_cancel(void)
 {
   pthread_mutex_lock(&review_ble_lock);review_ble_calls[3]++;
   if(review_ble_custom){assert(!pthread_equal(pthread_self(),review_ble_ui_thread));review_ble_state.scanning=false;review_ble_state.connecting=false;if(!review_ble_state.connected)review_ble_state.peer_valid=false;}
+  review_ble_hold_locked(3);
   pthread_mutex_unlock(&review_ble_lock);return 0;
 }
 int glass_ble_disconnect(void)
 {
   pthread_mutex_lock(&review_ble_lock);review_ble_calls[4]++;int ret=review_ble_error;
   if(review_ble_custom){assert(!pthread_equal(pthread_self(),review_ble_ui_thread));if(!ret)review_ble_state.disconnecting=review_ble_state.connected;}
+  pthread_mutex_unlock(&review_ble_lock);return ret;
+}
+int glass_ble_gatt(const struct glass_gatt_request *request,struct glass_gatt_result *reply,atomic_bool *cancel)
+{
+  pthread_mutex_lock(&review_ble_lock);review_ble_calls[5]++;
+  assert(request->operation==GLASS_GATT_PAIR);
+  if(review_ble_custom)assert(!pthread_equal(pthread_self(),review_ble_ui_thread));
+  review_ble_hold_locked(5);
+  int ret=review_ble_error;
+  if(cancel&&atomic_load(cancel))ret=-ECANCELED;
+  else if(request->generation!=review_ble_state.generation)ret=-ESTALE;
+  else if(!review_ble_state.connected)ret=-ENOTCONN;
+  if(!ret){
+    memset(reply,0,sizeof(*reply));reply->generation=request->generation;
+    if(review_ble_pair_mode!=1){review_ble_state.encrypted=true;review_ble_state.bonded=review_ble_pair_mode!=2;}
+  }
   pthread_mutex_unlock(&review_ble_lock);return ret;
 }
 static int review_battery_percent=-1;

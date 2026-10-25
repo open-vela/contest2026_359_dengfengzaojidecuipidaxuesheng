@@ -43,6 +43,18 @@ static bool g_net_notice_pending;
 static bool g_net_lease_requested;
 static bool g_net_lease_announce;
 static bool g_net_time_started;
+static uint64_t g_net_wifi_lease_generation;
+static bool g_net_wifi_lease_ready;
+/* A nonzero interface address may still belong to the previous association.
+ * Settings only confirms success after the permanent DHCP owner commits it. */
+static bool glass_net_wifi_ready(uint64_t generation)
+{
+  pthread_mutex_lock(&g_net_lock);
+  bool ready = g_net_wifi_lease_ready &&
+               g_net_wifi_lease_generation == generation;
+  pthread_mutex_unlock(&g_net_lock);
+  return ready;
+}
 static struct glass_status_network g_status_network;
 static void glass_status_network_get(struct glass_status_network *out)
 {
@@ -408,6 +420,11 @@ static void *glass_net_boot_thread(void *arg)
         }
 
       glass_status_network_publish(false, ready, ready && glass_net_usable(GLASS_NET_IFNAME));
+      pthread_mutex_lock(&g_net_lock);
+      g_net_wifi_lease_generation = lease.generation;
+      g_net_wifi_lease_ready = ready && lease.configured &&
+                             lease.generation == link.generation;
+      pthread_mutex_unlock(&g_net_lock);
       if (!link.associated && glass_net_seconds() >= reconnect_at)
         {
           ret = c6net_reconnect();

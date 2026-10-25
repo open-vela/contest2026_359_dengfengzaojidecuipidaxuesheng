@@ -75,8 +75,6 @@
 #define DESKTOP_FONT_CACHE_GLYPHS 2048
 
 static bool chat_qpk_preview_active, chat_qpk_preview_origin;
-static bool chat_cli_active, chat_cli_origin;
-static void chat_cli_back(void);
 static uint32_t chat_qpk_preview_revision;
 static void chat_qpk_preview_back(void);
 static lv_obj_t *unresponsive_shade;
@@ -563,7 +561,6 @@ static void glass_weather_home_resume(void);
 static void panel_hide(lv_event_t *e)
 {
   LV_UNUSED(e);
-  chat_cli_active = false;
   chat_qpk_preview_finish();
   g_camera_launch_pending = false;
   qpk_runtime_stop();
@@ -588,7 +585,6 @@ static lv_obj_t *panel_card(const char *title)
   lv_obj_t *close;
   lv_obj_t *label;
 
-  chat_cli_active = false;
   chat_qpk_preview_finish();
   g_camera_launch_pending = false;
   qpk_runtime_stop();
@@ -1130,7 +1126,6 @@ static void qapp_back(lv_event_t *e)
 {
   LV_UNUSED(e);
   if(g_camera_album_page==g_desktop.current_card&&g_camera_album_page){launch_builtin_camera_qapp(NULL);return;}
-  if (chat_cli_active) { chat_cli_back(); return; }
   if (chat_qpk_preview_active) { chat_qpk_preview_back(); return; }
   if (g_desktop.chat_page) { glass_chat_back(NULL); return; }
   if (g_desktop.qapp_page && g_desktop.qapp_return_apps)
@@ -1158,7 +1153,6 @@ static lv_obj_t *qapp_page_prepare(const char *title)
   lv_obj_t *label;
   int height;
 
-  chat_cli_active = false;
   chat_qpk_preview_finish();
   g_camera_launch_pending = false;
   qpk_runtime_stop();
@@ -1682,6 +1676,14 @@ static uint32_t desktop_loop_once(void)
 {
   enum desktop_camera_command_e command;
   uint32_t idle = 10;
+#ifdef GLASS_LOCAL_SPEECH
+  /* Reuse the UI loop rather than add a housekeeping thread/timer. */
+  static uint32_t speech_cache_at;
+  uint32_t now=lv_tick_get();
+  if((uint32_t)(now-speech_cache_at)>=1000){
+    speech_cache_at=now;glass_speech_trim_cache();
+  }
+#endif
 
   if(glass_ai_config_ui_pending()){
     /* Only the desktop task may retire LVGL session owners. Ack even when

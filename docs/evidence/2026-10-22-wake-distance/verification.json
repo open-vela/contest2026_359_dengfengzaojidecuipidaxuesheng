@@ -1,0 +1,226 @@
+{
+  "date": "2026-10-22",
+  "source_base_revision": "0c7a87e3",
+  "source_line_endings": "LF-normalized",
+  "source_sha256": {
+    "glass_custom_wake.c": "0a458dbe24ef2cd3fe7e8e9ef63250c3ea2f90d2e4b0b9bd8a1837662cadce62",
+    "glass_custom_wake.h": "822c200996559bbd97c6954e83b32e82243fcd08d984854c1cf19b517064ad4d",
+    "glass_wake_features.c": "efd889ab299fc96b928900c4b71175f85aebffff27da3f7dfb41c76de5e53f19",
+    "glass_wake_features.h": "35ed816b2a7751c7187d2d9d7557d36b2828c91275aecbfc0f1da4c1fe230718"
+  },
+  "reference_source_sha256": {
+    "glass_custom_wake.c": "363fd098446d6d7acadc98e3e32f08763b3619e89c85d509e52aefcc4dee17d3",
+    "glass_custom_wake.h": "4ab3a56a5e6d7550216854115d9d7e91af7889cc15632a09e11506247a0c7e08",
+    "glass_wake_features.c": "fc8aa53ab1586681b3c5caa0ef7450fa65be95a424715e7c02a175dbda12b207",
+    "glass_wake_features.h": "b8400f7fe7e366854511b6557a4137febc989a50edf83b351bae750231ba5db8"
+  },
+  "calibration": {
+    "policy": "ceil(max accepted training positive mean DTW distance * 1.5 / .05) * .05",
+    "training_only": true,
+    "training_voices": 6,
+    "accepted_training_cases": 364,
+    "max_training_positive_distance": 0.6099583506584167,
+    "distance_limit": 0.95,
+    "model_sha256": "639825a51cce04aa69cc047f9b7b064af2c09e8093106b03d4ec0d9dfbba1dc6",
+    "ratio_threshold_unchanged": true,
+    "model_unchanged": true,
+    "additional_dtw_searches": 0,
+    "validation_test_is_development_evidence": true,
+    "physical_room_acceptance": "pending"
+  },
+  "profiles": {
+    "clean": {
+      "reference": {
+        "positive": 36,
+        "detected": 36,
+        "negative": 232,
+        "false": 0
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 36,
+        "negative": 232,
+        "false": 0
+      }
+    },
+    "quiet": {
+      "reference": {
+        "positive": 36,
+        "detected": 36,
+        "negative": 232,
+        "false": 0
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 36,
+        "negative": 232,
+        "false": 0
+      }
+    },
+    "noise_20db": {
+      "reference": {
+        "positive": 36,
+        "detected": 32,
+        "negative": 232,
+        "false": 0
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 32,
+        "negative": 232,
+        "false": 0
+      }
+    },
+    "noise_10db": {
+      "reference": {
+        "positive": 36,
+        "detected": 31,
+        "negative": 232,
+        "false": 1
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 31,
+        "negative": 232,
+        "false": 0
+      }
+    },
+    "echo": {
+      "reference": {
+        "positive": 36,
+        "detected": 35,
+        "negative": 232,
+        "false": 1
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 35,
+        "negative": 232,
+        "false": 0
+      }
+    },
+    "playback": {
+      "reference": {
+        "positive": 36,
+        "detected": 36,
+        "negative": 232,
+        "false": 0
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 36,
+        "negative": 232,
+        "false": 0
+      }
+    },
+    "far_quiet": {
+      "reference": {
+        "positive": 36,
+        "detected": 34,
+        "negative": 232,
+        "false": 0
+      },
+      "candidate": {
+        "positive": 36,
+        "detected": 34,
+        "negative": 232,
+        "false": 0
+      }
+    }
+  },
+  "augmented": {
+    "20261016": {
+      "reference": {
+        "positive": 216,
+        "detected": 210,
+        "negative": 1392,
+        "false": 5
+      },
+      "candidate": {
+        "positive": 216,
+        "detected": 210,
+        "negative": 1392,
+        "false": 3
+      }
+    },
+    "20261022": {
+      "reference": {
+        "positive": 216,
+        "detected": 209,
+        "negative": 1392,
+        "false": 3
+      },
+      "candidate": {
+        "positive": 216,
+        "detected": 209,
+        "negative": 1392,
+        "false": 3
+      }
+    },
+    "20261023": {
+      "reference": {
+        "positive": 216,
+        "detected": 206,
+        "negative": 1392,
+        "false": 1
+      },
+      "candidate": {
+        "positive": 216,
+        "detected": 206,
+        "negative": 1392,
+        "false": 1
+      }
+    }
+  },
+  "continuous": {
+    "single_voice": {
+      "seconds": 903.0,
+      "events": {
+        "reference": 0,
+        "candidate": 0
+      }
+    },
+    "overlap": {
+      "seconds": 903.0,
+      "events": {
+        "reference": 0,
+        "candidate": 0
+      }
+    }
+  },
+  "chunk_invariance": {
+    "cases": 268,
+    "mismatches": []
+  },
+  "no_recall_regression": true,
+  "no_false_increase": true,
+  "corpus_sha256": "bccb5320221f218329cb6af8395488027631e75814c43f6804bc7b9fa8eb405b",
+  "seeds": [
+    20261021,
+    20261016,
+    20261022,
+    20261023
+  ],
+  "sanitizer_and_lifecycle_checks": {
+    "distance-host.log": [
+      "WAKE_DISTANCE_BOUNDARY_OK",
+      "WAKE_MATCH_DISTANCE_OK"
+    ],
+    "model-stream-asan.log": [
+      "CUSTOM_WAKE_HOST_OK"
+    ],
+    "barge.log": [
+      "SPEECH_BARGE_OK"
+    ],
+    "handoff.log": [
+      "WAKE_HANDOFF_HOST_OK",
+      "VOICE_CAPTURE_CANCEL_OK",
+      "VOICE_CONNECT_CANCEL_OK"
+    ]
+  },
+  "firmware_built": false,
+  "flashed": false,
+  "browser_modified": false,
+  "physical_room_tested": false,
+  "remaining_augmented_false_positives": 7
+}

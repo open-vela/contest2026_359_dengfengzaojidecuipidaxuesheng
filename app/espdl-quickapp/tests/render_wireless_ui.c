@@ -49,6 +49,7 @@ int main(int argc,char **argv)
       wifi.records[i].rssi=-42-i*12;
     }
     review_wifi_snapshot_fixture(&wifi);glass_wifi_page(NULL);check_full_page();
+    assert(review_wifi_request_matches(C6_DESKTOP_SCAN,NULL,NULL));
     assert(lv_obj_is_visible(g_wifi_list)&&!lv_obj_is_visible(g_wifi_form));
     review_capture(display,"wifi-list","Wi-Fi · 附近网络");
     lv_obj_t *row=lv_obj_get_child(g_wifi_list,0);
@@ -86,8 +87,82 @@ int main(int argc,char **argv)
     wifi.sequence++;wifi.error=0;wifi.operation=C6_DESKTOP_STATUS;
     wifi.link.ipv4_ready=true;wifi.link.ipv4[0]=192;wifi.link.ipv4[1]=168;wifi.link.ipv4[2]=1;wifi.link.ipv4[3]=9;
     review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
-    assert(!strcmp(lv_label_get_text(g_wifi_status),"IPv4: 192.168.1.9"));
+    assert(!strcmp(lv_label_get_text(g_wifi_status),"连接成功 · IP: 192.168.1.9"));
     review_capture(display,"wifi-connected","Wi-Fi · 已获取地址");
+
+    /* Accepted commands must progress automatically through association and
+     * a DHCP lease belonging to this connection, without clicking query. */
+    review_click("手动添加");
+    lv_textarea_set_text(g_wifi_ssid,"Studio WiFi");
+    lv_textarea_set_text(g_wifi_password,"offline-secret");
+    review_click("连接网络");
+    assert(g_wifi_pending==C6_DESKTOP_CONNECT);
+    wifi.sequence++;wifi.operation=C6_DESKTOP_CONNECT;
+    memset(&wifi.link,0,sizeof(wifi.link));
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    assert(review_wifi_request_matches(C6_DESKTOP_STATUS,NULL,NULL));
+    assert(g_wifi_pending&&strstr(lv_label_get_text(g_wifi_status),"等待关联"));
+    assert(lv_obj_has_state(g_wifi_scan,LV_STATE_DISABLED));
+    wifi.sequence++;wifi.operation=C6_DESKTOP_STATUS;wifi.error=-EAGAIN;
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    assert(g_wifi_pending&&g_wifi_monitor);
+    wifi.error=0;
+    wifi.sequence++;wifi.operation=C6_DESKTOP_STATUS;
+    wifi.link.initialized=wifi.link.associated=wifi.link.carrier_ready=true;
+    wifi.link.generation=42;wifi.link.ipv4_ready=true;
+    wifi.link.ipv4[0]=192;wifi.link.ipv4[1]=168;wifi.link.ipv4[2]=1;wifi.link.ipv4[3]=9;
+    review_wifi_lease_ready=false;
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    assert(g_wifi_pending&&g_wifi_waiting_ip);
+    assert(strstr(lv_label_get_text(g_wifi_status),"获取 IP"));
+    review_capture(display,"wifi-dhcp","Wi-Fi · 等待本次连接的 IP");
+    lv_tick_inc(1000);glass_wifi_update(NULL);
+    assert(review_wifi_request_matches(C6_DESKTOP_STATUS,NULL,NULL));
+    review_wifi_lease_ready=true;wifi.sequence++;
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    assert(!g_wifi_pending&&!lv_obj_has_state(g_wifi_connect,LV_STATE_DISABLED));
+    assert(lv_obj_is_visible(g_wifi_list)&&!lv_obj_is_visible(g_wifi_form));
+    assert(strstr(lv_label_get_text(g_wifi_status),"连接成功"));
+    review_capture(display,"wifi-success","Wi-Fi · 自动连接成功");
+
+    review_click("断开连接");
+    wifi.sequence++;wifi.operation=C6_DESKTOP_DISCONNECT;
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    assert(g_wifi_pending==C6_DESKTOP_DISCONNECT);
+    wifi.sequence++;wifi.operation=C6_DESKTOP_STATUS;
+    memset(&wifi.link,0,sizeof(wifi.link));
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    assert(!g_wifi_pending&&!strcmp(lv_label_get_text(g_wifi_status),"Wi-Fi 已断开"));
+    review_capture(display,"wifi-disconnected","Wi-Fi · 已确认断开");
+
+    for(unsigned stage=0;stage<2;stage++){
+      review_click("手动添加");lv_textarea_set_text(g_wifi_ssid,"Studio WiFi");
+      review_click("连接网络");
+      wifi.sequence++;wifi.operation=C6_DESKTOP_CONNECT;
+      review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+      wifi.sequence++;wifi.operation=C6_DESKTOP_STATUS;
+      wifi.link.initialized=true;wifi.link.associated=stage!=0;
+      review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+      lv_tick_inc(stage?GLASS_WIFI_IP_MS:GLASS_WIFI_JOIN_MS);
+      glass_wifi_update(NULL);
+      assert(!g_wifi_pending&&!g_wifi_monitor);
+      assert(!lv_obj_has_state(g_wifi_connect,LV_STATE_DISABLED));
+      assert(strstr(lv_label_get_text(g_wifi_status),stage?"获取 IP 超时":"连接超时"));
+      review_capture(display,stage?"wifi-ip-timeout":"wifi-join-timeout","Wi-Fi · 超时可重试");
+      review_click("返回列表");
+    }
+    /* Navigation drops widgets, never the radio request or its deadline. */
+    review_click("手动添加");lv_textarea_set_text(g_wifi_ssid,"Studio WiFi");
+    review_click("连接网络");
+    wifi.sequence++;wifi.operation=C6_DESKTOP_CONNECT;
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_update(NULL);
+    review_click("返回桌面");
+    assert(!g_wifi_timer&&!g_wifi_password&&g_wifi_pending);
+    wifi.sequence++;wifi.operation=C6_DESKTOP_STATUS;
+    wifi.link=(struct c6_desktop_link){.generation=43,.initialized=true,
+      .associated=true,.carrier_ready=true,.ipv4_ready=true,.ipv4={192,168,1,9}};
+    review_wifi_snapshot_fixture(&wifi);glass_wifi_page(NULL);
+    assert(!g_wifi_pending&&strstr(lv_label_get_text(g_wifi_status),"连接成功"));
     review_click("返回桌面");assert(!g_wifi_timer&&!g_wifi_form&&!g_wifi_password);
 
     struct glass_ble_hid_state hid={.enabled=true,.advertising=true,.host_ready=true};
@@ -117,5 +192,5 @@ int main(int argc,char **argv)
     }
   }
   fputs("\n]\n",review_manifest);fclose(review_manifest);
-  puts("WIRELESS_UI_OK: both themes; scan/select/manual/connect/password clearing; busy/error/IP; secure HID gating/Boot/suspend; 40 page roundtrips");
+  puts("WIRELESS_UI_OK: both themes; automatic scan/select/manual/connect; accepted/association/current DHCP lease/success; polling/stale lease/EAGAIN; join and DHCP timeout/retry; confirmed disconnect; navigation in flight; password clearing; HID regression; 40 page roundtrips");
 }

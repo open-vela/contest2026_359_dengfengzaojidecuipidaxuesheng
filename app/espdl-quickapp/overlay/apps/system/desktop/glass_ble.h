@@ -10,6 +10,9 @@ struct glass_ble_device
   uint8_t address[6];
   int rssi;
   bool name_complete;
+  bool connectable_known, connectable, bonded;
+  uint16_t appearance, service_hint;
+  bool service128;
   char name[GLASS_BLE_NAME_MAX + 1];
 };
 struct glass_ble_state
@@ -17,6 +20,7 @@ struct glass_ble_state
   bool started, ready, scanning, connecting, connected;
   int error;
   unsigned count;
+  bool scan_truncated;
   struct glass_ble_device devices[GLASS_BLE_LIMIT];
   uint32_t generation,scan_generation;
   uint16_t mtu;

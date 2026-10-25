@@ -38,7 +38,6 @@ static bool g_initialized, g_ready, g_advertising, g_stop_pending;
 static bool g_user_enabled;
 static uint32_t g_stop_generation;
 static int g_ble_error, g_stop_result;
-static struct ble_npl_event g_request_event, g_stop_event;
 static struct ble_npl_callout g_watchdog;
 static const char g_name[] = "OpenVela Mouse";
 
@@ -284,9 +283,8 @@ static int gap_event(struct ble_gap_event *event, void *arg)
         break;
     }
   pthread_cond_broadcast(&g_done);
-  bool release_role=!g_mouse.connected&&!g_advertising&&!g_user_enabled;
+  if(!g_mouse.connected&&!g_advertising&&!g_user_enabled)glass_ble_role_release(2);
   pthread_mutex_unlock(&g_lock);
-  if(release_role)glass_ble_role_release(2);
   return 0;
 }
 
@@ -350,14 +348,6 @@ static void process_request(void)
   pthread_cond_broadcast(&g_done);
 }
 
-static void request_event(struct ble_npl_event *event)
-{
-  (void)event;
-  pthread_mutex_lock(&g_lock);
-  process_request();
-  pthread_mutex_unlock(&g_lock);
-}
-
 static void process_stop(void)
 {
   int release_ret, adv_ret, disconnect_ret;
@@ -368,24 +358,15 @@ static void process_stop(void)
   disconnect_ret = disconnect_if_needed();
   g_stop_result = release_ret ? release_ret : adv_ret ? adv_ret : disconnect_ret;
   g_stop_pending = false;
+  if(!g_mouse.connected&&!g_advertising)glass_ble_role_release(2);
   pthread_cond_broadcast(&g_done);
 }
 
-static void stop_event(struct ble_npl_event *event)
+void glass_ble_hid_poll(void)
 {
-  (void)event;
   pthread_mutex_lock(&g_lock);
-  process_stop();
-  pthread_mutex_unlock(&g_lock);
-}
-
-static void watchdog(struct ble_npl_event *event)
-{
-  (void)event;
-  pthread_mutex_lock(&g_lock);
-  /* Some ESP/NuttX NPL revisions can leave a newly queued one-shot event
-   * pending after host sync. The periodic host callout is a second wakeup
-   * path, while all protocol operations remain on the NimBLE event thread. */
+  /* The command pthread and callout both belong to the persistent host task
+   * group. g_lock serializes them; outside callers only publish requests. */
   process_request();
   process_stop();
   (void)mouse_core_tick(&g_mouse, now_ms(), transport_send, NULL);
@@ -394,6 +375,8 @@ static void watchdog(struct ble_npl_event *event)
   pthread_mutex_unlock(&g_lock);
   ble_npl_callout_reset(&g_watchdog, ble_npl_time_ms_to_ticks32(50));
 }
+static void watchdog(struct ble_npl_event *event)
+{(void)event;glass_ble_hid_poll();}
 
 int glass_ble_hid_service_init(void)
 {
@@ -408,8 +391,6 @@ int glass_ble_hid_service_init(void)
   ret = ble_gatts_count_cfg(g_services);
   if (!ret) ret = ble_gatts_add_svcs(g_services);
   if (ret) return ret;
-  ble_npl_event_init(&g_request_event, request_event, NULL);
-  ble_npl_event_init(&g_stop_event, stop_event, NULL);
   ble_npl_callout_init(&g_watchdog, nimble_port_get_dflt_eventq(), watchdog, NULL);
   pthread_mutex_lock(&g_lock);
   g_initialized = true;
@@ -484,14 +465,16 @@ static int rpc(enum operation op, int buttons, int x, int y, int wheel,
       g_request = (struct request){.pending = true, .op = op,
         .buttons = buttons, .x = x, .y = y, .wheel = wheel,
         .epoch = epoch, .stop_generation = generation};
-      ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &g_request_event);
+      /* A one-shot NPL callout may be delayed/lost in this port. Wake the
+       * existing host command pthread using its descriptor-free mailbox. */
+      glass_ble_central_hid_wake();
       while (!g_request.done && !ret)
         ret = pthread_cond_timedwait(&g_done, &g_lock, &deadline);
       if (g_request.done) ret = g_request.result;
       else
         {
           /* Do not leave a timed-out request blocking the next touch event.
-           * The queued callback will observe pending=false and discard it. */
+           * The host callout will observe pending=false and discard it. */
           g_request.cancelled = true;
           g_request.pending = false;
           g_request.done = true;
@@ -539,14 +522,13 @@ int glass_ble_hid_stop(void)
       if (!g_stop_pending)
         {
           g_stop_pending = true;
-          ble_npl_eventq_put(nimble_port_get_dflt_eventq(), &g_stop_event);
+          glass_ble_central_hid_wake();
         }
       while ((g_stop_pending || g_mouse.connected || g_advertising) && !ret)
         ret = pthread_cond_timedwait(&g_done, &g_lock, &deadline);
       ret = ret ? -ret : g_stop_result;
     }
   pthread_mutex_unlock(&g_lock);
-  if(!ret)glass_ble_role_release(2);
   return ret;
 }
 

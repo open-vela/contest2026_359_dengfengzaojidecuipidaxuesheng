@@ -12,7 +12,7 @@ def main():
         def status(name):
             text=c.command('desktop ui grok-status');row=next((v for v in text.splitlines() if 'grok-sd /sdcard/grok/'+name+'.gbs ' in v),None)
             assert row,'Missing player: '+name
-            fields={k:int(v) for k,v in re.findall(r'(id|frames|reads|mean_us|max_us|errors|error|buffer|ready|visible)=(-?\d+)',row)};assert fields['ready']==1 and fields['error']==0,row;return fields
+            fields={k:int(v) for k,v in re.findall(r'(?:^|\s)(id|frames|reads|sd_reads|cache_hits|cache_bytes|cache_total|mean_us|max_us|errors|error|buffer|ready|visible)=(-?\d+)',row)};assert fields['ready']==1 and fields['error']==0,row;return fields
         def click(text):
             reply=c.command('desktop ui click:'+text);assert '-> 1' in reply,reply
         def sample(name,seconds=10):

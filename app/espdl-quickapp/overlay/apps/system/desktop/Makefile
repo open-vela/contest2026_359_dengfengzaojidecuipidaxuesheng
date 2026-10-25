@@ -59,7 +59,6 @@ CSRCS += glass_chat_service.c glass_chat_store.c glass_agent.c glass_agent_confi
 CSRCS += glass_board_music.c
 CSRCS += glass_board_assistant.c glass_assistant_platform.c
 CSRCS += glass_vision.c qpk_camera_clip.c glass_camera_observation.c
-CSRCS += glass_claude.c
 CSRCS += glass_grok.c glass_grok_state.c
 CSRCS += glass_code_font.c
 CSRCS += glass_sd_font.c

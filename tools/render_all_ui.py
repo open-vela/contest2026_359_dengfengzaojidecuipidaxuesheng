@@ -56,6 +56,8 @@ def main():
         if path.suffix in ('.h','.inc'):shutil.copy2(path,work/path.name)
     for folder in ['c6probe','hass']:
         for path in (apps/f'system/{folder}').glob('*.h'):shutil.copy2(path,work/path.name)
+    for name in ['desktop_worker.h','desktop_backend.h']:
+        shutil.copy2(repo/'tools/c6'/name,work/name)
     for path in (desktop.parent/'hass').glob('*.h'):shutil.copy2(path,work/path.name)
     (work/'nuttx').mkdir(exist_ok=True);(work/'netutils').mkdir(exist_ok=True)
     (work/'nuttx/config.h').write_text('''#pragma once
@@ -73,7 +75,7 @@ def main():
     main=(desktop/'desktop_main.c').read_text().split('#include "glass_ui_probe.inc"')[0]
     main=main.replace('#include "../bilibili_live/', '#include "')
     (work/'production_desktop.inc').write_text(main)
-    ui=(desktop/'glass_ui.inc').read_text().replace('#include "glass_netboot.inc"','#include <arpa/inet.h>\n#include <netutils/netlib.h>\n#define C6NET_IFNAME "wlan0"\nstatic void glass_net_lease(bool wait) {(void)wait;}\nstatic struct glass_status_network review_net;\nstatic void glass_status_network_get(struct glass_status_network *out) {*out=review_net;}')
+    ui=(desktop/'glass_ui.inc').read_text().replace('#include "glass_netboot.inc"','#include <arpa/inet.h>\n#include <netutils/netlib.h>\n#define C6NET_IFNAME "wlan0"\nstatic void glass_net_lease(bool wait) {(void)wait;}\nstatic bool review_wifi_lease_ready=true;\nstatic bool glass_net_wifi_ready(uint64_t generation) {(void)generation;return review_wifi_lease_ready;}\nstatic struct glass_status_network review_net;\nstatic void glass_status_network_get(struct glass_status_network *out) {*out=review_net;}')
     ui=ui.replace(function(ui,'desktop_ui_create'),'static void desktop_ui_create(void) {}')
     (work/'glass_ui.inc').write_text(ui)
     # The media constructors are unchanged; workers are replaced by inert
@@ -141,7 +143,7 @@ void local_video_play_path(const char *path){(void)path;}
     headers=['qpk_runtime.h','qpk_storage.h','glass_qpk_builder.h','glass_portal.h',
       'hass_portal.h','hass_service.h','glass_music.h','glass_lock_photo.h','glass_chat.h','glass_ime.h',
       'glass_weather.h','glass_settings_service.h','glass_file_service.h','glass_system_monitor.h','glass_voice.h','glass_pinyin.h',
-      'glass_ble.h','glass_status.h','glass_speech.h','qpk_espdl.h','desktop_worker.h','pet_engine.h','pet_lvgl.h','qpk_mjpeg.h']
+      'glass_ble.h','glass_ble_central.h','glass_status.h','glass_speech.h','qpk_espdl.h','desktop_worker.h','pet_engine.h','pet_lvgl.h','qpk_mjpeg.h']
     skip={'glass_ime_attach','glass_ime_commit','glass_ime_commit_tree','glass_ime_start_voice','glass_ime_set_target',
           'desktop_motion_button','qpk_mjpeg_create','qpk_mjpeg_destroy','qpk_mjpeg_probe','qpk_mjpeg_preview_limits',
           'qpk_mjpeg_frame_size','qpk_mjpeg_decode','qpk_mjpeg_decode_region','qpk_mjpeg_decode_view','qpk_mjpeg_decode_preview','qpk_mjpeg_decode_still','qpk_mjpeg_decode_still_fit'}

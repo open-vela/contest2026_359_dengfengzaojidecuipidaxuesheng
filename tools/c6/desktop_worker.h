@@ -13,6 +13,7 @@ enum c6_desktop_operation
 };
 struct c6_desktop_link
 {
+  uint64_t generation;
   bool initialized;
   bool associated;
   bool carrier_ready;

@@ -1,0 +1,23 @@
+{
+  "uncached": {
+    "frames": 1643,
+    "sd_bytes": 72894736,
+    "repeat_bytes": 33423360,
+    "budget": 0
+  },
+  "cached": {
+    "frames": 1643,
+    "sd_bytes": 24186352,
+    "repeat_bytes": 0,
+    "budget": 524288
+  },
+  "method": "Real LVGL with virtual time, real GBS banks, ASan/UBSan; not board CPU/FPS",
+  "identical_frame_hashes": 1643,
+  "trace_sha256": "f33cc70fcba1faa0823ea233259fc3cd6c1573146499ed2ebaa944fb7ebd1283",
+  "source_sha256": {
+    "glass_grok_player.inc": "9cf9164baca7296ac69b1a8497f3c7d7512c0a286cf3af9d480af77d410f97b1",
+    "glass_grok_cache.h": "0f63f2a653b5d0139d5391268eef3c05a921ba978d73c7fd6c43e7a430011c12"
+  },
+  "controls_and_buffers_reused": true,
+  "io_comparison": "repeat_bytes compares two full warmed idle loops per palette; whole-run cached sd_bytes also includes separate fault-injection frames"
+}

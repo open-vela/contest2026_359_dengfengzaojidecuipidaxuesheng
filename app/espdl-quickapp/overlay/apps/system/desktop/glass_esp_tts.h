@@ -11,6 +11,8 @@ int glass_esp_tts_voice_load(const unsigned char **data,void **owned,
                              speech_cancel_fn cancel,void *user);
 void glass_esp_tts_voice_release(void *owned);
 void glass_esp_tts_cache_clear(void);
+/* Nonblocking housekeeping; keep 60 s of reuse after the last borrower. */
+size_t glass_esp_tts_cache_trim(void);
 const char *glass_esp_tts_voice_name(void);
 /* Selection is refused while voice bytes are loading or borrowed. */
 int glass_esp_tts_voice_select(const char *name);

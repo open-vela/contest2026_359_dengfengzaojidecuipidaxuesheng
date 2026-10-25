@@ -26,7 +26,7 @@ struct os_mbuf {uint16_t len;uint8_t data[513];};
 #define OS_MBUF_PKTLEN(m) ((m)->len)
 struct ble_gap_conn_desc {uint16_t conn_handle;struct {bool encrypted,bonded;} sec_state;};
 struct ble_gap_event {uint8_t type;union {
- struct {ble_addr_t addr;int rssi;const uint8_t *data;unsigned length_data;} disc;
+ struct {ble_addr_t addr;uint8_t event_type;int rssi;const uint8_t *data;unsigned length_data;} disc;
  struct {int status;uint16_t conn_handle;} connect,enc_change;
  struct {struct ble_gap_conn_desc conn;} disconnect;
  struct {uint16_t conn_handle,value;} mtu;
@@ -59,6 +59,7 @@ int ble_gattc_write_no_rsp_flat(uint16_t,uint16_t,const void *,uint16_t);
 int ble_gattc_exchange_mtu(uint16_t,ble_gatt_mtu_fn *,void *);
 '''
 (out/'host/ble_hs.h').write_text(header);(out/'host/ble_hs_mbuf.h').write_text('#include "ble_hs.h"\n')
+(out/'host/ble_store.h').write_text('#include "ble_hs.h"\nint ble_store_util_bonded_peers(ble_addr_t *,int *,int);\n')
 (out/'nimble').mkdir(exist_ok=True)
 (out/'nimble/nimble_port.h').write_text('''#pragma once
 struct ble_npl_event {void (*fn)(struct ble_npl_event *);};

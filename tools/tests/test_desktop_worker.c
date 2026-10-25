@@ -120,7 +120,9 @@ int main(void)
   assert(!c6_desktop_worker_start(&w, &lifecycle));
   for (int cycle = 0; cycle < 100; cycle++)
     {
-      observed = (struct c6_desktop_link){true, true, true, true, {192, 0, 2, 1}};
+      observed = (struct c6_desktop_link){.generation=42,
+        .initialized=true, .associated=true, .carrier_ready=true,
+        .ipv4_ready=true, .ipv4={192, 0, 2, 1}};
       assert(!c6_desktop_worker_submit(&w, C6_DESKTOP_STATUS, NULL, NULL));
       r = wait_result(&w);
       assert(!r.error && r.link.ipv4_ready && r.link.ipv4[3] == 1);

@@ -26,9 +26,9 @@ static int scan(struct c6_scan_ap *records, size_t capacity, size_t *count)
 static int clear_ipv4(void)
 {
   const struct in_addr zero = {0};
-  if (netlib_set_ipv4addr("eth0", &zero) < 0 ||
-      netlib_set_dripv4addr("eth0", &zero) < 0 ||
-      netlib_set_ipv4netmask("eth0", &zero) < 0)
+  if (netlib_set_ipv4addr(C6NET_IFNAME, &zero) < 0 ||
+      netlib_set_dripv4addr(C6NET_IFNAME, &zero) < 0 ||
+      netlib_set_ipv4netmask(C6NET_IFNAME, &zero) < 0)
     return -(errno ? errno : EIO);
   return 0;
 }
@@ -56,13 +56,14 @@ static int status(struct c6_desktop_link *link)
   int ret = c6net_get_link_snapshot(&state);
   if (ret < 0) return ret;
   link->initialized = state.initialized;
+  link->generation = state.generation;
   link->associated = state.associated;
   link->carrier_ready = state.carrier_ready;
   if (state.carrier_ready)
     {
       struct in_addr address;
       struct c6_link_snapshot after;
-      ret = netlib_get_ipv4addr("eth0", &address);
+      ret = netlib_get_ipv4addr(C6NET_IFNAME, &address);
       if (ret < 0)
         {
           memset(link, 0, sizeof(*link));

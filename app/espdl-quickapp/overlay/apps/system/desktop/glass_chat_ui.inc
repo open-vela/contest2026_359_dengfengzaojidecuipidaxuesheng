@@ -180,39 +180,6 @@ static void chat_qpk_preview_back(void)
   glass_chat_show(origin);
 }
 
-#include "glass_cli_resource.inc"
-static void chat_cli_back(void)
-{
-  bool origin = chat_cli_origin;
-  chat_cli_active = false;
-  glass_chat_show(origin);
-}
-static void chat_ui_cli(lv_event_t *e)
-{
-  LV_UNUSED(e);
-  bool origin = g_desktop.chat_return_apps;
-  /* Measure the CLI in its final shell geometry. Retiring the chat page
-   * must not resize a page that has already been laid out for full screen. */
-  lv_obj_t *card = qapp_page_prepare("ESPClaw · 电脑 CLI");
-  if (!card) {
-    show_toast("内存不足，暂时无法打开电脑 CLI"); return;
-  }
-  lv_obj_t *page = lv_obj_get_parent(card);
-  lv_obj_update_layout(card);
-  /* Keep the old page painted while QuickJS constructs the replacement. */
-  lv_obj_add_flag(page, LV_OBJ_FLAG_HIDDEN);
-  int ret = qpk_runtime_launch(card, "ESPClaw 电脑 CLI", "ai.claude_control", "builtin", "builtin:/espclaw/cli.js",
-      glass_cli_source, sizeof(glass_cli_source)-1, zh_font, show_toast, qpk_show_dialog, qpk_show_unresponsive);
-  if (ret || qpk_runtime_last_error()[0] || !qpk_runtime_widget_count()) {
-    qapp_page_discard(lv_obj_get_parent(card));
-    glass_chat_show(origin); show_toast("电脑 CLI 打开失败，请重试"); return;
-  }
-  qapp_page_commit(card);
-  lv_obj_remove_flag(page, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_update_layout(page);
-  chat_cli_active = true; chat_cli_origin = origin;
-}
-
 static void chat_ui_preview_app(lv_event_t *e)
 {
   LV_UNUSED(e);

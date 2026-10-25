@@ -44,7 +44,6 @@ PAGE(espdl,launch_builtin_espdl_qapp(NULL))
 PAGE(pet,launch_builtin_dafeiyu_qapp(NULL))
 PAGE(game,launch_builtin_2048_qapp(NULL))
 PAGE(hello,launch_builtin_qapp(NULL))
-PAGE(cli,chat_ui_cli(NULL))
 PAGE(album,launch_local_video(NULL))
 PAGE(live,launch_bilibili(NULL))
 PAGE(files_detail,glass_storage_page(NULL);strcpy(g_files_selected,"/data/notes.txt");glass_files_details(NULL);glass_files_tick(NULL))
@@ -71,7 +70,7 @@ static const struct page_case cases[]={
   ITEM(files),ITEM(resources),ITEM(weather),ITEM(environment),ITEM(portal),
   ITEM(music),ITEM(lyrics),ITEM(pv),ITEM(chat),ITEM(create),ITEM(assistant),ITEM(ball),ITEM(chat_input),ITEM(chat_modes),
   ITEM(voice),ITEM(camera),ITEM(recorder),ITEM(homeassistant),ITEM(espdl),ITEM(pet),
-  ITEM(game),ITEM(hello),ITEM(cli),ITEM(album),ITEM(live),ITEM(files_detail),ITEM(files_dialog),
+  ITEM(game),ITEM(hello),ITEM(album),ITEM(live),ITEM(files_detail),ITEM(files_dialog),
   ITEM(music_search),ITEM(chat_archive),ITEM(chat_new_confirm),ITEM(chat_discard),ITEM(chat_config),
   ITEM(hass_settings),ITEM(recorder_delete),ITEM(recorder_recording),ITEM(pet_input),ITEM(hello_dialog),ITEM(hello_toast),
   ITEM(files_image),ITEM(files_copy),ITEM(files_delete)
@@ -126,13 +125,6 @@ static void occlusion_checks(void)
   assert(!qpk_review_eval("if(ui.isVisible())throw Error('covered app')"));
   lv_obj_delete(cover);
   assert(!qpk_review_eval("if(!ui.isVisible())throw Error('revealed app')"));
-  panel_hide(NULL);settle();
-  page_cli();settle();
-  extern unsigned qpk_review_text_writes(void);
-  cover=opaque_cover();unsigned writes=qpk_review_text_writes();
-  assert(!qpk_review_eval("snapshot.clis=[{id:cfg.cli,name:'Changed while covered'}];render();tick()"));
-  assert(writes==qpk_review_text_writes());lv_obj_delete(cover);
-  assert(!qpk_review_eval("tick()"));assert(qpk_review_text_writes()>writes);
   panel_hide(NULL);settle();
   /* Reader/frame/timer work stops beneath a solid cover; drawing resumes it. */
   struct glass_grok *ball=glass_grok_create_avatar(lv_screen_active(),zh_font);assert(ball);

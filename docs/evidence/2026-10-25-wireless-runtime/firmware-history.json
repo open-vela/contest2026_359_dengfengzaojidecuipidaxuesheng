@@ -1,0 +1,68 @@
+[
+  {
+    "label": "WiFi 修复初版",
+    "bytes": 10367340,
+    "sha256": "98f92cea55dd8d6c1320706091336a4b7cf5daecb4629a0e6a39df961225e205",
+    "metadata_matches": true,
+    "psram_xip": false,
+    "evidence_scope": "仅构建；后续组合版完成 WiFi 实测",
+    "application_offset": "0x2000",
+    "data_partition_start": "0xc00000",
+    "publish_as_ready": false
+  },
+  {
+    "label": "WiFi＋BLE 搜索/连接/配对",
+    "bytes": 10368428,
+    "sha256": "00d7633cc16bdebc4f13b541040503c81bb5a2dca8175ccffa60fbe67e9bd53b",
+    "metadata_matches": true,
+    "psram_xip": false,
+    "evidence_scope": "组合版有 WiFi 与本机 BLE 完整流程记录",
+    "application_offset": "0x2000",
+    "data_partition_start": "0xc00000",
+    "publish_as_ready": false
+  },
+  {
+    "label": "鼠标改造前回退节点；当前板上版本",
+    "bytes": 10369900,
+    "sha256": "731755198bb3190eb314a7dbec5c94a156de9d5c255eff851811737ed3f61aa5",
+    "metadata_matches": true,
+    "psram_xip": false,
+    "evidence_scope": "历史 BLE 测试；本次回退完整读回、热启动、UI 应答通过",
+    "application_offset": "0x2000",
+    "data_partition_start": "0xc00000",
+    "publish_as_ready": false
+  },
+  {
+    "label": "18:02／18:43 对应互斥切换版",
+    "bytes": 10371292,
+    "sha256": "ddba73b5a607db4ef18aa8d0e723329356c2e2234a130e8a091ad2a2c3b30fd9",
+    "metadata_matches": true,
+    "psram_xip": false,
+    "evidence_scope": "历史互斥切换验证；不能声称多设备并发",
+    "application_offset": "0x2000",
+    "data_partition_start": "0xc00000",
+    "publish_as_ready": false
+  },
+  {
+    "label": "10月23日性能／XIP 历史版",
+    "bytes": 10449408,
+    "sha256": "e90ac49e1494910bacf8e4bf9a2c54d6d8fe3c4790df4d37c2392d37e59f7505",
+    "metadata_matches": true,
+    "psram_xip": true,
+    "evidence_scope": "历史构建、读回、两核 XIP 与性能采样记录",
+    "application_offset": "0x2000",
+    "data_partition_start": "0xc00000",
+    "publish_as_ready": false
+  },
+  {
+    "label": "被撤回的连接复用候选",
+    "bytes": 10381440,
+    "sha256": "69a06c2852c309330b9180c24dcc27acca198140577beef2c2a925ea73084d95",
+    "metadata_matches": true,
+    "psram_xip": true,
+    "evidence_scope": "用户报告卡死及蓝屏；拒绝作为可用版本发布",
+    "application_offset": "0x2000",
+    "data_partition_start": "0xc00000",
+    "publish_as_ready": false
+  }
+]

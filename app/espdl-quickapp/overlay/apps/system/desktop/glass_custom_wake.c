@@ -13,6 +13,7 @@ extern void qpk_dl_sha256(const void *,size_t,uint8_t[32]);
 _Static_assert(GLASS_WAKE_MODEL_BYTES==32+GLASS_WAKE_WEIGHTS*4,"Wake model shape");
 
 struct glass_custom_wake {
+  uint8_t *model;
   float *weights,threshold,noise,score,initial_floor,initial_peak;
   int16_t pcm[GLASS_WAKE_MAX_SAMPLES],block[320],pre[2560];
   unsigned samples,used,pre_at,pre_count,above,below,cooldown,evaluations,warmup,initial_clipped;
@@ -21,7 +22,7 @@ struct glass_custom_wake {
 static uint32_t wake_u32(const uint8_t *p)
 {return p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
 void glass_custom_wake_destroy(struct glass_custom_wake *s)
-{if(s){free(s->weights);free(s);}}
+{if(s){free(s->model);free(s);}}
 int glass_custom_wake_create(const char *root,struct glass_custom_wake **out)
 {
   if(!root||!out)return -EINVAL;*out=NULL;
@@ -40,8 +41,11 @@ int glass_custom_wake_create(const char *root,struct glass_custom_wake **out)
   s=calloc(1,sizeof(*s));if(!s){ret=-ENOMEM;goto done;}
   memcpy(&s->threshold,data+20,4);
   if(!isfinite(s->threshold)||s->threshold<.5f||s->threshold>=1)goto done;
-  s->weights=malloc(GLASS_WAKE_WEIGHTS*sizeof(float));if(!s->weights){ret=-ENOMEM;goto done;}
-  memcpy(s->weights,data+32,GLASS_WAKE_WEIGHTS*sizeof(float));
+  /* The authenticated file is already malloc-aligned, and its 32-byte header
+   * preserves float alignment. Own that allocation rather than copy a second
+   * 329472-byte weight array during initialization. */
+  _Static_assert(sizeof(float)==4&&32%_Alignof(float)==0,"Wake weight alignment");
+  s->model=data;s->weights=(float *)(data+32);data=NULL;
   for(unsigned i=0;i<GLASS_WAKE_WEIGHTS;i++)if(!isfinite(s->weights[i]))goto done;
   s->noise=50;s->initial_floor=1e20f;s->warmup=4;*out=s;s=NULL;ret=0;
 done:
@@ -54,11 +58,12 @@ void glass_custom_wake_reset(struct glass_custom_wake *s)
 }
 static int wake_block(struct glass_custom_wake *s)
 {
-  double sum=0;for(unsigned i=0;i<320;i++)sum+=(double)s->block[i]*s->block[i];
-  float rms=sqrtf(sum/320);int event=0;
+  float rms=glass_wake_pcm_rms(s->block,320);int event=0;
   if(s->cooldown){s->cooldown=s->cooldown>320?s->cooldown-320:0;return 0;}
   if(!s->speaking){
-    for(unsigned i=0;i<320;i++){s->pre[s->pre_at++]=s->block[i];s->pre_at%=2560;}
+    /* pre_at advances by whole 320-sample blocks; 2560 is exactly 8 blocks. */
+    memcpy(s->pre+s->pre_at,s->block,sizeof(s->block));
+    s->pre_at+=320;if(s->pre_at==2560)s->pre_at=0;
     s->pre_count=s->pre_count+320>2560?2560:s->pre_count+320;
     /* Estimate the actual initial bed before arming. Otherwise a constant
      * noise bed above 150 starts a false utterance while noise stays at 50,
@@ -83,7 +88,9 @@ static int wake_block(struct glass_custom_wake *s)
     if(rms>fmaxf(90,s->noise*2.5f))s->above++;else{s->above=0;s->noise=.98f*s->noise+.02f*rms;}
     if(s->above>=2){
       unsigned first=(s->pre_at+2560-s->pre_count)%2560;
-      for(unsigned i=0;i<s->pre_count;i++)s->pcm[i]=s->pre[(first+i)%2560];
+      unsigned tail=2560-first;if(tail>s->pre_count)tail=s->pre_count;
+      memcpy(s->pcm,s->pre+first,tail*sizeof(int16_t));
+      memcpy(s->pcm+tail,s->pre,(s->pre_count-tail)*sizeof(int16_t));
       s->samples=s->pre_count;s->speaking=true;s->below=0;
     }
     return 0;
@@ -99,9 +106,18 @@ static int wake_block(struct glass_custom_wake *s)
     if(s->samples>=8000){
       float feature[GLASS_WAKE_INPUTS];int ret=glass_wake_extract(s->pcm,s->samples,feature);
       if(!ret){
-        float ratio=glass_wake_ratio(s->weights,feature);
+        float distance;float ratio=glass_wake_ratio_distance(s->weights,feature,&distance);
         s->score=1/(1+expf(fmaxf(-30,fminf(30,20*(ratio-s->threshold)))));
-        s->evaluations++;event=ratio<s->threshold-(early&&!final?.03f:0);
+        s->evaluations++;
+        /* A relative winner can still be far from every wake template.
+         * Keep the model threshold/endpoint policy, but reject that OOD match.
+         * Both distances come from the same existing 198-template DTW pass. */
+        bool relative=ratio<s->threshold-(early&&!final?.03f:0);
+        event=relative&&distance<=GLASS_WAKE_MAX_POSITIVE_DISTANCE;
+#ifdef __NuttX__
+        if(relative&&!event)printf("[wake-filter] rejected=distance ratio=%.4f distance=%.4f limit=%.2f samples=%u\n",
+          (double)ratio,(double)distance,(double)GLASS_WAKE_MAX_POSITIVE_DISTANCE,s->samples);
+#endif
       }
       else if(ret!=-ENODATA)return ret;
     }

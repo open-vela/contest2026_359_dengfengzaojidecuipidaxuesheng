@@ -75,3 +75,44 @@ static inline void glass_ble_update_name(struct glass_ble_device *device,
       length -= field + 1;
     }
 }
+
+/* These are advertising hints, never authenticated device identities.
+ * Bluetooth SIG Assigned Numbers: Appearance, Service UUID, AD type tables.
+ * Only retain specific, recognized services; Battery/Device Information alone
+ * do not establish a physical device type. Merge scan responses without
+ * erasing the connectability observed in the original advertising PDU. */
+static inline void glass_ble_update_advertising(struct glass_ble_device *device,
+                                                unsigned event_type,
+                                                const uint8_t *data,size_t length)
+{
+  if(event_type<=3){
+    device->connectable_known=true;
+    device->connectable=event_type==0||event_type==1;
+  }
+  glass_ble_update_name(device,data,length);
+  if(!data)return;
+  while(length){
+    size_t field=data[0];if(!field||field>=length)break;
+    unsigned type=data[1];const uint8_t *value=data+2;size_t bytes=field-1;
+    if(type==0x19&&bytes==2)device->appearance=value[0]|((uint16_t)value[1]<<8);
+    if(((type==2||type==3)&&bytes>=2&&!(bytes%2))||(type==0x16&&bytes>=2)){
+      size_t end=type==0x16?2:bytes;
+      for(size_t i=0;i<end;i+=2){
+        unsigned uuid=value[i]|((unsigned)value[i+1]<<8);
+        switch(uuid){
+        case 0x1812:case 0x180d:case 0x1809:case 0x181a:case 0x1810:
+        case 0x1816:case 0x1818:case 0x1826:
+          if(!device->service_hint||uuid<device->service_hint)device->service_hint=uuid;
+          break;
+        }
+      }
+    }
+    if(((type==6||type==7)&&bytes>=16&&!(bytes%16))||(type==0x21&&bytes>=16))
+      device->service128=true;
+    data+=field+1;length-=field+1;
+  }
+}
+
+static inline unsigned glass_ble_device_priority(const struct glass_ble_device *device)
+{return (device->bonded?8:0)+(device->name[0]?4:0)+
+        (device->connectable_known&&device->connectable?2:0);}

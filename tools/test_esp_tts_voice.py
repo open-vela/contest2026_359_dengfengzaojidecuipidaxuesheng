@@ -20,5 +20,5 @@ executable=out/'voice-host'
 subprocess.run(['gcc','-std=c11','-D_DEFAULT_SOURCE','-O1','-g','-pthread','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-fsanitize=address,undefined',
     '-fno-omit-frame-pointer','-DGLASS_ESP_TTS_VOICE_SD','-I'+str(out),'-I'+str(desktop),
     str(desktop/'glass_esp_tts_voice.c'),str(desktop/'qpk_espdl_sha256.c'),
-    str(repo/'app/espdl-quickapp/tests/esp_tts_voice_host.c'),'-o',str(executable)],check=True)
+    str(repo/'app/espdl-quickapp/tests/esp_tts_voice_host.c'),'-Wl,--wrap=clock_gettime','-o',str(executable)],check=True)
 subprocess.run([str(executable)],check=True,timeout=30)

@@ -3,6 +3,7 @@
 #include "glass_grok.h"
 #include "glass_ui_visibility.h"
 #include "glass_grok_gaze.h"
+#include "glass_grok_cache.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -32,6 +33,11 @@ struct glass_grok {
   bool gaze_enabled,black,job_gaze,suspended;
   int gaze_x,gaze_y,job_gaze_x,job_gaze_y;
   struct grok_gaze_scratch *gaze_scratch;
+  struct grok_frame_cache idle_cache;
+  struct stat bank_stat;
+  uint64_t bank_checked_us;
+  unsigned sd_reads,cache_hits;
+  size_t cache_bytes;
 };
 static struct glass_grok *instances[8]; /* UI thread only. */
 static const unsigned ids[GROK_STATES]={0,1,2,3,4,5,6,7,10,11,12,13,14,15,16,17,18,19,20,21,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51};
@@ -42,7 +48,7 @@ static uint32_t grok_le32(const unsigned char *p){return (uint32_t)p[0]|((uint32
 static int grok_open_bank(struct glass_grok *b)
 {
   int fd=open(b->path,O_RDONLY);if(fd<0)return -errno;
-  unsigned char h[32],table[GROK_STATES*12];struct stat st;int ret=grok_read_all(fd,h,sizeof(h));
+  unsigned char h[32],table[GROK_STATES*12];struct stat st={0};int ret=grok_read_all(fd,h,sizeof(h));
   if(!ret&&(memcmp(h,"GROKSD1\0",8)||grok_le32(h+8)!=1||grok_le32(h+12)!=b->side||grok_le32(h+16)!=b->side||grok_le32(h+20)!=b->period||grok_le32(h+24)!=b->states||grok_le32(h+28)!=b->bytes))ret=-EINVAL;
   if(!ret)ret=grok_read_all(fd,table,b->states*12);
   if(!ret&&fstat(fd,&st)<0)ret=-errno;
@@ -50,7 +56,13 @@ static int grok_open_bank(struct glass_grok *b)
     struct grok_entry *e=&b->entries[i];e->id=grok_le32(table+i*12);e->count=grok_le32(table+i*12+4);e->offset=grok_le32(table+i*12+8);
     if(e->id!=ids[i]||!e->count||e->count>1200||e->offset<sizeof(h)+b->states*12||(uint64_t)e->offset+(uint64_t)e->count*b->bytes>(uint64_t)st.st_size)ret=-EINVAL;
   }
-  if(ret){close(fd);return ret;}return fd;
+  if(ret){close(fd);return ret;}
+  b->bank_stat=st;b->bank_checked_us=grok_micros();return fd;
+}
+static bool grok_same_bank(const struct stat *a,const struct stat *b)
+{
+  return a->st_dev==b->st_dev&&a->st_ino==b->st_ino&&a->st_size==b->st_size&&
+         a->st_mtime==b->st_mtime&&a->st_ctime==b->st_ctime;
 }
 static void *grok_reader(void *opaque)
 {
@@ -61,30 +73,52 @@ static void *grok_reader(void *opaque)
     if(b->quit)break;
     unsigned id=b->job_id,frame=b->job_frame,epoch=b->job_epoch,slot=b->job_slot;
     bool gaze=b->job_gaze;int gaze_x=b->job_gaze_x,gaze_y=b->job_gaze_y;
-    b->pending=false;pthread_mutex_unlock(&b->lock);uint64_t began=grok_micros();int ret=0;bool sought=false;
-    if(fd<0)fd=grok_open_bank(b);
-    if(fd<0)ret=fd;
-    else {
+    b->pending=false;pthread_mutex_unlock(&b->lock);uint64_t began=grok_micros();int ret=0;bool sought=false,hit=false,read_sd=false;
+    /* A cached animation must not conceal an unmounted/deleted/replaced bank.
+     * Stat once per second, rather than perform SD sector reads every frame.
+     * FAT timestamps cannot identify every same-size in-place rewrite. */
+    if(fd>=0&&b->idle_cache.entries&&began-b->bank_checked_us>=1000000){
+      struct stat current={0};
+      if(stat(b->path,&current)<0)ret=-errno;
+      if(ret||!grok_same_bank(&b->bank_stat,&current)){
+        grok_frame_cache_clear(&b->idle_cache);close(fd);fd=-1;cursor=UINT64_MAX;
+      }
+      b->bank_checked_us=began;
+    }
+    if(!ret&&fd<0)fd=grok_open_bank(b);
+    if(!ret&&fd<0)ret=fd;
+    if(!ret){
       unsigned i=0;while(i<b->states&&b->entries[i].id!=id)i++;
       if(i==b->states)ret=-EINVAL;
       else {
         frame%=b->entries[i].count;uint64_t position=(uint64_t)b->entries[i].offset+(uint64_t)frame*b->bytes;
         off_t offset=(off_t)position;
+        if(id==2){
+          grok_frame_cache_prepare(&b->idle_cache,b->entries[i].count);
+          hit=grok_frame_cache_load(&b->idle_cache,frame,b->pixels[slot],b->side*b->side);
+        }
         /* A successful full read already positions this private descriptor at
          * the next frame. Seek only on a state change, loop or reopen. */
-        if(offset<0||(uint64_t)offset!=position)ret=-EOVERFLOW;
-        else if(cursor!=position){sought=true;off_t at=lseek(fd,offset,SEEK_SET);if(at!=offset)ret=at<0?-errno:-EIO;}
-        if(!ret){ret=grok_read_all(fd,b->pixels[slot],b->bytes);if(!ret)cursor=position+b->bytes;}
+        if(!hit){
+          if(offset<0||(uint64_t)offset!=position)ret=-EOVERFLOW;
+          else if(cursor!=position){sought=true;off_t at=lseek(fd,offset,SEEK_SET);if(at!=offset)ret=at<0?-errno:-EIO;}
+          if(!ret){read_sd=true;ret=grok_read_all(fd,b->pixels[slot],b->bytes);if(!ret)cursor=position+b->bytes;}
+          /* Cache original pixels before the optional gaze transform. */
+          if(!ret&&id==2)grok_frame_cache_store(&b->idle_cache,frame,b->pixels[slot],b->side*b->side);
+        }
       }
     }
     if(!ret&&gaze)grok_gaze_frame(b->pixels[slot],b->black,id,gaze_x,gaze_y,b->gaze_scratch);
-    if(ret){cursor=UINT64_MAX;if(fd>=0){close(fd);fd=-1;}}
+    if(ret){grok_frame_cache_clear(&b->idle_cache);cursor=UINT64_MAX;if(fd>=0){close(fd);fd=-1;}}
     uint64_t duration=grok_micros()-began;pthread_mutex_lock(&b->lock);
     b->read_us+=duration;if(duration>b->max_read_us)b->max_read_us=duration;
     b->reads++;if(sought)b->seeks++;if(ret)b->errors++;b->error=ret;b->result_epoch=epoch;b->result_frame=frame;
+    if(read_sd)b->sd_reads++;
+    if(hit)b->cache_hits++;
+    b->cache_bytes=b->idle_cache.bytes;
     b->ready=true;b->busy=false;
   }
-  pthread_mutex_unlock(&b->lock);if(fd>=0)close(fd);return NULL;
+  pthread_mutex_unlock(&b->lock);if(fd>=0)close(fd);grok_frame_cache_clear(&b->idle_cache);return NULL;
 }
 /* Input invalidates a prefetched frame's deadline on the UI thread. Restore
  * the original polling bound without letting the reader call LVGL. */
@@ -243,7 +277,7 @@ bool glass_grok_ready(const struct glass_grok *b){return b&&b->initialized;}
 void glass_grok_debug_status(void)
 {
   for(unsigned i=0;i<8;i++)if(instances[i]){struct glass_grok *b=instances[i];pthread_mutex_lock(&b->lock);
-    printf("grok-sd %s id=%02u frames=%u reads=%u mean_us=%llu max_us=%llu errors=%u error=%d buffer=%u ready=%d visible=%d seeks=%u ticks=%u\n",b->path,b->current,b->displayed,b->reads,(unsigned long long)(b->reads?b->read_us/b->reads:0),(unsigned long long)b->max_read_us,b->errors,b->error,b->bytes*2,b->initialized,grok_visible(b),b->seeks,b->ticks);pthread_mutex_unlock(&b->lock);}
+    printf("grok-sd %s id=%02u frames=%u reads=%u mean_us=%llu max_us=%llu errors=%u error=%d buffer=%u ready=%d visible=%d seeks=%u ticks=%u sd_reads=%u cache_hits=%u cache_bytes=%zu cache_total=%zu\n",b->path,b->current,b->displayed,b->reads,(unsigned long long)(b->reads?b->read_us/b->reads:0),(unsigned long long)b->max_read_us,b->errors,b->error,b->bytes*2,b->initialized,grok_visible(b),b->seeks,b->ticks,b->sd_reads,b->cache_hits,b->cache_bytes,grok_frame_cache_total());pthread_mutex_unlock(&b->lock);}
 }
 #ifdef GROK_HOST_TEST
 void glass_grok_test_stats(struct glass_grok *b,unsigned out[3])
