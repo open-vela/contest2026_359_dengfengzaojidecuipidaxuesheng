@@ -31,8 +31,8 @@ int main(int argc,char **argv)
   for(unsigned theme=0;theme<2;theme++){
     g_desktop.light_theme=theme!=0;glass_rebuild();glass_status_tick();review_music_fixture(2);
     glass_music(NULL);lv_timer_pause(g_music_ui.timer);
-    g_music_ui.favorites=false;g_music_ui.snapshot.has_result=false;g_music_ui.snapshot.searching=false;
-    g_music_ui.snapshot.search_error=MUSIC_ERROR_KEY_REQUIRED;music_ui_list();lv_obj_update_layout(g_desktop.screen);
+    g_music_ui.favorites=false;g_music_ui.snapshot->has_result=false;g_music_ui.snapshot->searching=false;
+    g_music_ui.snapshot->search_error=MUSIC_ERROR_KEY_REQUIRED;music_ui_list();lv_obj_update_layout(g_desktop.screen);
     assert(review_label_find(g_music_ui.list,"先配置音乐搜索服务"));
     assert(!review_label_find(g_music_ui.list,"暂时没有找到"));
     lv_obj_t *configure=review_callback_find(g_music_ui.list,music_ui_configure);assert(configure);

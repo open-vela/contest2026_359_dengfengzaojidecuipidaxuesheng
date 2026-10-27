@@ -1,5 +1,10 @@
 # Optional C6 Wireless Overlay
 
+2026-10-27 update: an isolated eight-link C6 controller companion now builds against pinned
+Hosted 2.0.13 / ESP-IDF 5.5. Configuration, real SDK ABI and ELF checks pass; existing SDIO
+and Wi-Fi diagnostics are preserved. Nothing was flashed. See
+[the current C6 report](../docs/C6_BLE_EIGHT_2026-10-27.md); the entries below are historical.
+
 Current v3 integration status (2026-09-13): the composed C6 desktop backend,
 worker, scan results, link state, RPC mailbox, serialized RPC ownership and
 CMD53/SDIO fixes are integrated in the isolated ESP32-P4 Function-EV OpenVela

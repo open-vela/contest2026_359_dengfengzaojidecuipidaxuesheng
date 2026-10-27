@@ -1,0 +1,44 @@
+c6ble identity
+type=static-random address=DB:9B:EB:2E:71:EF name=OpenVela Mouse-EB2E71EF
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=5 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble channel status
+BLE_CHANNEL ready=1 connected=1 encrypted=1 notify=0 epoch=5 connection=0 mtu=256 payload=244 queued=0 received=0 sent=0 rejected=0 error=0
+BLE_CHANNEL_UUID service=69d14e9d-5e2a-4564-8b03-7acf16a046bc rx=fe295b09-ba85-4b80-aec3-095121e8ae2f tx=9fc89159-b5c1-4797-8f7a-0f375f7e8138 info=e86cb6ea-0566-4ea9-b513-1d94e99c9a54
+c6ble channel status result=0
+nsh> [K
+nsh> [Kc6brpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 44 aa 15 00
+le central sessions
+BLE_SCAN generation=0 scanning=0 count=0 connected=0 connection_generation=0
+BLE_SESSIONS active=0 connected=0 capacity=2 selected=0
+c6ble central sessions result=0
+nsh> [K
+nsh> [Kc6ble status
+configured_connections=3 effective_connections=3 host_ready=1 device_connected=0 mouse_connected=1 store_error=0
+reserved_connections=1 central_reserved=0 hid_reserved=1 central_reservations=0 device_connections=0 mixed_role_capacity=1
+nsh> [K
+nsh> [Kdesktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=5061 text_hash=bbb6f07b rodata_hash=0cde17e3 cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [Kdesktop ui render-metrics
+UI_RENDER_METRICS elapsed_ms=328080 frames=3570 render_avg_us=6924 render_max_us=970000 refreshes=3570 refresh_avg_us=6963 refresh_max_us=1000000 widgets=0
+desktop: ui render-metrics ready
+nsh> [K
+nsh> [Kuptime
+03:04:09 up  0:05, load average: 0.88, 0.88, 0.88
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 45 aa 15 00
+desktop ui render-metrics
+UI_RENDER_METRICS elapsed_ms=330320 frames=3603 render_avg_us=6922 render_max_us=970000 refreshes=3603 refresh_avg_us=6960 refresh_max_us=1000000 widgets=0
+desktop: ui render-metrics ready
+nsh> [K
+nsh> [Kfree
+      total       used       free    maxused    maxfree  nused  nfree name
+   23199744    5639440   17560304    9488328   13762088   4376      9 Umem
+      72016      67360       4656      67848       2048    277     16 Kmem
+nsh> [K
+nsh> [K

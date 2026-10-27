@@ -1,0 +1,42 @@
+{
+  "peer": "192.168.31.64",
+  "stages": [],
+  "started_monotonic": 553052.1108573,
+  "started_utc": 1793101692.9150896,
+  "source_sha256": {
+    "network_benchmark.py": "694c3390a437a199bfa6da3a2cbf9a498bbeb1f1e1312b7f3ca5d29117b467da",
+    "network_benchmark.html": "59ee923c0261863e3178f8ba72c2b695ca46e87c0e4bdbf74682369aa5e55c16"
+  },
+  "measurement": "LAN HTTP application throughput; not raw TCP/PHY rate",
+  "payload_bytes": 4194304,
+  "payload_crc32": "ffdca9db",
+  "context": {
+    "image_sha256": "699036f7fed212749132c4bbf5a50acc9eae78359d93abe601eb48a1e9e5e171",
+    "expected_peer_for_phone_run": "192.168.31.64",
+    "path": "phone/client -> C6 SoftAP -> P4 NAT -> eth0 -> PC wired 192.168.31.95",
+    "sdio_clock_mhz": 20,
+    "rx_dma_blocks": 4,
+    "forward_slots": 16,
+    "prior_user_download_mbps": 3.47,
+    "prior_user_upload_mbps": 4.01,
+    "prior_user_test_method": "not specified; reference only",
+    "firmware_sha256": "699036f7fed212749132c4bbf5a50acc9eae78359d93abe601eb48a1e9e5e171",
+    "tx_wake": 1,
+    "note": "Candidate 6: real kernel LPWORK lifetime/notification race fix; incomplete prior model removed",
+    "devif_callbacks": 32,
+    "queued_tx_progress_rearm": false,
+    "standard_netdev_down": true,
+    "dhcp_lease_capacity": 8,
+    "dhcp_offer_hold_seconds": 30,
+    "normal_lease_seconds": 120,
+    "kernel_forward_notify_locked": true,
+    "kernel_forward_work_arg": "permanent output netdev"
+  },
+  "directions": [
+    "download",
+    "upload"
+  ],
+  "firmware_changed": false,
+  "payload_storage": "RAM only",
+  "complete": false
+}

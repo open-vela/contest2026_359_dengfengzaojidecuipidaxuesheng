@@ -6,6 +6,27 @@ static uint16_t *portal_pixels;
 static lv_obj_t *portal_page;
 static lv_event_cb_t portal_return;
 static bool portal_revoked;
+static bool portal_hotspot;
+static bool portal_local_address(struct in_addr *address)
+{
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+  struct glass_recovery_snapshot_s recovery;
+  if (glass_network_recovery_read(&recovery) == 0 &&
+      recovery.state == GLASS_RECOVERY_READY && recovery.ap_running &&
+      recovery.dhcp_ready)
+    {
+      memcpy(&address->s_addr, recovery.ap_ipv4, sizeof(address->s_addr));
+      if (address->s_addr)
+        {
+          portal_hotspot = true;
+          return true;
+        }
+    }
+#endif
+  portal_hotspot = false;
+  return netlib_get_ipv4addr(C6NET_IFNAME, address) == 0 &&
+         address->s_addr != 0;
+}
 static void glass_portal_open(lv_event_t *e);
 static void glass_music(lv_event_t *e);
 static void glass_portal_show(lv_event_cb_t back);
@@ -30,7 +51,9 @@ static void portal_tick(lv_timer_t *timer)
 {
   LV_UNUSED(timer); if(!glass_ui_can_paint(portal_state)) return;
   unsigned seconds=portal_session_seconds(); char text[160];
-  if(seconds) snprintf(text,sizeof(text),"令牌 %02u:%02u 内有效\n手机、电脑与设备连接同一 Wi-Fi",seconds/60,seconds%60);
+  if(seconds) snprintf(text,sizeof(text),portal_hotspot?
+    "令牌 %02u:%02u 内有效\n请连接设备热点并保留连接":
+    "令牌 %02u:%02u 内有效\n手机、电脑与设备连接同一 Wi-Fi",seconds/60,seconds%60);
   else {
     snprintf(text,sizeof(text),portal_revoked?"连接已关闭\n刷新令牌后可重新连接":"令牌已过期，请刷新令牌\n已连接的网页仍可继续使用");
     if(portal_qr) lv_obj_add_flag(portal_qr,LV_OBJ_FLAG_HIDDEN);
@@ -51,11 +74,14 @@ static void glass_portal_show(lv_event_cb_t back)
   /* panel_card adds its close button as child 1. Replace it with one return. */
   lv_obj_delete(lv_obj_get_child(card,1));
   const char *back_text=back==glass_settings?"返回设置":
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+    back==glass_wifi_recovery_open?"返回配网热点":
+#endif
     back==glass_homeassistant?"返回家居":back==glass_music?"返回音乐":"返回聊天";
   glass_button(card,back_text,760,14,160,theme_surface(),portal_go_back,NULL);
   struct in_addr address; char code[PORTAL_CODE_LENGTH+1],url[96],display[64],ip[INET_ADDRSTRLEN];
-  if(netlib_get_ipv4addr(C6NET_IFNAME,&address)<0||!address.s_addr) {
-    glass_text(card,"请先连接 Wi-Fi，再打开扫码配置",52,160,800,28,theme_primary()); return;
+  if(!portal_local_address(&address)) {
+    glass_text(card,"请先连接 Wi-Fi 或开启配网热点，再打开扫码配置",52,160,900,28,theme_primary()); return;
   }
   int ret=portal_service_start(); if(!ret) ret=portal_session_open(code,sizeof(code));
   if(ret) { glass_text(card,"配置服务暂时无法启动，请重试",52,160,800,28,theme_primary()); return; }

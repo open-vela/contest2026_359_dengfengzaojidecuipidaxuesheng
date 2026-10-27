@@ -1,0 +1,116 @@
+{
+  "image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+  "phase": "Wi-Fi 6 protocol enablement and bounded Internet/display/lifecycle acceptance",
+  "phone": {
+    "image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+    "user_confirmation_date": "2026-10-27",
+    "timezone": "Asia/Shanghai",
+    "user_response": "上网和屏幕正常，手机显示 Wi-Fi 6",
+    "mobile_data_off_in_test_request": true,
+    "phone_internet_user_confirmed": true,
+    "phone_wifi6_label_user_confirmed": true,
+    "physical_screen_normal_during_browsing_user_confirmed": true,
+    "exact_browsing_duration_measured": false,
+    "ap_protocol": 71,
+    "bandwidth_mhz": 20,
+    "clients": 1,
+    "he_capable_clients": 1,
+    "phy_errors": [
+      0,
+      0,
+      0
+    ],
+    "forwarded_outbound_packets": 14980,
+    "forwarded_inbound_packets": 14903,
+    "nat_entries": 136,
+    "nat_peak": 424,
+    "nat_limit": 2048,
+    "nat_limit_hits": 0,
+    "nat_alloc_failures": 0,
+    "display_irq_gap_max_us": 16667,
+    "display_underruns": 0,
+    "display_pan_errors": 0,
+    "flash_writes_erases_at_browsing_observation": [
+      0,
+      0
+    ],
+    "phone_phy_evidence": "User-reported Wi-Fi 6 label plus C6 HE client capability; no independent per-frame PHY capture",
+    "throughput_mbps": null,
+    "flash_csi_physical_acceptance": "pending separate tests",
+    "cold_boot": "pending",
+    "new_ble_identity_pairing": "pending",
+    "raw_evidence_sha256": "7a7ed87ba57608d73557fb8e518ec67aeeacf1a50454d9a2a2dac749769a71c0"
+  },
+  "flash_display": {
+    "game": {
+      "mode": "game",
+      "rounds": 2,
+      "flash_delta_read_write_erase": [
+        3200,
+        722,
+        75
+      ],
+      "physical_screen_observation": "user confirmed normal throughout",
+      "passed": true,
+      "user_response": "两个场景全程正常",
+      "user_confirmation_date": "2026-10-27"
+    },
+    "camera": {
+      "mode": "camera",
+      "rounds": 2,
+      "flash_delta_read_write_erase": [
+        3227,
+        767,
+        78
+      ],
+      "physical_screen_observation": "user confirmed normal throughout",
+      "passed": true,
+      "user_response": "两个场景全程正常",
+      "user_confirmation_date": "2026-10-27"
+    },
+    "total_writes": 1489,
+    "total_erases": 153,
+    "camera_captured_frames": 300,
+    "camera_displayed_frames": 300,
+    "camera_dropped_frames": 0,
+    "display_irq_gap_max_us": 16667,
+    "display_underruns": 0,
+    "display_pan_errors": 0,
+    "pan_max_us": 25225,
+    "physical_observation": "两个场景全程正常"
+  },
+  "after_real_traffic_close": {
+    "verified": true,
+    "outbound_packets": 15872,
+    "inbound_packets": 15866,
+    "ap_down": true,
+    "dhcp_stopped": true,
+    "nat_stopped": true,
+    "nat_entries": 0,
+    "network_query_returned": true
+  },
+  "reopen": {
+    "ready": true,
+    "ap_generation": 4,
+    "protocol": 71,
+    "bandwidth_mhz": 20,
+    "sharing_active": true,
+    "new_phone_traffic_after_reopen_independently_verified": false
+  },
+  "pending": [
+    "throughput measurement",
+    "D0 byte/wait statistics",
+    "D2 scheduling",
+    "D3 SDIO 40 MHz evaluation",
+    "cold power cycle",
+    "new BLE identity pairing",
+    "long duration/capacity testing",
+    "previously skipped portal configuration test"
+  ],
+  "evidence_sha256": {
+    "game-stress.log": "892c2cfc77fb3e3c33ccfb4a77efeb01ac3a7b47e7c71d51a20facefb8a1a3f1",
+    "camera-stress.log": "655e848db842898ee80624b0cac620c9ddafb4d7f8b6231e4d4542517303efa9",
+    "accepted-post-stress.log": "95ecf81b5530bf6ef1b0d5f6f0e6025346e480d507d6d682b5c55e470bcc9e64",
+    "accepted-reopen.log": "7ee9c1010787bf8fad90a969f9b6023bb4979f5d1bf0e9a5db666426ef4cf258"
+  }
+}

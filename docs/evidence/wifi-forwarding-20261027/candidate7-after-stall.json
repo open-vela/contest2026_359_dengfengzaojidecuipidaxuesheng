@@ -1,0 +1,15 @@
+{
+  "image_sha256": "5a90094d79da8f4bfa7fc3699080618f838d38f7afbbcca7ddf4b6d0d07a84b5",
+  "scope": "physical-board snapshot after incomplete sustained test; no reset before snapshot",
+  "sharing_lines": [
+    "SHARING link=1 lease=1 active=1 error=0 ip=192.168.31.64 gateway=192.168.31.1 dns=192.168.31.1 outbound=32916 inbound=24550 dropped=483",
+    "SHARING_NAT entries=111 limit=2048 peak=396 limit_hits=0 alloc_failures=0 heap=psram",
+    "SHARING_FWD enabled=1 eth_valid=1 eth_poll=00000000 eth_wait=0 eth_owned=0 eth_wakes=231 eth_missing=231 ap_valid=1 ap_poll=00000000 ap_wait=0 ap_owned=16 ap_wakes=103 ap_missing=24 truncated=0"
+  ],
+  "iob": {
+    "total": 96,
+    "free": 60,
+    "waiting": 0,
+    "throttled": 0
+  }
+}

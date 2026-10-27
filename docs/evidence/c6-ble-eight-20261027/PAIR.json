@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-27",
+  "scope": "offline_configured_pair_not_hardware_qualification",
+  "c6_controller_connections": 8,
+  "c6_host_enabled": false,
+  "p4_host_connections": 8,
+  "p4_ordinary_sessions": 8,
+  "c6_image_sha256": "10696b5009dfee3231f21d6b7764b052c1ae9fb9e099dd3c245fb65f9ed0ddb3",
+  "c6_elf_sha256": "b95b3df1a1fff8ea293dd4c26b034558434f2acda688acbb73ee5b85ea900d51",
+  "p4_image_sha256": "4c7c78a0ec810eb4bfb32c45e3c29c198a03b9c618052c0d85d812d4af07ffaa",
+  "p4_elf_sha256": "ef69f2fa10a9d43d94b56b2143f9977d9de34c3c1511b25cb97286854c4c8025",
+  "idf_commit": "cf8dad074683e67181ec1aefee1f3079e0b59c26",
+  "hosted_commit": "0c4aa5f40ce0feebb454c1d671c39329c795b037",
+  "c6_image_bytes": 1113952,
+  "c6_slot_remaining_bytes": 458912,
+  "partition_unchanged": true,
+  "baseline_sources_unchanged": true,
+  "sdk_tracked_sources_clean": true,
+  "initializer_tests_passed": true,
+  "sdk_target_and_elf_audit_passed": true,
+  "sdio_preserved_regression_passed": true,
+  "wifi_diagnostic_regression_passed": true,
+  "hosted_v3_binding_regression_passed": true,
+  "p4_eight_host_regression_passed": true,
+  "first_attempt": "idf.py rejected unsupported -j before compiling; retained original log; fixed with CMake job pool",
+  "flashed": false,
+  "reset": false,
+  "serial_access": false,
+  "eight_peer_radio_validated": false,
+  "warnings": [
+    "existing CMake minimum version deprecation",
+    "inactive ESP32 UART Kconfig references",
+    "optional ROM ELF/GDB setup unavailable"
+  ],
+  "recipe_sha256": {
+    "tools/prepare_c6_ble_capacity.py": "f099ac0a839dff8ec2a194a1692ae54f21ab401c97b66504b2378c9b6440bd7b",
+    "tools/build_c6_ble_eight.py": "6e40f73b8160f20d0eb0fad17dd9e943f342b2162dd532fea6e60412049512fb",
+    "tools/test_c6_ble_capacity.py": "4e8c32c3bfb7b81cbb0d00952eb75ff546ba18ea0ae238ec65dd67c0295d8f35",
+    "tools/audit_c6_ble_capacity.py": "38f48924241aa5cbb8e8155be521cdedf1480761cedc54cbbf2b15bdd02115cd",
+    "tools/c6/sdkconfig.ble-eight.defaults": "0554bf1742635952c5175db429d4242f464d8ec2bf2c32720417563931f7e752"
+  }
+}

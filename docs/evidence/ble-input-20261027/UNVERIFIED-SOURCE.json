@@ -1,0 +1,9 @@
+{
+  "status": "source_only_not_built_tested_or_flashed",
+  "changes": {
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_hid_link.c": "8733bfc9967f5304b2123e77f0cc67db25a2911164467134f00ddb7f73914043",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_hid_link.h": "0d03586f4df89f08220b2ca21a6d522155ce96396f87b88f7d0d8011af1c18ab",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_hid.c": "3b0dc62351b6f6448f3e5a69947abd8d58cd5f2ec43ccedb56c2e72eba2451e0",
+    "tools/test_ble_mouse_input.py": "494bc8b9f8462b940bed910a5f6aca96a80b4bd19bc94aa8d2ee49d8016d58d5"
+  }
+}

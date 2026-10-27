@@ -1,0 +1,26 @@
+{
+  "image_sha256": "7d9715148a1ddcac9a534b5feea1e4ae8d70592e4e5573c44589340daff4ed48",
+  "identity": "DB:9B:EB:2E:71:EF",
+  "name": "OpenVela Mouse-EB2E71EF",
+  "uuids": {
+    "service": "69d14e9d-5e2a-4564-8b03-7acf16a046bc",
+    "rx": "fe295b09-ba85-4b80-aec3-095121e8ae2f",
+    "tx": "9fc89159-b5c1-4797-8f7a-0f375f7e8138",
+    "info": "e86cb6ea-0566-4ea9-b513-1d94e99c9a54"
+  },
+  "rounds": [],
+  "passed": false,
+  "epoch": 1,
+  "protocol_info": [
+    1,
+    0,
+    244,
+    0,
+    4,
+    0,
+    3,
+    0
+  ],
+  "negotiated_payload": 244,
+  "error": "AssertionError: ACCESS_DENIED"
+}

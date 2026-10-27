@@ -1,0 +1,12 @@
+{
+  "xip_sources_unchanged": true,
+  "early_closure_unchanged": true,
+  "same_calibration_indirect_calls": true,
+  "linked_boundaries_reviewed": [
+    1207959552,
+    1211664640,
+    1211695136,
+    1218281656
+  ],
+  "review": "Forwarding LPWORK now uses a stable target device and its lock; XIP startup sources remain unchanged. Copy bounds match relocated linker symbols; original SDK calibration edges retained."
+}

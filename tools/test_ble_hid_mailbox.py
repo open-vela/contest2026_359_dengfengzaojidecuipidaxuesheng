@@ -10,7 +10,7 @@ a=p.parse_args();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
 root=Path(__file__).resolve().parents[1]
 ble=root/'app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble'
 source=(ble/'glass_ble_hid.c').read_text()
-names=['now_ms','process_request','process_stop','rpc','snapshot',
+names=['now_ms','input_cancel_locked','process_request','process_stop','rpc','snapshot',
        'glass_ble_hid_start','glass_ble_hid_stop','glass_ble_hid_mouse',
        'glass_ble_hid_release','glass_ble_hid_click']
 functions='\n\n'.join(function(source,name) for name in names)
@@ -19,6 +19,9 @@ globals_=source[source.index('static pthread_mutex_t g_lock'):source.index('stat
 globals_=globals_.replace('static uint8_t g_address;','').replace('static int g_ble_error, g_stop_result;','static int g_stop_result;')
 globals_=globals_.replace('static uint16_t g_report_handle, g_boot_handle;','')
 globals_=globals_.replace('static struct ble_npl_callout g_watchdog;','').replace('static const char g_name[] = "OpenVela Mouse";','')
+globals_=globals_.replace('static bool g_bond_pending;','')
+globals_=globals_.replace('static unsigned g_diagnostic_count;','')
+globals_=globals_.replace('static const char g_name[] = GLASS_BLE_CANDIDATE_NAME;','')
 prelude='''#include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -30,6 +33,7 @@ prelude='''#include <assert.h>
 #include <unistd.h>
 #include "mouse_core.h"
 #define BLE_HS_CONN_HANDLE_NONE 65535
+#define GLASS_BLE_ROLE_HID 2u
 #define RPC_TIMEOUT_SEC 2
 static _Thread_local bool host_context;
 static atomic_bool running=true,paused,wakeup;
@@ -42,6 +46,10 @@ static int stop_advertising(void);
 static int disconnect_if_needed(void);
 static void glass_ble_role_release(unsigned);
 static int glass_ble_host_wait(void){return 0;}
+static int glass_ble_central_mouse_pause(void){assert(!host_context);return 0;}
+static int glass_ble_central_mouse_resume(void){assert(!host_context);return 0;}
+static uint32_t g_input_session;
+static uint64_t g_request_until;
 '''
 fixture='''
 static int advertise(void)
@@ -56,7 +64,7 @@ static void glass_ble_role_release(unsigned value)
 {assert(host_context);if(role==value)role=0;}
 static void *host_loop(void *unused)
 {(void)unused;host_context=true;while(atomic_load(&running)){
- if(!atomic_load(&paused)&&atomic_exchange(&wakeup,false)){pthread_mutex_lock(&g_lock);process_request();process_stop();pthread_mutex_unlock(&g_lock);}
+ if(!atomic_load(&paused)){atomic_exchange(&wakeup,false);pthread_mutex_lock(&g_lock);process_request();process_stop();pthread_mutex_unlock(&g_lock);}
  usleep(1000);}return NULL;}
 static int start_result,stop_result;
 static void *start_caller(void *unused){(void)unused;start_result=glass_ble_hid_start();return NULL;}

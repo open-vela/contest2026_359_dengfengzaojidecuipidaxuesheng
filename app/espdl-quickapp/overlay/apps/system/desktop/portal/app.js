@@ -4,6 +4,8 @@ const sessionKey='device-space-session-v1';
 let token='',path='data',pack=null,busy=false,connectionAttempt=0,connecting=false;
 let pairBlockedUntil=0,pairTimer=0;
 let activeRequests=0,loadedToken='',connectionInterrupted=false;
+let networkEpoch=0,networkReading=false,networkSubmitting=false,networkBusy=false;
+let networkWatching=false,networkRequested=false,networkUncertain=false;
 try{token=sessionStorage.getItem(sessionKey)||'';}catch{}
 if(!/^[0-9a-f]{32}$/.test(token))token='';
 const say=(message,error=false)=>{ $('status').textContent=message; $('status').classList.toggle('error',error); };
@@ -15,7 +17,7 @@ function connectionView(connected){
   $('connection-badge').classList.toggle('offline',!connected);
   $('retry-connection').hidden=true;
 }
-function forget(){token='';loadedToken='';remember();connectionView(false);$('pair-code').value='';}
+function forget(){token='';loadedToken='';remember();connectionView(false);$('pair-code').value='';resetNetwork();}
 function pairButton(){
   const seconds=Math.max(0,Math.ceil((pairBlockedUntil-Date.now())/1000));
   $('pair-button').disabled=connecting||seconds>0;
@@ -65,7 +67,8 @@ async function request(url,method='GET',body,authenticate=true){
             $('retry-connection').hidden=!token;$('connection-badge').textContent='连接中断';
             $('connection-badge').classList.add('offline');
           }
-          throw Error(method==='POST'&&url.startsWith('config?')?
+          throw Error(method==='POST'&&url==='network/connect'?
+            '连接请求的回执未收到，设备可能正在试连。请保留设备热点连接并查询状态，不要重复提交。':method==='POST'&&url.startsWith('config?')?
             '保存回执未收到，配置可能已保存。请恢复连接后核对，再决定是否重新提交。':
             '暂时无法连接设备，已保留填写内容，请检查 Wi-Fi 后重试。');
         }
@@ -78,6 +81,7 @@ const api=(url,method='GET',body)=>request(url,method,body,true);
 const run=fn=>Promise.resolve().then(fn).catch(e=>say(e.message,true));
 async function connect(code=''){
   const attempt=++connectionAttempt;
+  resetNetwork();
   connecting=true;connectionView(false);pairButton();$('connection-badge').textContent='正在连接';say('正在连接设备…');
   try{
     if(code){
@@ -96,6 +100,7 @@ async function connect(code=''){
       loadedToken=token;
     }
     connectionView(true);$('pair-code').value='';say('已连接设备，可以开始配置。');
+    networkWatching=true;
   }catch(e){
     if(attempt!==connectionAttempt)return;
     connectionView(false);$('retry-connection').hidden=!token||Boolean(e.status);
@@ -161,6 +166,112 @@ for(const id of ['ai','homeassistant','music','voice','desktop','agent']){
     });
   };
 }
+function networkSay(message,error=false){
+  $('network-status').textContent=message;
+  $('network-status').classList.toggle('error',error);
+}
+function networkControls(){
+  $('network-connect').disabled=networkSubmitting||networkBusy;
+  $('network-refresh').disabled=networkReading;
+}
+function resetNetwork(){
+  networkEpoch++;networkReading=networkSubmitting=networkBusy=false;
+  networkWatching=networkRequested=networkUncertain=false;
+  $('network-password').value='';$('network-ap').textContent='';
+  networkSay('正在读取网络状态…');networkControls();
+}
+function networkCurrent(epoch,attempt,bearer){
+  return epoch===networkEpoch&&attempt===connectionAttempt&&bearer===token&&!!token;
+}
+function validateNetwork(ssid,password){
+  const length=new TextEncoder().encode(ssid).length;
+  if(!length||length>32||/[\x00-\x1f\x7f]/.test(ssid))
+    throw Error('网络名称须为 1–32 个 UTF-8 字节，不能包含控制字符；中文通常占 3 个字节。');
+  if(password!==''&&(!/^[\x20-\x7e]{8,63}$/.test(password)&&!/^[0-9a-fA-F]{64}$/.test(password)))
+    throw Error('密码须为 8–63 个可打印 ASCII 字符，或 64 位十六进制密钥；开放网络可留空。');
+}
+function networkSnapshot(data){
+  if(data?.ok!==true||typeof data.busy!=='boolean'||!Number.isInteger(data.error)||
+      typeof data.associated!=='boolean'||typeof data.ipv4_ready!=='boolean'||
+      typeof data.ipv4!=='string'||typeof data.ap_running!=='boolean'||
+      !Number.isInteger(data.ap_state)||!Number.isInteger(data.ap_error)||
+      typeof data.ap_ssid!=='string'||typeof data.ap_ip!=='string')
+    throw Error('设备网络状态响应不完整，请稍后查询。');
+  networkBusy=data.busy;
+  $('network-ap').textContent=data.ap_running?
+    '设备热点：'+data.ap_ssid+' · http://'+data.ap_ip+':8080。无互联网也请保留连接。':
+    data.ap_error?'设备热点操作失败（'+data.ap_error+'），请在设备 Wi-Fi 页面核对。':
+    '设备热点未开启。需要配网时，请在设备 Wi-Fi 页面手动开启。';
+  if(data.error){
+    networkWatching=data.busy;networkRequested=false;$('network-password').value='';
+    networkSay(data.associated?
+      '路由器已关联，但获取 IP 或保存新配置失败（'+data.error+'）。请核对设备提示后重试，不能视为配网成功。':
+      '连接路由器失败（'+data.error+'）。请检查网络名称、密码和路由器；未确认保存新配置。',true);
+  }else if(data.busy){
+    networkWatching=true;
+    networkSay(data.associated?'路由器已关联，正在获取 IP 并确认保存，请稍候…':
+      '正在尝试连接路由器，尚未确认关联、IP 地址或保存结果…');
+  }else if(data.associated&&data.ipv4_ready&&
+      /^(?:\d{1,3}\.){3}\d{1,3}$/.test(data.ipv4)&&
+      data.ipv4.split('.').every(part=>Number(part)<=255)&&data.ipv4!=='0.0.0.0'){
+    networkWatching=false;networkRequested=false;
+    networkSay(networkUncertain?'当前路由器已连接 · IP：'+data.ipv4+
+      '。本次请求回执未收到，请在设备上核对新网络和保存结果，不要重复提交。':
+      '路由器连接成功 · IP：'+data.ipv4+'。设备热点会保持开启，完成后请在设备上关闭。',networkUncertain);
+  }else{
+    networkWatching=true;
+    networkSay(data.associated?'路由器已关联，正在等待可用 IP 地址…':networkRequested?
+      '连接请求已受理，等待设备确认关联、IP 地址和保存结果…':
+      '尚未连接路由器。填写路由器网络名称和密码后，点击「连接路由器」。');
+  }
+  networkControls();
+}
+async function refreshNetwork(force=false){
+  if(document.hidden||!token||loadedToken!==token||connecting||networkReading||
+      networkSubmitting||(!networkWatching&&!force))return;
+  const epoch=networkEpoch,attempt=connectionAttempt,bearer=token;
+  networkReading=true;networkControls();
+  try{
+    const data=await(await api('network')).json();
+    if(networkCurrent(epoch,attempt,bearer))networkSnapshot(data);
+  }catch(e){
+    if(networkCurrent(epoch,attempt,bearer))networkSay(
+      '暂时无法读取网络状态。请保持设备热点连接后查询；连接动作不会自动重发。'+e.message,true);
+  }finally{
+    if(networkCurrent(epoch,attempt,bearer)){networkReading=false;networkControls();}
+  }
+}
+async function submitNetwork(){
+  if(networkSubmitting||networkBusy||!token||loadedToken!==token||connecting)return;
+  const ssid=$('network-ssid').value,password=$('network-password').value;
+  try{validateNetwork(ssid,password);}catch(e){$('network-password').value='';networkSay(e.message,true);return;}
+  const attempt=connectionAttempt,bearer=token;
+  // Invalidate a status read which started before this new connection request.
+  networkEpoch++;const submitEpoch=networkEpoch;networkReading=false;
+  networkSubmitting=networkBusy=true;networkRequested=networkWatching=true;
+  networkUncertain=false;networkControls();
+  networkSay('正在提交连接请求，提交成功只代表设备已受理…');
+  try{
+    const data=await(await api('network/connect','POST',{ssid,password})).json();
+    if(!networkCurrent(submitEpoch,attempt,bearer))return;
+    if(data?.ok!==true)throw Error('设备未确认受理连接请求，请查询状态后再决定是否重试。');
+    networkSay('连接请求已受理，正在等待路由器关联、IP 地址和保存结果…');
+  }catch(e){
+    if(networkCurrent(submitEpoch,attempt,bearer)){
+      networkUncertain=!e.status;
+      if(e.status){networkBusy=false;networkRequested=false;}
+      networkSay(e.message,true);
+    }
+  }finally{
+    if(networkCurrent(submitEpoch,attempt,bearer)){
+      $('network-password').value='';networkSubmitting=false;networkControls();
+    }
+  }
+}
+$('network').onsubmit=e=>{e.preventDefault();return submitNetwork();};
+$('network-refresh').onclick=()=>refreshNetwork(true);
+setInterval(()=>refreshNetwork(),2000);
+window.addEventListener('pagehide',()=>{$('network-password').value='';});
 const size=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(2)+' MB';
 /* The manager browses the whole volume: show the real path a shortcut points at. */
 function displayPath(p){if(p==='data')return '/data';if(p.startsWith('data/'))return '/'+p;if(p==='files')return '/data/files';if(p.startsWith('files/'))return '/data/'+p;if(p==='sdcard')return '/sdcard';if(p.startsWith('sdcard/'))return '/'+p;return p;}

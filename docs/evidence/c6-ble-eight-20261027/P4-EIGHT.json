@@ -1,0 +1,8 @@
+{
+  "scope": "host_simulation_not_radio",
+  "ordinary_sessions": 8,
+  "asan_ubsan": true,
+  "passed": true,
+  "returncode": 0,
+  "source_sha256": "7bb0c430989498d56bf6429058cd651e01c0cd1aaff08ba0331b4125b6e9df2c"
+}

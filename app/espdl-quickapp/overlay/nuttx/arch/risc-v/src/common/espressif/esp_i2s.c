@@ -1531,7 +1531,11 @@ static void i2s_tx_worker(void *arg)
 {
   struct esp_i2s_s *priv = (struct esp_i2s_s *)arg;
   struct esp_buffer_s *bfcontainer;
+  struct ap_buffer_s *apb;
+  i2s_callback_t callback;
+  void *cbarg;
   irqstate_t flags;
+  int result;
 
   DEBUGASSERT(priv);
 
@@ -1568,19 +1572,23 @@ static void i2s_tx_worker(void *arg)
       /* Perform the TX transfer done callback */
 
       DEBUGASSERT(bfcontainer && bfcontainer->callback);
-      bfcontainer->callback(&priv->dev, bfcontainer->apb,
-                            bfcontainer->arg, bfcontainer->result);
+      apb = bfcontainer->apb;
+      callback = bfcontainer->callback;
+      cbarg = bfcontainer->arg;
+      result = bfcontainer->result;
 
-      /* Balance i2s_send's reference, independently of the codec's owner. */
-      apb_free(bfcontainer->apb);
-
-      /* Release the internal buffer used by the DMA outlink */
+      /* The callback can wake a higher priority producer immediately.
+       * Return completed DMA storage before it allocates the next frame.
+       * The container may then be reused, so keep all callback state here.
+       */
 
       kmm_free(bfcontainer->buf);
-
-      /* And release the buffer container */
-
       VERIFY(i2s_buf_free(priv, bfcontainer));
+
+      /* Keep the I2S APB reference until the callback has returned. */
+
+      callback(&priv->dev, apb, cbarg, result);
+      apb_free(apb);
     }
 
   /* TX channel can only be stopped here if either 1) the RX channel is
@@ -1628,8 +1636,12 @@ static void i2s_rx_worker(void *arg)
 {
   struct esp_i2s_s *priv = (struct esp_i2s_s *)arg;
   struct esp_buffer_s *bfcontainer;
+  struct ap_buffer_s *apb;
+  i2s_callback_t callback;
+  void *cbarg;
   lldesc_t *dmadesc;
   irqstate_t flags;
+  int result;
 
   DEBUGASSERT(priv);
 
@@ -1712,19 +1724,23 @@ static void i2s_rx_worker(void *arg)
           bfcontainer->apb->flags |= AUDIO_APB_FINAL;
         }
 
-      bfcontainer->callback(&priv->dev, bfcontainer->apb,
-                            bfcontainer->arg, bfcontainer->result);
+      apb = bfcontainer->apb;
+      callback = bfcontainer->callback;
+      cbarg = bfcontainer->arg;
+      result = bfcontainer->result;
 
-      /* Balance i2s_receive's reference on every returned capture buffer. */
-      apb_free(bfcontainer->apb);
-
-      /* Release the internal buffer used by the DMA inlink */
+      /* Copying and cache synchronization are complete. Release DMA
+       * storage before waking a producer that can immediately resubmit.
+       * Do not access the container after returning it to the free list.
+       */
 
       kmm_free(bfcontainer->buf);
-
-      /* And release the buffer container */
-
       VERIFY(i2s_buf_free(priv, bfcontainer));
+
+      /* Keep the I2S APB reference until the callback has returned. */
+
+      callback(&priv->dev, apb, cbarg, result);
+      apb_free(apb);
     }
 
   /* RX channel can only be stopped here if either 1) the TX channel is

@@ -1,0 +1,9 @@
+{
+  "status": "stopped_by_user_after_failed_boot_verification",
+  "image_sha256": "523a43a303a118de1bc6626b4e4df85aa8206d896454c4f75b47847a97584336",
+  "rollback_flash_verified": true,
+  "rollback_candidate": 19,
+  "rollback_runtime_confirmed": false,
+  "fresh_ble_pairing_verified": false,
+  "current_state": "../../ble-input-20261027/CURRENT_STATE.json"
+}

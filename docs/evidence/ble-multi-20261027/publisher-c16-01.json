@@ -1,0 +1,19 @@
+{
+  "service_uuid": "88538b5b-04f6-4e80-8a92-d63f61c273d3",
+  "events": [
+    {
+      "status": "WAITING",
+      "error": "SUCCESS"
+    },
+    {
+      "status": "STARTED",
+      "error": "SUCCESS"
+    },
+    {
+      "status": "STOPPED",
+      "error": "SUCCESS"
+    }
+  ],
+  "status": "STARTED",
+  "final_status": "STOPPED"
+}

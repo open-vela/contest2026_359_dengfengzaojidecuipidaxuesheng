@@ -1,0 +1,54 @@
+{
+  "test_p4_jpeg_emit.py": {
+    "passed": true,
+    "log_sha256": "af619c0683db89240044f6b4a31d8d5ff237ba4f47bcb75dcebedac5e6b13c8c"
+  },
+  "test_p4_jpeg_parser.py": {
+    "passed": true,
+    "log_sha256": "197427d9fe5a9ce6f624a313ec73ee67e89bd8064061667c2933d9e43a95938e"
+  },
+  "test_p4_dma2d.py": {
+    "passed": true,
+    "log_sha256": "f97bd70d9d75a6e994d92d96f09a050ae90c0c095fba167ab51a17f6c2bcfb3b"
+  },
+  "test_p4_jpeg_adapter.py": {
+    "passed": true,
+    "log_sha256": "6cb79f9ecf098a3d5eb01bb3bdb5146e3bcf8cfe11f2d67e33a3771e130e8699"
+  },
+  "test_photo_store.py": {
+    "passed": true,
+    "log_sha256": "89e22850f58a768435989036bb6d9b8d86afa2e170514d62189c89e137561d73"
+  },
+  "test_photo_storage.py": {
+    "passed": true,
+    "log_sha256": "63f7599d9f7e135b7ceb9b2f0fedc6c60bf4cd3644c62bcb762b975c38d1151a"
+  },
+  "test_assistant_platform.py": {
+    "passed": true,
+    "log_sha256": "d21dd18b7a5af84fb534f2d0918845313eb292d676dfd4fa88b0114015a0ca72"
+  },
+  "test_camera_sync.py": {
+    "passed": true,
+    "log_sha256": "715152dbc4872d5cf7449f5d22cdeec06990603373e32d778b14ee4bce3adb79"
+  },
+  "test_camera_boundary.py": {
+    "passed": true,
+    "log_sha256": "8ee7cb3e895bbef26d38cce9f113526f33277a0dd881239b9789191e24286b98"
+  },
+  "test_p4_psram_xip.py": {
+    "passed": true,
+    "log_sha256": "d54878a4228e1fccebdbd4942d131091b88da77b22ed5432785578be3b9761ae"
+  },
+  "test_ble_identity.py": {
+    "passed": true,
+    "log_sha256": "5a1e2e5cebca8d7865c71b1cbd91fe1f4554002c0426b390ceaaa13d89710768"
+  },
+  "test_nimble_capacity.py": {
+    "passed": true,
+    "log_sha256": "2df4ae1ad18bca8837ad5c75910cfcf4dd1a1403e0c3b965c7c49ed78ae7e226"
+  },
+  "test_p4_jpeg_encode_adapter.py": {
+    "passed": true,
+    "result_sha256": "eea51a0cbd4bd93bc767eac4bf58f032fb19b663e68d00c5c2a45baea8c02bf5"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "baseline_image_sha256": "77845a88158ea9e737cbb1230aeed3b0550f9cc48ff0c77d925c8e6ca6ab0030",
+  "baseline_psram_xip": true,
+  "production_changes": [
+    "app/espdl-quickapp/overlay/apps/system/c6ble/ble_main.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/Makefile",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble.h"
+  ],
+  "requested_connections": 2,
+  "c6_firmware_unchanged": true
+}

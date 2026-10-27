@@ -1,0 +1,1 @@
+NIMBLE_CAPACITY_OK: real Makefile + pinned syscfg; capacities 1/2/3; unmapped default-one rejected

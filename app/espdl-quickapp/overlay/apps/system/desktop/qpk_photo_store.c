@@ -13,6 +13,7 @@
 #include "qpk_photo_storage.h"
 #include "camera_color.h"
 #include "camera_frame.h"
+#include "qpk_jpeg_hw.h"
 #if defined(__NuttX__) && defined(CONFIG_ESPRESSIF_MIPI_DSI)
 #include <nuttx/video/camera_timing.h>
 #endif
@@ -51,36 +52,76 @@ static bool cancelled(unsigned owner,uint32_t ticket)
 static void little32(uint8_t *out,uint32_t value)
 {for(unsigned i=0;i<4;i++)out[i]=(uint8_t)(value>>(i*8));}
 
+static int encode_photo(unsigned owner,const struct job *job,unsigned width,
+                         unsigned height,uint8_t **jpeg,size_t *size)
+{
+#ifdef CONFIG_ESP32P4_JPEG
+  const struct qpk_photo_input *in=&job->input;
+  uint16_t *frame=malloc((size_t)width*height*2);
+  if(!frame)return -ENOMEM;
+  struct camera_reference_rect crop=camera_frame_crop(in->width,in->height,
+    in->image_width,in->image_height,in->zoom,in->aspect);
+  const uint16_t *source=job->owned;
+  int ret=0;
+  for(unsigned y=0;y<height;y++){
+    if(cancelled(owner,job->result.ticket)){ret=-ECANCELED;break;}
+    for(unsigned x=0;x<width;x++)
+      frame[(size_t)y*width+x]=camera_color_pixel(source[
+        (size_t)(crop.y+y*crop.h/height)*in->stride+crop.x+x*crop.w/width],in->style);
+  }
+  if(!ret)ret=qpk_jpeg_hw_encode565(frame,width,height,width,90,jpeg,size);
+  free(frame);
+  if(!ret&&cancelled(owner,job->result.ticket)){free(*jpeg);*jpeg=NULL;*size=0;ret=-ECANCELED;}
+  return ret;
+#else
+  (void)owner;(void)job;(void)width;(void)height;(void)jpeg;(void)size;
+  return -ENOSYS;
+#endif
+}
+
 static int write_photo(unsigned owner,const struct job *job,char *path)
 {
   const struct qpk_photo_input *in=&job->input;
   if(cancelled(owner,job->result.ticket))return -ECANCELED;
-  unsigned width=in->format==QPK_PHOTO_BMP565?512:in->width;
-  unsigned height=in->format==QPK_PHOTO_BMP565?in->height*512/in->width:in->height;
+  bool encoding=in->format==QPK_PHOTO_JPEG565;
+  bool jpeg_input=in->format==QPK_PHOTO_JPEG;
+  unsigned width=in->format==QPK_PHOTO_BMP565||encoding?512:in->width;
+  unsigned height=in->format==QPK_PHOTO_BMP565||encoding?in->height*512/in->width:in->height;
   if(in->aspect)height=camera_aspect_height(width,in->aspect);
   size_t row_bytes=(width*(in->format==QPK_PHOTO_BMP24?3:2)+3)&~3u;
   size_t expected=in->format==QPK_PHOTO_JPEG?in->bytes:
     (in->format==QPK_PHOTO_BMP24?54:66)+row_bytes*height;
+  if(encoding)expected=(size_t)((width+15)&~15u)*((height+15)&~15u)*6+4096;
   char directory[128];
   int ret=qpk_photo_directory(directory,sizeof(directory),expected,
                                job->root[0]?job->root:NULL);
   if(ret)return ret;
   if(cancelled(owner,job->result.ticket))return -ECANCELED;
-  const char *extension=in->format==QPK_PHOTO_JPEG?"jpg":"bmp";
+  uint8_t *encoded=NULL;size_t encoded_size=0;
+  if(encoding){ret=encode_photo(owner,job,width,height,&encoded,&encoded_size);if(ret)return ret;expected=encoded_size;}
+  /* Encoding delays file open: keep the selected SD medium and reject an
+   * unplug instead of accidentally opening a stale mount-point directory.
+   */
+  if(encoding&&!job->root[0]&&!strcmp(directory,QPK_PHOTO_SD_ROOT)){
+    ret=qpk_volume_mounted(QPK_VOLUME_SD);if(ret){free(encoded);return ret;}
+  }
+  const char *extension=jpeg_input||encoding?"jpg":"bmp";
   FILE *file=NULL;
   for(unsigned i=0;i<1000;i++){
     snprintf(path,128,"%.95s/photo-%08lu-%u.%s",directory,
              (unsigned long)job->result.ticket,i,extension);
     file=fopen(path,"wbx");if(file||errno!=EEXIST)break;
   }
-  if(!file)return -(errno?errno:EIO);
+  if(!file){free(encoded);return -(errno?errno:EIO);}
   printf("[photo-io] begin owner=%u ticket=%lu bytes=%lu directory=%s\n",
          owner,(unsigned long)job->result.ticket,(unsigned long)expected,directory);
-  if(in->format==QPK_PHOTO_JPEG){
-    for(size_t offset=0;offset<in->bytes;){
+  if(jpeg_input||encoding){
+    size_t bytes=encoding?encoded_size:in->bytes;
+    const uint8_t *data=encoding?encoded:job->owned;
+    for(size_t offset=0;offset<bytes;){
       if(cancelled(owner,job->result.ticket)){ret=-ECANCELED;break;}
-      size_t count=in->bytes-offset;if(count>4096)count=4096;
-      if(fwrite((const uint8_t *)job->owned+offset,1,count,file)!=count){ret=-EIO;break;}
+      size_t count=bytes-offset;if(count>4096)count=4096;
+      if(fwrite(data+offset,1,count,file)!=count){ret=-EIO;break;}
       offset+=count;
     }
   }else{
@@ -114,6 +155,7 @@ static int write_photo(unsigned owner,const struct job *job,char *path)
   /* A cancellation during fsync must never publish a successful receipt. */
   if(!ret&&cancelled(owner,job->result.ticket))ret=-ECANCELED;
   if(ret){unlink(path);path[0]=0;}
+  free(encoded);
   return ret;
 }
 static void *save_worker(void *unused)
@@ -180,7 +222,7 @@ int qpk_photo_store_initialize(void)
 int qpk_photo_store_submit(enum qpk_photo_owner owner,const struct qpk_photo_input *in,uint32_t *ticket)
 {
   if((unsigned)owner>=QPK_PHOTO_OWNERS||!in||!ticket||!in->data||!in->bytes||
-     in->bytes>QPK_PHOTO_COPY_MAX||(unsigned)in->format>QPK_PHOTO_BMP24||
+     in->bytes>QPK_PHOTO_COPY_MAX||(unsigned)in->format>QPK_PHOTO_JPEG565||
      in->aspect>CAMERA_ASPECT_COUNT||(in->format==QPK_PHOTO_JPEG&&in->aspect)||
      in->image_width>4096||in->image_height>4096||(!in->image_width!=!in->image_height))return -EINVAL;
   if(in->format!=QPK_PHOTO_JPEG &&
@@ -188,7 +230,8 @@ int qpk_photo_store_submit(enum qpk_photo_owner owner,const struct qpk_photo_inp
       in->stride>4096||in->bytes!=(size_t)in->stride*in->height*2||
       in->zoom<100||in->zoom>300||in->style>=CAMERA_COLOR_STYLE_COUNT||
       (in->format==QPK_PHOTO_BMP24&&in->width>512)||
-      (in->format==QPK_PHOTO_BMP565&&(! (in->height*512/in->width)||in->height*512/in->width>2048))))return -EINVAL;
+      ((in->format==QPK_PHOTO_BMP565||in->format==QPK_PHOTO_JPEG565)&&
+       (!(in->height*512/in->width)||in->height*512/in->width>2048))))return -EINVAL;
   if(in->root_override&&strlen(in->root_override)>95)return -ENAMETOOLONG;
   pthread_mutex_lock(&lock);
   if(!ready||stopping){pthread_mutex_unlock(&lock);return -EAGAIN;}

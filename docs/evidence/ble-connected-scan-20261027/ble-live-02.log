@@ -1,0 +1,18 @@
+c6ble central stop 2
+c6ble central stop result=-116
+nsh> [K
+nsh> [Kc6ble central stop 1
+c6ble central stop result=0
+nsh> [K
+nsh> [Kc6ble central connecrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 13 aa 15 00
+t 0 2
+c6ble central connect result=-116
+nsh> [K
+nsh> [Kc6ble central connect 0 1
+c6ble central connect result=-138
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=1 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [K

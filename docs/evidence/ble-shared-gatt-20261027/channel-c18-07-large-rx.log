@@ -1,0 +1,7 @@
+c6ble channrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 36 aa 15 00
+el receive 1
+BLE_CHANNEL_DATA bytes=244 fnv32=72d658b9
+c6ble channel receive result=0
+nsh> [K
+nsh> [K

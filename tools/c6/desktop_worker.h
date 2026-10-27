@@ -9,7 +9,8 @@
 enum c6_desktop_operation
 {
   C6_DESKTOP_SCAN = 1, C6_DESKTOP_CONNECT,
-  C6_DESKTOP_STATUS, C6_DESKTOP_DISCONNECT
+  C6_DESKTOP_STATUS, C6_DESKTOP_DISCONNECT,
+  C6_DESKTOP_SOFTAP_START, C6_DESKTOP_SOFTAP_STOP
 };
 struct c6_desktop_link
 {
@@ -40,6 +41,12 @@ struct c6_desktop_backend
    * Status must use observed link/IP state, not the last accepted command. */
   int (*status)(struct c6_desktop_link *);
   int (*disconnect)(void);
+  int (*softap_start)(const char *, const char *);
+  int (*softap_stop)(void);
+  /* Runs on this same persistent worker between requests, at most once a
+   * second. Never called with the mailbox mutex held. No extra task/stack.
+   */
+  void (*maintain)(void);
 };
 
 struct c6_desktop_worker

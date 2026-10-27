@@ -1,0 +1,10 @@
+{
+  "reported_download_mbps": 3.47,
+  "reported_upload_mbps": 4.01,
+  "source": "user report in this chat",
+  "priority": "shared SoftAP -> P4 NAT -> Ethernet throughput",
+  "method_and_duration": "not specified",
+  "automatic_crc_verification": false,
+  "currently_observed_board_image_sha256": "f327057e568f9a5334399027eece75d118d3bf2892a811a370776908aeeaf9ff",
+  "user_measurement_firmware_identity_independently_verified": false
+}

@@ -1,0 +1,18 @@
+{
+  "ethernet_sharing_verified": true,
+  "phone_internet_verified": true,
+  "jpeg_encoding_verified": true,
+  "real_photo_save_verified": false,
+  "image_sha256": "574bcd6aad8affb803a3a6440a1c1a34b0dab627f6cca0dd86de92d2f8793a82",
+  "independent_readback_verified": true,
+  "data_partition_unchanged_after_flash": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "jpeg_pixels_verified": true,
+  "phone_acceptance": "user confirmed Internet with mobile data disabled after reopen; see RUNTIME.json counter limitation",
+  "physical_display_acceptance": "earlier bounded scenes normal; later transient blue screen reported, overall stability not accepted",
+  "cold_power_cycle_verified": false,
+  "ble_new_identity_pairing_verified": false,
+  "runtime_status": "regression: intermittent slow browsing and transient blue screen; NAT cap reached"
+}

@@ -1,0 +1,10 @@
+{
+  "image_sha256": "77845a88158ea9e737cbb1230aeed3b0550f9cc48ff0c77d925c8e6ca6ab0030",
+  "independent_readback_verified": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "data_partition_unchanged_after_flash": true,
+  "cold_power_cycle_verified": false,
+  "physical_acceptance": "passed：用户重测后反馈没问题，并对 CSI Flash 写擦阶段明确确认这一段也没有问题"
+}

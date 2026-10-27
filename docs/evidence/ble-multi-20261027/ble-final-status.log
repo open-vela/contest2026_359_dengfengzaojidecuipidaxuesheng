@@ -1,0 +1,41 @@
+desktop hardware-call ble.status {}
+hardware-test: ble.status code=0 bytes=-1 file=-1 rate=-1 duration=-1 value=-1 peak=0 control=0
+hardware-call: ble.status code=0 {"ready":true,"scanning":false,"connecting":false,"connected":false,"error":0,"generation":0,"scanGeneration":3,"mtu":23,"encrypted":false,"bonded":false,"connectionCount":0,"centralCapacity":2,"sessions":[],"devices":[]}
+nsh> [K
+nsh> [Kc6ble identity
+type=static-random address=C9:9E:3C:DD:5A:CB name=OpenVela Mouse-3CDD5ACB
+nsh> [K
+nsh> [Kc6ble mousrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 28 aa 15 00
+e release
+c6ble mouse release: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=7 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central sessions
+BLE_SCAN generation=3 scanning=0 count=0 connected=0 connection_generation=0
+BLE_SESSIONS active=0 connected=0 capacity=2 selected=0
+c6ble central sessions result=0
+nsh> [K
+nsh> [Kc6ble status
+configured_connections=3 effective_connections=3 host_ready=1 device_connected=0 mouse_connected=1 store_error=0
+reserved_connections=1 central_reserved=0 hid_reserved=1 central_reservations=0 device_connections=0 mixed_role_capacity=1
+nsh> [K
+nsh> [Kdesktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=4190 text_hash=e15077f6 rodata_hash=82ef2ebf cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 29 aa 15 00
+desktop ui render-metrics
+UI_RENDER_METRICS elapsed_ms=189790 frames=2089 render_avg_us=7477 render_max_us=1050000 refreshes=2089 refresh_avg_us=7539 refresh_max_us=1080000 widgets=0
+desktop: ui render-metrics ready
+nsh> [K
+nsh> [Kdesktop ui navigation-status
+navigation page=home return=home
+nsh> [K
+nsh> [Kdesktop ui render-metrics
+UI_RENDER_METRICS elapsed_ms=192980 frames=2117 render_avg_us=7453 render_max_us=1050000 refreshes=2117 refresh_avg_us=7515 refresh_max_us=1080000 widgets=0
+desktop: ui render-metrics ready
+nsh> [K
+nsh> [K

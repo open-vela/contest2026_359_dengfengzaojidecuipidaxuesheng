@@ -1,0 +1,16 @@
+{
+  "service_uuid": "970b7622-55cb-4c65-9f7e-faffa29f64fb",
+  "characteristic_uuid": "d6c66bee-fb3c-4da8-9a1d-041fbbb191a6",
+  "radio_state": "ON",
+  "expected_bytes": 16,
+  "expected_fnv32": "49ac98e0",
+  "advertising": "ABORTED",
+  "events": [
+    {
+      "status": "ABORTED",
+      "error": "SUCCESS"
+    }
+  ],
+  "error": "Windows rejected test advertising; see bounded event error",
+  "advertising_final": "ABORTED"
+}

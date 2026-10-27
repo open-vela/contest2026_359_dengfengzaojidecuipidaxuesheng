@@ -1,0 +1,32 @@
+{
+  "image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+  "client_date": "2026-10-27",
+  "status": "bulk-transfer integrity regression; performance release not accepted",
+  "completed_formal_download_windows": 1,
+  "required_windows_per_direction": 3,
+  "exploratory_download_mbps": 0.9675470475482547,
+  "formal_window_bytes": 8388608,
+  "client_window_ms": 69306.70000000298,
+  "server_window_ms": 69359.79409998981,
+  "http_probe_p95_ms": 4423.29999999702,
+  "http_probe_timeouts": 2,
+  "later_window_client_abort_reason": "checksum",
+  "later_window_server_error_count": 0,
+  "full_download_upload_baseline_complete": false,
+  "validated_upload_throughput": null,
+  "prior_phone_browsing_and_flash_display_acceptance": "retained only within those bounded scenarios",
+  "nat_limit_hits": 0,
+  "nat_alloc_failures": 0,
+  "nat_entries_at_failure_snapshot": 146,
+  "sdio_cmd52_alive": true,
+  "xip_hashes_unchanged": true,
+  "new_display_underruns": 0,
+  "source_of_failure_not_yet_localized": "tool CRC, environment, host/forwarding/SDIO paths require offset evidence",
+  "action": "freeze failed metadata, preserve device, short CRC/offset reproduction before clock/scheduling changes",
+  "firmware_changed_during_measurement": false,
+  "flash_writes_during_measurement": 0,
+  "evidence_sha256": {
+    "run-db029b67cabca935eb7bce20.json": "ccf868dc3af6f8e1fab4bea261369249ff83507d9ec8ea5d4b0a56eb08543799",
+    "throughput-checksum-failure.log": "c4ff80a0f20e91d84e9746e063493ecfc6f053d726e9e91f84cb71fa3b02ad32"
+  }
+}

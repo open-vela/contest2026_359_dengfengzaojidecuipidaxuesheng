@@ -20,6 +20,7 @@ for name in ['enabled','legacy','disabled']:
     out=a.output/name;(out/'nuttx').mkdir(parents=True,exist_ok=True)
     config='#pragma once\n'
     if name!='disabled':config+=''.join('#define CONFIG_'+f+' 1\n' for f in features)
+    if name!='disabled':config+='#define CONFIG_NIMBLE_BLE_MAX_CONN '+('2' if name=='legacy' else '3')+'\n'
     (out/'nuttx/config.h').write_text(config)
     flags=['-std=gnu11','-D_GNU_SOURCE','-O1','-g','-Wall','-Wextra','-Werror',
            '-Wno-misleading-indentation','-fsanitize=address,undefined',

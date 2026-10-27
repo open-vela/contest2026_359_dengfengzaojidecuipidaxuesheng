@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "source_sha256": "ec7fc5d9ee8f8771eccf99dd0b884e2bd70f11177d39cf303ee2cfb885ff07e4",
+  "results": [
+    {
+      "label": "candidate",
+      "mode": 0,
+      "exit_code": 0,
+      "passed": true
+    },
+    {
+      "label": "candidate",
+      "mode": 1,
+      "exit_code": 0,
+      "passed": true
+    },
+    {
+      "label": "candidate",
+      "mode": 2,
+      "exit_code": 0,
+      "passed": true
+    },
+    {
+      "label": "baseline-negative",
+      "mode": 0,
+      "exit_code": -6,
+      "passed": true
+    }
+  ],
+  "scope": "Actual STA branch, host API/scheduler stubs; does not substitute for FreeRTOS/radio hardware validation."
+}

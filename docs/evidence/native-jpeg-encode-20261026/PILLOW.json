@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "cases": [
+    "header-s0-q1.jpg",
+    "header-s0-q100.jpg",
+    "header-s0-q25.jpg",
+    "header-s0-q50.jpg",
+    "header-s0-q75.jpg",
+    "header-s0-q90.jpg",
+    "header-s1-q1.jpg",
+    "header-s1-q100.jpg",
+    "header-s1-q25.jpg",
+    "header-s1-q50.jpg",
+    "header-s1-q75.jpg",
+    "header-s1-q90.jpg",
+    "header-s2-q1.jpg",
+    "header-s2-q100.jpg",
+    "header-s2-q25.jpg",
+    "header-s2-q50.jpg",
+    "header-s2-q75.jpg",
+    "header-s2-q90.jpg",
+    "header-s3-q1.jpg",
+    "header-s3-q100.jpg",
+    "header-s3-q25.jpg",
+    "header-s3-q50.jpg",
+    "header-s3-q75.jpg",
+    "header-s3-q90.jpg"
+  ],
+  "pillow": "12.3.0"
+}

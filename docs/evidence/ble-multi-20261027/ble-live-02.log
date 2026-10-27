@@ -1,0 +1,49 @@
+c6ble centralrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 22 aa 15 00
+ scan 88538b5b-04f6-4e80-8a92-d63f61c273d3
+c6ble central scan result=0
+nsh> [K
+nsh> [Kc6ble central devices
+BLE_SCAN generation=1 scanning=1 count=1 connected=0 connection_generation=0
+BLE_PEER index=0 type=1 address=2c:a3:94:cc:f6:79 connectable=0 service128=1
+BLE_SESSIONS active=0 connected=0 capacity=2 selected=0
+c6ble central devices result=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=1 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6blerpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 23 aa 15 00
+ status
+configured_connections=3 effective_connections=3 host_ready=1 device_connected=0 mouse_connected=1 store_error=0
+reserved_connections=2 central_reserved=1 hid_reserved=1 central_reservations=1 device_connections=0 mixed_role_capacity=1
+nsh> [K
+nsh> [Kc6ble central stop 2
+c6ble central stop result=-116
+nsh> [K
+nsh> [Kc6ble central stop 1
+c6ble central stop result=0
+nsh> [K
+nsh> [Kc6ble central connect 0 1
+c6ble central connect result=-138
+nsh> [K
+nsh> [Kc6blrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 24 aa 15 00
+e central select 1
+c6ble central select result=-116
+nsh> [K
+nsh> [Kc6ble central services 1
+c6ble central services result=-116
+nsh> [K
+nsh> [Kc6ble central disconnect 1
+c6ble central disconnect result=-116
+nsh> [K
+nsh> [Kc6ble mouse releasrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 25 aa 15 00
+e
+c6ble mouse release: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=1 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [K

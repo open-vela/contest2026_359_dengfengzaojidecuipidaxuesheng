@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "results": {
+    "previous": "PREVIOUS_FALSE_SUCCESS_REPRODUCED",
+    "fixed": "ETHERNET_PROBE_READY_OK"
+  },
+  "production_sha256": "b34ce34cb392450b4c1e2653bc74f3fe2990a01c384ee1b662b326fc5e253430"
+}

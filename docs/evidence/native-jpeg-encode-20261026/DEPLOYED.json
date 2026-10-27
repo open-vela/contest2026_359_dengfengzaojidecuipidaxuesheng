@@ -1,0 +1,16 @@
+{
+  "jpeg_encoding_verified": true,
+  "real_photo_save_verified": true,
+  "image_sha256": "bf542ed81a6b7b2799be54dcaae25609782e733b9fc465c978a3aafb0219cfd4",
+  "independent_readback_verified": true,
+  "data_partition_unchanged_after_flash": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "jpeg_pixels_verified": true,
+  "phone_acceptance": "skipped_by_user; unverified",
+  "physical_display_acceptance": "pending",
+  "cold_power_cycle_verified": false,
+  "ble_new_identity_pairing_verified": false,
+  "runtime_evidence_sha256": "53dee377bacb0fa10115668a0a88a1d30198e07177bb094c9ba1c5bf21951f08"
+}

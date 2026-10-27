@@ -1,0 +1,24 @@
+{
+  "image_sha256": "1165ffbe30d98dc713b01cbbdbdaa75adff9cd6c59f6577df9a56b028a9d8902",
+  "independent_readback_verified": true,
+  "data_partition_unchanged_after_flash": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "jpeg_pixels_verified": true,
+  "phone_acceptance": "skipped_by_user; unverified",
+  "physical_display_acceptance": "pending",
+  "cold_power_cycle_verified": false,
+  "ble_new_identity_pairing_verified": false,
+  "jpeg_pixel_cases_per_run": 22,
+  "jpeg_runtime_runs": 2,
+  "jpeg_empty_entropy_recovery_verified": true,
+  "ppa_before_after_verified": true,
+  "runtime_hash_algorithm": "FNV-1a 32",
+  "runtime_hashes": {
+    "rodata": "364f2778",
+    "text": "ad635a4a"
+  },
+  "runtime_hashes_match_final_binary": true,
+  "current_display_flash_acceptance": "pending"
+}

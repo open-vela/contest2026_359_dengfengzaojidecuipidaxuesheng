@@ -40,15 +40,28 @@ static int device_umount(const char *path){(void)path;return 0;}
 #undef mount
 #undef umount
 #include "qpk_ble_gatt.c"
+#include "qpk_ble_channel.c"
 int glass_ble_gatt(const struct glass_gatt_request *r,struct glass_gatt_result *o,atomic_bool *cancel)
 {assert(!atomic_load(cancel));gatt_calls++;if(r->generation!=3)return -ESTALE;memset(o,0,sizeof(*o));o->generation=3;o->mtu=23;return 0;}
 int glass_ble_notification(uint32_t gen,struct glass_gatt_result *out){(void)gen;(void)out;return -EAGAIN;}
+static unsigned channel_calls;
+void glass_ble_channel_read(struct glass_ble_channel_state *s)
+{memset(s,0,sizeof(*s));s->ready=s->connected=s->encrypted=s->subscribed=true;s->epoch=4;s->payload=20;}
+int glass_ble_channel_send(uint32_t epoch,const uint8_t *data,size_t length,atomic_bool *cancel)
+{channel_calls++;assert(!atomic_load(cancel));if(epoch!=4)return -ESTALE;assert(length==2&&data[0]==1&&data[1]==2);return 0;}
+int glass_ble_channel_receive(uint32_t epoch,uint8_t *data,size_t *length)
+{channel_calls++;if(epoch!=4)return -ESTALE;assert(*length>=2);data[0]=1;data[1]=2;*length=2;return 0;}
 static struct qpk_hw_progress progress;
 static void *session;
 static int usb(const char *operation,const char *json)
 {cJSON *args=cJSON_Parse(json),*out=cJSON_CreateObject();assert(args&&out);int ret=qpk_usb_execute(&session,operation,args,out,&progress);cJSON_Delete(args);cJSON_Delete(out);return ret;}
 static int ble(const char *operation,const char *json)
 {cJSON *args=cJSON_Parse(json),*out=cJSON_CreateObject();assert(args&&out);int ret=qpk_ble_gatt_execute(operation,args,out,&progress);cJSON_Delete(args);cJSON_Delete(out);return ret;}
+static int channel(const char *operation,const char *json)
+{cJSON *args=cJSON_Parse(json),*out=cJSON_CreateObject();assert(args&&out);int ret=qpk_ble_channel_execute(operation,args,out,&progress);
+ if(!ret&&!strcmp(operation,"channelStatus"))assert(cJSON_IsTrue(cJSON_GetObjectItem(out,"sharedWithHid"))&&cJSON_GetObjectItem(out,"epoch")->valueint==4);
+ if(!ret&&!strcmp(operation,"channelReceive"))assert(cJSON_GetArraySize(cJSON_GetObjectItem(out,"data"))==2);
+ cJSON_Delete(args);cJSON_Delete(out);return ret;}
 int main(void)
 {
   assert(usb("mode","{\"port\":0,\"role\":1,\"extra\":1}")==-EINVAL&&!io_calls);
@@ -73,5 +86,14 @@ int main(void)
   assert(ble("characteristics","{\"generation\":3,\"start\":5,\"end\":2}")==-EINVAL&&!gatt_calls);
   assert(ble("read","{\"generation\":2,\"handle\":1}")==-ESTALE);
   assert(!ble("read","{\"generation\":3,\"handle\":1}"));
+  assert(!channel("channelStatus","{}"));
+  assert(channel("channelStatus","{\"epoch\":4}")==-EINVAL&&!channel_calls);
+  assert(channel("channelSend","{\"epoch\":4,\"data\":[256]}")==-EINVAL&&!channel_calls);
+  assert(channel("channelSend","{\"epoch\":4,\"data\":[1,2],\"extra\":1}")==-EINVAL&&!channel_calls);
+  assert(channel("channelSend","{\"epoch\":0,\"data\":[1,2]}")==-EINVAL&&!channel_calls);
+  assert(channel("channelSend","{\"epoch\":4,\"data\":[]}")==-EINVAL&&!channel_calls);
+  assert(channel("channelReceive","{\"epoch\":3}")==-ESTALE);
+  assert(!channel("channelSend","{\"epoch\":4,\"data\":[1,2]}"));
+  assert(!channel("channelReceive","{\"epoch\":4}"));
   puts("INTERFACE_PROTOCOLS_OK: strict JSON, generation checks, read-only default, explicit file writes, traversal/symlink rejection, unplug unmount, cancellation and GATT bounds");return 0;
 }

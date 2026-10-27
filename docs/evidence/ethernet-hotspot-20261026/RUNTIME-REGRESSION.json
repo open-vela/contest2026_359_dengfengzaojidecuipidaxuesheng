@@ -1,0 +1,31 @@
+{
+  "image_sha256": "574bcd6aad8affb803a3a6440a1c1a34b0dab627f6cca0dd86de92d2f8793a82",
+  "supersedes_stability_acceptance": true,
+  "user_reports": [
+    "Wi-Fi 保持连接，但网页时好时坏或很慢",
+    "出现短暂蓝屏"
+  ],
+  "nat_entries_observed": [
+    64,
+    44
+  ],
+  "nat_limit": 64,
+  "observation_method": "NSH xd of ELF-resolved g_share_entries (4 bytes), no hardware debugger",
+  "iob_free_at_full_table": 96,
+  "wired_dns_and_tcp_probes_passed": true,
+  "display_counters_after_report": {
+    "flash_writes": 1597,
+    "flash_erases": 167,
+    "irq_gap_max_us": 16656,
+    "underruns": 0,
+    "pan_errors": 0
+  },
+  "display_analysis": "No new Flash operation or IRQ timing error; transient blue screen is user-observed and unresolved. OpenOCD running-mode server was connected shortly before report and stopped; causal link not established. No more hardware debug connections.",
+  "network_analysis": "64-entry cap reached; new mapping allocations fail at this cap. Later expiry reduced occupancy to 44. This identifies a concrete capacity failure, not proof of all slow pages or the earlier stop deadlock.",
+  "log_sha256": {
+    "instability-status.log": "434e007fdc66429194b6c0f821e9ce7fde1f389831446f05b316f855b96d608e",
+    "blue-status.log": "c9b6fa0020f3b14a1921fd14f59a458291883479372e59d6ac76c9acda0c059c",
+    "capacity-status.log": "2b5117d79cc3b89fda26ec1bcd66fdb35e64991a7e95ec80664dd3d6269f65b3",
+    "capacity-confirm.log": "41b3783600d562a36a0ea96b8c1796397d93ea7ee3d63128ad6377d3d88998c8"
+  }
+}

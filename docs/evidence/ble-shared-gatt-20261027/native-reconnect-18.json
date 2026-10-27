@@ -1,0 +1,9 @@
+{
+  "identity": "DB:9B:EB:2E:71:EF",
+  "name": "OpenVela Mouse-EB2E71EF",
+  "mode": "reconnect",
+  "observed": false,
+  "pairing": null,
+  "services": [],
+  "error": "TimeoutError: "
+}

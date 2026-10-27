@@ -1,0 +1,188 @@
+{
+  "image_sha256": "bf542ed81a6b7b2799be54dcaae25609782e733b9fc465c978a3aafb0219cfd4",
+  "elf_sha256": "f492e37350a6e57b7e58c2f9dd4ce93bf89a4d6ad60fa561128aaf0521e1b9ab",
+  "comparison_artifacts": {
+    "candidate3": {
+      "nuttx.bin": "959bcbd8366792d04334f7f88c69a5c492e83764e1a5ba894201c71c59668c51",
+      "nuttx.elf": "4e630cd4ccd129e94a407dbde65674db2c947ea5dc2fa8426da315858bb0e7a1"
+    },
+    "candidate2": {
+      "nuttx.bin": "262f3bcf67b6f4bb262599c115bfeca3ddb243035cb6d60892f2a0b37f34c17a",
+      "nuttx.elf": "0c6fb753f085b20042e2a9db40204c04dce3fed1b88b0a1ee41cc0e185fb81e1"
+    },
+    "candidate1": {
+      "nuttx.bin": "57dd381f6cc07af829537637d578fa85caaa64847fb53a172265dc475bd45ea4",
+      "nuttx.elf": "1148ab13f3118f2d83f88b05d1c27ee230df1d12b0323f20c07df2c6e5d55cb6"
+    },
+    "accepted": {
+      "nuttx.bin": "9a48e6dac5db9a8b2e6e43e0b978b69784dfdd6e847e9934e71a72017b9f20d3",
+      "nuttx.elf": "9d8d0fa4c4dbbf472872680849e4591c08451fda33ec5620137244007b1cb50b"
+    }
+  },
+  "image_size": 10475776,
+  "application_end": "0x9ff900",
+  "ebss": "0x4ffabe5c",
+  "bss_margin": "0x3164",
+  "source_changes_from_network_candidate4": [
+    "app/espdl-quickapp/overlay/apps/system/desktop/Makefile",
+    "app/espdl-quickapp/overlay/apps/system/desktop/desktop_main.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_jpeg_encode.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_jpeg_hw.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_jpeg_hw.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_jpeg_testdata.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_mjpeg.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_photo_store.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_photo_store.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_runtime.c",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/CMakeLists.txt",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/Kconfig",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/Make.defs",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_dma2d.c",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_dma2d.h",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg.c",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg_emit.c",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg_emit.h",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg_internal.h",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg_parse.c",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg_tables.h",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_ppa.c",
+    "app/espdl-quickapp/overlay/nuttx/boards/risc-v/esp32p4/esp32p4-function-ev-board/src/esp32p4_bringup.c",
+    "app/espdl-quickapp/overlay/nuttx/include/nuttx/video/p4_jpeg.h",
+    "app/espdl-quickapp/overlay/nuttx/include/nuttx/video/p4_ppa.h"
+  ],
+  "prepared_c6probe_source_changes_from_network_candidate4": [],
+  "actual_final_portal_source_hash_matches_frozen_metadata": true,
+  "softap_tool_and_final_prepared_transport_hashes_match": true,
+  "actual_rx_type_contract_and_wire_instance_guard_verified": true,
+  "all_recorded_source_hashes_match": true,
+  "recorded_source_hash_count": 675,
+  "xip_tool_and_seven_runtime_sources_equal_all_five": true,
+  "all_nine_prepared_xip_inputs_match_each_own_metadata": true,
+  "tuning_source_count": 20,
+  "tuning_manifest_sha256": "14673184ba959ea8e68ac6787dc2d644dcad093ddb1d19d61e3b2e0373ecf2b5",
+  "tuning_sources_equal_all_five": true,
+  "early_indirect_calls": [
+    {
+      "function": "s_do_tuning.constprop.0",
+      "instruction": "4ff4f442:\t9782                \tjalr\ta5"
+    },
+    {
+      "function": "s_do_tuning.constprop.0",
+      "instruction": "4ff4f474:\t9782                \tjalr\ta5"
+    },
+    {
+      "function": "s_do_tuning.constprop.0",
+      "instruction": "4ff4f4a4:\t8782                \tjr\ta5"
+    },
+    {
+      "function": "s_do_tuning.constprop.0",
+      "instruction": "4ff4f4d4:\t9782                \tjalr\ta5"
+    },
+    {
+      "function": "s_do_tuning.constprop.0",
+      "instruction": "4ff4f4e2:\t9782                \tjalr\ta5"
+    }
+  ],
+  "early_indirect_same_all_five": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "callback_addresses_equal_all_five": true,
+  "tracked_symbols": {
+    "s_tuning_cfg_drv": "0x4ff6acc4",
+    "s_psram_best_phase": "0x4ff6593c",
+    "s_psram_best_delayline": "0x4ff65938",
+    "_instruction_reserved_start": "0x48000000",
+    "_instruction_reserved_end": "0x4837f900",
+    "_rodata_reserved_start": "0x48380020",
+    "_rodata_reserved_end": "0x489c673c"
+  },
+  "focused_disassembly_changed_from_network_candidate4": [
+    "__esp_start",
+    "esp_smp_secondary_c",
+    "esp_mmu_map_init",
+    "esp_psram_init",
+    "mmu_config_psram_text_segment",
+    "mmu_config_psram_rodata_segment",
+    "s_do_tuning.constprop.0",
+    "s_register_config_driver",
+    "mspi_timing_psram_tuning",
+    "spi1_start",
+    "spi1_end",
+    "mspi_timing_psram_select_best_tuning_phase",
+    "mspi_timing_psram_set_best_tuning_phase",
+    "mspi_timing_config_psram_set_tuning_delayline",
+    "mspi_timing_psram_select_best_tuning_delayline",
+    "mspi_timing_psram_set_best_tuning_delayline"
+  ],
+  "early_psram_data_refs": [
+    {
+      "function": "esp_mmu_map_init",
+      "address": "4837f900",
+      "symbol": "_etext",
+      "instruction": "4ff4ed36:\t90078793          \taddi\ta5,a5,-1792 # 4837f900 <_etext>"
+    },
+    {
+      "function": "esp_mmu_map_init",
+      "address": "48380020",
+      "symbol": "g_stub_table",
+      "instruction": "4ff4ed9e:\t02060613          \taddi\ta2,a2,32 # 48380020 <g_stub_table>"
+    },
+    {
+      "function": "esp_mmu_map_init",
+      "address": "489c673c",
+      "symbol": "_esp_system_init_fn_array_end",
+      "instruction": "4ff4edae:\t73c68693          \taddi\ta3,a3,1852 # 489c673c <_esp_system_init_fn_array_end>"
+    },
+    {
+      "function": "mmu_config_psram_text_segment",
+      "address": "4837f900",
+      "symbol": "_etext",
+      "instruction": "4ff4f1ba:\t90078793          \taddi\ta5,a5,-1792 # 4837f900 <_etext>"
+    },
+    {
+      "function": "mmu_config_psram_rodata_segment",
+      "address": "489c673c",
+      "symbol": "_esp_system_init_fn_array_end",
+      "instruction": "4ff4f314:\t73c78793          \taddi\ta5,a5,1852 # 489c673c <_esp_system_init_fn_array_end>"
+    },
+    {
+      "function": "mmu_config_psram_rodata_segment",
+      "address": "48380020",
+      "symbol": "g_stub_table",
+      "instruction": "4ff4f320:\t02048493          \taddi\ts1,s1,32 # 48380020 <g_stub_table>"
+    }
+  ],
+  "only_configuration_change_from_network_candidate4": "CONFIG_ESP32P4_JPEG=y",
+  "ble_identity": {
+    "address": "D2:08:3F:1A:74:C7",
+    "address_little_endian": [
+      199,
+      116,
+      26,
+      63,
+      8,
+      210
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-3F1A74C7",
+    "store_path": "/data/config/ble_d2083f1a74c7.bin",
+    "store_temp": "/data/config/.ble_d2083f1a74c7.tmp",
+    "purpose_path": "/data/config/bh_d2083f1a74c7.bin",
+    "purpose_temp": "/data/config/.bh_d2083f1a74c7.tmp",
+    "header_sha256": "139a75a4f02550822d5d56d5b541c804de28731056fc69cc06ddd8d199de55af"
+  },
+  "ble_identity_distinct_from_all_four_prior_candidates": true,
+  "security_provisioning_configs_enabled": {},
+  "storage_encryption_requested": false,
+  "efuse_operations_allowed": false,
+  "rejected_experiments_disabled": true,
+  "physical_acceptance": "pending"
+}

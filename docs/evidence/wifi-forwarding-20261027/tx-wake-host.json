@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "production_sha256": "410496d72b077578a446b610274e9c9d6f77f40e9ca5dc8cea1249bc58895068",
+  "scope": "real coalescing/wait bodies with POSIX semaphore; injected timeout/post and error paths; four producer threads"
+}

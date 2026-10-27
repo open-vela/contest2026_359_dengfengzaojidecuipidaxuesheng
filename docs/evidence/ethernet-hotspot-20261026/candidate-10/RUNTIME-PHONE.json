@@ -1,0 +1,40 @@
+{
+  "image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+  "user_confirmation_date": "2026-10-27",
+  "timezone": "Asia/Shanghai",
+  "user_response": "上网和屏幕正常，手机显示 Wi-Fi 6",
+  "mobile_data_off_in_test_request": true,
+  "phone_internet_user_confirmed": true,
+  "phone_wifi6_label_user_confirmed": true,
+  "physical_screen_normal_during_browsing_user_confirmed": true,
+  "exact_browsing_duration_measured": false,
+  "ap_protocol": 71,
+  "bandwidth_mhz": 20,
+  "clients": 1,
+  "he_capable_clients": 1,
+  "phy_errors": [
+    0,
+    0,
+    0
+  ],
+  "forwarded_outbound_packets": 14980,
+  "forwarded_inbound_packets": 14903,
+  "nat_entries": 136,
+  "nat_peak": 424,
+  "nat_limit": 2048,
+  "nat_limit_hits": 0,
+  "nat_alloc_failures": 0,
+  "display_irq_gap_max_us": 16667,
+  "display_underruns": 0,
+  "display_pan_errors": 0,
+  "flash_writes_erases_at_browsing_observation": [
+    0,
+    0
+  ],
+  "phone_phy_evidence": "User-reported Wi-Fi 6 label plus C6 HE client capability; no independent per-frame PHY capture",
+  "throughput_mbps": null,
+  "flash_csi_physical_acceptance": "pending separate tests",
+  "cold_boot": "pending",
+  "new_ble_identity_pairing": "pending",
+  "raw_evidence_sha256": "7a7ed87ba57608d73557fb8e518ec67aeeacf1a50454d9a2a2dac749769a71c0"
+}

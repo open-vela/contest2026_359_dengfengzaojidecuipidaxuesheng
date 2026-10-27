@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_portal.h"
+#include "glass_network_recovery.h"
 #ifdef CONFIG_SYSTEM_HASS
 #include "hass_portal.h"
 #endif
@@ -44,6 +45,9 @@ static atomic_int listener=-1;
 static bool service_running;
 static atomic_uint portal_accepts,portal_closes,portal_active,portal_receives,portal_stage,portal_errors;
 static atomic_int portal_last_error;
+static atomic_uint portal_listener_faults,portal_listener_resets;
+static atomic_int portal_fault_phase,portal_fault_errno,portal_fault_flags;
+static atomic_int portal_fault_accepting,portal_fault_socket_error,portal_fault_check_error;
 /* The single request worker owns these and the file/install scratch buffers. */
 static int64_t io_deadline;
 static bool io_failed;
@@ -58,6 +62,11 @@ void portal_debug_status(void)
     atomic_load(&listener),running,atomic_load(&portal_accepts),atomic_load(&portal_closes),
     atomic_load(&portal_active),atomic_load(&portal_receives),atomic_load(&portal_errors),
     atomic_load(&portal_last_error),atomic_load(&portal_stage));
+  printf("portal listener_faults=%u resets=%u first_phase=%d errno=%d revents=%d accepting=%d socket_error=%d check_error=%d\n",
+    atomic_load(&portal_listener_faults),atomic_load(&portal_listener_resets),
+    atomic_load(&portal_fault_phase),atomic_load(&portal_fault_errno),atomic_load(&portal_fault_flags),
+    atomic_load(&portal_fault_accepting),atomic_load(&portal_fault_socket_error),
+    atomic_load(&portal_fault_check_error));
 }
 static time_t monotime(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC,&ts); return ts.tv_sec; }
 static int64_t milliseconds(void)
@@ -239,7 +248,10 @@ static cJSON *receive_json(int fd,size_t size)
   if(receive(fd,body,size)) { free(body); return NULL; } body[size]=0;
   unsigned depth=0; bool quoted=false,escape=false,invalid=false;
   for(size_t i=0;i<size;i++) { char c=body[i]; if(!c) { invalid=true; break; }
-    if(escape) { escape=false; continue; } if(quoted&&c=='\\') { escape=true; continue; } if(c=='"') quoted=!quoted;
+    if(escape) {
+      if(c=='u'&&i+4<size&&!memcmp(body+i+1,"0000",4)) { invalid=true; break; }
+      escape=false; continue;
+    } if(quoted&&c=='\\') { escape=true; continue; } if(c=='"') quoted=!quoted;
     if(!quoted&&(c=='{'||c=='[')&&++depth>8) { invalid=true; break; }
     if(!quoted&&(c=='}'||c==']')) { if(!depth) { invalid=true; break; } depth--; }
   }
@@ -284,6 +296,48 @@ static void pair_client(int fd,const cJSON *body)
   else { cJSON_AddStringToObject(reply,"error",error); if(retry_after) cJSON_AddNumberToObject(reply,"retry_after",retry_after); }
   memset(token,0,sizeof(token)); json_reply(fd,status,reply);
 }
+static void network_reply(int fd)
+{
+  struct glass_recovery_snapshot_s state;
+  int ret=glass_network_recovery_read(&state);
+  if(ret) { result(fd,ret,NULL); return; }
+  cJSON *reply=cJSON_CreateObject();
+  char address[INET_ADDRSTRLEN]="",ap_address[INET_ADDRSTRLEN]="";
+  if(state.ipv4_ready) inet_ntop(AF_INET,state.ipv4,address,sizeof(address));
+  if(state.ap_running) inet_ntop(AF_INET,state.ap_ipv4,ap_address,sizeof(ap_address));
+  cJSON_AddBoolToObject(reply,"ok",true);
+  cJSON_AddBoolToObject(reply,"busy",state.busy);
+  cJSON_AddNumberToObject(reply,"operation",state.operation);
+  cJSON_AddNumberToObject(reply,"error",state.error);
+  cJSON_AddBoolToObject(reply,"associated",state.associated);
+  cJSON_AddBoolToObject(reply,"ipv4_ready",state.ipv4_ready);
+  cJSON_AddStringToObject(reply,"ipv4",address);
+  cJSON_AddBoolToObject(reply,"ap_running",state.ap_running);
+  cJSON_AddNumberToObject(reply,"ap_state",state.state);
+  cJSON_AddNumberToObject(reply,"ap_error",state.ap_error);
+  cJSON_AddStringToObject(reply,"ap_ssid",state.ssid);
+  cJSON_AddStringToObject(reply,"ap_ip",ap_address);
+  cJSON_AddBoolToObject(reply,"ethernet_link",state.ethernet.link);
+  cJSON_AddBoolToObject(reply,"ethernet_ready",state.ethernet.leased);
+  cJSON_AddBoolToObject(reply,"internet_sharing",state.ethernet.sharing);
+  cJSON_AddNumberToObject(reply,"sharing_error",state.ethernet.error);
+  json_reply(fd,200,reply);
+}
+
+static int network_connect(const cJSON *request)
+{
+  const cJSON *ssid=cJSON_GetObjectItemCaseSensitive(request,"ssid");
+  const cJSON *password=cJSON_GetObjectItemCaseSensitive(request,"password");
+  if(!cJSON_IsString(ssid)||!cJSON_IsString(password)) return -EINVAL;
+  unsigned count=0;
+  for(const cJSON *field=request->child;field;field=field->next) {
+    if(!field->string||(strcmp(field->string,"ssid")&&strcmp(field->string,"password"))) return -EINVAL;
+    if(++count>2) return -EINVAL;
+  }
+  if(count!=2) return -EINVAL;
+  return glass_wifi_service_submit(C6_DESKTOP_CONNECT,ssid->valuestring,password->valuestring);
+}
+
 static void client(int fd,char *headers)
 {
   portal_stage=2;
@@ -325,6 +379,9 @@ static void client(int fd,char *headers)
     cJSON_AddNumberToObject(o,"idle_seconds",SESSION_IDLE_SECONDS);
     json_reply(fd,200,o); return;
   }
+  if(!strcmp(url,"/api/network")&&!strcmp(method,"GET")&&!arg) {
+    network_reply(fd); return;
+  }
   if(arg) { if(strncmp(arg,"path=",5)&&strncmp(arg,"section=",8)) { result(fd,-EINVAL,NULL); return; } arg=strchr(arg,'=')+1; if(decode(arg)) { result(fd,-EINVAL,NULL); return; } }
   if(!strcmp(url,"/api/config")&&!strcmp(method,"GET")&&arg) { cJSON *o=portal_config_get(arg); if(!o) result(fd,-EIO,NULL); else json_reply(fd,200,o); return; }
   char path[256];
@@ -354,6 +411,7 @@ static void client(int fd,char *headers)
     if(ret==-EINVAL&&!strcmp(arg,"homeassistant"))
       snprintf(error,sizeof(error),"HA 地址请用 http://主机:端口（不要 /8123）；令牌最多 511 字符");
   }
+  else if(!strcmp(url,"/api/network/connect")&&!arg) ret=network_connect(o);
   else if(!strcmp(url,"/api/mkdir")&&arg) { ret=portal_public_path(arg,path,sizeof(path)); if(!ret&&mkdir(path,0700)<0) ret=-errno; }
   else if(!strcmp(url,"/api/install/begin")) { ret=portal_install_begin(o,error,sizeof(error)); }
   else if(!strcmp(url,"/api/install/commit")) ret=portal_install_commit();
@@ -395,8 +453,13 @@ static int read_headers(struct pending_client *p)
 }
 static int open_listener(void)
 {
-  int fd=socket(AF_INET,SOCK_STREAM,0); if(fd<0) return -errno;
-  int yes=1; setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
+  /* NuttX task_create clones the desktop group's non-CLOEXEC descriptors.
+   * DHCP must not retain this bind after the HTTP worker replaces it. */
+  int fd=socket(AF_INET,SOCK_STREAM|SOCK_CLOEXEC,0); if(fd<0) return -errno;
+  int yes=1;
+  if(setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes))<0) {
+    int ret=-errno; close(fd); return ret;
+  }
   struct sockaddr_in addr={.sin_family=AF_INET,.sin_port=htons(PORTAL_PORT),.sin_addr.s_addr=INADDR_ANY};
   if(fcntl(fd,F_SETFL,O_NONBLOCK)<0||bind(fd,(struct sockaddr *)&addr,sizeof(addr))<0||listen(fd,8)<0) {
     int ret=-errno; close(fd); return ret;
@@ -404,35 +467,76 @@ static int open_listener(void)
   return fd;
 }
 static void retry_pause(void) { struct timespec delay={0,200000000}; nanosleep(&delay,NULL); }
+/* A NuttX poll setup/resource failure can report POLLERR on a healthy
+ * listener. Verify the socket itself before discarding its bind. Phase:
+ * 1=open, 2=whole poll, 3=listener revents, 4=accept. No request data is kept.
+ */
+static void listener_fault(int fd,int phase,int error,short flags,
+                           struct pending_client *pending)
+{
+  int accepting=-1,socket_error=-1,check_error=0;
+  bool reset=false,close_fd=false;
+  if(fd>=0) {
+    socklen_t length=sizeof(accepting);
+    if(getsockopt(fd,SOL_SOCKET,SO_ACCEPTCONN,&accepting,&length)<0) {
+      check_error=errno;
+      reset=check_error==EBADF||check_error==ENOTSOCK;
+    } else if(length!=sizeof(accepting)) { check_error=EIO; accepting=-1; }
+    else if(!accepting) { reset=true; close_fd=true; }
+    length=sizeof(socket_error);
+    if(getsockopt(fd,SOL_SOCKET,SO_ERROR,&socket_error,&length)<0) socket_error=-1;
+  }
+  portal_listener_faults++;
+  int unset=0;
+  if(atomic_compare_exchange_strong(&portal_fault_phase,&unset,-1)) {
+    atomic_store(&portal_fault_errno,error);
+    atomic_store(&portal_fault_flags,flags);
+    atomic_store(&portal_fault_accepting,accepting);
+    atomic_store(&portal_fault_socket_error,socket_error);
+    atomic_store(&portal_fault_check_error,check_error);
+    atomic_store(&portal_fault_phase,phase);
+  }
+  if(reset) {
+    if(close_fd) close(fd);
+    atomic_store(&listener,-1); portal_listener_resets++;
+    /* NuttX cannot rebind while these local accepted connections remain.
+     * Close them on a confirmed listener loss, never on a poll-only fault. */
+    for(unsigned i=0;i<PENDING_CLIENTS;i++) close_client(pending+i);
+  }
+}
 static void *worker(void *arg)
 {
   struct pending_client *pending=arg;
-  int64_t accept_after=0;
+  int64_t accept_after=0,open_after=0;
   for(;;) {
-    int listen_fd=atomic_load(&listener);
-    if(listen_fd<0) {
-      listen_fd=open_listener();
-      if(listen_fd<0) { portal_last_error=-listen_fd; portal_errors++; retry_pause(); continue; }
-      atomic_store(&listener,listen_fd);
-    }
     struct pollfd events[PENDING_CLIENTS+1]; bool room=false;
     int64_t now=milliseconds();
+    /* Expiry and client I/O must progress even while bind is backing off. */
     for(unsigned i=0;i<PENDING_CLIENTS;i++) {
       struct pending_client *p=pending+i;
       if(p->fd>=0&&now-p->opened>=(p->used?HEADER_TIMEOUT_MS:EMPTY_TIMEOUT_MS)) close_client(p);
       events[i+1]=(struct pollfd){.fd=p->fd,.events=POLLIN};
       if(p->fd<0) room=true;
     }
-    events[0]=(struct pollfd){.fd=room&&now>=accept_after?listen_fd:-1,.events=POLLIN};
+    int listen_fd=atomic_load(&listener);
+    if(listen_fd<0&&now>=open_after) {
+      listen_fd=open_listener();
+      if(listen_fd<0) {
+        portal_last_error=-listen_fd; portal_errors++;
+        listener_fault(-1,1,-listen_fd,0,pending); open_after=now+200;
+      } else atomic_store(&listener,listen_fd);
+    }
+    events[0]=(struct pollfd){.fd=listen_fd>=0&&room&&now>=accept_after?listen_fd:-1,.events=POLLIN};
     portal_stage=0;
     int ready=poll(events,PENDING_CLIENTS+1,200);
     if(ready<0) {
-      if(errno==EINTR) continue;
-      portal_last_error=errno; portal_errors++;
-      if(errno==EBADF) {
-        close(listen_fd); atomic_store(&listener,-1);
-        for(unsigned i=0;i<PENDING_CLIENTS;i++) close_client(pending+i);
-      }
+      int error=errno;
+      if(error==EINTR) continue;
+      portal_last_error=error; portal_errors++;
+      listener_fault(listen_fd,2,error,0,pending);
+      for(unsigned i=0;i<PENDING_CLIENTS;i++)
+        if(pending[i].fd>=0&&fcntl(pending[i].fd,F_GETFD)<0&&errno==EBADF) close_client(pending+i);
+      accept_after=open_after=milliseconds()+200;
       retry_pause(); continue;
     }
     for(unsigned i=0;i<PENDING_CLIENTS;i++) {
@@ -446,20 +550,22 @@ static void *worker(void *arg)
         } else if(ret<0) close_client(p);
       } else if(flags&(POLLERR|POLLHUP|POLLNVAL)) close_client(p);
     }
-    if(events[0].revents&(POLLERR|POLLHUP|POLLNVAL)) {
-      close(listen_fd); atomic_store(&listener,-1); portal_errors++; continue;
+    if(events[0].fd>=0&&(events[0].revents&(POLLERR|POLLHUP|POLLNVAL))) {
+      portal_errors++;
+      listener_fault(listen_fd,3,0,events[0].revents,pending);
+      accept_after=open_after=milliseconds()+200; continue;
     }
     if(!(events[0].revents&POLLIN)) continue;
     for(unsigned i=0;i<PENDING_CLIENTS;i++) if(pending[i].fd<0) {
-      int fd=accept(listen_fd,NULL,NULL);
+      int fd=accept4(listen_fd,NULL,NULL,SOCK_CLOEXEC);
       if(fd<0) {
         int error=errno;
         if(error==EAGAIN||error==EWOULDBLOCK||error==EINTR) break;
         portal_last_error=error; portal_errors++;
-        if(error==EBADF||error==EINVAL||error==ENOTSOCK) { close(listen_fd); atomic_store(&listener,-1); }
+        listener_fault(listen_fd,4,error,0,pending);
         /* Aborted handshakes and temporary resource/network errors never
          * terminate the service or leave a stale "started" listener. */
-        accept_after=milliseconds()+200; break;
+        accept_after=open_after=milliseconds()+200; break;
       }
       if(fcntl(fd,F_SETFL,O_NONBLOCK)<0) { close(fd); continue; }
       struct timeval timeout={IO_IDLE_MS/1000,0};

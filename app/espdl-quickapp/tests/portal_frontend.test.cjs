@@ -10,7 +10,7 @@ const source = fs.readFileSync(path.join(__dirname,
 const bearer = 'a'.repeat(32);
 
 function boot() {
-  const nodes = new Map(), intervals = [], calls = [];
+  const nodes = new Map(), intervals = [], calls = [], storage = [];
   const documentEvents = {}, windowEvents = {};
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, {
@@ -29,7 +29,7 @@ function boot() {
     window: { addEventListener: (name, callback) => { windowEvents[name] = callback; } },
     location: { hash: '', pathname: '/', search: '' },
     history: { replaceState() {} },
-    sessionStorage: { getItem: () => '', setItem() {}, removeItem() {} },
+    sessionStorage: { getItem: () => '', setItem(key,value) { storage.push({key,value}); }, removeItem(key) { storage.push({key}); } },
     Blob, Uint8Array, AbortController, Response, TypeError, TextEncoder,
     FormData: class {
       constructor(form) { if(form.testData)return new Map(Object.entries(form.testData));return new Map([['url', form.elements.namedItem('url').value],
@@ -45,7 +45,7 @@ function boot() {
     clearInterval() {}
   });
   vm.runInContext(source, context);
-  return { context, nodes, node, calls, intervals, documentEvents, windowEvents,
+  return { context, nodes, node, calls, intervals, storage, documentEvents, windowEvents,
     handle: callback => { handler = callback; },
     evaluate: code => vm.runInContext(code, context),
     connected: async () => {
@@ -271,4 +271,154 @@ test('Agent save keeps blank MCP secrets, converts switches and sends explicit t
 test('Agent reports saved MCP tokens accurately when later slots are empty', async () => {
   const r=boot();await r.connected();r.handle(()=>new Response(JSON.stringify({mcp1_token_set:true,mcp2_token_set:false,mcp3_token_set:false})));
   await r.evaluate("loadConfig('agent')");assert.match(r.node('agent:.saved').textContent,/1.*MCP/);
+});
+
+const networkState = patch => ({ok:true,busy:false,operation:0,error:0,
+  associated:false,ipv4_ready:false,ipv4:'',ap_running:true,ap_state:2,
+  ap_error:0,ap_ssid:'ESPClaw-Test',ap_ip:'192.168.240.1',...patch});
+const routerDraft = (r,password='test-password') => {
+  r.node('network-ssid').value='  路由器  ';
+  r.node('network-password').value=password;
+};
+
+test('network status is independent and an unavailable API does not block configuration loading',async()=>{
+  const r=boot();
+  r.handle(url=>{if(url==='/api/network')throw new TypeError('offline');return new Response('{}');});
+  await r.connected();
+  r.node('ai:model').value='unsaved-model';
+  await r.evaluate('refreshNetwork(true)');
+  assert.equal(r.calls.length,3);
+  assert.ok(r.calls.every(call=>call.url==='/api/network'));
+  assert.equal(r.node('workspace').hidden,false);
+  assert.equal(r.node('ai:model').value,'unsaved-model');
+  assert.match(r.node('network-status').textContent,/无法读取网络状态/);
+  assert.equal(r.evaluate('loadedToken'),bearer);
+});
+
+test('network acceptance waits for actual association, IP and persistence before reporting success',async()=>{
+  const r=boot();await r.connected();routerDraft(r);
+  r.handle(()=>new Response('{"ok":true}'));
+  await r.evaluate('submitNetwork()');
+  assert.equal(r.calls.length,1);
+  assert.equal(r.calls[0].url,'/api/network/connect');
+  assert.equal(r.calls[0].options.headers.Authorization,'Bearer '+bearer);
+  assert.deepEqual(JSON.parse(r.calls[0].options.body),{ssid:'  路由器  ',password:'test-password'});
+  assert.equal(r.node('network-password').value,'');
+  assert.match(r.node('network-status').textContent,/已受理/);
+  assert.doesNotMatch(r.node('network-status').textContent,/连接成功/);
+  assert.equal(r.node('network-connect').disabled,true);
+  const poll=r.intervals.find(entry=>entry.ms===2000);assert.ok(poll);
+  let state=networkState({busy:true});
+  r.handle((url,options)=>{assert.equal(url,'/api/network');assert.equal(options.method,'GET');return new Response(JSON.stringify(state));});
+  await poll.callback();assert.match(r.node('network-status').textContent,/尝试连接/);
+  state=networkState({busy:true,associated:true});
+  await poll.callback();assert.match(r.node('network-status').textContent,/获取 IP 并确认保存/);
+  assert.doesNotMatch(r.node('network-status').textContent,/连接成功/);
+  state=networkState({associated:true,ipv4_ready:true,ipv4:'192.168.8.22'});
+  await poll.callback();assert.match(r.node('network-status').textContent,/连接成功.*192\.168\.8\.22/);
+  assert.match(r.node('network-status').textContent,/保持开启/);
+  assert.match(r.node('network-ap').textContent,/ESPClaw-Test.*192\.168\.240\.1/);
+  assert.equal(r.node('network-connect').disabled,false);
+  const count=r.calls.length;await poll.callback();assert.equal(r.calls.length,count);
+});
+
+test('the hotspot address and malformed station addresses cannot pass network acceptance',async()=>{
+  const r=boot();await r.connected();
+  for(const state of [networkState(),networkState({associated:true,ipv4_ready:false}),
+      networkState({associated:true,ipv4_ready:true,ipv4:'999.1.2.3'}),
+      networkState({associated:true,ipv4_ready:true,ipv4:'0.0.0.0'})]){
+    r.handle(()=>new Response(JSON.stringify(state)));await r.evaluate('refreshNetwork(true)');
+    assert.doesNotMatch(r.node('network-status').textContent,/连接成功/);
+    assert.equal(r.evaluate('networkWatching'),true);
+  }
+});
+
+test('router credentials use UTF-8 SSID byte limits and printable ASCII WPA key validation',async()=>{
+  const r=boot();await r.connected();
+  const validate=(ssid,password)=>r.evaluate('validateNetwork('+JSON.stringify(ssid)+','+JSON.stringify(password)+')');
+  for(const password of ['', 'a'.repeat(8),' '.repeat(63),'Ab09'.repeat(16)])
+    assert.doesNotThrow(()=>validate('网'.repeat(10)+'ab',password));
+  for(const ssid of ['', '网'.repeat(11),'a'.repeat(33),'bad\nname','bad\0name','bad\x7fname'])
+    assert.throws(()=>validate(ssid,''),/网络名称/);
+  for(const password of ['1234567','g'.repeat(64),'a'.repeat(65),'含中文密码123','abc\ndefgh'])
+    assert.throws(()=>validate('router',password),/密码须为/);
+  routerDraft(r,'short');await r.evaluate('submitNetwork()');
+  assert.equal(r.calls.length,0);assert.equal(r.node('network-password').value,'');
+  routerDraft(r,'');r.handle(()=>new Response('{"ok":true}'));await r.evaluate('submitNetwork()');
+  assert.equal(JSON.parse(r.calls[0].options.body).password,'');
+});
+
+test('association and IP-or-save failures are visible and clear the password',async()=>{
+  const r=boot();await r.connected();
+  for(const associated of [false,true]){
+    routerDraft(r);
+    r.handle(()=>new Response(JSON.stringify(networkState({error:-5,associated}))));
+    await r.evaluate('refreshNetwork(true)');
+    assert.equal(r.node('network-password').value,'');
+    assert.equal(r.node('network-connect').disabled,false);
+    assert.match(r.node('network-status').textContent,associated?/获取 IP 或保存新配置失败/:/连接路由器失败/);
+    assert.doesNotMatch(r.node('network-status').textContent,/路由器连接成功/);
+  }
+});
+
+test('a lost network POST reply is never replayed and an old ready link stays explicitly uncertain',async()=>{
+  const r=boot();await r.connected();routerDraft(r);
+  r.handle(()=>{throw new TypeError('reply lost');});await r.evaluate('submitNetwork()');
+  assert.equal(r.calls.length,1);assert.equal(r.calls[0].options.method,'POST');
+  assert.equal(r.node('network-password').value,'');
+  assert.match(r.node('network-status').textContent,/回执未收到/);
+  assert.equal(r.node('network-connect').disabled,true);
+  r.handle(()=>new Response(JSON.stringify(networkState({associated:true,ipv4_ready:true,ipv4:'192.168.8.22'}))));
+  await r.evaluate('refreshNetwork(true)');
+  assert.match(r.node('network-status').textContent,/当前路由器已连接.*本次请求回执未收到/);
+  assert.doesNotMatch(r.node('network-status').textContent,/路由器连接成功/);
+  assert.equal(r.calls.filter(call=>call.options.method==='POST').length,1);
+});
+
+test('duplicate network actions are blocked while submitting and awaiting the first status',async()=>{
+  const r=boot();await r.connected();routerDraft(r);
+  let release;r.handle(()=>new Promise(resolve=>{release=resolve;}));
+  const pending=r.evaluate('submitNetwork()');
+  await r.evaluate('submitNetwork()');assert.equal(r.calls.length,1);
+  release(new Response('{"ok":true}'));await pending;
+  await r.evaluate('submitNetwork()');assert.equal(r.calls.length,1);
+  assert.equal(r.node('network-connect').disabled,true);
+});
+
+test('a stale network read cannot overwrite a newer connection request',async()=>{
+  const r=boot();await r.connected();routerDraft(r);
+  let release;r.handle((url,options)=>options.method==='GET'?
+    new Promise(resolve=>{release=resolve;}):new Response('{"ok":true}'));
+  const read=r.evaluate('refreshNetwork(true)');
+  await r.evaluate('submitNetwork()');
+  release(new Response(JSON.stringify(networkState({associated:true,ipv4_ready:true,ipv4:'192.168.8.22'}))));
+  await read;
+  assert.match(r.node('network-status').textContent,/已受理/);
+  assert.doesNotMatch(r.node('network-status').textContent,/连接成功/);
+  assert.equal(r.evaluate('networkWatching'),true);
+  assert.equal(r.node('network-connect').disabled,true);
+});
+
+test('network credentials are never stored and are cleared on disconnect and page exit',async()=>{
+  const r=boot();await r.connected();routerDraft(r);
+  r.windowEvents.pagehide();assert.equal(r.node('network-password').value,'');
+  routerDraft(r);let release;r.handle(()=>new Promise(resolve=>{release=resolve;}));
+  const pending=r.evaluate('submitNetwork()');r.node('disconnect').onclick();
+  assert.equal(r.node('network-password').value,'');
+  release(new Response('{"ok":true}'));await pending;
+  assert.equal(r.evaluate('token'),'');
+  assert.equal(r.node('workspace').hidden,true);
+  assert.doesNotMatch(r.node('network-status').textContent,/已受理/);
+  assert.ok(r.storage.every(entry=>entry.key==='device-space-session-v1'));
+  assert.ok(r.storage.every(entry=>!JSON.stringify(entry).includes('test-password')));
+});
+
+test('expired network authorization clears pairing and prevents further polling',async()=>{
+  const r=boot();await r.connected();routerDraft(r);
+  r.handle(()=>new Response('{"error":"连接已失效"}',{status:401}));
+  await r.evaluate('refreshNetwork(true)');
+  assert.equal(r.calls.length,1);assert.equal(r.evaluate('token'),'');
+  assert.equal(r.node('network-password').value,'');
+  assert.equal(r.node('workspace').hidden,true);
+  await r.intervals.find(entry=>entry.ms===2000).callback();assert.equal(r.calls.length,1);
 });

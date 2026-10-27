@@ -1,0 +1,8 @@
+{
+  "baseline_image_sha256": "731755198bb3190eb314a7dbec5c94a156de9d5c255eff851811737ed3f61aa5",
+  "baseline_config_sha256": "dde3c3b194d23d8f28186bce2ceaa5ea7ef38e1c2392e0161dcce3f2f25776e8",
+  "production_source_count": 648,
+  "production_sources_identical_to_deployed": true,
+  "source_revision": "0c7a87e3638dce8fe15fbb13b3100b5b1ac03653",
+  "scope": "P4 PSRAM XIP only; C6 and user data unchanged"
+}

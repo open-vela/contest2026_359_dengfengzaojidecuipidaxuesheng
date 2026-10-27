@@ -1,0 +1,1 @@
+INTERFACE_PROTOCOLS_OK: strict JSON, generation checks, read-only default, explicit file writes, traversal/symlink rejection, unplug unmount, cancellation and GATT bounds

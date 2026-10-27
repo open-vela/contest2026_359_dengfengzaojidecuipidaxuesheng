@@ -1,0 +1,24 @@
+{
+  "identity": {
+    "address": "D2:78:47:0A:87:28",
+    "address_little_endian": [
+      40,
+      135,
+      10,
+      71,
+      120,
+      210
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-470A8728",
+    "store_path": "/data/config/ble_d278470a8728.bin",
+    "store_temp": "/data/config/.ble_d278470a8728.tmp",
+    "purpose_path": "/data/config/bh_d278470a8728.bin",
+    "purpose_temp": "/data/config/.bh_d278470a8728.tmp",
+    "header_sha256": "cb1fcc8063b256901d98415aae75b18e35d9a561d63f8f791d2ecce086b16b9c"
+  },
+  "image_sha256": "9a48e6dac5db9a8b2e6e43e0b978b69784dfdd6e847e9934e71a72017b9f20d3",
+  "generated_header_verified": true,
+  "linked_sync_gate_verified": true,
+  "namespace_in_image": true
+}

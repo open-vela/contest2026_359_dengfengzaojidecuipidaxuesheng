@@ -1,0 +1,37 @@
+{
+  "candidate": 20,
+  "image_sha256": "becda11d37b0d94cf48083fc7d6ddf6b85b0edd11bce520bbeb0673abf2616cf",
+  "scope": "actual neutral reports only; no pointer motion or button injection",
+  "passed": true,
+  "before": {
+    "session": 0,
+    "epoch": 1,
+    "queued": 0,
+    "releasing": 0,
+    "accepted": 0,
+    "submitted": 0,
+    "merged": 0,
+    "retries": 0,
+    "discarded": 0
+  },
+  "first_session": 1,
+  "next_session": 2,
+  "after": {
+    "session": 0,
+    "epoch": 1,
+    "queued": 0,
+    "releasing": 0,
+    "accepted": 2,
+    "submitted": 2,
+    "merged": 0,
+    "retries": 0,
+    "discarded": 0
+  },
+  "link": {
+    "interval_1_25ms": 12,
+    "latency": 0,
+    "timeout_10ms": 400,
+    "request_result": 0,
+    "peer_status": 0
+  }
+}

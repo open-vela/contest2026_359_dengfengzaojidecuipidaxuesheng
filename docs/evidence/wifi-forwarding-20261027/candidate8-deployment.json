@@ -1,0 +1,28 @@
+{
+  "image_sha256": "32e718bfe1eaca246393065fc35602809fc170ecf73b962dc6c2b41631eb3404",
+  "ble_identity": {
+    "address": "FE:59:45:F2:25:44",
+    "address_little_endian": [
+      68,
+      37,
+      242,
+      69,
+      89,
+      254
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-45F22544",
+    "store_path": "/data/config/ble_fe5945f22544.bin",
+    "store_temp": "/data/config/.ble_fe5945f22544.tmp",
+    "purpose_path": "/data/config/bh_fe5945f22544.bin",
+    "purpose_temp": "/data/config/.bh_fe5945f22544.tmp",
+    "header_sha256": "da658aab619383a972be610c5a78fc929a1fabb0c971cf461fbacbc1ed22e48a"
+  },
+  "offset": "0x2000",
+  "flash_written": true,
+  "rollback_sha256": "5a90094d79da8f4bfa7fc3699080618f838d38f7afbbcca7ddf4b6d0d07a84b5",
+  "data_before_sha256": "22dbb5afd95f9260ef13bdbdcbde918ae9b24cda8e338f335c753fd716bf506c",
+  "independent_readback_verified": true,
+  "data_partition_unchanged": true,
+  "left_in_loader": true
+}

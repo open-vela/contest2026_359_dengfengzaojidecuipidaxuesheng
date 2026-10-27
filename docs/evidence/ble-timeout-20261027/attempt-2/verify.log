@@ -1,0 +1,20 @@
+esptool v5.5.0
+Serial port COM4:
+NOTE: Pre-connection option "no-reset" was selected. Connection may fail if the chip is not in bootloader or flasher stub mode.
+Connecting...
+Connected to ESP32-P4 on COM4:
+Chip type:          ESP32-P4 (revision v3.2)
+Features:           Dual Core + LP Core, 400MHz
+Crystal frequency:  40MHz
+USB mode:           USB-Serial/JTAG
+MAC:                e8:f6:0a:e7:6f:f1
+
+Stub flasher is already running. No upload is necessary.
+Changing baud rate to 460800...
+Changed.
+
+Configuring flash size...
+Verifying 0xa04300 (10502912) bytes at 0x00002000 in flash against 'C:\Users\11937\Documents\ChatGPT\vela\output\network-share-20261026\candidate-19\firmware\nuttx.bin'...
+Verification successful (digest matched).
+
+Staying in bootloader.

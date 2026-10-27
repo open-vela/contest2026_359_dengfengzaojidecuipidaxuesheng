@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "scope": "cross_compile_and_ELF_not_runtime",
+  "target": "esp32c6",
+  "controller_connections": 8,
+  "host_on_c6": false,
+  "config_delta": {
+    "CONFIG_BT_LE_MAX_CONNECTIONS": {
+      "before": "3",
+      "after": "8"
+    }
+  },
+  "real_sdk_probe_connections": 8,
+  "controller_config_bytes": 120,
+  "capacity_field_offset": 56,
+  "linked_capacity_marker": 8,
+  "linked_capacity_marker_address": "0x420d5e68",
+  "old_three_config_rejected": true,
+  "image_bytes": 1113952,
+  "slot_bytes": 1572864,
+  "slot_remaining_bytes": 458912,
+  "image_sha256": "10696b5009dfee3231f21d6b7764b052c1ae9fb9e099dd3c245fb65f9ed0ddb3",
+  "elf_sha256": "b95b3df1a1fff8ea293dd4c26b034558434f2acda688acbb73ee5b85ea900d51",
+  "partition_sha256": "0241fa0d2e573dee86756e39fb4181e61ff7218087619cab565b602df55954d6",
+  "partition_unchanged": true,
+  "preserved_source_sha256": {
+    "app_main.c": "ec7fc5d9ee8f8771eccf99dd0b884e2bd70f11177d39cf303ee2cfb885ff07e4",
+    "sdio_slave_api.c": "c4e1a680693437f4deefd3d8bfb866ac2ca16231a19b957f37e2e1e0d1ae60fd"
+  },
+  "bluetooth_source_sha256": "9c0894e20640bca76fd42090b5e95a5282018aa329b18602638549f64766f408",
+  "device_actions": false,
+  "eight_peer_radio_test": false
+}

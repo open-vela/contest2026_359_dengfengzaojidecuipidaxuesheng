@@ -1,0 +1,18 @@
+{
+  "address": "DB:9B:EB:2E:71:EF",
+  "address_little_endian": [
+    239,
+    113,
+    46,
+    235,
+    155,
+    219
+  ],
+  "address_type": "static-random",
+  "name": "OpenVela Mouse-EB2E71EF",
+  "store_path": "/data/config/ble_db9beb2e71ef.bin",
+  "store_temp": "/data/config/.ble_db9beb2e71ef.tmp",
+  "purpose_path": "/data/config/bh_db9beb2e71ef.bin",
+  "purpose_temp": "/data/config/.bh_db9beb2e71ef.tmp",
+  "header_sha256": "04585e47384041505fefafb27713e0354372cb819344681f80ad714e2cc59a8b"
+}

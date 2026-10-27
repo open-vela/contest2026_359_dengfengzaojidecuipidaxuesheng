@@ -1,0 +1,16 @@
+{
+  "identity": "C9:9E:3C:DD:5A:CB",
+  "name": "OpenVela Mouse-3CDD5ACB",
+  "mode": "reconnect",
+  "observed": true,
+  "pairing": null,
+  "services": [
+    "00001800-0000-1000-8000-00805f9b34fb",
+    "00001801-0000-1000-8000-00805f9b34fb",
+    "00001812-0000-1000-8000-00805f9b34fb"
+  ],
+  "initially_paired": true,
+  "service_result": "SUCCESS",
+  "connected": "CONNECTED",
+  "final_connection": "CONNECTED"
+}

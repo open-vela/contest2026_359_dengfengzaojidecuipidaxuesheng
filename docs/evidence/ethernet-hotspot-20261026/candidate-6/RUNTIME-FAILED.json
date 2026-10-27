@@ -1,0 +1,31 @@
+{
+  "image_sha256": "a9b887ced6493483ddb0763eb6137e5b4e07fab405fe8f0d72320785a8eb4154",
+  "status": "rejected: STOPPING/busy and ifconfig timeout",
+  "nat_entries": 0,
+  "nat_limit": 512,
+  "outbound": 0,
+  "inbound": 0,
+  "stable_wait_cycle": [
+    {
+      "pid": 20,
+      "wait_address": "0x4ffa0d3c",
+      "owner_pid": 48
+    },
+    {
+      "pid": 48,
+      "wait_address": "0x4ff6200c",
+      "owner_pid": 20
+    }
+  ],
+  "nat_lock_held": false,
+  "cause": "synchronous c6net_txavail: STA DHCP sender holds UDP list while waiting for AP DHCP socket; AP DHCP sender holds that socket while waiting for UDP list",
+  "stack_evidence": "symbol-filtered stack candidates, not an unwound backtrace; ownership and waits confirmed in two samples",
+  "debug": "system-bus metadata reads; both CPUs running before/after; disconnected immediately",
+  "blue_screen": "previous C5 report unresolved; no new physical acceptance for C6",
+  "logs": {
+    "ready-check.log": "2f543a10c36acd6c5dc3312548c5e625c8990a719f5fedaef1c6916002af12df",
+    "ifconfig-interrupt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stuck-locks-1.json": "33014f907c3d182e6b12648345289d0277968f7ed97a8e1c149dc161782d8ab2",
+    "stuck-locks-2.json": "ffcc777fae54fbb8fa614ce21e8a78153b3e15d144b2abbc32fe8c2f17376814"
+  }
+}

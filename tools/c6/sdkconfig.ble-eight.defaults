@@ -1,0 +1,3 @@
+# Controller-only C6 companion for the isolated eight-peer P4 candidate.
+# Keep the pinned Hosted SDIO transport, partitions and existing diagnostics.
+CONFIG_BT_LE_MAX_CONNECTIONS=8

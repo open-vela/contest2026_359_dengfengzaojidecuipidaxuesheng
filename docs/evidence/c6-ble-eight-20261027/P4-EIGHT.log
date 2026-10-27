@@ -1,0 +1,6 @@
+BLE_EIGHT_ADMISSION_OK: eight live logical peers, ninth/duplicate rejected; isolated GATT/MTU/security/notification overflow
+BLE_EIGHT_PARALLEL_OK: eight independent waiters; one cancellation preserves seven; reused handle rejects stale callback
+BLE_EIGHT_RESTORE_OK: ten eight-peer pause/restore cycles; HID exclusivity; eighty old GAP callbacks rejected
+BLE_EIGHT_CANCEL_BARRIER_OK: missing cancel acknowledgement blocks seven initiators; explicit retry after terminal event restores them
+BLE_EIGHT_FAILURE_OK: one failed reconnect preserves seven; owner exit while paused cancels only its restore
+BLE_EIGHT_OK: simulated_peak=8 restore_cycles=10 link_slots=8 snapshot_bytes=3892; ASan/UBSan; NO_RADIO_TEST

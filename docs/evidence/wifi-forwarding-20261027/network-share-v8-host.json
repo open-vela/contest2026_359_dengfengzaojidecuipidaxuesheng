@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "scope": "host only; no actual forwarding claimed",
+  "sources": {
+    "app/espdl-quickapp/overlay/nuttx/net/espclaw_share.c": "0b66519c53dcdf9a9b2a224f72d746666000e1ee984cf766eacc76bd88e8a4dc",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ethernet.c": "67b23e7229ba273f2782fe82d560b0b78dea24b82a00256e984338fa41bcbf71",
+    "app/espdl-quickapp/tests/network_share_host.c": "85792ba54a082914d0cd744fedb1b2f915b04b77755dfdb71cd3aa12819036c4"
+  },
+  "prepared": {
+    "enabled": true,
+    "wan": "eth0",
+    "lan": "ap0",
+    "nat_entry_limit": 2048,
+    "nat_entry_heap": "bounded PSRAM user heap (flat build)",
+    "recursive_port_selection_lock": true,
+    "outbound_failure_unlock": true,
+    "port_table_lock_order": "NAT gate before TCP/UDP connection table",
+    "source_sha256": {
+      "net/Makefile": "7f2fb8b89051876b2465e0312926abedd9d1c2596a0bb7586b64199cdda45fc2",
+      "net/netforward/ipv4_forward.c": "39444c5d2ceb4e7f2d5a0a6af87a3b438fe96b4ad238ffa8797a0b4440904802",
+      "net/netforward/netforward.h": "88f1cfffc99c5212d65f68e3025287d6c05585139c7052d912fcbd78c6613bb3",
+      "net/netforward/netfwd_forward.c": "0cd8215f5c324af59db322d9cb93233c3109a0e10d64a74a82b1ff8e0851fa2a",
+      "net/nat/nat.c": "e02596cefba7602e6faa058fb3bc83e30ebebc8c6439525f4a8d6cccf083f85a",
+      "net/nat/ipv4_nat.c": "2a8fd1fca68ba0421ae781ae40130bc2e5fbb8033cd1bed437e059092ae907e9",
+      "net/tcp/tcp_conn.c": "ac2ce5dc5c35d2282a90144ef983f72c964cb6260dc8bfc0a1306e7b9e64d563",
+      "net/udp/udp_conn.c": "b62d800fe5969fe24b0c1c640f7ac11cd0b5d91b50e222bd289a5d884516235e",
+      "net/nat/ipv4_nat_entry.c": "8826ebd3c4068c22b346c01b60c51130282d4a40e2dab32653ff921e0b59c53c"
+    }
+  }
+}

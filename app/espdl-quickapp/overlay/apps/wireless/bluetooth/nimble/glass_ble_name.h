@@ -116,3 +116,22 @@ static inline void glass_ble_update_advertising(struct glass_ble_device *device,
 static inline unsigned glass_ble_device_priority(const struct glass_ble_device *device)
 {return (device->bonded?8:0)+(device->name[0]?4:0)+
         (device->connectable_known&&device->connectable?2:0);}
+
+/* Compare UUID bytes in Bluetooth advertising order (least significant
+ * octet first). This is a discovery hint, never authentication or trust.
+ */
+static inline bool glass_ble_has_service128(const uint8_t *data,size_t length,
+                                           const uint8_t service[16])
+{
+  if(!data||!service)return false;
+  while(length){
+    size_t field=data[0];if(!field||field>=length)break;
+    unsigned type=data[1];size_t bytes=field-1;
+    if(((type==6||type==7)&&bytes>=16&&!(bytes%16))||(type==0x21&&bytes>=16)){
+      size_t limit=type==0x21?16:bytes;
+      for(size_t i=0;i<limit;i+=16)if(!memcmp(data+2+i,service,16))return true;
+    }
+    data+=field+1;length-=field+1;
+  }
+  return false;
+}

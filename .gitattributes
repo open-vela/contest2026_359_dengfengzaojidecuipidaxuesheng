@@ -1,3 +1,6 @@
+# Accept CRLF as a line ending during whitespace checks.
+* whitespace=cr-at-eol
+
 tools/build_esp32p4_desktop.sh text eol=lf
 tools/fb_dump.py text eol=lf
 tools/fb_render_map.py text eol=lf
@@ -29,3 +32,6 @@ firmware/**/TEST_REPORT.md text eol=lf
 firmware/**/flash.ps1 text eol=lf
 firmware/**/*.patch -text -whitespace
 docs/evidence/technical-20261019/** -text -whitespace
+
+# Preserve nested captured evidence bytes and intentional tool padding.
+docs/evidence/** -text -whitespace

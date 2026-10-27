@@ -1,0 +1,11 @@
+{
+  "mode": "camera",
+  "rounds": 2,
+  "flash_delta_read_write_erase": [
+    3214,
+    755,
+    75
+  ],
+  "physical_screen_observation": "用户确认：全程正常",
+  "passed": true
+}

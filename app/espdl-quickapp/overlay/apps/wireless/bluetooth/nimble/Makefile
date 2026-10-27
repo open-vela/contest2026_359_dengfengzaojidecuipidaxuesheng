@@ -41,11 +41,14 @@ endif
 ifeq ($(CONFIG_SYSTEM_GLASS_BLE),y)
 include $(NIMBLE_ROOT)/porting/examples/nuttx/Make.defs
 CSRCS := $(filter-out %/porting/examples/nuttx/ble.c,$(CSRCS))
-CSRCS += glass_ble.c glass_ble_hid.c glass_ble_store.c glass_ble_central.c mouse_core.c
+CSRCS += glass_ble.c glass_ble_hid.c glass_ble_hid_link.c glass_ble_store.c glass_ble_central.c glass_ble_channel.c mouse_core.c
 MAINSRC =
 PROGNAME =
 CFLAGS += -I$(APPDIR)/system/c6ble
 CFLAGS += -DMYNEWT_VAL_BLE_ROLE_CENTRAL=1 -DMYNEWT_VAL_BLE_ROLE_OBSERVER=1
+# The imported example syscfg defaults to one connection. Pass the NuttX
+# setting to every host translation unit, including the connection pool.
+CFLAGS += -DMYNEWT_VAL_BLE_MAX_CONNECTIONS=$(CONFIG_NIMBLE_BLE_MAX_CONN)
 CFLAGS += -Wno-pointer-to-int-cast -Wno-undef
 endif
 

@@ -1,0 +1,982 @@
+{
+  "path": "PC WLAN explicitly bound -> C6 SoftAP -> P4 NAT -> eth0 -> PC wired server; requires server source 192.168.31.64, rejects local bypass",
+  "client_ip": "192.168.4.2",
+  "client_ifindex": 7,
+  "source_bound": true,
+  "server_required_peer": "192.168.31.64",
+  "bytes_per_transfer": 4194304,
+  "minimum_window_seconds": 60.0,
+  "payload_crc32": "0d0b3883",
+  "storage": "random payload RAM only, CRC verified at receiver in both directions",
+  "blocks": 4,
+  "rounds": [
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 29360128,
+      "seconds": 68.6600930999266,
+      "transfers": 7,
+      "mbps": 3.420924927354214,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 19192,
+        "inbound": 40967,
+        "dropped": 58
+      }
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 37748736,
+      "seconds": 61.07502420002129,
+      "transfers": 9,
+      "mbps": 4.9445725475438245,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 37957,
+        "inbound": 34201,
+        "dropped": 14
+      }
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 41943040,
+      "seconds": 65.2920482000336,
+      "transfers": 10,
+      "mbps": 5.139129943848618,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 11623,
+        "inbound": 30242,
+        "dropped": 22
+      }
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 67108864,
+      "seconds": 61.3919277000241,
+      "transfers": 16,
+      "mbps": 8.744975636264135,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 49576,
+        "inbound": 26044,
+        "dropped": 33
+      }
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 37748736,
+      "seconds": 67.13741059997119,
+      "transfers": 9,
+      "mbps": 4.498086615216131,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 15558,
+        "inbound": 30263,
+        "dropped": 14
+      }
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 67108864,
+      "seconds": 62.10549520002678,
+      "transfers": 16,
+      "mbps": 8.644499335700788,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 48530,
+        "inbound": 25136,
+        "dropped": 21
+      }
+    }
+  ],
+  "median_mbps": {
+    "download": 4.498086615216131,
+    "upload": 8.644499335700788
+  },
+  "server": [
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    }
+  ],
+  "complete": true,
+  "scope": "sustained TCP NAT test; each transfer CRC verified; not browser/phone latency acceptance",
+  "completed_transfers": [
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 10.160913400002755,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 9.924071700079367,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 9.247255899943411,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 10.36604879994411,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 9.444916800013743,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 9.417532599996775,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 9.475301000056788,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 6.301769400015473,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 6.073431900003925,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 5.452555500087328,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 6.8582563000964,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 5.851398900034837,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 5.770704400027171,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 9.265739800059237,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 8.936732199974358,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 5.773983900086023,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.444385300041176,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.4977352999849245,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.377397699980065,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.705720599973574,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.505829700035974,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 8.074501499999315,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.9736947999335825,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.651715400046669,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.84484659996815,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.345164700062014,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.4065056999679655,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.1277870000340044,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.2662838000105694,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.620934500009753,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.5084939000662416,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.2683420000830665,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.213565899990499,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.580585399991833,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.753127799951471,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.378361299983226,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.518767899950035,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.504061800078489,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.818405699916184,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.385429700021632,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.657578199985437,
+      "crc_passed": true
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.056516799959354,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.217856099945493,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.349401700077578,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.900880699977279,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.322752199950628,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 7.889556000009179,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 10.100767399999313,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 6.312926599988714,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 8.24368479999248,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 9.061134300078265,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.894477399997413,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.696934999898076,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.1274918999988586,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.960096099996008,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.005230400012806,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.6075966999633238,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.678599699982442,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.372908400022425,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.06303860002663,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.611784900072962,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.2126000000862405,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.789174700039439,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.132013699971139,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.8972985999425873,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 3.616398400045,
+      "crc_passed": true
+    },
+    {
+      "round": 3,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 4.0273498999886215,
+      "crc_passed": true
+    }
+  ],
+  "failure": null,
+  "tx_wake": 1,
+  "deployment_record": "32e718bfe1eaca246393065fc35602809fc170ecf73b962dc6c2b41631eb3404"
+}

@@ -47,11 +47,28 @@ static bool g_mouse_touch_moved;
 static lv_point_t g_mouse_touch_start;
 static lv_point_t g_mouse_touch_last;
 static bool g_mouse_view_valid;
+static uint32_t g_mouse_input_session,g_mouse_input_epoch;
+static bool g_mouse_dragging;
+static void glass_mouse_input_cancel(void)
+{
+  if(g_mouse_input_session)(void)glass_ble_hid_input_end(g_mouse_input_session);
+  g_mouse_input_session=g_mouse_input_epoch=0;
+  g_mouse_dragging=g_mouse_touching=false;
+}
+static int glass_mouse_input_ensure(void)
+{
+  struct glass_ble_hid_state state;glass_ble_hid_read(&state);
+  if(g_mouse_input_session&&g_mouse_input_epoch!=state.epoch)glass_mouse_input_cancel();
+  if(g_mouse_input_session)return 0;
+  int ret=glass_ble_hid_input_begin(state.epoch,&g_mouse_input_session);
+  if(!ret)g_mouse_input_epoch=state.epoch;
+  return ret;
+}
 struct glass_mouse_view
 {
   bool enabled, advertising, connected, encrypted, mouse_notify;
-  bool suspended, boot_mode, host_ready, busy, central_busy;
-  int command, result, error, ble_error;
+  bool suspended, boot_mode, host_ready, busy;
+  int command, result, error, ble_error, store_error;
 };
 static struct glass_mouse_view g_mouse_view;
 static void glass_mouse_refresh(lv_timer_t *timer);
@@ -88,6 +105,15 @@ static void *glass_mouse_worker(void *arg)
 
       int result = glass_mouse_execute(&job);
       pthread_mutex_lock(&g_mouse_ui_lock);
+      /* A page can close while START is waiting for the old BLE link.
+       * Finish its stop on this worker, after START returns, never on LVGL. */
+      if (!g_mouse_ui.page_open && job.command != GLASS_MOUSE_STOP)
+        {
+          pthread_mutex_unlock(&g_mouse_ui_lock);
+          int stopped = glass_ble_hid_stop();
+          if (!result) result = stopped;
+          pthread_mutex_lock(&g_mouse_ui_lock);
+        }
       /* Keep the worker busy while a newer motion delta is queued. */
       g_mouse_ui.busy = g_mouse_ui.pending;
       g_mouse_ui.result = result;
@@ -102,23 +128,26 @@ static int glass_mouse_submit(int command, int x, int y, int wheel)
   pthread_attr_t attr;
   pthread_t thread;
   int ret;
+  if(command!=GLASS_MOUSE_START&&command!=GLASS_MOUSE_STOP){
+    ret=glass_mouse_input_ensure();
+    if(!ret){
+      if(command==GLASS_MOUSE_MOVE||command==GLASS_MOUSE_SCROLL)
+        ret=glass_ble_hid_input_report(g_mouse_input_session,g_mouse_dragging?1:0,x,y,wheel);
+      else{
+        unsigned button=command==GLASS_MOUSE_CLICK_LEFT?1:
+                        command==GLASS_MOUSE_CLICK_RIGHT?2:4;
+        ret=glass_ble_hid_input_click(g_mouse_input_session,button);
+      }
+    }
+    pthread_mutex_lock(&g_mouse_ui_lock);g_mouse_ui.result=ret;
+    g_mouse_ui.command=command;g_mouse_ui.revision++;pthread_mutex_unlock(&g_mouse_ui_lock);
+    if(ret==-ESTALE||ret==-ENOTCONN)glass_mouse_input_cancel();
+    return ret; /* Accepted into a bounded queue, not peer-confirmed input. */
+  }
+  if(command==GLASS_MOUSE_STOP)glass_mouse_input_cancel();
   pthread_mutex_lock(&g_mouse_ui_lock);
   if (g_mouse_ui.busy)
     {
-      /* Motion is a stream. Keep the newest delta queued behind the report
-       * currently being sent instead of dropping every event while busy. */
-      if ((command == GLASS_MOUSE_MOVE || command == GLASS_MOUSE_SCROLL) &&
-          (g_mouse_ui.command == GLASS_MOUSE_MOVE ||
-           g_mouse_ui.command == GLASS_MOUSE_SCROLL))
-        {
-          g_mouse_ui.job = (struct glass_mouse_job){command, x, y, wheel};
-          g_mouse_ui.pending = true;
-          g_mouse_ui.command = command;
-          g_mouse_ui.revision++;
-          pthread_cond_signal(&g_mouse_ui_wake);
-          pthread_mutex_unlock(&g_mouse_ui_lock);
-          return 0;
-        }
       pthread_mutex_unlock(&g_mouse_ui_lock);
       return -EBUSY;
     }
@@ -173,6 +202,7 @@ static int glass_mouse_clamp(int value)
 static void glass_mouse_touch(lv_event_t *event)
 {
   lv_event_code_t code = lv_event_get_code(event);
+  if(code==LV_EVENT_PRESS_LOST){glass_mouse_input_cancel();glass_mouse_refresh(NULL);return;}
   lv_indev_t *input = lv_event_get_indev(event);
   bool scroll = (intptr_t)lv_event_get_user_data(event) != 0;
   lv_point_t point;
@@ -187,6 +217,13 @@ static void glass_mouse_touch(lv_event_t *event)
       return;
     }
   if (!g_mouse_touching) return;
+  if(code==LV_EVENT_LONG_PRESSED&&!scroll&&!g_mouse_touch_moved){
+    if(!glass_mouse_input_ensure()&&
+       !glass_ble_hid_input_report(g_mouse_input_session,1,0,0,0)){
+      g_mouse_dragging=true;g_mouse_touch_moved=true;
+    }
+    return;
+  }
   if (code == LV_EVENT_PRESSING)
     {
       int total_x = point.x - g_mouse_touch_start.x;
@@ -218,7 +255,11 @@ static void glass_mouse_touch(lv_event_t *event)
     }
   if (code == LV_EVENT_RELEASED)
     {
-      if (!scroll && !g_mouse_touch_moved)
+      if(g_mouse_dragging){
+        if(glass_ble_hid_input_report(g_mouse_input_session,0,0,0,0))
+          glass_mouse_input_cancel();
+        g_mouse_dragging=false;
+      }else if (!scroll && !g_mouse_touch_moved)
         (void)glass_mouse_submit(GLASS_MOUSE_CLICK_LEFT, 0, 0, 0);
       g_mouse_touching = false;
     }
@@ -256,12 +297,12 @@ static void glass_mouse_refresh(lv_timer_t *timer)
   LV_UNUSED(timer);
   if (!g_mouse_status) return;
   if (!glass_ui_can_paint(g_mouse_status)) return;
+  if(g_mouse_touching&&g_mouse_dragging&&g_mouse_input_session&&
+     glass_ble_hid_input_keepalive(g_mouse_input_session))glass_mouse_input_cancel();
   /* A touch stream must not compete with status repaint work on the LVGL
    * thread. The next timer tick refreshes the connection state after release. */
   if (g_mouse_touching) return;
   glass_ble_hid_read(&state);
-  struct glass_ble_state central;glass_ble_read(&central);
-  bool central_busy=central.scanning||central.connecting||(central.connected&&central.peer_valid)||central.disconnecting;
   pthread_mutex_lock(&g_mouse_ui_lock);
   busy = g_mouse_ui.busy;
   command = g_mouse_ui.command;
@@ -280,11 +321,11 @@ static void glass_mouse_refresh(lv_timer_t *timer)
     .boot_mode = state.boot_mode,
     .host_ready = state.host_ready,
     .busy = busy,
-    .central_busy = central_busy,
     .command = command,
     .result = result,
     .error = state.error,
-    .ble_error = state.ble_error
+    .ble_error = state.ble_error,
+    .store_error = state.store_error
   };
   bool view_changed = !g_mouse_view_valid ||
                       view.enabled != g_mouse_view.enabled ||
@@ -296,11 +337,11 @@ static void glass_mouse_refresh(lv_timer_t *timer)
                       view.boot_mode != g_mouse_view.boot_mode ||
                       view.host_ready != g_mouse_view.host_ready ||
                       view.busy != g_mouse_view.busy ||
-                      view.central_busy != g_mouse_view.central_busy ||
                       view.command != g_mouse_view.command ||
                       view.result != g_mouse_view.result ||
                       view.error != g_mouse_view.error ||
-                      view.ble_error != g_mouse_view.ble_error;
+                      view.ble_error != g_mouse_view.ble_error ||
+                      view.store_error != g_mouse_view.store_error;
   g_mouse_input_ready = state.enabled && state.connected && state.encrypted &&
                         state.mouse_notify && !state.suspended;
   if (!view_changed) return;
@@ -322,8 +363,6 @@ static void glass_mouse_refresh(lv_timer_t *timer)
     lv_label_set_text(g_mouse_status, "正在完成安全连接");
   else if (state.advertising)
     lv_label_set_text(g_mouse_status, "等待电脑配对");
-  else if (central_busy)
-    lv_label_set_text(g_mouse_status, "设备连接正在使用蓝牙");
   else if (state.host_ready)
     lv_label_set_text(g_mouse_status, "已就绪，等待开始");
   else
@@ -334,10 +373,11 @@ static void glass_mouse_refresh(lv_timer_t *timer)
   glass_mouse_status_value(2, state.encrypted, "已加密", "等待加密");
   glass_mouse_status_value(3, state.mouse_notify, "已订阅", "等待订阅");
 
-  if (central_busy && !state.enabled)
-    snprintf(text, sizeof(text), "请返回设备连接，停止搜索或断开后再启动触摸板");
+  if (state.store_error)
+    snprintf(text, sizeof(text), "配对保存失败 (%d)，请检查存储并重启后重试", state.store_error);
   else if (!busy && result)
-    snprintf(text, sizeof(text), "操作失败 (%d)", result);
+    snprintf(text, sizeof(text), result == -ENOSPC ?
+             "蓝牙连接名额已满 (%d)，请先断开一个连接" : "操作失败 (%d)", result);
   else if (state.error)
     snprintf(text, sizeof(text), "鼠标服务错误 (%d)，BLE %d", state.error,
              state.ble_error);
@@ -345,18 +385,17 @@ static void glass_mouse_refresh(lv_timer_t *timer)
     snprintf(text, sizeof(text), "%s模式%s", state.boot_mode ? "Boot " : "Report ",
              state.suspended ? " · 已挂起" : "");
   else if (state.advertising)
-    snprintf(text, sizeof(text), "请在电脑蓝牙中选择 OpenVela Mouse");
+    snprintf(text, sizeof(text), "请在电脑蓝牙中选择 %s", glass_ble_identity_name());
   else
-    snprintf(text, sizeof(text), "点击开始配对后开放 120 秒配对窗口");
+    snprintf(text, sizeof(text), "开始后暂停普通设备连接，退出鼠标后自动恢复");
   lv_label_set_text(g_mouse_detail, text);
   LV_UNUSED(revision);
   g_mouse_input_ready = input_ready;
 
   glass_mouse_button_enabled(g_mouse_start,
-                             !busy && !central_busy && !state.advertising && !state.connected);
+                             !busy && !state.advertising && !state.connected);
   glass_mouse_button_enabled(g_mouse_stop,
-                             !busy && (state.enabled || state.advertising ||
-                                       state.connected));
+                             !busy && state.host_ready);
   for (unsigned i = 0; i < 5; i++)
     glass_mouse_button_enabled(g_mouse_controls[i],
                                input_ready && (i < 2 || !busy) &&
@@ -366,6 +405,7 @@ static void glass_mouse_refresh(lv_timer_t *timer)
 static void glass_mouse_deleted(lv_event_t *event)
 {
   LV_UNUSED(event);
+  glass_mouse_input_cancel();
   if (g_mouse_timer) lv_timer_delete(g_mouse_timer);
   g_mouse_timer = NULL;
   g_mouse_input_ready = false;
@@ -377,7 +417,9 @@ static void glass_mouse_deleted(lv_event_t *event)
   memset(g_mouse_controls, 0, sizeof(g_mouse_controls));
   pthread_mutex_lock(&g_mouse_ui_lock);
   g_mouse_ui.page_open = false;
+  bool stopping = g_mouse_ui.busy;
   pthread_mutex_unlock(&g_mouse_ui_lock);
+  if (!stopping) (void)glass_mouse_submit(GLASS_MOUSE_STOP, 0, 0, 0);
 }
 
 static void glass_mouse_page(lv_obj_t *card)
@@ -399,7 +441,7 @@ static void glass_mouse_page(lv_obj_t *card)
 
   lv_obj_t *status = detail_tile(card, 216, 104, 268, 446);
   home_icon(status, LV_SYMBOL_BLUETOOTH, 20, 22, 24, detail_accent());
-  detail_text(status, "OpenVela Mouse", 52, 24, 200, 18, detail_ink());
+  detail_text(status, glass_ble_identity_name(), 52, 24, 200, 18, detail_ink());
   g_mouse_status = detail_text(status, "未启动", 20, 68, 228, 18, detail_ink());
   lv_label_set_long_mode(g_mouse_status, LV_LABEL_LONG_WRAP);
   const char *labels[] = {"蓝牙主机", "设备连接", "安全加密", "输入通知"};
@@ -434,10 +476,11 @@ static void glass_mouse_page(lv_obj_t *card)
   lv_obj_set_style_border_color(touchpad, lv_color_hex(detail_line()), 0);
   lv_obj_set_style_bg_opa(touchpad, 220, LV_STATE_PRESSED);
   home_icon(touchpad, LV_SYMBOL_GPS, 174, 78, 24, detail_accent());
-  lv_obj_t *caption = detail_text(touchpad, "触摸移动 · 轻点左键", 20, 132, 332, 14, detail_muted());
+  lv_obj_t *caption = detail_text(touchpad, "轻点左键 · 长按拖拽", 20, 132, 332, 14, detail_muted());
   lv_obj_set_style_text_align(caption, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_PRESSED, NULL);
   lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_PRESSING, NULL);
+  lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_LONG_PRESSED, NULL);
   lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_RELEASED, NULL);
   lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_PRESS_LOST, NULL);
   g_mouse_controls[0] = touchpad;
@@ -470,8 +513,9 @@ static void glass_mouse_page(lv_obj_t *card)
   struct glass_ble_hid_state state;
   glass_ble_hid_read(&state);
   struct glass_ble_state central;glass_ble_read(&central);
-  if (!state.enabled && !state.connected && !central.scanning &&
-      !central.connecting && !(central.connected && central.peer_valid) && !central.disconnecting)
+  if (!state.enabled && !state.connected &&
+      (glass_ble_capacity() >= 2 || (!central.scanning && !central.connecting &&
+       !(central.connected && central.peer_valid) && !central.disconnecting)))
     (void)glass_mouse_submit(GLASS_MOUSE_START, 0, 0, 0);
 }
 

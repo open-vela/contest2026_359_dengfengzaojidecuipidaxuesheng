@@ -25,6 +25,18 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../common/espressif espressif)
 
 set(SRCS esp_chip_rev.c)
 
+if(CONFIG_ESP32P4_PPA OR CONFIG_ESP32P4_JPEG)
+  list(APPEND SRCS esp32p4_dma2d.c)
+endif()
+
+if(CONFIG_ESP32P4_JPEG)
+  set(P4_JPEG_HAL ${CMAKE_CURRENT_SOURCE_DIR}/esp-hal-3rdparty/components/esp_hal_jpeg)
+  list(APPEND SRCS esp32p4_jpeg.c esp32p4_jpeg_parse.c esp32p4_jpeg_emit.c
+    ${P4_JPEG_HAL}/jpeg_hal.c)
+  target_include_directories(arch PRIVATE
+    ${P4_JPEG_HAL}/include ${P4_JPEG_HAL}/esp32p4/include)
+endif()
+
 if(CONFIG_ESP32P4_PPA)
   list(APPEND SRCS esp32p4_ppa.c)
   target_include_directories(arch PRIVATE

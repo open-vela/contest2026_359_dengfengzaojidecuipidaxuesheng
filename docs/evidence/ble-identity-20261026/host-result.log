@@ -1,0 +1,31 @@
+test_ble_identity.py
+BLE_IDENTITY_OK: fresh per build; static-random LE byte order; bounded name/path; isolated bond namespaces; stable runtime resync; set/readback/type failures stop HID startup
+
+test_ble_snapshots.py
+BLE_SNAPSHOTS_OK: four link combinations; independent disconnect/generation; shared host error; NULL output; no HID snapshot dependency
+
+test_ble_hid_ownership.py
+BLE_HID_OWNERSHIP_OK: foreign/stale reads and writes rejected; owner map/mode/suspend preserved; repeat-pairing owner only; lookup/delete errors propagated
+
+test_ble_hid_bonding.py
+BLE_HID_BONDING_OK: defer past SMP persistence; event queue only; pending consumed once; current encrypted 16-byte bonded owner; reset/disconnect guards; errors retained
+
+test_ble_central.py
+BLE_ADVERTISING_OK: connectability/name response merge; bounded parsing; appearance/service hints; persistent identity bonds; priority admission at capacity; broadcast-only connection rejected
+BLE_COMMAND_IDLE_OK: zero empty dispatches; 200 back-to-back scan/cancel commands without lost wakeups
+BLE_CENTRAL_OK: real scan/connect/GATT state, role conflict, stale generation, bounded discovery/notify, pairing, MTU and cancellation cleanup
+
+test_ble_hid_mailbox.py
+BLE_HID_MAILBOX_OK: 30 start/stop cycles; all protocol and role release on host thread; inactive-role cleanup despite stop error; release/click; stop invalidates queued start; no cross-task NPL queue posts
+
+test_ble_store.py
+BLE_STORE_OK: actual SDK RAM store; 54 insert/update/delete filesystem faults; RAM/disk rollback; sticky errors; legacy keys preserved; purpose bound to LTK, reorder/delete/renewal; no-op writes; capacity; corrupt file preserved
+BLE_STORE_NEGATIVE_OK: unpatched SDK record compaction rejected
+
+test_nimble_capacity.py
+NIMBLE_CAPACITY_OK: real Makefile + pinned syscfg; capacities 1/2/3; unmapped default-one rejected
+
+test_p4_psram_xip.py
+P4_PSRAM_XIP_OK: real verifier good/corrupt/MMU-target/heap-overlap; SDK SPI1 ready gate and 100 mutex pairs, zero cache-off
+
+BLUETOOTH_LIST_OK: native LVGL/ASan/UBSan command passed; 32 snapshots, two themes, 60 reopen cycles; candidate-name wrapping visually checked

@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "p4_shell": true,
+    "p4_capacity_eight": true,
+    "p4_xip_protected": true,
+    "p4_xip_hashes": true,
+    "c6_candidate_elf": true,
+    "c6_capacity_eight": true,
+    "host_ready": true,
+    "central_capacity_eight": true,
+    "no_panic": true
+  },
+  "eight_peer_radio_validated": false,
+  "cold_power_cycle_verified": false,
+  "physical_display_verified": false
+}

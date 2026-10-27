@@ -1,0 +1,21 @@
+{
+  "ethernet_sharing_verified": true,
+  "phone_internet_verified": true,
+  "jpeg_encoding_verified": false,
+  "real_photo_save_verified": false,
+  "image_sha256": "232409de5177f07cbdcd08dd40c377452892be3820c59b6df9b89bb58cbcc179",
+  "independent_readback_verified": true,
+  "data_partition_unchanged_after_flash": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "jpeg_pixels_verified": false,
+  "phone_acceptance": "User confirmed stable browsing with mobile data disabled; bounded scene only",
+  "physical_display_acceptance": "User confirmed normal during browsing; Flash/CSI test pending",
+  "cold_power_cycle_verified": false,
+  "ble_new_identity_pairing_verified": false,
+  "basic_hotspot_lifecycle_verified": true,
+  "wired_dns_tcp_verified": true,
+  "runtime_status": "bounded phone browsing and post-traffic close/reopen passed; extended acceptance pending",
+  "nat_capacity_limit_hits": 0
+}

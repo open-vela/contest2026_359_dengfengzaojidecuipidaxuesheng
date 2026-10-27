@@ -8,6 +8,9 @@
  * changes. All deadlines use monotonic time rather than the NTP-adjusted clock.
  */
 #include "glass_status.h"
+#ifdef CONFIG_NET_NAT44
+#include "glass_ethernet.h"
+#endif
 #ifdef CONFIG_SYSTEM_C6_DESKTOP
 #include <arpa/inet.h>
 #include <errno.h>
@@ -55,6 +58,10 @@ static bool glass_net_wifi_ready(uint64_t generation)
   pthread_mutex_unlock(&g_net_lock);
   return ready;
 }
+bool glass_wifi_lease_ready(uint64_t generation)
+{
+  return glass_net_wifi_ready(generation);
+}
 static struct glass_status_network g_status_network;
 static void glass_status_network_get(struct glass_status_network *out)
 {
@@ -74,6 +81,16 @@ static pthread_mutex_t g_net_dns_lock = PTHREAD_MUTEX_INITIALIZER;
  * across interfaces so simultaneous boot-time leases cannot fail to bind. */
 static pthread_mutex_t g_net_dhcp_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct in_addr g_net_wifi_dns, g_net_wired_dns, g_net_active_dns;
+#ifdef CONFIG_NET_NAT44
+static struct glass_ethernet_s g_wired_snapshot;
+
+void glass_wired_snapshot(struct glass_ethernet_s *out)
+{
+  pthread_mutex_lock(&g_net_lock);
+  *out = g_wired_snapshot;
+  pthread_mutex_unlock(&g_net_lock);
+}
+#endif
 static int g_net_dns_source = -1;
 
 /* Each permanent interface worker owns its lease deadlines. Wall-clock NTP
@@ -335,6 +352,10 @@ static void glass_net_lease(bool announce)
   g_net_lease_announce |= announce;
   pthread_mutex_unlock(&g_net_lock);
 }
+void glass_wifi_request_lease(void)
+{
+  glass_net_lease(true);
+}
 
 static void *glass_net_boot_thread(void *arg)
 {
@@ -460,6 +481,26 @@ static void *glass_net_wired_thread(void *arg)
       int ret = glass_net_maintain("eth0", true, &lease, running,
                                    generation, false);
       glass_status_network_publish(true, running, running && glass_net_usable("eth0"));
+#ifdef CONFIG_NET_NAT44
+      struct glass_ethernet_s snapshot = {0};
+      struct in_addr ip = {0}, mask = {0}, gateway = {0};
+      (void)netlib_get_ipv4addr("eth0", &ip);
+      (void)netlib_get_ipv4netmask("eth0", &mask);
+      (void)netlib_get_dripv4addr("eth0", &gateway);
+      snapshot.link = running;
+      snapshot.leased = running && lease.configured &&
+                        lease.generation == generation &&
+                        glass_net_seconds() < lease.expires_at &&
+                        ip.s_addr && mask.s_addr && gateway.s_addr;
+      snapshot.address = ip.s_addr;
+      snapshot.mask = mask.s_addr;
+      snapshot.gateway = gateway.s_addr;
+      snapshot.error = snapshot.leased ? 0 : ret;
+      pthread_mutex_lock(&g_net_lock);
+      snapshot.dns = g_net_wired_dns.s_addr ? g_net_wired_dns.s_addr : gateway.s_addr;
+      g_wired_snapshot = snapshot;
+      pthread_mutex_unlock(&g_net_lock);
+#endif
       if (ret == 0) glass_net_time_sync();
       was_running = running;
       glass_net_select_dns();

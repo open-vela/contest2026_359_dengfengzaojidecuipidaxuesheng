@@ -26,11 +26,15 @@
 #include <nuttx/sched.h>
 #include <lvgl/lvgl.h>
 #include "glass_ui_visibility.h"
+#ifdef CONFIG_SYSTEM_C6PROBE
+#  include "../c6probe/c6_wifi_phy.h"
+#endif
 #ifdef CONFIG_NETUTILS_NETINIT
 #  include <netutils/netinit.h>
 #endif
 
 #include "qpk_runtime.h"
+#include "qpk_jpeg_hw.h"
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 #include "../bilibili_live/bili_live.h"
 #include "../bilibili_live/local_video_ui.h"
@@ -1784,6 +1788,67 @@ int main(int argc, FAR char *argv[])
 {
   glass_board_music_register();
   glass_board_assistant_register();
+#ifdef CONFIG_SYSTEM_C6PROBE
+  if (argc >= 2 && !strcmp(argv[1], "wifi6"))
+    {
+      struct c6_wifi_phy_snapshot_s phy;
+      int ret;
+      if (argc == 3)
+        {
+          if (strcmp(argv[2], "on") && strcmp(argv[2], "off"))
+            return -EINVAL;
+          ret = c6_softap_phy_prefer(!strcmp(argv[2], "on"));
+          printf("WIFI6 policy_result=%d next_start_only=1\n", ret);
+          return ret;
+        }
+      if (argc != 2) return -EINVAL;
+      ret = c6_softap_phy_read(&phy);
+      if (ret) return ret;
+      printf("WIFI6 cached=1 generation=%lu preferred=%u configured=%u "
+             "valid=%u ap_protocol=0x%02x bandwidth_enum=%u "
+             "clients_valid=%u clients=%u he_capable=%u "
+             "sta_valid=%u sta_phy=%u sta_he20=%u "
+             "query_error=%d apply_error=%d restore_error=%d\n",
+             (unsigned long)phy.generation, phy.preferred, phy.configured,
+             phy.valid, phy.ap.protocol, phy.ap.bandwidth,
+             phy.clients_valid, phy.clients, phy.he_clients,
+             phy.sta_valid, phy.sta_phy,
+             phy.sta_valid && phy.sta_phy == C6_WIFI_PHY_HE20,
+             phy.query_error, phy.apply_error, phy.restore_error);
+      return 0;
+    }
+#endif
+#ifdef CONFIG_NET_NAT44
+  if(argc==3&&!strcmp(argv[1],"fwdguard"))
+    {
+      if(strcmp(argv[2],"0")&&strcmp(argv[2],"1"))return -EINVAL;
+      return glass_ethernet_forward_guard(argv[2][0]=='1')<0?1:0;
+    }
+  if(argc==2&&!strcmp(argv[1],"ethernet-dns"))
+    return glass_ethernet_dns_probe()<0?1:0;
+  if(argc==4&&!strcmp(argv[1],"ethernet-probe"))
+    {
+      char *end;unsigned long port=strtoul(argv[3],&end,10);
+      if(!*argv[3]||*end||!port||port>65535)return -EINVAL;
+      return glass_ethernet_probe(argv[2],(uint16_t)port)<0?1:0;
+    }
+  if(argc==2&&!strcmp(argv[1],"sharing"))
+    {
+      struct glass_recovery_snapshot_s state;
+      int ret=glass_network_recovery_read(&state);
+      if(ret)return ret;
+      struct glass_ethernet_s *e=&state.ethernet;
+      char ip[INET_ADDRSTRLEN],gateway[INET_ADDRSTRLEN],dns[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET,&e->address,ip,sizeof(ip));
+      inet_ntop(AF_INET,&e->gateway,gateway,sizeof(gateway));
+      inet_ntop(AF_INET,&e->dns,dns,sizeof(dns));
+      printf("SHARING link=%u lease=%u active=%u error=%d ip=%s gateway=%s dns=%s outbound=%lu inbound=%lu dropped=%lu\n",
+        e->link,e->leased,e->sharing,e->error,ip,gateway,dns,
+        (unsigned long)e->outbound,(unsigned long)e->inbound,(unsigned long)e->dropped);
+      glass_ethernet_print_capacity();
+      return 0;
+    }
+#endif
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
   if(argc==2&&!strcmp(argv[1],"cpu-status")){bili_cpu_report();return 0;}
   if(argc==3&&!strcmp(argv[1],"media-fps")){
@@ -1791,6 +1856,22 @@ int main(int argc, FAR char *argv[])
     if(!*argv[2]||*end||fps>20)return -EINVAL;
     return bili_cpu_set_target_fps((unsigned)fps);
   }
+  if(argc==3&&!strcmp(argv[1],"jpeg-file-test"))
+    return qpk_jpeg_file_selftest(argv[2]) < 0 ? 1 : 0;
+  if(argc==2&&!strcmp(argv[1],"jpeg-encode-test"))
+    {
+      int before = bili_ppa_test();
+      int encoded = qpk_jpeg_encode_selftest();
+      int after = bili_ppa_test();
+      return before < 0 || encoded < 0 || after < 0 ? 1 : 0;
+    }
+  if(argc==2&&!strcmp(argv[1],"jpeg-test"))
+    {
+      int before = bili_ppa_test();
+      int jpeg = qpk_jpeg_hw_selftest();
+      int after = bili_ppa_test();
+      return before < 0 || jpeg < 0 || after < 0 ? 1 : 0;
+    }
   if(argc==2&&!strcmp(argv[1],"ppa-test"))return bili_ppa_test()<0?1:0;
   if(argc==3&&!strcmp(argv[1],"ppa-mode")&&(!strcmp(argv[2],"0")||!strcmp(argv[2],"1"))){bili_ppa_enable(argv[2][0]=='1');return 0;}
   if(argc==4&&!strcmp(argv[1],"decode-bench")){
@@ -2038,6 +2119,9 @@ int main(int argc, FAR char *argv[])
 #endif
 
 #ifdef CONFIG_SYSTEM_C6_DESKTOP
+#ifdef CONFIG_NET_NAT44
+  (void)glass_network_recovery_init();
+#endif
   glass_net_autostart();
   glass_weather_start();
   (void)glass_assistant_start();

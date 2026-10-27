@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "results": {
+    "previous": "PREVIOUS_NETFWD_LOST_POLL_AND_RECYCLED_ARGUMENT_REPRODUCED",
+    "fixed": "NETFWD_NOTIFY_OK: permanent device argument and poll notification serialized with target device lock"
+  },
+  "source_sha256": {
+    "net/netforward/netfwd_forward.c": "636261b11a885fef6313051d161089462c9c8b6b48df4e03971d9e281510d444",
+    "netdev_txnotify.c": "d31a953d0ea930a8e9cc941416d6dc72f0d3c48d5eafdeebd27936fc3af1edf0"
+  },
+  "scope": "actual enqueue/work/notify bodies; controlled allocator/work scheduler and pthread poller lock; no hardware acceptance"
+}

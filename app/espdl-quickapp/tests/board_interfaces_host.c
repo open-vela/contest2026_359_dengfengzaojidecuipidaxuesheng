@@ -50,6 +50,13 @@ int main(void)
   assert(QPK_I2C_MASK==12&&QPK_SPI_MASK==120&&QPK_UART_MASK==48);
 #endif
 #endif
+#ifdef FEATURES_OFF
+  assert(get(get(r,"bluetooth"),"maxOrdinaryConnections")->valueint==0);
+#elif defined(LEGACY_PINS)
+  assert(get(get(r,"bluetooth"),"maxOrdinaryConnections")->valueint==1);
+#else
+  assert(get(get(r,"bluetooth"),"maxOrdinaryConnections")->valueint==2);
+#endif
   assert(QPK_PIN_MASK(63)&~QPK_HEADER_GPIO_MASK);
   cJSON_Delete(r);puts("BOARD_INTERFACES_OK: truthful feature/endpoint separation, unique catalog, reserved pins and resolved routes");
   return 0;

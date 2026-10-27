@@ -1,0 +1,56 @@
+c6ble mouse release
+c6ble mouse release: ok
+nsh> [K
+nsh> [Kc6ble rpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 1b aa 15 00
+mouse stop
+[CPU1] [ble-hid] disconnect reason=534 encrypted=1
+c6bl mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=4 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=4 error=0 ble_error=0 store_error=0
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 1c aa 15 00
+
+nsh> [Kc6ble central scan 970b7622-55cb-4c65-9f7e-faffa29f64fb
+c6ble central scan result=0
+nsh> [K
+nsh> [K[CPU1] [ble-hid] encryption find=0 status=7 key_size=16
+[CPU1] [ble-hid] disconnect reason=520 encrypted=0
+c6ble central devices
+BLE_SCAN generation=1 scanning=1 count=0 connected=0 connection_generation=0
+c6ble central devices result=0
+nsh> [K
+nsh> [Kc6ble mousrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 1d aa 15 00
+e status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=7 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central stop 1
+c6ble central stop result=0
+nsh> [K
+nsh> [Kc6ble mouse release
+c6ble mouse release: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=7 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble statusrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 1e aa 15 00
+
+configured_connections=2 effective_connections=2 host_ready=1 device_connected=0 mouse_connected=1 store_error=0
+reserved_connections=1 central_reserved=0 hid_reserved=1 mixed_role_capacity=1
+nsh> [K
+nsh> [Kdesktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=4190 text_hash=e45e2f81 rodata_hash=049c3da8 cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [Kuptime
+01:06:18 up  0:02, load average: 0.85, 0.85, 0.85
+nsh> [K
+nsh> [K

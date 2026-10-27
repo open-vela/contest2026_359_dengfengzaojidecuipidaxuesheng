@@ -1,0 +1,27 @@
+{
+  "path": "PC WLAN explicitly bound -> C6 SoftAP -> P4 NAT -> eth0 -> PC wired server; requires server source 192.168.31.64, rejects local bypass",
+  "client_ip": "192.168.4.2",
+  "client_ifindex": 7,
+  "source_bound": true,
+  "server_required_peer": "192.168.31.64",
+  "bytes_per_transfer": 4194304,
+  "minimum_window_seconds": 60.0,
+  "payload_crc32": "a678c18f",
+  "storage": "random payload RAM only, CRC verified at receiver in both directions",
+  "blocks": 4,
+  "rounds": [],
+  "median_mbps": {},
+  "server": [
+    {
+      "peer": "192.168.31.64",
+      "bytes": 2850816,
+      "error": null,
+      "direction": "download"
+    }
+  ],
+  "complete": false,
+  "scope": "sustained TCP NAT test; each transfer CRC verified; not browser/phone latency acceptance",
+  "completed_transfers": [],
+  "tx_wake": 1,
+  "deployment_record": "5a90094d79da8f4bfa7fc3699080618f838d38f7afbbcca7ddf4b6d0d07a84b5"
+}

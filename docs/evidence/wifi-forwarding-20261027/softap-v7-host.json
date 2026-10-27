@@ -1,0 +1,25 @@
+{
+  "status": "host-only-no-hardware",
+  "real_protobuf_and_complete_network_functions": true,
+  "phy_actual_locked_owner_and_mailbox_with_zero_uid_negative_control": true,
+  "remote_ap_reconciled_without_reset_start_or_connect": true,
+  "startup_mode_readback_required": true,
+  "actual_transport_dispatch_to_sta_ap_and_legacy_consumers": true,
+  "original_zero_selector_check_rejected_by_integrated_test": true,
+  "target_network_unit_compiled": true,
+  "target_transport_unit_compiled": true,
+  "prepared_transport_sha256": {
+    "esp_hosted.c": "cb80c6e25d740ca34ccdf8865ba98d0cf93ef65242a3f5e9c98f3f7e10a2edf7",
+    "esp_hosted.h": "87ad3d9553cb7175defd87700813b6e0ec45171f6685b7be38cc3358b4b7bca8"
+  },
+  "production_source_sha256": {
+    "c6net.c": "9cf1fd640ff762df7c8d11bc8ec1d02f0716433f1c9f13dca14daadf6e196e9a",
+    "c6net.h": "0ac16ed79410d5c5977910e247cfd05afc2f84e63b0a9b11f4da966837339a36",
+    "c6_softap.h": "0127e6f5664da33a3b74a12fbde6fbdb7934bad9be2a90a7d87a9e01f4355ef8",
+    "c6_softap_net.inc": "37fcf304fb5bf229c210704989cf07e85a1bc203cebb13bb5d8811e1738d10e5",
+    "c6_softap_rpc.inc": "9bd2e7802e634a3e68c4fa658037376369c864cd5f3f4b06004f9a93b7be9817",
+    "c6_wifi_phy.h": "0ed6f3bc84928eb3196b6d773322d7ac18610a64985788a35a7ea2348c64e6ea",
+    "c6_wifi_phy_net.inc": "2c34681558c3fb4c59510481bf54201d7e28225ca3aac8ceb3cee23877ceffa8",
+    "c6_wifi_phy_rpc.inc": "946220e69f3763ee20f28ff31a663d73f82d0cd1659a401ae9a8de4c81ed4a8e"
+  }
+}

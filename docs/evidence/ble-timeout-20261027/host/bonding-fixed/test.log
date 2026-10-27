@@ -1,0 +1,2 @@
+BLE_HID_TEARDOWN_OK: actual encryption callback treats ENOTCONN as disconnect cleanup, no extra HCI terminate or fake key failure; foreign handle, weak key and real error guards retained
+BLE_HID_BONDING_OK: defer past SMP persistence; event queue only; pending consumed once; current encrypted 16-byte bonded owner; reset/disconnect guards; errors retained

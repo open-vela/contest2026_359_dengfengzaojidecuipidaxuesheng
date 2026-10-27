@@ -1,0 +1,8 @@
+{
+  "state": "multi_session_implemented_and_deployed_real_multi_peer_acceptance_pending",
+  "image_sha256": "5ee07606d05f3ba246a62b0c48bcac19d46f3dd071fee2adb6e3d229de543e34",
+  "runtime": "BLE-RUNTIME.json",
+  "automatic_groups_passed": 14,
+  "physical_multi_peer_verified": false,
+  "user_participation_requested": false
+}

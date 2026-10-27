@@ -1,0 +1,16 @@
+{
+  "InterfaceIndex": 7,
+  "DHCPEnabled": true,
+  "DHCPServer": "192.168.4.1",
+  "DHCPLeaseObtained": "2026-10-27T19:35:51+08:00",
+  "DHCPLeaseExpires": "2026-10-27T19:37:51+08:00",
+  "IPAddress": [
+    "192.168.4.2"
+  ],
+  "DefaultIPGateway": [
+    "192.168.4.1"
+  ],
+  "DNSServerSearchOrder": [
+    "192.168.31.1"
+  ]
+}

@@ -1,0 +1,1 @@
+BLE_IDENTITY_OK: fresh per build; static-random LE byte order; bounded name/path; isolated bond namespaces; stable runtime resync; set/readback/type failures stop HID startup

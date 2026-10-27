@@ -1,0 +1,40 @@
+{
+  "image_sha256": "11aaf366e2ba2d758ef432a01141be69ea16b4ce3eff1f245608c16096228863",
+  "elf_sha256": "89411b7152051139a8ed5e6f74f3bd4c3552ea0013bc904bf247a73b76d43f9a",
+  "ble_identity": "C1:84:C4:9B:CE:CE",
+  "ble_name": "OpenVela Mouse-C49BCECE",
+  "configuration_changes": {
+    "CONFIG_NET_FORWARD_NSTRUCT": [
+      4,
+      16
+    ],
+    "CONFIG_NET_STATISTICS": [
+      false,
+      true
+    ]
+  },
+  "source_overlay_changes": [],
+  "sdio_clock_changed": false,
+  "c6_firmware_changed": false,
+  "flash_readback_verified": true,
+  "all_four_mib_user_data_preserved": true,
+  "warm_boot_xip_protected_cpus": 3,
+  "expected_xip_fnv_verified_in_boot_log": {
+    "text": "224b4fdb",
+    "rodata": "e136f9d1"
+  },
+  "user_directive": "Only design and bug fixes going forward; no user physical tests now.",
+  "tests_deferred": [
+    "download 3x60s >=5 Mbps",
+    "large-transfer integrity",
+    "phone Internet",
+    "2048 and CSI with real Flash writes/erases and physical screen observation",
+    "cold power cycle",
+    "new BLE identity pairing"
+  ],
+  "phone_benchmark_started": false,
+  "prior_c10_integrity_regression_resolved": false,
+  "performance_release_accepted": false,
+  "download_goal_verified": false,
+  "rollback_image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c"
+}

@@ -7,11 +7,15 @@
 #include <stddef.h>
 
 /* Board-private synchronous PPA SRM ioctl. Buffers must be 128-byte aligned
- * RAM, with sizes rounded up to 128 bytes. Input is packed UYVY, not I420.
- * The driver owns DMA2D exclusively; do not enable a second DMA2D driver.
+ * RAM, with sizes rounded up to 128 bytes. The original command accepts
+ * packed UYVY (not I420); the RGB565 command accepts native little-endian
+ * RGB565. Both output RGB565. The job layout and original ioctl stay stable.
+ * PPA and JPEG serialize through the chip DMA2D manager. Other DMA2D users
+ * must join the same ownership protocol before they can share the controller.
  */
 
 #define P4_PPA_SRM _IOC(0x7f00, 1)
+#define P4_PPA_SRM_RGB565 _IOC(0x7f00, 2)
 struct p4_ppa_job_s
 {
   FAR const void *input;

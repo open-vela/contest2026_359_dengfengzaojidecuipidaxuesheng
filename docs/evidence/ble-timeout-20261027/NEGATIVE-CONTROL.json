@@ -1,0 +1,12 @@
+{
+  "source": "installed C18 frozen production os_callout.c",
+  "source_sha256": "3bede231497b9cbcdff53d43f18470813b285a83853a5e1c3b67737d46669ed8",
+  "expected_failure_observed": true,
+  "regression_exit": 42,
+  "timers_expired": 32,
+  "delivered": 1,
+  "hci_poll_delivered": 0,
+  "fixed_batches": 100,
+  "fixed_distinct_per_batch": 32,
+  "host_transport": "controlled POSIX/NPL test, not real RF"
+}

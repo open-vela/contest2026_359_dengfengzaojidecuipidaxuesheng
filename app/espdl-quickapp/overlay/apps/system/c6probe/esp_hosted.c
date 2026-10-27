@@ -31,6 +31,7 @@
 
 #include "esp_gpio.h"
 #include "esp_hosted.h"
+#include "c6_rx_burst.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -128,20 +129,43 @@ static struct esp_hosted_state_s g_hosted =
   .lock = NXMUTEX_INITIALIZER,
 };
 
-/* CMD53 data moves through this cache-aligned bounce buffer, one block at
- * a time.  FRAME_SIZE keeps whole blocks, so it also satisfies the P4
- * requirement that DMA descriptors cover whole words.
+/* Bounded multi-block RX uses internal, cache-aligned DMA storage. TX and
+ * short RX tails still use at most one block. The bus lock owns this buffer.
  */
 
-static uint8_t g_dma_block[ESP_HOSTED_BLOCK_SIZE]
+static uint8_t g_dma_block[C6_RX_DMA_BLOCKS * C6_SDIO_BLOCK_SIZE]
                __attribute__((aligned(64)));
+
+/* Guarded by the transport lock, including diagnostic mode changes. */
+
+static unsigned int g_rx_block_limit = C6_RX_DMA_BLOCKS;
+
+int esp_hosted_rx_block_limit(unsigned int blocks)
+{
+  int ret;
+
+  if (blocks != 1 && blocks != C6_RX_DMA_BLOCKS)
+    {
+      return -EINVAL;
+    }
+
+  ret = nxmutex_lock(&g_hosted.lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  g_rx_block_limit = blocks;
+  nxmutex_unlock(&g_hosted.lock);
+  return (int)blocks;
+}
 
 /* One full frame is reassembled here before dispatch. */
 
 /* PACKET_LEN is an aggregate byte count, not the size of one Ethernet frame.
  * The C6's 20-entry TX queue can accumulate more than 16 KiB while the host
  * decodes video.  Keep a bounded batch buffer in the application heap; DMA
- * still uses the internal, cache-aligned 512-byte bounce buffer above. */
+ * still uses the internal, cache-aligned bounce buffer above. */
 
 #define C6_RX_BATCH_SIZE (64u * 1024u)
 static FAR uint8_t *g_frame_buf;
@@ -549,35 +573,40 @@ static void hosted_parse_init(FAR const uint8_t *payload, uint16_t len)
  * Name: hosted_do_read_block
  *
  * Description:
- *   Perform one CMD53 block read of exactly C6_SDIO_BLOCK_SIZE bytes into
- *   the DMA bounce buffer.  Uses the block mode required by the official
+ *   Read one to C6_RX_DMA_BLOCKS whole blocks into the DMA bounce buffer.
+ *   Uses the multi-block mode supported by the fixed official
  *   host (H_SDIO_RX_BLOCK_ONLY_XFER) and the P4 IDMAC cache handling.
  *
  ****************************************************************************/
 
 static int hosted_do_read_block(FAR struct sdio_dev_s *sdio,
-                                uint32_t address)
+                                uint32_t address, unsigned int blocks)
 {
   sdio_eventset_t event;
   uint32_t arg;
   uint32_t response;
   int ret;
 
-  /* One 512-byte block, incrementing address. */
+  /* Whole 512-byte blocks only. Never round a short tail into a block. */
 
-  arg = 1u |
+  if (blocks == 0 || blocks > C6_RX_DMA_BLOCKS)
+    {
+      return -EINVAL;
+    }
+
+  arg = blocks |
         ((address & 0x1ffff) << 9) |
         (1u << 26) |
         (1u << 27) |
         ((uint32_t)C6_SDIO_FUNCTION << 28);
 
-  SDIO_BLOCKSETUP(sdio, C6_SDIO_BLOCK_SIZE, 1);
+  SDIO_BLOCKSETUP(sdio, C6_SDIO_BLOCK_SIZE, blocks);
   SDIO_WAITENABLE(sdio,
                   SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR,
                   1000);
 
-  memset(g_dma_block, 0, sizeof(g_dma_block));
-  ret = SDIO_DMARECVSETUP(sdio, g_dma_block, C6_SDIO_BLOCK_SIZE);
+  ret = SDIO_DMARECVSETUP(sdio, g_dma_block,
+                          blocks * C6_SDIO_BLOCK_SIZE);
   if (ret < 0)
     {
       SDIO_CANCEL(sdio);
@@ -622,7 +651,7 @@ static int hosted_do_read_tail(FAR struct sdio_dev_s *sdio,
   uint32_t transfer_len;
 
   transfer_len = (length + 3u) & ~3u;
-  memset(g_dma_block, 0, sizeof(g_dma_block));
+  memset(g_dma_block, 0, C6_SDIO_BLOCK_SIZE);
 
   return sdio_io_rw_extended(sdio, false, C6_SDIO_FUNCTION, address, true,
                              g_dma_block, transfer_len, 0);
@@ -888,8 +917,17 @@ static int hosted_read_frame(FAR uint32_t *framelen)
 
   while (data_left >= C6_SDIO_BLOCK_SIZE)
     {
+      unsigned int blocks = data_left / C6_SDIO_BLOCK_SIZE;
+      uint32_t bytes;
+
+      if (blocks > g_rx_block_limit)
+        {
+          blocks = g_rx_block_limit;
+        }
+
+      bytes = blocks * C6_SDIO_BLOCK_SIZE;
       address = C6_CMD53_END_ADDR - data_left;
-      ret = hosted_do_read_block(g_hosted.sdio, address);
+      ret = hosted_do_read_block(g_hosted.sdio, address, blocks);
       if (ret < 0)
         {
           syslog(LOG_ERR, "block read at %" PRIx32 ": %d\n",
@@ -897,9 +935,9 @@ static int hosted_read_frame(FAR uint32_t *framelen)
           return ret;
         }
 
-      memcpy(g_frame_buf + offset, g_dma_block, C6_SDIO_BLOCK_SIZE);
-      offset += C6_SDIO_BLOCK_SIZE;
-      data_left -= C6_SDIO_BLOCK_SIZE;
+      memcpy(g_frame_buf + offset, g_dma_block, bytes);
+      offset += bytes;
+      data_left -= bytes;
     }
 
   if (data_left != 0)
@@ -1308,7 +1346,7 @@ int esp_hosted_send(uint8_t if_type, uint8_t if_num,
   for (chunk = 0; chunk < total_blocks; chunk++)
     {
       offset = chunk * C6_SDIO_BLOCK_SIZE;
-      memset(g_dma_block, 0, sizeof(g_dma_block));
+      memset(g_dma_block, 0, C6_SDIO_BLOCK_SIZE);
 
       if (chunk == 0)
         {

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_ble_central.h"
 
-enum {BLE_LIST_SCAN=1,BLE_LIST_CONNECT,BLE_LIST_CANCEL,BLE_LIST_DISCONNECT,BLE_LIST_MOUSE,BLE_LIST_PAIR};
+enum {BLE_LIST_SCAN=1,BLE_LIST_CONNECT,BLE_LIST_CANCEL,BLE_LIST_DISCONNECT,BLE_LIST_MOUSE,BLE_LIST_PAIR,BLE_LIST_SCAN_STOP,BLE_LIST_SELECT};
 struct ble_list_job {
   unsigned operation,index;
   uint32_t scan_generation,generation;
@@ -59,7 +59,7 @@ static int ble_list_wait_ready(void)
   }
   return -ETIMEDOUT;
 }
-static int ble_list_execute(const struct ble_list_job *job)
+static int ble_list_execute(struct ble_list_job *job)
 {
   if(job->operation==BLE_LIST_SCAN||job->operation==BLE_LIST_CONNECT){
     int result=ble_list_wait_ready();if(result)return result;
@@ -67,22 +67,25 @@ static int ble_list_execute(const struct ble_list_job *job)
   struct glass_ble_state state;glass_ble_read(&state);
   if(ble_list_cancelled())return -ECANCELED;
   switch(job->operation){
-  case BLE_LIST_SCAN:return glass_ble_scan();
+  case BLE_LIST_SCAN:return glass_ble_central_scan_session(NULL,&job->scan_generation);
+  case BLE_LIST_SELECT:return glass_ble_central_select(job->generation);
+  case BLE_LIST_SCAN_STOP:return glass_ble_central_scan_stop(job->scan_generation);
   case BLE_LIST_CONNECT:
     if(state.scan_generation!=job->scan_generation||job->index>=state.count||
        job->index>=GLASS_BLE_LIMIT||!ble_list_same_peer(&state.devices[job->index],&job->peer))return -ESTALE;
-    if(state.scanning){int result=glass_ble_cancel();if(result)return result;}
+    if(state.scanning){int result=glass_ble_central_scan_stop(job->scan_generation);if(result)return result;}
     if(ble_list_cancelled())return -ECANCELED;
     glass_ble_read(&state);
     if(state.scan_generation!=job->scan_generation||job->index>=state.count||
        job->index>=GLASS_BLE_LIMIT||!ble_list_same_peer(&state.devices[job->index],&job->peer))return -ESTALE;
     /* The host validates the scan generation again after the scan stops. */
-    return glass_ble_central_connect(job->index,job->scan_generation);
+    return glass_ble_central_connect_session(job->index,job->scan_generation,&job->generation);
   case BLE_LIST_CANCEL:
+    return job->peer_valid&&job->generation?
+      glass_ble_central_disconnect_generation(job->generation):
+      glass_ble_central_scan_stop(job->scan_generation);
   case BLE_LIST_DISCONNECT:
-    if(state.generation!=job->generation||state.scan_generation!=job->scan_generation||
-       (job->peer_valid&&(!state.peer_valid||!ble_list_same_peer(&state.peer,&job->peer))))return -ESTALE;
-    return job->operation==BLE_LIST_CANCEL?glass_ble_cancel():glass_ble_disconnect();
+    return glass_ble_central_disconnect_generation(job->generation);
   case BLE_LIST_PAIR:{
     if(!state.connected||!state.peer_valid||state.disconnecting)return -ENOTCONN;
     if(state.generation!=job->generation||!ble_list_same_peer(&state.peer,&job->peer))return -ESTALE;
@@ -115,12 +118,12 @@ static void *glass_ble_list_worker(void *unused)
     pthread_mutex_unlock(&g_ble_list_lock);
     {
       struct glass_ble_state state;glass_ble_read(&state);
-      if(job.operation==BLE_LIST_CONNECT&&state.peer_valid&&state.scan_generation==job.scan_generation&&
-         ble_list_same_peer(&state.peer,&job.peer)){
-        if(state.connected&&state.generation==job.generation+1)(void)glass_ble_disconnect();
-        else if(state.connecting&&state.generation==job.generation)(void)glass_ble_cancel();
-      }else if(job.operation==BLE_LIST_SCAN&&state.scanning&&!state.connected&&!state.connecting&&
-               state.scan_generation==job.scan_generation+1)(void)glass_ble_cancel();
+      if(job.operation==BLE_LIST_CONNECT&&job.generation){
+        /* The returned session identity belongs to this accepted request,
+         * even when another connection has become the UI selection. */
+        (void)glass_ble_central_disconnect_generation(job.generation);
+      }else if(job.operation==BLE_LIST_SCAN&&state.scanning&&
+               state.scan_generation==job.scan_generation)(void)glass_ble_central_scan_stop(state.scan_generation);
       result=-ECANCELED;
     }
     pthread_mutex_lock(&g_ble_list_lock);
@@ -171,6 +174,7 @@ static const char *ble_list_error(int error)
   case -ECANCELED:return "操作已取消";
   case -ESTALE:return "设备列表已更新，请重新选择设备";
   case -EBUSY:return "蓝牙正在被其他操作使用，请稍后重试";
+  case -ENOSPC:return "蓝牙连接名额已满，请先断开一个连接";
   case -ETIMEDOUT:return "操作超时，请靠近设备并重试";
   case -ENOMEM:return "内存不足，请稍后重试";
   case -ENOTCONN:return "设备已断开，可重新搜索连接";
@@ -206,11 +210,28 @@ static const char *ble_list_type(const struct glass_ble_device *peer)
   }
   return peer->service128?"其他 BLE 服务":"类型未知";
 }
+static const struct glass_ble_session *ble_list_peer_session(const struct glass_ble_state *state,
+                                                              const struct glass_ble_device *peer)
+{
+  for(unsigned i=0;i<state->session_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++)
+    if(ble_list_same_peer(peer,&state->sessions[i].peer))return &state->sessions[i];
+  return NULL;
+}
+static unsigned ble_list_connections(const struct glass_ble_state *state)
+{return state->session_count?state->connection_count:(unsigned)(state->connected&&state->peer_valid);}
+static bool ble_list_connecting(const struct glass_ble_state *state)
+{
+  if(state->connecting)return true;
+  for(unsigned i=0;i<state->session_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++)
+    if(state->sessions[i].connecting)return true;
+  return false;
+}
 static unsigned ble_list_priority(const struct ble_list_ui *view,const struct glass_ble_device *peer)
-{return (view->state.peer_valid&&ble_list_same_peer(peer,&view->state.peer)?16:0)+
+{return ((ble_list_peer_session(&view->state,peer)||
+          (view->state.peer_valid&&ble_list_same_peer(peer,&view->state.peer)))?16:0)+
         (peer->bonded?8:0)+(peer->name[0]?4:0)+(peer->connectable_known&&peer->connectable?2:0);}
 static bool ble_list_folded(const struct ble_list_ui *view,const struct glass_ble_device *peer)
-{return !peer->name[0]&&!peer->bonded&&
+{return !peer->name[0]&&!peer->bonded&&!ble_list_peer_session(&view->state,peer)&&
         !(view->state.peer_valid&&ble_list_same_peer(peer,&view->state.peer));}
 static void glass_ble_list_toggle(lv_event_t *event)
 {
@@ -224,7 +245,8 @@ static void glass_ble_list_action(lv_event_t *event)
   unsigned operation=(uintptr_t)lv_event_get_user_data(event);
   if(lv_obj_has_state(lv_event_get_target(event),LV_STATE_DISABLED))return;
   if(!operation)operation=view->action;
-  if(operation==BLE_LIST_SCAN&&view->state.connected)operation=BLE_LIST_PAIR;
+  if(operation==BLE_LIST_SCAN&&view->state.scanning)operation=BLE_LIST_SCAN_STOP;
+  else if(operation==BLE_LIST_SCAN&&view->state.connected&&!view->state.encrypted)operation=BLE_LIST_PAIR;
   if(operation==BLE_LIST_MOUSE){glass_mouse_open(NULL);return;}
   struct ble_list_job job={.operation=operation,.generation=view->state.generation,
     .scan_generation=view->state.scan_generation,.peer_valid=view->state.peer_valid,.peer=view->state.peer};
@@ -253,9 +275,9 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
   if(!view||!glass_ui_can_paint(view->root))return;
   memset(&view->state,0,sizeof(view->state));
   glass_ble_read(&view->state);glass_ble_hid_read(&view->hid);
-  /* The legacy public connected flag also includes the HID peripheral.
-   * Only a central peer belongs in this list's disconnect action. */
+  /* Only a confirmed central peer belongs in this disconnect action. */
   view->state.connected=view->state.connected&&view->state.peer_valid;
+  if(view->state.session_count>GLASS_BLE_CENTRAL_LIMIT)view->state.session_count=GLASS_BLE_CENTRAL_LIMIT;
   if(view->state.count>GLASS_BLE_LIMIT)view->state.count=GLASS_BLE_LIMIT;
   for(unsigned i=0;i<view->state.count;i++)view->state.devices[i].name[GLASS_BLE_NAME_MAX]=0;
   view->state.peer.name[GLASS_BLE_NAME_MAX]=0;
@@ -272,12 +294,13 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
   struct glass_ble_state *state=&view->state;
   bool pairing=busy&&operation==BLE_LIST_PAIR;
   bool pair_failed=!busy&&operation==BLE_LIST_PAIR&&result;
-  const char *status=state->disconnecting?"正在断开连接":pairing?"正在配对设备":
+  const char *status=state->restoring?"正在逐个恢复普通设备":state->mouse_paused?"普通设备已暂停，等待鼠标退出":
+    state->disconnecting?"正在断开连接":state->store_error?"配对保存失败":pairing?"正在配对设备":
     pair_failed?(result==-ECANCELED?"配对已取消":"配对未完成"):
     state->connected?(state->encrypted?(state->bonded?"配对成功":"安全连接成功"):"连接成功"):
     state->connecting?"正在连接设备":
     busy?(operation==BLE_LIST_SCAN?"正在准备搜索":operation==BLE_LIST_CONNECT?"正在准备连接":"正在处理操作"):
-    state->scanning?"正在搜索附近设备":hid?"无线触摸板正在使用蓝牙":
+    state->scanning?"正在搜索附近设备":hid?"触摸板已启用，尚未连接设备":
     !result&&operation==BLE_LIST_DISCONNECT?"蓝牙已断开":
     !result&&operation==BLE_LIST_CANCEL?"操作已取消":
     state->scan_generation&&!state->count?"搜索结束，未发现设备":"尚未连接设备";
@@ -286,34 +309,37 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
     ble_list_text(view->status,title);
   }else ble_list_text(view->status,status);
   char detail[180];
-  if(!busy&&(result||state->error))snprintf(detail,sizeof(detail),"%s",ble_list_error(result?result:state->error));
+  if(state->store_error)snprintf(detail,sizeof(detail),"配对信息保存失败（%d），请检查存储并重启后重试",state->store_error);
+  else if(!busy&&(result||state->error))snprintf(detail,sizeof(detail),"%s",ble_list_error(result?result:state->error));
+  else if(state->mouse_paused)snprintf(detail,sizeof(detail),"鼠标使用期间暂停普通 BLE，退出后自动重连；可取消设备恢复");
   else if(pairing)snprintf(detail,sizeof(detail),"请在对方设备确认配对，完成后自动更新状态");
   else if(state->peer_valid&&(state->connected||state->connecting)){
     char address[80];ble_list_address(&state->peer,address,sizeof(address));
     snprintf(detail,sizeof(detail),"%s%s",address,state->connected?(state->encrypted&&state->bonded?" · 已配对":
       state->encrypted?" · 已加密，未保存配对":" · 未配对，可点击“配对设备”"):"");
-  }else snprintf(detail,sizeof(detail),"%s",hid?"停止触摸板配对后，即可搜索其他设备":
+  }else snprintf(detail,sizeof(detail),"%s",hid?"设备列表只显示外部设备，触摸板状态单独显示":
     state->scanning?"点选设备即可停止搜索并连接":"搜索附近的低功耗蓝牙设备，设备需处于可连接状态");
   ble_list_text(view->detail,detail);
-  bool can_scan=!busy&&!state->scanning&&!state->connecting&&!state->connected&&!state->disconnecting&&!hid;
-  bool can_pair=!busy&&state->connected&&state->peer_valid&&!state->encrypted&&!state->disconnecting&&!hid;
+  bool can_scan=!hid&&!state->mouse_paused&&!busy&&!ble_list_connecting(state)&&!state->disconnecting&&(!state->connected||state->encrypted);
+  bool can_pair=!hid&&!state->mouse_paused&&!busy&&state->connected&&state->peer_valid&&!state->encrypted&&!state->disconnecting;
   glass_mouse_button_enabled(view->scan,can_scan||can_pair);
-  ble_list_text(lv_obj_get_child(view->scan,0),state->connected?(pairing?"配对中…":
-    state->encrypted?(state->bonded?"已配对":"已加密"):"配对设备"):state->scanning?"搜索中…":"搜索设备");
-  view->action=pairing?BLE_LIST_CANCEL:state->connected?BLE_LIST_DISCONNECT:state->scanning||state->connecting||busy?BLE_LIST_CANCEL:BLE_LIST_MOUSE;
-  const char *control=pairing?"取消配对":view->action==BLE_LIST_DISCONNECT?"断开连接":state->connecting?"取消连接":
+  ble_list_text(lv_obj_get_child(view->scan,0),pairing?"配对中…":state->scanning?"停止搜索":
+    state->connected&&!state->encrypted?"配对设备":"搜索设备");
+  view->action=state->mouse_paused&&state->peer_valid?BLE_LIST_DISCONNECT:pairing?BLE_LIST_CANCEL:state->connected?BLE_LIST_DISCONNECT:state->connecting||busy?BLE_LIST_CANCEL:state->scanning?BLE_LIST_SCAN_STOP:BLE_LIST_MOUSE;
+  const char *control=state->mouse_paused&&state->peer_valid?"取消恢复":pairing?"取消配对":view->action==BLE_LIST_DISCONNECT?"断开连接":state->connecting?"取消连接":
     state->scanning?"停止搜索":busy?"取消操作":"无线触摸板";
   ble_list_text(lv_obj_get_child(view->control,0),control);
   glass_mouse_button_enabled(view->control,!state->disconnecting&&(!busy||operation==BLE_LIST_SCAN||operation==BLE_LIST_CONNECT||pairing));
   unsigned folded=0;
   for(unsigned i=0;i<state->count;i++)if(ble_list_folded(view,&state->devices[i]))folded++;
-  char count[128];snprintf(count,sizeof(count),"附近设备 · %u 条%s · 未命名 %u 条%s",state->count,
+  char count[160];snprintf(count,sizeof(count),"普通连接 %u/%u · 附近设备 %u 条%s · 未命名 %u 条%s",
+    ble_list_connections(state),state->central_capacity?state->central_capacity:1,state->count,
     state->scan_truncated?"（已达保留上限）":"",folded,state->scanning?" · 搜索中":"");
   ble_list_text(view->count,count);
   if(state->count)lv_obj_add_flag(view->empty,LV_OBJ_FLAG_HIDDEN);
   else{
     lv_obj_remove_flag(view->empty,LV_OBJ_FLAG_HIDDEN);
-    ble_list_text(view->empty,state->scanning?"正在寻找设备…":hid?"触摸板启用中，暂时无法搜索":
+    ble_list_text(view->empty,state->scanning?"正在寻找设备…":
       busy?"正在准备蓝牙，请稍候":state->scan_generation?
       "未发现设备\n请确认设备已开启广播，再重新搜索":"还没有发现设备\n点击“搜索设备”开始查找");
   }
@@ -343,7 +369,9 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
     unsigned index=order[slot];const struct glass_ble_device *peer=&state->devices[index];
     row->binding=(struct ble_list_job){.operation=BLE_LIST_CONNECT,.index=index,
       .scan_generation=state->scan_generation,.generation=state->generation,.peer_valid=true,.peer=*peer};
-    bool active=state->peer_valid&&ble_list_same_peer(peer,&state->peer);
+    const struct glass_ble_session *session=ble_list_peer_session(state,peer);
+    bool active=session||(state->peer_valid&&ble_list_same_peer(peer,&state->peer));
+    if(session){row->binding.operation=BLE_LIST_SELECT;row->binding.generation=session->generation;}
     lv_obj_remove_flag(row->root,LV_OBJ_FLAG_HIDDEN);lv_obj_set_y(row->root,slot*80+(slot>=main_count?56:0));
     ble_list_text(row->name,peer->name[0]?peer->name:"未命名设备");
     char address[80],hint[192];ble_list_address(peer,address,sizeof(address));
@@ -355,15 +383,19 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
     if(peer->rssi<-127||peer->rssi>20)snprintf(signal,sizeof(signal),"信号未知");
     else snprintf(signal,sizeof(signal),"%d dBm · %s",peer->rssi,peer->rssi>=-55?"强":peer->rssi>=-75?"良好":"弱");
     ble_list_text(row->signal,signal);
-    ble_list_text(row->action,active?(state->disconnecting?"断开中…":pairing?"配对中…":
+    ble_list_text(row->action,session?(session->mouse_paused?"等待恢复":session->disconnecting?"断开中…":session->connecting?"连接中…":
+      session->generation==state->generation?"当前设备":"管理连接"):active?(state->disconnecting?"断开中…":pairing?"配对中…":
       state->connected?(state->encrypted&&state->bonded?"已配对":"已连接"):"连接中…"):
       broadcast_only?"仅广播":peer->bonded?"重新连接":"连接");
     lv_obj_set_width(row->action,active?116:96);
     if(active||broadcast_only)lv_obj_add_flag(row->arrow,LV_OBJ_FLAG_HIDDEN);
     else lv_obj_remove_flag(row->arrow,LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_color(row->action,lv_color_hex(active?0x4f9b77:detail_accent()),0);
-    glass_mouse_button_enabled(row->root,!broadcast_only&&!busy&&!hid&&!state->connecting&&!state->connected&&!state->disconnecting);
-    lv_obj_set_style_opa(row->root,(state->connected||state->connecting)&&!active?LV_OPA_70:LV_OPA_COVER,0);
+    unsigned capacity=state->central_capacity?state->central_capacity:1;
+    bool available=!hid&&!state->mouse_paused&&state->session_count<capacity&&!ble_list_connecting(state);
+    glass_mouse_button_enabled(row->root,!busy&&(session?!session->disconnecting:
+      !active&&!broadcast_only&&available&&!state->disconnecting));
+    lv_obj_set_style_opa(row->root,LV_OPA_COVER,0);
   }
 }
 static void glass_ble_list_deleted(lv_event_t *event)
@@ -431,7 +463,8 @@ static void glass_ble_devices_page(lv_obj_t *card)
   pthread_mutex_lock(&g_ble_list_lock);bool busy=g_ble_list_jobs.busy;
   pthread_mutex_unlock(&g_ble_list_lock);
   if(!busy&&!view->state.scanning&&!view->state.connecting&&!view->state.connected&&
-     !view->state.disconnecting&&!view->hid.enabled&&!view->hid.advertising&&!view->hid.connected){
+     !view->state.disconnecting&&!view->state.mouse_paused&&
+     !view->hid.enabled&&!view->hid.advertising&&!view->hid.connected){
     struct ble_list_job job={.operation=BLE_LIST_SCAN};
     int result=glass_ble_list_submit(&job);if(result)show_toast(ble_list_error(result));
     glass_ble_list_refresh(NULL);

@@ -1,0 +1,19 @@
+{
+  "baseline_image_sha256": "68013af36b8d2678d321452efcbc6840146d8fd40297284702cb89bb6865f57d",
+  "baseline_psram_xip": true,
+  "production_changes": [
+    "app/espdl-quickapp/overlay/apps/system/c6ble/ble_main.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ble.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_bluetooth.inc",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_mouse.inc",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_status_ui.inc",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble.h",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_hid.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_store.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_store.h"
+  ],
+  "sdk_patch": "RAM store compaction bytes, guarded by prepare_nimble_store.py",
+  "requested_connections": 2,
+  "c6_firmware_unchanged": true
+}

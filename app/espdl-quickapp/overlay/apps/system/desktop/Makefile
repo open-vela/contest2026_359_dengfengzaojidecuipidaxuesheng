@@ -25,13 +25,15 @@ MAINSRC = desktop_main.c
 CSRCS += glass_file_service.c qpk_storage.c qpk_storage_selftest.c
 CSRCS += glass_qpk_builder.c
 CSRCS += qpk_hardware.c qpk_hw_platform.c qpk_hw_audio.c qpk_audio_store.c qpk_hw_probe.c
-CSRCS += qpk_ble_gatt.c
+CSRCS += qpk_ble_gatt.c qpk_ble_channel.c
 CSRCS += qpk_usb.c qpk_network.c
 CSRCS += qpk_photo_store.c
+CSRCS += glass_ethernet.c
 CSRCS += qpk_board_interfaces.c
 CFLAGS += -I$(TOPDIR)/arch/risc-v/src/common
 
 CSRCS += glass_system_monitor.c
+CSRCS += glass_network_recovery.c
 CSRCS += glass_status_power.c
 CSRCS += glass_system_platform.c
 
@@ -41,6 +43,9 @@ CSRCS += glass_weather.c glass_weather_parse.c glass_weather_https.c glass_weath
 CFLAGS += -I$(APPDIR)/netutils/cjson/cJSON $(ESPCLAW_TLS_CFLAGS)
 
 CSRCS += qpk_tjpgd.c qpk_mjpeg.c qpk_camera_probe.c
+CSRCS += qpk_jpeg_hw.c
+CSRCS += qpk_ppa.c
+CSRCS += qpk_jpeg_encode.c
 CSRCS += espdl_resource.c qpk_espdl_service.c qpk_espdl_store.c
 CSRCS += qpk_espdl_sha256.c qpk_espdl_track.c qpk_espdl_capture.c
 CSRCS += qpk_espdl_probe.c

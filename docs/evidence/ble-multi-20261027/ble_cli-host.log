@@ -1,0 +1,65 @@
+c6ble central scan result=0
+BLE_SESSION generation=91
+c6ble central connect result=0
+c6ble central connect result=-22
+c6ble central connect result=-22
+c6ble central stop result=0
+c6ble central disconnect result=-116
+BLE_GATT generation=14 mtu=0 count=0 bytes=2 truncated=0
+BLE_DATA_FNV32=6edee0fa
+c6ble central read result=0
+c6ble central read result=-22
+c6ble central read result=-22
+c6ble central read result=-22
+BLE_GATT generation=15 mtu=0 count=0 bytes=2 truncated=0
+BLE_DATA_FNV32=6edee0fa
+c6ble central characteristics result=0
+c6ble central characteristics result=-22
+c6ble central unknown result=-22
+c6ble central select result=0
+BLE_GATT generation=15 mtu=0 count=0 bytes=2 truncated=0
+BLE_DATA_FNV32=6edee0fa
+c6ble central pair result=0
+BLE_GATT generation=15 mtu=0 count=0 bytes=2 truncated=0
+BLE_DATA_FNV32=6edee0fa
+c6ble central services result=0
+BLE_GATT generation=15 mtu=0 count=0 bytes=2 truncated=0
+BLE_DATA_FNV32=6edee0fa
+c6ble central mtu result=0
+c6ble central notification result=-11
+BLE_SCAN generation=7 scanning=0 count=33 connected=0 connection_generation=0
+BLE_PEER index=0 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=1 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=2 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=3 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=4 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=5 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=6 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=7 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=8 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=9 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=10 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=11 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=12 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=13 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=14 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=15 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=16 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=17 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=18 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=19 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=20 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=21 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=22 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=23 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=24 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=25 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=26 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=27 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=28 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=29 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=30 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_PEER index=31 type=0 address=00:00:00:00:00:00 connectable=0 service128=0
+BLE_SESSIONS active=0 connected=0 capacity=0 selected=0
+c6ble central devices result=0
+BLE_CLI_OK: real parser; UUID byte order; bounded arguments/list; generation-bound dispatch; read hash only; unsupported commands rejected

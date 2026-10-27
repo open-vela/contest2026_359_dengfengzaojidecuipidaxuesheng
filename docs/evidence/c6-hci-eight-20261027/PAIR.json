@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-27",
+  "scope": "offline_HCI_boundary_candidate_not_radio_test",
+  "c6_controller_connections": 8,
+  "p4_host_connections": 8,
+  "p4_ordinary_sessions": 8,
+  "p4_image_sha256": "4c7c78a0ec810eb4bfb32c45e3c29c198a03b9c618052c0d85d812d4af07ffaa",
+  "p4_elf_sha256": "ef69f2fa10a9d43d94b56b2143f9977d9de34c3c1511b25cb97286854c4c8025",
+  "c6_image_sha256": "be0df846a3d283c75b766bcd90953ab40dd3c48edb2846502a047f005fe5a534",
+  "c6_elf_sha256": "a9420769783f1e9686003d5c15038d5bd6f65e88c6cf02ba9fce09c8f7c47214",
+  "previous_c6_image_sha256": "10696b5009dfee3231f21d6b7764b052c1ae9fb9e099dd3c245fb65f9ed0ddb3",
+  "image_bytes": 1114160,
+  "slot_remaining_bytes": 458704,
+  "partition_unchanged": true,
+  "sdk_source_unchanged": true,
+  "preserved_source_sha256": {
+    "app_main.c": "ec7fc5d9ee8f8771eccf99dd0b884e2bd70f11177d39cf303ee2cfb885ff07e4",
+    "sdio_slave_api.c": "c4e1a680693437f4deefd3d8bfb866ac2ca16231a19b957f37e2e1e0d1ae60fd"
+  },
+  "hci_guard_source_sha256": "24c937a65388aa33678439b8eee6138a72a08b83a372f0f76399f5bcfac91a0a",
+  "hci_frame_length_guard": true,
+  "synthetic_peers": 8,
+  "c2h_frames": 8000,
+  "h2c_acl_frames": 8000,
+  "negative_control_old_overflow_reproduced": true,
+  "initializer_regression_passed": true,
+  "flashed": false,
+  "reset": false,
+  "serial_access": false,
+  "eight_peer_radio_validated": false,
+  "test_limits": [
+    "valid Hosted outer header/headroom assumed",
+    "queue rejection modeled before ownership transfer",
+    "SDK internal allocation-failure assertions unchanged"
+  ],
+  "recipe_sha256": {
+    "tools/prepare_c6_ble_capacity.py": "a9ca45f52f46e6345e4c070dad962b458c4f1e853def61d98a3bb8063bd14234",
+    "tools/prepare_c6_hci_frames.py": "35a267620e7086c0f60dcca17b2e057561fcc137d9bae16fbc8b7be246d51681",
+    "tools/build_c6_ble_eight.py": "6e40f73b8160f20d0eb0fad17dd9e943f342b2162dd532fea6e60412049512fb",
+    "tools/audit_c6_ble_capacity.py": "c7c6ce18eb3c9878cf4ea04c6795d121b9281de2650e29ab087572c18bca17fd",
+    "tools/test_c6_ble_capacity.py": "4e8c32c3bfb7b81cbb0d00952eb75ff546ba18ea0ae238ec65dd67c0295d8f35",
+    "tools/test_c6_hci_frames.py": "007d1836dba04345f9decd0cc2d42abecb99445578648447e6f086ec0bfd4511",
+    "tools/c6/sdkconfig.ble-eight.defaults": "0554bf1742635952c5175db429d4242f464d8ec2bf2c32720417563931f7e752"
+  }
+}

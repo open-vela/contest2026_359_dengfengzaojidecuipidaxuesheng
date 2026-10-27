@@ -1,0 +1,54 @@
+{
+  "path": "PC WLAN explicitly bound -> C6 SoftAP -> P4 NAT -> eth0 -> PC wired server; requires server source 192.168.31.64, rejects local bypass",
+  "client_ip": "192.168.4.2",
+  "client_ifindex": 7,
+  "source_bound": true,
+  "server_required_peer": "192.168.31.64",
+  "bytes_per_transfer": 4194304,
+  "minimum_window_seconds": 60.0,
+  "payload_crc32": "b5497a57",
+  "storage": "random payload RAM only, CRC verified at receiver in both directions",
+  "blocks": 4,
+  "rounds": [],
+  "median_mbps": {},
+  "server": [
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 1605632,
+      "error": null,
+      "direction": "download"
+    }
+  ],
+  "complete": false,
+  "scope": "sustained TCP NAT test; each transfer CRC verified; not browser/phone latency acceptance",
+  "completed_transfers": [
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.303001500084065,
+      "crc_passed": true
+    },
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.176992999971844,
+      "crc_passed": true
+    }
+  ],
+  "tx_wake": 1,
+  "deployment_record": "699036f7fed212749132c4bbf5a50acc9eae78359d93abe601eb48a1e9e5e171"
+}

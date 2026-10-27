@@ -1,0 +1,98 @@
+{
+  "ble_central": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "a6dfc5384458ac79d3a45d6f55911404622ccd28fb977a655a04baab413ea58b"
+  },
+  "ble_cli": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "3274d0b00559893da64f010eeb69c793a7a19d14eb7f93e49a2b4b3ad6ca2ede"
+  },
+  "ble_hid_ownership": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "53c5784e32a1436ecf2cb0bd18a9493fd0fc9b851f1a7138912a487242e6f47e"
+  },
+  "ble_hid_bonding": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "07bac9715355b4e99ff761eac65149a1b9ff89aac5f3ed13675314ad09e227a1"
+  },
+  "ble_identity": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "5a1e2e5cebca8d7865c71b1cbd91fe1f4554002c0426b390ceaaa13d89710768"
+  },
+  "ble_snapshots": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "308e3bb189e7155060793d06c144168c9e17a4dc0d90c998911dc4706d61f66e"
+  },
+  "ble_store": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "eb2b63fc0b2e0beebd1c990c5e83501df98678130c28e9c47cfe1b065d6b316a"
+  },
+  "nimble_capacity": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "2df4ae1ad18bca8837ad5c75910cfcf4dd1a1403e0c3b965c7c49ed78ae7e226"
+  },
+  "ble_hid_mailbox": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "d3c761fb60774e3eea733715ab682442830d818f05acf6fb0c7580946631deb5"
+  },
+  "p4_psram_xip": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "d54878a4228e1fccebdbd4942d131091b88da77b22ed5432785578be3b9761ae"
+  },
+  "ble_platform": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "65aea04c482f3b9db4d40005c29aa7b1e9befa21c1aba6fc31611d7cc5a8c2ac"
+  },
+  "interface_protocols": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "6bbed51ff34ff73d0ddb7ba27062bebef1d38f56c50030d69873717063b843fa"
+  },
+  "board_interfaces": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "be858a42d0983d0e0293202cea6f9fe4f24e707bf914deefa9a946174e2a09fd"
+  },
+  "ble_channel": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "9d4626f93cbcbb0a213079c47ebf4db629a2ee5de7e521939c3837578544c627"
+  },
+  "nimble_callout": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "399235813607d8855151b5edc0826fc1f3712eb7cdfdd7756134b1f9bc49122e"
+  },
+  "ble_mouse_input": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with controlled transport/callbacks or pinned SDK",
+    "log_sha256": "4dd5953be741f74cafb67c1018a6778ee72c6e95056fe5eb8bf0e36a30bd6fd9"
+  }
+}

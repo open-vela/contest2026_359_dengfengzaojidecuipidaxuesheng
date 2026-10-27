@@ -1,0 +1,12 @@
+{
+  "mode": "camera",
+  "rounds": 2,
+  "flash_delta_read_write_erase": [
+    3264,
+    799,
+    85
+  ],
+  "physical_screen_observation": "user confirmed normal for this scene",
+  "passed": true,
+  "observation_scope_note": "2048 confirmation received after game test; CSI confirmation recorded separately after CSI completed"
+}

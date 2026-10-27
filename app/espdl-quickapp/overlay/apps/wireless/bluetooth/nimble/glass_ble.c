@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "glass_ble.h"
+#include "glass_ble_candidate.h"
 #include "glass_ble_hid_internal.h"
 #include "glass_ble_store.h"
 #include "glass_ble_central.h"
@@ -15,18 +16,100 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "ble_register.h"
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL_BLE_MAX_CONNECTIONS != CONFIG_NIMBLE_BLE_MAX_CONN
+#  error "NimBLE connection capacity does not match NuttX configuration"
+#endif
+
+unsigned glass_ble_capacity(void)
+{
+  return MYNEWT_VAL(BLE_MAX_CONNECTIONS);
+}
+
+const char *glass_ble_identity_name(void)
+{
+  return GLASS_BLE_CANDIDATE_NAME;
+}
+
+const char *glass_ble_identity_address(void)
+{
+  return GLASS_BLE_CANDIDATE_ADDRESS_TEXT;
+}
 
 static pthread_mutex_t g_host_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool g_started, g_ready;
 static int g_error;
-static unsigned g_role;
+/* Central reserves one slot per active/pending/closing physical link.
+ * HID reserves one only after central has physically paused. The two roles
+ * are mutually exclusive even when the controller has spare capacity.
+ * Claims are idempotent. Owners hold their state lock through claim/release;
+ * this lock never calls back into an owner. Closing links retain their slot.
+ */
+static unsigned g_roles;
+static unsigned g_central_reservations;
+int glass_ble_central_reserve(unsigned count)
+{
+  int ret = 0;
+  if (count > GLASS_BLE_CENTRAL_LIMIT) return -EINVAL;
+  pthread_mutex_lock(&g_host_lock);
+  if (count && (g_roles & GLASS_BLE_ROLE_HID)) ret = -EBUSY;
+  else if (count > glass_ble_capacity())
+    ret = -ENOSPC;
+  if (!ret)
+    {
+      g_central_reservations = count;
+      if (count) g_roles |= GLASS_BLE_ROLE_CENTRAL;
+      else g_roles &= ~GLASS_BLE_ROLE_CENTRAL;
+    }
+  pthread_mutex_unlock(&g_host_lock);
+  return ret;
+}
 int glass_ble_role_claim(unsigned role)
 {
-  pthread_mutex_lock(&g_host_lock);int ret=g_role&&g_role!=role?-EBUSY:0;
-  if(!ret)g_role=role;pthread_mutex_unlock(&g_host_lock);return ret;
+  unsigned used;
+  int ret = 0;
+
+  if (role != GLASS_BLE_ROLE_CENTRAL && role != GLASS_BLE_ROLE_HID)
+    return -EINVAL;
+
+  pthread_mutex_lock(&g_host_lock);
+  used = g_central_reservations +
+         !!(g_roles & GLASS_BLE_ROLE_HID);
+  if ((role == GLASS_BLE_ROLE_HID && g_central_reservations) ||
+      (role == GLASS_BLE_ROLE_CENTRAL && (g_roles & GLASS_BLE_ROLE_HID)))
+    ret = -EBUSY;
+  else if (!(g_roles & role) && used >= glass_ble_capacity()) ret = -ENOSPC;
+  if (!ret)
+    {
+      g_roles |= role;
+      if (role == GLASS_BLE_ROLE_CENTRAL && !g_central_reservations)
+        g_central_reservations = 1;
+    }
+  pthread_mutex_unlock(&g_host_lock);
+  return ret;
 }
 void glass_ble_role_release(unsigned role)
-{pthread_mutex_lock(&g_host_lock);if(g_role==role)g_role=0;pthread_mutex_unlock(&g_host_lock);}
+{
+  if (role != GLASS_BLE_ROLE_CENTRAL && role != GLASS_BLE_ROLE_HID) return;
+  pthread_mutex_lock(&g_host_lock);
+  g_roles &= ~role;
+  if (role == GLASS_BLE_ROLE_CENTRAL) g_central_reservations = 0;
+  pthread_mutex_unlock(&g_host_lock);
+}
+
+void glass_ble_capacity_read(struct glass_ble_capacity_state *state)
+{
+  if (!state) return;
+  pthread_mutex_lock(&g_host_lock);
+  state->capacity = glass_ble_capacity();
+  state->central_reserved = !!(g_roles & GLASS_BLE_ROLE_CENTRAL);
+  state->hid_reserved = !!(g_roles & GLASS_BLE_ROLE_HID);
+  state->central_reservations = g_central_reservations;
+  state->reserved = g_central_reservations +
+                    (unsigned)state->hid_reserved;
+  pthread_mutex_unlock(&g_host_lock);
+}
 extern void ble_hci_sock_ack_handler(void *arg);
 
 static void reset(int reason)
@@ -41,9 +124,16 @@ static void reset(int reason)
 
 static void synced(void)
 {
+  static const uint8_t identity[6] = GLASS_BLE_CANDIDATE_ADDRESS;
+  uint8_t actual[6];
   uint8_t address;
+  int nrpa;
   int ret = ble_hs_util_ensure_addr(0);
+  if (!ret) ret = ble_hs_id_set_rnd(identity);
+  if (!ret) ret = ble_hs_id_copy_addr(BLE_ADDR_RANDOM, actual, &nrpa);
+  if (!ret && (nrpa || memcmp(actual, identity, sizeof(actual)))) ret = BLE_HS_EINVAL;
   if (!ret) ret = ble_hs_id_infer_auto(0, &address);
+  if (!ret && address != BLE_OWN_ADDR_RANDOM) ret = BLE_HS_EINVAL;
   if (!ret) glass_ble_hid_synced(address);
   pthread_mutex_lock(&g_host_lock);
   g_ready = ret == 0;
@@ -145,17 +235,23 @@ int glass_ble_host_wait(void)
 
 void glass_ble_read(struct glass_ble_state *state)
 {
-  struct glass_ble_hid_state hid;
   if (!state) return;
   memset(state, 0, sizeof(*state));
-  glass_ble_hid_read(&hid);
   pthread_mutex_lock(&g_host_lock);
   state->started = g_started;
   state->ready = g_ready;
   state->error = g_error;
   pthread_mutex_unlock(&g_host_lock);
   glass_ble_central_read(state);
-  state->connected = state->connected || hid.connected;
+  state->store_error = glass_ble_store_last_error();
+  if (state->store_error)
+    {
+      state->bonded = false;
+      state->peer.bonded = false;
+      for (unsigned i = 0; i < state->session_count &&
+           i < GLASS_BLE_CENTRAL_LIMIT; ++i)
+        {state->sessions[i].bonded = false;state->sessions[i].peer.bonded = false;}
+    }
 }
 int glass_ble_scan(void) { return glass_ble_central_scan(); }
 int glass_ble_connect(unsigned index) { return glass_ble_central_connect(index,0); }

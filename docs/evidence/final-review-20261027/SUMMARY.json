@@ -1,0 +1,310 @@
+{
+  "scope": "all current non-standalone-App changes; browser directories explicitly excluded by user",
+  "host_tests": {
+    "passed": 41,
+    "total": 41,
+    "cases": [
+      {
+        "name": "test_ble_channel",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.24
+      },
+      {
+        "name": "test_ble_cli",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.67
+      },
+      {
+        "name": "test_ble_hid_bonding",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.41
+      },
+      {
+        "name": "test_ble_hid_ownership",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.59
+      },
+      {
+        "name": "test_ble_identity",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.49
+      },
+      {
+        "name": "test_ble_mouse_input",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.0
+      },
+      {
+        "name": "test_ble_platform",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.31
+      },
+      {
+        "name": "test_ble_snapshots",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.41
+      },
+      {
+        "name": "test_ble_store",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.89
+      },
+      {
+        "name": "test_c6_ota",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.17
+      },
+      {
+        "name": "test_c6_rx_burst",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.79
+      },
+      {
+        "name": "test_c6_softap",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 19.26
+      },
+      {
+        "name": "test_c6_tx_wake",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.4
+      },
+      {
+        "name": "test_c6_wifi_trial",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 5.42
+      },
+      {
+        "name": "test_dhcpd_lease_budget",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.49
+      },
+      {
+        "name": "test_dhcpd_status",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 2.8
+      },
+      {
+        "name": "test_forward_guard",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.39
+      },
+      {
+        "name": "test_forwarding_config",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.11
+      },
+      {
+        "name": "test_i2s_handoff",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.47
+      },
+      {
+        "name": "test_nat_locking",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.97
+      },
+      {
+        "name": "test_nat_port_order",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 3.01
+      },
+      {
+        "name": "test_netfwd_notification",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.02
+      },
+      {
+        "name": "test_network_benchmark",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 5.66
+      },
+      {
+        "name": "test_network_benchmark_summary",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.1
+      },
+      {
+        "name": "test_network_recovery",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 17.16
+      },
+      {
+        "name": "test_network_share",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.9
+      },
+      {
+        "name": "test_nimble_callout",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.87
+      },
+      {
+        "name": "test_nimble_capacity",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.28
+      },
+      {
+        "name": "test_p4_dma2d",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 3.11
+      },
+      {
+        "name": "test_p4_jpeg_adapter",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.96
+      },
+      {
+        "name": "test_p4_jpeg_emit",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.14
+      },
+      {
+        "name": "test_p4_jpeg_encode_adapter",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.01
+      },
+      {
+        "name": "test_p4_ppa_driver",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.66
+      },
+      {
+        "name": "test_p4_ppa_rgb565",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 3.56
+      },
+      {
+        "name": "test_portal_fd_inheritance",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 5.71
+      },
+      {
+        "name": "test_portal_network",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.77
+      },
+      {
+        "name": "test_portal_worker",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 4.26
+      },
+      {
+        "name": "test_ble_central",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 2.43
+      },
+      {
+        "name": "test_ble_hid_mailbox",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 0.73
+      },
+      {
+        "name": "test_board_interfaces",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 4.5
+      },
+      {
+        "name": "test_photo_store",
+        "passed": true,
+        "exit_code": 0,
+        "seconds": 1.46
+      }
+    ]
+  },
+  "firmware": {
+    "image_sha256": "32e718bfe1eaca246393065fc35602809fc170ecf73b962dc6c2b41631eb3404",
+    "current_recorded_build_inputs_match_frozen_sources": true,
+    "app_only_deploy_full_readback_verified": true,
+    "data_partition_preserved": true,
+    "controlled_boot_checks_passed": true,
+    "cold_power_cycle_verified": false,
+    "post_build_format_only_changes": [
+      {
+        "path": "app/espdl-quickapp/overlay/apps/system/c6probe/c6_wifi_phy_rpc.inc",
+        "difference": "EOF whitespace only; compiled token content unchanged"
+      }
+    ]
+  },
+  "network": {
+    "sustained_complete": true,
+    "crc_verified_transfers": 67,
+    "payload_mib": 268,
+    "concurrent_phone_traffic_in_early_windows": true,
+    "phone_page_confirmed_by_user": true,
+    "phone_partial_test_end": "user_stop",
+    "final_iob_free": 96,
+    "final_iob_total": 96,
+    "final_forward_owned": 0,
+    "pc_task_profile_cleaned": true
+  },
+  "physical_limits": [
+    "No new physical JPEG/camera/display acceptance in this final review",
+    "No eight-peer Bluetooth hardware acceptance",
+    "Phone full speed test not complete; sustained 5 Mbps download not established"
+  ],
+  "sensitive_data_scan": {
+    "potential_literal_secret_matches": 0,
+    "raw_flash_data_backups_included": false
+  },
+  "excluded": [
+    "app/netsurf-browser/",
+    "app/netsurf-browser-0.4.0/",
+    "app/netsurf-browser-dev-20261021/",
+    "local build binaries and packages"
+  ],
+  "repository_review": {
+    "staged_files": 738,
+    "standalone_browser_files_staged": false,
+    "generated_binaries_staged": [],
+    "syntax": {
+      "python": 77,
+      "json": 278,
+      "javascript": 2
+    },
+    "syntax_errors": [],
+    "potential_secrets": [],
+    "evidence_sha_checked": 66,
+    "evidence_sha_mismatches": []
+  }
+}

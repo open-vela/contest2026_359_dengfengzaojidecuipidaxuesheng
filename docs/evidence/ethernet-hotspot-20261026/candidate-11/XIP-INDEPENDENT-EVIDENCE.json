@@ -1,0 +1,31 @@
+{
+  "image_sha256": "11aaf366e2ba2d758ef432a01141be69ea16b4ce3eff1f245608c16096228863",
+  "elf_sha256": "89411b7152051139a8ed5e6f74f3bd4c3552ea0013bc904bf247a73b76d43f9a",
+  "previous_image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+  "source_changes": [],
+  "configuration_changes": {
+    "CONFIG_NET_STATISTICS": [
+      null,
+      "y"
+    ],
+    "CONFIG_NET_FORWARD_NSTRUCT": [
+      "4",
+      "16"
+    ]
+  },
+  "xip_input_sources_unchanged": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "rejected_experiments_disabled": true,
+  "security_provisioning_configs_enabled": false,
+  "manual_indirect_closure_review": "see XIP-REVIEW.md",
+  "physical_acceptance": "pending; not inherited"
+}

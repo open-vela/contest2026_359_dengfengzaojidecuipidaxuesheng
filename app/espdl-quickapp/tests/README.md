@@ -3,6 +3,10 @@
 本目录保存 JS 回归、C 宿主用例与少量测试输入，不是实板测试结果目录。
 返回[应用快照说明](../README.md)，已有输出见 [evidence](../evidence/README.md)。
 
+## 全部应用
+
+`render_apps.c` 使用生产 LVGL 页面，生成明暗主题的首页、末页、安装应用、长名称和删除确认截图。检查卡片边界、固定网格位置、说明与删除按钮无重叠、删除确认、按住按钮后翻页的旧点击拦截、删除后页码收敛，以及 200 次翻页时控件数量保持不变。真实指针事件覆盖图标、标题、卡片、空白、页码和删除按钮上的左右滑动、首末页边界、每次滑动只翻一页、纵向滑动不启动应用、后续轻点仍可打开应用、删除忙时禁止翻页和边缘返回。运行 `python3 tools/render_all_ui.py --apps <prepared-apps> --cache <lvgl-host-cache> --output <review-output> --harness-source app/espdl-quickapp/tests/render_apps.c`。不执行真实应用删除或设备操作。
+
 ## 内置音乐应用与桌面卡片
 
 `render_music_app.c` 使用生产 LVGL 页面和离线播放服务夹具，检查“全部应用 → 音乐”注册、桌面与应用共用暂停／继续及曲目信息、进度、空闲／加载／失败／结束／长歌名、全屏歌词、配置页往返、按入口返回桌面或应用列表，以及两种主题下 60 次开关／重建的控件与定时器清理。桌面首次动态标签写入前先完成布局，避免 `LONG_DOT` 在零宽度坐标上省略文字；歌词及背景播放沿用原服务。
@@ -387,6 +391,30 @@ USB 1× 预览的六款滤镜和全部画幅统一走减采样 JPEG 快速路径
 
 运行方式：`python3 tools/render_all_ui.py --apps <prepared-apps> --cache <lvgl-host-cache> --output <review-output> --harness-source app/espdl-quickapp/tests/render_ime_ui.c`。`render_wireless_ui.c` 同时回归实际 Wi-Fi 表单和切页清理。
 
+### 原生 P4 JPEG（2026-10-26）
+
+`tools/generate_p4_jpeg_fixtures.py --output <fixtures>` 使用 Pillow 生成真实 baseline、采样、优化 Huffman、灰度及拒绝用例。`tools/test_p4_jpeg_parser.py --fixtures <fixtures> --nuttx <prepared-nuttx> --toolchain <gcc14-bin> --output <output>` 对生产解析器执行截断、边界及 3 万组变异/随机输入，启用 ASan/UBSan，并交叉编译 P4 单元。
+
+`tools/test_p4_dma2d.py --nuttx <prepared-nuttx> --toolchain <gcc14-bin> --output <output>` 验证实际共享管理器的并发租约、在途 IRQ、分配/IRQ 失败与残留配置复位，再编译真实 PPA/JPEG 驱动。`tools/test_p4_jpeg_adapter.py --output <output>` 检查应用私有 DMA 缓冲、补齐裁剪、失败不发布、软件回退条件及 FD 回收。
+
+固件用 `--hardware-jpeg` 显式开启，默认关闭；`desktop jpeg-test` 执行真实 PPA → JPEG → PPA，比较内置已知 JPEG 的 RGB565/RGB888/灰度像素并测试空熵错误恢复。内置样本像素诊断不用于用户照片日志。宿主通过、整机构建、硬件像素、当前版本 Flash/CSI 与实体观察分开记；不能将前几项替代屏幕验收。专题见 `docs/NATIVE_JPEG_2026-10-26.md`。
+
+### 有线热点共享（2026-10-26）
+
+`tools/test_network_share.py --reference <pinned-network-reference> --output <out>` 编译真实内核共享控制器和应用适配，检查 eth0 固定出口、租约/DNS 门控、掉线、换 IP、冲突恢复和 NAT 所有权；再编译准备后的原生 NAT 分配/释放及开关函数体，检查 64 条上限、分配失败、完整释放与重复 enable 的锁平衡。此函数级测试不等同于端到端报文仿真。
+
+`tools/test_network_recovery.py --sharing --output <out>` 验证上游冲突时保留 SSID/密码并重开到不冲突网段；不带 `--sharing` 回归原本的本地配置热点。`test_dhcpd_status.py` 同时覆盖选项关闭/开启，并检查真实 DHCP OFFER 的网关与 DNS。`test_portal_network.py` 包含新增网络状态字段。真实 LVGL 的 `render_network_recovery.c` 覆盖两主题的共享和冲突状态。
+
+实板先执行 `desktop ethernet-dns`、`desktop ethernet-probe 223.5.5.5 53`，两个诊断均绑定 eth0 且有超时。热点开启后用 `desktop sharing` 记录往返计数；手机关闭移动数据再实际打开网站，才能确认端到端互联网访问。构建、读回、NAT active、计数、手机结果和当前版本屏幕/Flash 验收分别记录。详见 `docs/ETHERNET_HOTSPOT_2026-10-26.md`。
+
+### 原生 JPEG 编码（2026-10-26）
+
+`tools/test_p4_jpeg_emit.py --output <output>` 编译实际标记生成器与解析器，验证四种采样、六档质量、全部短容量与尾部守护，启用 ASan/UBSan。`tools/check_p4_jpeg_header_pillow.py --output <emit-output>` 使用独立 Pillow/libjpeg 核对生成头的量化/采样/尺寸；不把头检查当硬件编码验收。
+
+`tools/test_p4_jpeg_encode_adapter.py --output <output>` 编译实际应用包装，对受控 ioctl 验证 30×24/非紧密 stride 输入的私有复制、边缘重复、128 字节输出对齐、失败清理/NULL 长度及 FD 回收。`test_photo_store.py` 分别运行 JPEG 开/关版本，覆盖常驻保存线程、裁切/风格、编码期间取消、ENOSPC 不回落、旧格式与回执清理；`test_photo_storage.py` 和 `test_assistant_platform.py` 同时运行。
+
+实板 `desktop jpeg-encode-test` 执行 PPA → 19 组编码 → PPA，使用独立 TinyJpgDec 核对已知像素，包括约 89 KB 纹理结果和真实包装；短输出 ENOSPC 后继续有效作业。`desktop jpeg-test` 验证交替后的既有解码。`desktop jpeg-file-test /sdcard/photos/<filename>.jpg` 只读软件解码文件，仅记录尺寸/字节数/像素指纹，不打印图片或调用模型。真实 CSI 拍照保存与物理屏幕/内部 Flash 写擦分别验收，详见 `docs/NATIVE_JPEG_ENCODE_2026-10-26.md`。
+
 ### 语音页面全局唤醒（2026-10-19）
 
 `render_grok_conversation.c` 验证大球页移除唤醒开关、仅显示默认开启状态；全局唤醒释放录音后交给大球的现有识别／AI／播报状态机，结束当前会话和退出页面不取消其他后台音频所有者。无内容时回到全局待机。包含慢连接、连续对话和两种主题，主机夹具不创建真实网络或录音。浮层与大球使用同一球体播放器、app 表情库及正视效果；浮层的空闲计时不截断大球会话。
@@ -410,3 +438,17 @@ AI 结果反馈：`wake_mini_host.c` 验证真实 LVGL 结果卡片、已确认�
 只缓存表情 02 的最多 128 帧，压缩保存注视处理前的原始像素，命中时解压到既有后备缓冲。素材重开、错误及播放器退出清理缓存；FAT 时间精度无法保证识别同大小、同时间戳的原地替换。宿主帧读取减少与像素一致不能替代实板 CPU、首次预热和实体屏幕验收。
 
 本机准备区的增量依赖未自动跟踪 `glass_grok_player.inc`；修改播放器或缓存头后应确保实际重编 `glass_grok.c`，或执行完整清理构建。不能只凭链接成功认定 `.inc` 的修改已进入镜像；候选需核对冻结源码与最终 ELF。
+
+### 蓝牙连接状态、归属与配对保存（2026-10-25）
+
+`tools/test_ble_identity.py --output <output>` 检查每构建新静态随机地址、广播名/路径边界、独立配对文件命名、同一镜像同步/重启不换身份，以及生产同步函数的设置/读回/类型检查失败均停止 HID 启动。标准 builder 自动生成候选头和 BLE-IDENTITY.json；生成头哈希进入构建元数据和清理指纹。每轮实板验收同时记录镜像、真实地址和广播名，新身份首配与旧配对兼容性分开。
+
+`tools/test_ble_snapshots.py --output <output>` 检查普通设备和 HID 的四种连接组合、独立断连/代次及保存错误反馈。`tools/test_ble_hid_ownership.py --output <output>` 对生产访问函数验证外来/过期句柄不得读取或修改 HID 状态，重复配对仅允许当前所有者删除密钥。
+
+`tools/test_ble_store.py --apps <prepared-apps> --output <output>` 使用固定 SDK 的真实密钥结构、RAM 存储实现和生产持久化代码。覆盖 54 组文件写入故障、RAM/文件回滚、错误保持、旧文件兼容、按实际 LTK 绑定用途、记录换序/删配对/换密钥、无变化免写和容量。原 SDK 删除记录的字节长度缺陷须先通过 `prepare_nimble_store.py` 在独立构建树修正；同一测试必须拒绝未修复的反例。测试仅在临时目录使用人工密钥。
+
+`tools/test_ble_hid_bonding.py --output <output>` 检查用途标记延后至 SMP 完成密钥保存之后，仅由事件队列消费，且必须是当前加密、16 字节密钥的 HID 连接。另以连续邮箱轮询验证 50 ms watchdog 不被推迟，定时保存仍可执行。保留 `test_ble_central.py` 和 `test_ble_hid_mailbox.py`；`render_bluetooth_list.c` 检查两主题、独立控制/计数与保存失败提示。桌面头文件转引同一公共 BLE 头，禁止重新引入结构副本。以上宿主测试不代表实板双连接已通过。
+
+`tools/test_ble_channel.py --output <output>` 编译完整生产共享 GATT 服务，以受控 NimBLE 传输运行 ASan/UBSan。覆盖加密所有者、句柄／代次、UUID、244 字节边界、四帧 FIFO／满队列、MTU 与订阅、发送副本／mbuf 所有权、忙碌／取消／超时不重放及 reset 唤醒。`test_interface_protocols.py` 编译实际 QPK 适配器验证严格参数及回执；`test_ble_platform.py` 检查应用清理共享数据不停止系统 HID。实机 Windows 收发和跨重启结果单独归档于 BLE_SHARED_GATT_2026-10-27.md，不能用传输替身代替。
+
+`tools/test_nimble_callout.py --output <output>` 编译完整生产 NuttX NPL `os_callout.c` 与实际 `os_types.h`，用受控 POSIX 到期通知测试 100 批、每批 32 个独立定时器同时到期，包含两个事件队列与直接回调、重复同定时器合并、重新设定及常驻任务交付。ASan/UBSan 检查没有回调指针覆盖；真实无线连接另测。可用 `--source <旧生产 os_callout.c>` 做负控制：旧单指针实现首批只交付一个定时器，HCI 轮询定时器丢失，程序返回 42，测试必须失败。`test_ble_hid_bonding.py` 还实际编译加密回调，确认 ENOTCONN 清理不会再发送 terminate 或伪报鉴权失败，而弱密钥、外来句柄及真实加密错误仍被拒绝。

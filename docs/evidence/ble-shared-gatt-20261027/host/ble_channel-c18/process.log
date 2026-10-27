@@ -1,0 +1,2 @@
+BLE_CHANNEL_ACCESS_OK: full production service; encrypted owner only; bounded RX FIFO/backpressure; MTU limit; notify/readback; mbuf ownership and errors
+BLE_CHANNEL_MAILBOX_OK: persistent worker only; owned copy; busy; cancellation/timeout no replay; reset wakes pending caller; epoch and handle reuse reject stale sends; 244-byte negotiated path

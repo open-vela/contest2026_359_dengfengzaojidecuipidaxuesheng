@@ -878,12 +878,12 @@ static void glass_widget_open(lv_event_t *e)
     }
 }
 
-static int g_apps_page_index;
+static int g_apps_page_index,g_apps_page_count;
 static lv_obj_t *g_apps_card,*g_apps_grid,*g_apps_pager,*g_apps_count;
 static int g_apps_direction;
 struct glass_app_slot
 {
-  lv_obj_t *tile,*icon,*name,*source,*remove;
+  lv_obj_t *tile,*badge,*icon,*name,*source,*remove;
   lv_event_cb_t callback;
   unsigned revision,pressed_revision;
   bool pressed;
@@ -907,6 +907,7 @@ static void glass_apps_press_guard(lv_event_t *e)
 static void glass_apps_deleted(lv_event_t *event)
 {
   LV_UNUSED(event);g_apps_card=g_apps_grid=g_apps_pager=g_apps_count=NULL;
+  g_apps_page_count=0;
   memset(g_apps_slots,0,sizeof(g_apps_slots));
 }
 
@@ -968,6 +969,24 @@ static void glass_apps_page(void *context,unsigned page)
   glass_apps_render();
 }
 
+static void glass_apps_swipe(lv_event_t *event)
+{
+  lv_indev_t *input=lv_indev_active();
+  if(!input||lv_indev_get_type(input)!=LV_INDEV_TYPE_POINTER||
+     !g_desktop.apps_page||g_desktop.current_card!=g_apps_card||g_desktop.dialog)return;
+  lv_dir_t direction=lv_indev_get_gesture_dir(input);
+  /* Consume the entire stroke, including at the first/last page and on a
+   * delete button. Its release must never become an application click. */
+  lv_indev_wait_release(input);
+  lv_event_stop_bubbling(event);
+  if(g_apps_remove_timer)return;
+  int page=g_apps_page_index;
+  if(direction==LV_DIR_LEFT)page++;
+  else if(direction==LV_DIR_RIGHT)page--;
+  if(page>=0&&page<g_apps_page_count&&page!=g_apps_page_index)
+    glass_apps_page(NULL,(unsigned)page);
+}
+
 static void glass_apps(lv_event_t *e)
 {
   LV_UNUSED(e);
@@ -984,10 +1003,12 @@ static void glass_apps_render(void)
   g_desktop.apps_page=true;
   if(!reuse){
     g_apps_card=card;lv_obj_add_event_cb(card,glass_apps_deleted,LV_EVENT_DELETE,NULL);
-    g_apps_grid=glass_box(card,78,0,868,330,theme_card(),0);
+    /* Descendant gestures stop here; screen-edge strips retain back navigation. */
+    lv_obj_remove_flag(card,LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_event_cb(card,glass_apps_swipe,LV_EVENT_GESTURE,NULL);
+    g_apps_grid=glass_box(card,48,0,928,332,theme_card(),0);
     lv_obj_set_style_bg_opa(g_apps_grid,LV_OPA_TRANSP,0);
-    g_apps_count=glass_text(card,"",0,0,868,16,theme_secondary());
-    lv_obj_set_style_text_align(g_apps_count,LV_TEXT_ALIGN_CENTER,0);
+    g_apps_count=glass_text(card,"",28,64,868,16,theme_secondary());
     g_apps_pager=glass_pager_create(card,theme_surface(),theme_primary(),theme_secondary(),glass_apps_page,NULL);
     if(g_apps_pager)lv_obj_align(g_apps_pager,LV_ALIGN_BOTTOM_MID,0,-14);
   }
@@ -1002,8 +1023,14 @@ static void glass_apps_render(void)
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 LV_SYMBOL_VIDEO, LV_SYMBOL_IMAGE,
 #endif
-LV_SYMBOL_EDIT, LV_SYMBOL_IMAGE, GLASS_ICON_HEADPHONES, LV_SYMBOL_AUDIO, LV_SYMBOL_HOME, LV_SYMBOL_GPS,
-                           LV_SYMBOL_EYE_OPEN, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_PLAY};
+GLASS_ICON_SPARKLES, GLASS_ICON_CAMERA, GLASS_ICON_HEADPHONES, GLASS_ICON_MIC, LV_SYMBOL_HOME, GLASS_ICON_MOUSE,
+                           GLASS_ICON_FACE, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, GLASS_ICON_FISH};
+  const char *descriptions[] = {
+#ifdef CONFIG_SYSTEM_BILIBILI_LIVE
+"观看在线直播", "浏览照片与视频",
+#endif
+"对话、创作与助手", "拍照与实时预览", "听音乐、看歌词", "录制与回放声音", "连接与控制设备", "连接电脑与控制指针",
+"语音与趣味互动", "数字合成小游戏", "探索快应用", "本地模型识别", "陪伴你的桌面伙伴"};
   lv_event_cb_t callbacks[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 launch_bilibili, launch_local_video,
@@ -1013,17 +1040,14 @@ glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorde
   const int builtin_count=sizeof(names)/sizeof(names[0]);
   const int total = builtin_count + g_desktop.nqpk;
   const int pages = (total + 8) / 9;
+  g_apps_page_count=pages;
   if (g_apps_page_index < 0) g_apps_page_index = 0;
   if (g_apps_page_index >= pages) g_apps_page_index = pages - 1;
   const int first = g_apps_page_index * 9;
   lv_obj_update_layout(card);
   const int card_width=lv_obj_get_width(card),card_height=lv_obj_get_height(card);
-  lv_obj_set_pos(grid,(card_width-868)/2,(80+card_height-96-330)/2);
-  lv_obj_set_pos(g_apps_count,(card_width-868)/2,card_height-82);
-  const int visible=LV_MIN(9,total-first);
-  const int columns=visible<=2?visible:visible==4?2:3;
-  const int rows=(visible+columns-1)/columns;
-  const int row_top=(330-(rows*98+(rows-1)*18))/2;
+  lv_obj_set_pos(grid,(card_width-928)/2,(96+card_height-80-332)/2);
+  struct glass_app_palette palette=glass_app_palette(g_desktop.light_theme);
   for(unsigned i=0;i<9;i++){
     struct glass_app_slot *slot=&g_apps_slots[i];slot->revision++;
     if(slot->tile)lv_obj_add_flag(slot->tile,LV_OBJ_FLAG_HIDDEN);
@@ -1033,34 +1057,45 @@ glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorde
       int index = i - first;
       struct glass_app_slot *slot=&g_apps_slots[index];
       if(!slot->tile){
-      slot->tile = glass_box(grid,0,0,276,98,theme_card(),GLASS_APP_CARD_RADIUS);
+      slot->tile = glass_box(grid,0,0,296,100,theme_card(),GLASS_APP_CARD_RADIUS);
       glass_app_panel_style(slot->tile,theme_card(),glass_app_palette(g_desktop.light_theme).line);
-      slot->icon=glass_symbol(slot->tile, "", 20, 20, theme_accent());
+      slot->badge=glass_box(slot->tile,16,25,48,48,theme_surface(),14);
+      slot->icon=glass_symbol(slot->badge, "", 0, 0, theme_accent());
+      lv_obj_remove_flag(slot->badge,LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_remove_flag(slot->icon,LV_OBJ_FLAG_CLICKABLE);
       slot->name=glass_text(slot->tile, "",
-                 62, 18, 198, 20, theme_primary());
-      slot->source=glass_text(slot->tile,"",62,57,108,16,theme_secondary());
+                 80, 18, 200, 20, theme_primary());
+      slot->source=glass_text(slot->tile,"",80,57,200,16,theme_secondary());
       lv_obj_add_flag(slot->tile,LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_border_opa(slot->tile,160,LV_STATE_PRESSED);
+      lv_obj_set_style_bg_color(slot->tile,lv_color_hex(theme_surface()),LV_STATE_PRESSED);
+      lv_obj_set_style_border_color(slot->tile,lv_color_hex(theme_accent()),LV_STATE_PRESSED);
       glass_motion_button(slot->tile);
       lv_obj_add_event_cb(slot->tile,glass_apps_press_guard,LV_EVENT_ALL,slot);
-      slot->remove=glass_button(slot->tile,"删除",186,50,78,theme_card(),NULL,NULL);
-      lv_obj_set_height(slot->remove,40);
+      slot->remove=glass_button(slot->tile,"删除",212,50,68,theme_surface(),NULL,NULL);
+      lv_obj_set_height(slot->remove,44);
+      lv_obj_set_style_text_color(lv_obj_get_child(slot->remove,0),lv_color_hex(palette.danger),0);
       lv_obj_remove_flag(slot->remove,LV_OBJ_FLAG_EVENT_BUBBLE);
       lv_obj_add_event_cb(slot->remove,glass_apps_press_guard,LV_EVENT_ALL,slot);
       }
       lv_obj_t *tile=slot->tile;
-      const int row=index/columns,column=index%columns;
-      const int row_count=LV_MIN(columns,visible-row*columns);
-      lv_obj_set_pos(tile,(868-(row_count*276+(row_count-1)*20))/2+column*296,
-                    row_top+row*116);
+      /* Retain the same reading order and positions on a partially filled page. */
+      lv_obj_set_pos(tile,(index%3)*316,(index/3)*116);
       lv_label_set_text(slot->icon,i<builtin_count?symbols[i]:LV_SYMBOL_FILE);
+      static const uint32_t light_ink[]={0x6c5b92,0x3e749b,0x39816a,0xa76c35,0xa25773,0x5a72a0};
+      static const uint32_t dark_ink[]={0xc7b5e5,0x9bc8eb,0x93d3bb,0xedc18e,0xe5abc2,0xacbeec};
+      uint32_t ink=(g_desktop.light_theme?light_ink:dark_ink)[i%6];
+      lv_obj_set_style_bg_color(slot->badge,lv_color_mix(lv_color_hex(ink),lv_color_hex(palette.paper),g_desktop.light_theme?26:40),0);
+      lv_obj_set_style_text_color(slot->icon,lv_color_hex(ink),0);
+      lv_obj_center(slot->icon);
       lv_label_set_text(slot->name,i<builtin_count?names[i]:g_desktop.qpk[i-builtin_count].name);
-      lv_label_set_text(slot->source,i<builtin_count?"内置应用":g_desktop.qpk[i-builtin_count].volume==QPK_VOLUME_SD?"SD 卡应用":"内置存储");
+      lv_label_set_text(slot->source,i<builtin_count?descriptions[i]:g_desktop.qpk[i-builtin_count].volume==QPK_VOLUME_SD?"SD 卡应用":"内置存储");
       if(slot->callback)lv_obj_remove_event_cb(tile,slot->callback);
       slot->callback=i<builtin_count?callbacks[i]:external_qapp_clicked;
       lv_obj_add_event_cb(tile,slot->callback,LV_EVENT_CLICKED,i<builtin_count?NULL:(void *)(intptr_t)(i-builtin_count));
       lv_obj_remove_event_cb(slot->remove,glass_apps_remove_open);
       bool removable=i>=builtin_count&&glass_qpk_removable(g_desktop.qpk[i-builtin_count].dir,g_desktop.qpk[i-builtin_count].package);
+      lv_obj_set_width(slot->source,removable?124:200);
       if(removable){
         lv_obj_remove_flag(slot->remove,LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_event_cb(slot->remove,glass_apps_remove_open,LV_EVENT_CLICKED,(void *)(intptr_t)(i-builtin_count));
@@ -1071,7 +1106,7 @@ glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorde
       else lv_obj_remove_state(tile,LV_STATE_DISABLED);
       lv_obj_remove_flag(tile,LV_OBJ_FLAG_HIDDEN);
     }
-  char count_text[64];snprintf(count_text,sizeof(count_text),"%d 个应用 · 第 %d / %d 页",total,g_apps_page_index+1,pages);
+  char count_text[64];snprintf(count_text,sizeof(count_text),"共 %d 个应用 · 第 %d / %d 页",total,g_apps_page_index+1,pages);
   lv_label_set_text(g_apps_count,count_text);
   glass_pager_update(g_apps_pager,g_apps_page_index,pages,!g_apps_remove_timer);
   /* Page selection replaces content in place, without a floating translation. */

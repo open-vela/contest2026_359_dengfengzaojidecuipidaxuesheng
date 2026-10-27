@@ -1,0 +1,4 @@
+{
+  "valid": false,
+  "reason": "Earlier fixture modeled one forwarding packet per devif_poll; actual outer devif_poll loops until no output. It is not evidence of a real coalescing defect and the extra progress rearm was removed."
+}

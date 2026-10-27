@@ -1,0 +1,56 @@
+=================================================================
+==270==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x512000000174 at pc 0x7796ee2f27ef bp 0x7ffd663941e0 sp 0x7ffd663939a0
+WRITE of size 1023 at 0x512000000174 thread T0
+    #0 0x7796ee2f27ee in memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_memintrinsics.inc:115
+    #1 0x4027ff in hci_driver_vhci_host_tx /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:127
+    #2 0x4027ff in esp_vhci_host_send_packet /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:53
+    #3 0x40317e in process_hci_rx_pkt /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:102
+    #4 0x40317e in main /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:145
+    #5 0x7796ed835ca7  (/lib/x86_64-linux-gnu/libc.so.6+0x29ca7) (BuildId: 5e5b51f4c39af9ac589408c1dc432ba390a273cc)
+    #6 0x7796ed835d64 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x29d64) (BuildId: 5e5b51f4c39af9ac589408c1dc432ba390a273cc)
+    #7 0x401280 in _start (/mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline+0x401280) (BuildId: 50828d70364364672dac888c42659788c2adda80)
+
+0x512000000174 is located 0 bytes after 308-byte region [0x512000000040,0x512000000174)
+allocated by thread T0 here:
+    #0 0x7796ee2f4c57 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69
+    #1 0x401bac in tracked_malloc /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:28
+    #2 0x4027da in r_ble_hci_trans_buf_alloc /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:42
+    #3 0x4027da in hci_driver_vhci_host_tx /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:125
+    #4 0x4027da in esp_vhci_host_send_packet /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:53
+    #5 0x40317e in process_hci_rx_pkt /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:102
+    #6 0x40317e in main /mnt/c/Users/11937/Documents/ChatGPT/vela/output/c6-hci-eight-20261027/tests/frames-final/baseline.c:145
+    #7 0x7796ed835ca7  (/lib/x86_64-linux-gnu/libc.so.6+0x29ca7) (BuildId: 5e5b51f4c39af9ac589408c1dc432ba390a273cc)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors_memintrinsics.inc:115 in memcpy
+Shadow bytes around the buggy address:
+  0x511ffffffe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x511fffffff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x511fffffff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x512000000000: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00
+  0x512000000080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x512000000100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00[04]fa
+  0x512000000180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x512000000200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x512000000280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x512000000300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x512000000380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==270==ABORTING

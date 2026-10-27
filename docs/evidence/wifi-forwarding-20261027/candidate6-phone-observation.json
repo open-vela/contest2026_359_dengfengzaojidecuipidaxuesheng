@@ -1,0 +1,10 @@
+{
+  "user_started_test": true,
+  "user_report": "page disconnected",
+  "observed_phase": "seed/preparation; no completed stages",
+  "complete": false,
+  "valid_speed_windows": 0,
+  "observed_iob_total": 96,
+  "observed_iob_free": 49,
+  "reset_during_phone_test": false
+}

@@ -350,6 +350,9 @@ static void qpk_camera_save_region(const uint16_t *pixels,unsigned source_width,
     .stride=QPK_CAMERA_RAW_WIDTH,.zoom=qpk_camera_zoom_percent(),
     .style=qpk_camera_style(),.aspect=qpk_camera_aspect(),
     .image_width=image_width,.image_height=image_height,.root_override=QPK_PHOTO_DIR};
+#ifdef CONFIG_ESP32P4_JPEG
+  input.format=QPK_PHOTO_JPEG565;
+#endif
   qpk_camera_stage_photo(&input);
 }
 static void qpk_camera_save(const uint16_t *pixels,unsigned source_width)

@@ -1,0 +1,11 @@
+{
+  "mode": "camera",
+  "rounds": 4,
+  "flash_delta_read_write_erase": [
+    6280,
+    1336,
+    133
+  ],
+  "physical_screen_observation": "passed: user explicitly reported 这一段也没有问题",
+  "passed": true
+}

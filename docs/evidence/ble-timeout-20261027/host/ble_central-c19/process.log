@@ -1,0 +1,7 @@
+BLE_ROLE_CAPACITY_OK: real owner functions; capacity 1/2/3; exact central counts; independent HID reset/release
+BLE_ADVERTISING_OK: connectability/name response merge; bounded parsing; appearance/service hints; persistent identity bonds; priority admission at capacity; broadcast-only connection rejected
+BLE_SERVICE_FILTER_OK: owned UUID copy; complete/incomplete lists and service data; truncated/misaligned/nonmatching data rejected; scan response merged
+BLE_MULTI_LINK_OK: two ordinary peers plus HID reservation; duplicate/third admission rejected; per-link discovery/read/notify/MTU/pairing; exact disconnect; late GAP cannot terminate another owner
+BLE_MULTI_GATT_OK: simultaneous independent GATT waiters; one-link cancel preserves other result; same-link busy; reused handle rejects late data; reset wakes both and preserves HID reservation
+BLE_COMMAND_IDLE_OK: no empty dispatches; 200 scan/stop commands without lost wakeups
+BLE_CENTRAL_OK: production multi-session central and real capacity owner exercised under ASan/UBSan

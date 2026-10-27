@@ -10,7 +10,7 @@ static struct {
   lv_obj_t *lyric;
   struct music_full_ui *full;
   lv_timer_t *timer;
-  struct music_snapshot snapshot;
+  struct music_snapshot *snapshot;
   struct music_cover_view cover;
   unsigned search_revision, favorite_count;
   bool favorites, valid, return_apps;
@@ -122,7 +122,7 @@ static lv_obj_t *music_ui_sidebar_button(lv_obj_t *parent,const char *text,const
 static void music_ui_play(lv_event_t *e)
 {
   uintptr_t index=(uintptr_t)lv_event_get_user_data(e);
-  const struct music_song *song=index ? &g_music_ui.snapshot.favorites[index-1] : &g_music_ui.snapshot.result;
+  const struct music_song *song=index ? &g_music_ui.snapshot->favorites[index-1] : &g_music_ui.snapshot->result;
   if (song->name[0]) glass_music_play(song);
   music_ui_refresh(NULL);
 }
@@ -132,7 +132,7 @@ static void music_ui_toggle(lv_event_t *e)
 
 static void music_ui_favorite(lv_event_t *e)
 {
-  const struct music_song *song=lv_event_get_user_data(e) ? &g_music_ui.snapshot.result : &g_music_ui.snapshot.current;
+  const struct music_song *song=lv_event_get_user_data(e) ? &g_music_ui.snapshot->result : &g_music_ui.snapshot->current;
   if (!song->name[0]) { show_toast("先选择一首歌曲"); return; }
   int ret=glass_music_favorite(song);
   if (ret) show_toast("正在保存，请稍后再试");
@@ -240,7 +240,7 @@ static void music_ui_list(void)
     bool selected=(i==1)==g_music_ui.favorites;
     music_ui_nav_style(g_music_ui.nav[i],selected);
   }
-  struct music_snapshot *s=&g_music_ui.snapshot;
+  struct music_snapshot *s=g_music_ui.snapshot;
   lv_label_set_text(g_music_ui.heading,g_music_ui.favorites?"收藏的声音":"听见好时光");
   lv_label_set_text(g_music_ui.subtitle,g_music_ui.favorites?"每一首喜欢，都值得再听一遍。":"一首好歌，一段只属于你的时间。");
   if (g_music_ui.favorites) {
@@ -278,13 +278,13 @@ static void music_ui_refresh(lv_timer_t *timer)
   if (!g_music_ui.root) return;
   if(!g_music_ui.full&&!glass_ui_can_paint(g_music_ui.root)){g_music_ui.valid=false;return;}
   music_full_fonts_poll();
-  unsigned previous_revision=g_music_ui.snapshot.revision;
-  unsigned previous_search=g_music_ui.snapshot.search_revision;
-  unsigned previous_count=g_music_ui.snapshot.favorite_count;
-  bool searching=g_music_ui.snapshot.searching;
-  int storage_error=g_music_ui.snapshot.storage_error;
-  glass_music_get(&g_music_ui.snapshot);
-  struct music_snapshot *s=&g_music_ui.snapshot;
+  unsigned previous_revision=g_music_ui.snapshot->revision;
+  unsigned previous_search=g_music_ui.snapshot->search_revision;
+  unsigned previous_count=g_music_ui.snapshot->favorite_count;
+  bool searching=g_music_ui.snapshot->searching;
+  int storage_error=g_music_ui.snapshot->storage_error;
+  glass_music_get(g_music_ui.snapshot);
+  struct music_snapshot *s=g_music_ui.snapshot;
   struct music_now_playing now;glass_music_now_playing(&now);
   music_full_refresh(&now);
   /* Keep the song snapshot current for full-screen favorite actions, but
@@ -330,6 +330,7 @@ static void music_ui_deleted(lv_event_t *e)
   music_full_close(NULL);
   music_cover_reset(&g_music_ui.cover);
   if (g_music_ui.timer) lv_timer_delete(g_music_ui.timer);
+  free(g_music_ui.snapshot);
   memset(&g_music_ui,0,sizeof(g_music_ui));
 }
 
@@ -342,8 +343,16 @@ static void music_ui_back(lv_event_t *event)
 
 static void glass_music_app(lv_obj_t *card,bool return_apps)
 {
+  /* This CPU-only library copy belongs in the initialized user heap, not
+   * internal BSS, where it would displace the kernel/DMA heap by 55 KiB.
+   * Allocate before changing the page so failure preserves its old state.
+   */
+  struct music_snapshot *snapshot=calloc(1,sizeof(*snapshot));
+  if(!snapshot){show_toast("音乐页面内存不足");return;}
   lv_obj_clean(card);
+  free(g_music_ui.snapshot);
   memset(&g_music_ui,0,sizeof(g_music_ui));
+  g_music_ui.snapshot=snapshot;
   g_music_ui.root=card;
   g_music_ui.return_apps=return_apps;
   bool light=g_desktop.light_theme;

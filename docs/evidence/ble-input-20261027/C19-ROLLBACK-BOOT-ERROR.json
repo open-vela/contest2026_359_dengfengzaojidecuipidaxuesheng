@@ -1,0 +1,4 @@
+{
+  "error": "SerialTimeoutException: Write timeout",
+  "captured_bytes": 2679
+}

@@ -1,0 +1,85 @@
+{
+  "image_sha256": "44fac9c8e0a9ebe827101a7dd51931e6a5e7f2346bd3c1b947135200afd73ab7",
+  "elf_sha256": "df11264c4bca0e767ad9219f2913ae9bf214d03f42d99b781e0d4678ec313cf5",
+  "status": "phone browsing and post-traffic lifecycle passed; capacity limit reached, long-duration stability not accepted",
+  "xip": {
+    "protected_cpus": 3,
+    "text": "9df4bef3",
+    "rodata": "8456c6d0"
+  },
+  "wired_dns_tcp_passed": true,
+  "ap_sta_ipv4_ready_after_reopen": true,
+  "stop": {
+    "actual_lvgl_button": true,
+    "ap_down": true,
+    "dhcp_stopped": true,
+    "nat_stopped": true,
+    "nat_entries_zero": true,
+    "busy": false,
+    "ifconfig_returned": true,
+    "after_phone_traffic": true
+  },
+  "nat": {
+    "limit": 512,
+    "peak": 512,
+    "limit_hits": 28,
+    "alloc_failures": 0,
+    "entries_after_close": 0,
+    "entries_after_reopen": 280
+  },
+  "forwarding_path_counts": {
+    "before_close": [
+      10445,
+      14904
+    ],
+    "after_reopen": [
+      12476,
+      17059
+    ]
+  },
+  "phone_internet_verified": true,
+  "phone_browsing_stability_verified": true,
+  "blue_screen_cause": "previous transient blue unexplained; not reproduced in this user-observed scene",
+  "physical_display_acceptance": "normal during this network browsing scene only; no Flash stress",
+  "pending": [
+    "NAT capacity: 512-entry limit hit 28 times",
+    "new candidate Flash/2048/CSI physical observation",
+    "cold power cycle",
+    "new BLE identity pairing",
+    "portal save previously skipped",
+    "long-duration stability"
+  ],
+  "log_sha256": {
+    "backup.log": "d7ef5ca80604779511bbd640ce2a49725d72b8275e494e98080714eceaed87ee",
+    "data-preserved.log": "d58dc751ade7c35d6f2d3b8dd0a6ef1607edd077b3334ea266680975a356e0c3",
+    "first-boot.log": "6698b34a17faf6fcacedf95afe3f31af8bec5c9b9c087e9867ae02b29d7831e5",
+    "followup-status.log": "23dc29d75ec7f612840fa1d2a12ef42e82d9b62f85ecf4769216994e1784bd77",
+    "identity.log": "8be1270f44224c3e45de2e1e0bb23c3f078f20108eceb1e0a779de6ba4ab56bd",
+    "initial-status.log": "97a199381e1f3984a2b702d415378c3c929c5e8a7333d961f6f38d577f2e2cfd",
+    "phone-traffic-health.log": "5e345e390b191befce9c5af9282711806270f10daaf698e283bd090da8429196",
+    "post-traffic-ready.log": "aeb15c3f6052552895c29a406000ba5f4eb43a34ba46e15d27d2a034d4deb851",
+    "readback.log": "86c007f475501eca89b6b3a4d3226dc039e3f547255110f3bc0f215b7d848252",
+    "ready-and-stop.log": "f300cc62b5e746216fd6b35270d8701a476cbab6c998106de2fb8ad191c12930",
+    "reopen.log": "a1dae68195c3e70e3fb8a899c8e14ce97c6b3079b642e7642758f9c2d8114540",
+    "traffic-reopen.log": "ccc57ee43c87a2d69231751dcf8f357d83ae0ab0bb46f10a8df1ac3a21f7fd5c",
+    "traffic-stop.log": "76d88b9df9687c6a8ca823b1d0589b6d1e5fcee80dfb379b4f44c0031c834ae9",
+    "verify-old.log": "c7ab1e072772e6137c19a85ec3c08e5c02d8b954f85a63b753982ef6a30b393a",
+    "verify.log": "d16e49f42dae8bd1f7f1df958dffd49b8e482a622257f815b376c2132f3cd78e",
+    "write.log": "5cf48537bf576fedc9f50750d070c7d3af508b4977afa45f085e03cd080b6af7"
+  },
+  "phone_feedback": "网页稳定，屏幕正常",
+  "phone_mobile_data_disabled_confirmed": true,
+  "phone_browsing_scope": "single user-observed approximately two-minute browse, following request to disable mobile data",
+  "reopen_additional_forwarding": {
+    "outbound": 2031,
+    "inbound": 2155,
+    "application_delivery_verified": false
+  },
+  "display": {
+    "irq_gap_max_us": 16646,
+    "underruns": 0,
+    "pan_errors": 0,
+    "flash_writes": 0,
+    "flash_erases": 0
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "identity": "D3:38:F6:39:04:87",
+  "name": "OpenVela Mouse-F6390487",
+  "mode": "pair",
+  "observed": true,
+  "pairing": "PAIRED",
+  "services": [
+    "00001800-0000-1000-8000-00805f9b34fb",
+    "00001801-0000-1000-8000-00805f9b34fb",
+    "00001812-0000-1000-8000-00805f9b34fb"
+  ],
+  "initially_paired": false,
+  "protection": "NONE",
+  "service_result": "SUCCESS",
+  "connected": "CONNECTED",
+  "final_connection": "CONNECTED"
+}

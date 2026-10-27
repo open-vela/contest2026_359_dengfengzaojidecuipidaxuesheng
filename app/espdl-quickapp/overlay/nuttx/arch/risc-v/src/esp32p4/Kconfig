@@ -11,7 +11,20 @@ config ESP32P4_PPA
 	default n
 	---help---
 		Register /dev/ppa0 for UYVY to RGB565 scaling. This prototype
-		owns DMA2D exclusively; do not combine with another DMA2D user.
+		serializes DMA2D with the native JPEG driver through the shared
+		controller manager. Other DMA2D users must use that same manager.
+
+config ESP32P4_JPEG
+	bool "Synchronous JPEG hardware codec"
+	depends on BUILD_FLAT && ESP32P4_REV_MIN_FULL >= 300
+	default n
+	---help---
+		Register /dev/jpeg0 for bounded baseline JPEG decoding to RGB565,
+		RGB888 or grayscale, and bounded JPEG encoding from RGB565, BGR888
+		or grayscale. PPA and JPEG serialize the shared DMA2D reset
+		domain and interrupt. Caller-owned RAM buffers remain exclusively
+		owned by the ioctl until it returns. Progressive JPEG and unsupported
+		profiles return errors before hardware is started.
 
 source "arch/risc-v/src/common/espressif/Kconfig"
 

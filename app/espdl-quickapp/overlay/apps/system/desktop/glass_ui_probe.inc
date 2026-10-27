@@ -306,7 +306,7 @@ static void desktop_ui_probe_service(void)
       }
     }
   else if (!strcmp(command, "music-play-result"))
-    { if (g_music_ui.snapshot.has_result) glass_music_play(&g_music_ui.snapshot.result); }
+    { if (g_music_ui.snapshot && g_music_ui.snapshot->has_result) glass_music_play(&g_music_ui.snapshot->result); }
   else if (!strcmp(command, "navigation-status"))
     desktop_ui_probe_print("navigation page=%s return=%s\n",
       lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN)?"home":g_desktop.apps_page?"apps":g_desktop.chat_page?"chat":g_desktop.qapp_page?"qapp":"panel",
@@ -535,6 +535,33 @@ static void desktop_ui_probe_service(void)
       else if (!strcmp(command, "qpk-yield")) qpk_yield_test_start();
       else if (!strcmp(command, "qpk-capacity-status")) desktop_ui_probe_print("qpk-resources widgets=%u error=%s\n", qpk_runtime_widget_count(), qpk_runtime_last_error());
       else if (!strcmp(command, "wifi")) glass_wifi_page(NULL);
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+      else if (!strcmp(command, "recovery")) glass_wifi_recovery_page(NULL);
+      else if (!strcmp(command, "recovery-start") ||
+               !strcmp(command, "recovery-stop"))
+        {
+          int ret = glass_network_recovery_init();
+          if (!ret) ret = !strcmp(command, "recovery-start") ?
+            glass_network_recovery_start() : glass_network_recovery_stop();
+          desktop_ui_probe_print("NETWORK_RECOVERY accepted=%u result=%d\n",
+                                 ret == 0, ret);
+        }
+      else if (!strcmp(command, "recovery-status"))
+        {
+          struct glass_recovery_snapshot_s state;
+          int ret = glass_network_recovery_read(&state);
+          if (ret < 0)
+            desktop_ui_probe_print("NETWORK_RECOVERY result=%d\n", ret);
+          else
+            desktop_ui_probe_print("NETWORK_RECOVERY state=%u ap_running=%u dhcp_ready=%u joining=%u busy=%u associated=%u ipv4_ready=%u error=%d ap_error=%d cleanup_error=%d ap_ip=%u.%u.%u.%u sta_ip=%u.%u.%u.%u\n",
+              (unsigned)state.state, state.ap_running, state.dhcp_ready,
+              state.joining, state.busy, state.associated, state.ipv4_ready,
+              state.error, state.ap_error, state.cleanup_error,
+              state.ap_ipv4[0], state.ap_ipv4[1], state.ap_ipv4[2],
+              state.ap_ipv4[3], state.ipv4[0], state.ipv4[1],
+              state.ipv4[2], state.ipv4[3]);
+        }
+#endif
       else if (!strcmp(command, "bluetooth")) glass_bluetooth_page(NULL);
       else if (!strcmp(command, "ble-scan"))
         { glass_bluetooth_page(NULL); (void)glass_ble_scan(); }
@@ -582,6 +609,7 @@ static int desktop_ui_probe_request(const char *command)
     "speech-zh-q8", "speech-zh-q8-play", "speech-zh-q8-pie", "speech-zh-q8-dual",
     "music", "music-status", "music-metadata-status", "music-pv-demo", "music-pv-status", "font-status", "music-language-demo", "music-lyrics-status", "music-play-result", "music-toggle", "music-stop", "current", "apps", "about", "environment", "hello", "2048", "ouo", "ha", "dropdown", "grok-status",
     "files-new", "light", "dark", "audit", "frame", "frame-free", "wifi-scan", "ble-scan", "dialog",
+    "recovery", "recovery-start", "recovery-stop", "recovery-status",
     "ha-settings", "ha-address", "ha-status", "render-metrics", "render-metrics-reset", "toast", "camera-start", "camera-photo", "camera-mode",
     "espdl", "espdl-start", "espdl-stop", "espdl-classify", "espdl-photo", "speech", "speech-listen", "speech-probe", "speech-nano-scalar", "speech-nano-pie", "speech-nano-play", "speech-start", "speech-stop", "speech-status",
     "voice", "voice-tap", "voice-end", "voice-status", "wake-mini-status",

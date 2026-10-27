@@ -30,6 +30,17 @@ ifeq ($(CONFIG_ESPRESSIF_MIPI_DSI),y)
 CHIP_CSRCS += esp32p4_camera_cache.c
 CHIP_CSRCS += esp32p4_camera_timing.c
 endif
+ifneq ($(filter y,$(CONFIG_ESP32P4_PPA) $(CONFIG_ESP32P4_JPEG)),)
+CHIP_CSRCS += esp32p4_dma2d.c
+endif
+ifeq ($(CONFIG_ESP32P4_JPEG),y)
+P4_JPEG_HAL = chip/$(ESP_HAL_3RDPARTY_REPO)/components/esp_hal_jpeg
+CHIP_CSRCS += esp32p4_jpeg.c esp32p4_jpeg_parse.c esp32p4_jpeg_emit.c
+CHIP_CSRCS += $(P4_JPEG_HAL)/jpeg_hal.c
+INCLUDES += -I$(ARCH_SRCDIR)/$(P4_JPEG_HAL)/include
+INCLUDES += -I$(ARCH_SRCDIR)/$(P4_JPEG_HAL)/esp32p4/include
+endif
+
 ifeq ($(CONFIG_ESP32P4_PPA),y)
 CHIP_CSRCS += esp32p4_ppa.c
 INCLUDES += -I$(ARCH_SRCDIR)/chip/$(ESP_HAL_3RDPARTY_REPO)/components/esp_hal_ppa/include

@@ -1,0 +1,11 @@
+{
+  "mode": "game",
+  "rounds": 4,
+  "flash_delta_read_write_erase": [
+    12612,
+    3469,
+    375
+  ],
+  "physical_screen_observation": "passed: user reported 没问题 after retest",
+  "passed": true
+}

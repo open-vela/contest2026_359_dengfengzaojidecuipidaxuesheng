@@ -1,0 +1,382 @@
+{
+  "candidate": 18,
+  "image_sha256": "7d9715148a1ddcac9a534b5feea1e4ae8d70592e4e5573c44589340daff4ed48",
+  "identity": "DB:9B:EB:2E:71:EF",
+  "cycles": [
+    {
+      "cycle": 1,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 21,
+          "store_error": 0,
+          "t_ms": 33361
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 21,
+          "store_error": 0,
+          "t_ms": 35386
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 21,
+          "store_error": 0,
+          "t_ms": 37219
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 21,
+          "store_error": 0,
+          "t_ms": 39053
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 21,
+          "store_error": 0,
+          "t_ms": 40886
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 21,
+          "store_error": 0,
+          "t_ms": 43005
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 19,
+        "store_error": 0
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 19,
+        "store_error": 0
+      },
+      "first_secure_epoch": 21,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 21,
+        "store_error": 0,
+        "t_ms": 43005
+      },
+      "passed": true
+    },
+    {
+      "cycle": 2,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 23,
+          "store_error": 0,
+          "t_ms": 73810
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 23,
+          "store_error": 0,
+          "t_ms": 76099
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 23,
+          "store_error": 0,
+          "t_ms": 78282
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 23,
+          "store_error": 0,
+          "t_ms": 80410
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 23,
+          "store_error": 0,
+          "t_ms": 82201
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 21,
+        "store_error": 0
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 21,
+        "store_error": 0
+      },
+      "first_secure_epoch": 23,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 23,
+        "store_error": 0,
+        "t_ms": 82201
+      },
+      "passed": true
+    },
+    {
+      "cycle": 3,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 25,
+          "store_error": 0,
+          "t_ms": 112584
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 25,
+          "store_error": 0,
+          "t_ms": 114425
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 25,
+          "store_error": 0,
+          "t_ms": 116267
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 25,
+          "store_error": 0,
+          "t_ms": 118106
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 25,
+          "store_error": 0,
+          "t_ms": 119897
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 25,
+          "store_error": 0,
+          "t_ms": 121751
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 23,
+        "store_error": 0
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 23,
+        "store_error": 0
+      },
+      "first_secure_epoch": 25,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 25,
+        "store_error": 0,
+        "t_ms": 121751
+      },
+      "passed": true
+    },
+    {
+      "cycle": 4,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 152356
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 154196
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 156053
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 157850
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 159646
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 161482
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 25,
+        "store_error": 0
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 25,
+        "store_error": 0
+      },
+      "first_secure_epoch": 27,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 27,
+        "store_error": 0,
+        "t_ms": 161482
+      },
+      "passed": true
+    }
+  ],
+  "passed": true
+}

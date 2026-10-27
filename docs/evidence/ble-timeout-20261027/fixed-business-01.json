@@ -1,0 +1,888 @@
+{
+  "candidate": 19,
+  "image_sha256": "b6b17eed6481edfa4ba977a2c19a5930452081281b0ae585f44a039c8ca39b0f",
+  "identity": "F9:71:66:11:70:FC",
+  "cycles": [
+    {
+      "cycle": 1,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 31437
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 33288
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 35130
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 36973
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 38780
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 27,
+          "store_error": 0,
+          "t_ms": 40621
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 25,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 5688,
+        "dispatched": 5688,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 25,
+        "store_error": 0
+      },
+      "first_secure_epoch": 27,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 27,
+        "store_error": 0,
+        "t_ms": 40621
+      },
+      "timers_after": {
+        "expirations": 6207,
+        "dispatched": 6207,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 2,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 29,
+          "store_error": 0,
+          "t_ms": 73750
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 29,
+          "store_error": 0,
+          "t_ms": 75595
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 29,
+          "store_error": 0,
+          "t_ms": 77433
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 29,
+          "store_error": 0,
+          "t_ms": 79275
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 29,
+          "store_error": 0,
+          "t_ms": 81113
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 29,
+          "store_error": 0,
+          "t_ms": 82953
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 27,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 6281,
+        "dispatched": 6281,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 27,
+        "store_error": 0
+      },
+      "first_secure_epoch": 29,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 29,
+        "store_error": 0,
+        "t_ms": 82953
+      },
+      "timers_after": {
+        "expirations": 6802,
+        "dispatched": 6802,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 3,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 31,
+          "store_error": 0,
+          "t_ms": 115904
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 31,
+          "store_error": 0,
+          "t_ms": 117751
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 31,
+          "store_error": 0,
+          "t_ms": 119605
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 31,
+          "store_error": 0,
+          "t_ms": 121446
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 31,
+          "store_error": 0,
+          "t_ms": 123303
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 31,
+          "store_error": 0,
+          "t_ms": 125157
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 29,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 6875,
+        "dispatched": 6875,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 29,
+        "store_error": 0
+      },
+      "first_secure_epoch": 31,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 31,
+        "store_error": 0,
+        "t_ms": 125157
+      },
+      "timers_after": {
+        "expirations": 7398,
+        "dispatched": 7398,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 4,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 33,
+          "store_error": 0,
+          "t_ms": 158450
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 33,
+          "store_error": 0,
+          "t_ms": 160292
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 33,
+          "store_error": 0,
+          "t_ms": 162137
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 33,
+          "store_error": 0,
+          "t_ms": 163980
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 33,
+          "store_error": 0,
+          "t_ms": 165835
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 33,
+          "store_error": 0,
+          "t_ms": 167669
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 31,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 7471,
+        "dispatched": 7471,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 31,
+        "store_error": 0
+      },
+      "first_secure_epoch": 33,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 33,
+        "store_error": 0,
+        "t_ms": 167669
+      },
+      "timers_after": {
+        "expirations": 7996,
+        "dispatched": 7996,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 5,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 35,
+          "store_error": 0,
+          "t_ms": 200665
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 35,
+          "store_error": 0,
+          "t_ms": 202524
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 35,
+          "store_error": 0,
+          "t_ms": 204344
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 35,
+          "store_error": 0,
+          "t_ms": 206204
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 35,
+          "store_error": 0,
+          "t_ms": 207998
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 35,
+          "store_error": 0,
+          "t_ms": 209837
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 33,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 8069,
+        "dispatched": 8069,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 33,
+        "store_error": 0
+      },
+      "first_secure_epoch": 35,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 35,
+        "store_error": 0,
+        "t_ms": 209837
+      },
+      "timers_after": {
+        "expirations": 8588,
+        "dispatched": 8588,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 6,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 37,
+          "store_error": 0,
+          "t_ms": 243016
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 37,
+          "store_error": 0,
+          "t_ms": 244850
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 37,
+          "store_error": 0,
+          "t_ms": 246692
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 37,
+          "store_error": 0,
+          "t_ms": 248532
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 37,
+          "store_error": 0,
+          "t_ms": 250340
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 37,
+          "store_error": 0,
+          "t_ms": 252192
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 35,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 8661,
+        "dispatched": 8661,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 35,
+        "store_error": 0
+      },
+      "first_secure_epoch": 37,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 37,
+        "store_error": 0,
+        "t_ms": 252192
+      },
+      "timers_after": {
+        "expirations": 9181,
+        "dispatched": 9181,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 7,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 39,
+          "store_error": 0,
+          "t_ms": 285177
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 39,
+          "store_error": 0,
+          "t_ms": 287024
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 39,
+          "store_error": 0,
+          "t_ms": 288867
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 39,
+          "store_error": 0,
+          "t_ms": 290706
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 39,
+          "store_error": 0,
+          "t_ms": 292557
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 39,
+          "store_error": 0,
+          "t_ms": 294395
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 37,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 9254,
+        "dispatched": 9254,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 37,
+        "store_error": 0
+      },
+      "first_secure_epoch": 39,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 39,
+        "store_error": 0,
+        "t_ms": 294395
+      },
+      "timers_after": {
+        "expirations": 9775,
+        "dispatched": 9775,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 8,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 41,
+          "store_error": 0,
+          "t_ms": 327490
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 41,
+          "store_error": 0,
+          "t_ms": 329331
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 41,
+          "store_error": 0,
+          "t_ms": 331125
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 41,
+          "store_error": 0,
+          "t_ms": 332919
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 41,
+          "store_error": 0,
+          "t_ms": 334761
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 41,
+          "store_error": 0,
+          "t_ms": 336590
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 39,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 9849,
+        "dispatched": 9849,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 39,
+        "store_error": 0
+      },
+      "first_secure_epoch": 41,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 41,
+        "store_error": 0,
+        "t_ms": 336590
+      },
+      "timers_after": {
+        "expirations": 10370,
+        "dispatched": 10370,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    }
+  ],
+  "passed": true
+}

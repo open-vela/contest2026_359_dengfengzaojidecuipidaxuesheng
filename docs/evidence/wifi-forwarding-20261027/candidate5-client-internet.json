@@ -1,0 +1,31 @@
+{
+  "client_ip": "192.168.4.2",
+  "ifindex": 7,
+  "path": "explicit WLAN interface -> C6 SoftAP -> P4 NAT -> Ethernet",
+  "checks": [
+    {
+      "kind": "HTTP",
+      "host": "192.168.31.95",
+      "ip": "192.168.31.95",
+      "port": 8765,
+      "status": "HTTP/1.1 200 OK"
+    },
+    {
+      "kind": "DNS",
+      "server": "192.168.31.1",
+      "name": "www.baidu.com",
+      "rcode": 0,
+      "answers": 2,
+      "ipv4": [
+        "183.2.172.177"
+      ]
+    },
+    {
+      "kind": "HTTP",
+      "host": "www.baidu.com",
+      "ip": "183.2.172.177",
+      "port": 80,
+      "status": "HTTP/1.0 200 OK"
+    }
+  ]
+}

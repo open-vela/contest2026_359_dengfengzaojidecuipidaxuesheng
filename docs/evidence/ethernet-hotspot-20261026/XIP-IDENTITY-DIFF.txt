@@ -1,0 +1,65 @@
+--- candidate4
++++ candidate5
+@@ -237,7 +237,7 @@
+ 4ff50c78:	4622                	lw	a2,8(sp)
+ 4ff50c7a:	00647737          	lui	a4,0x647
+ 4ff50c7e:	087c                	addi	a5,sp,28
+-4ff50c80:	8fc70713          	addi	a4,a4,-1796 # 6468fc <_image_drom_size>
++4ff50c80:	90c70713          	addi	a4,a4,-1780 # 64690c <_image_drom_size>
+ 4ff50c84:	86d6                	mv	a3,s5
+ 4ff50c86:	964e                	add	a2,a2,s3
+ 4ff50c88:	4585                	li	a1,1
+@@ -245,7 +245,7 @@
+ 4ff50c8c:	a46fb0ef          	jal	4ff4bed2 <mmu_hal_map_region>
+ 4ff50c90:	00382737          	lui	a4,0x382
+ 4ff50c94:	087c                	addi	a5,sp,28
+-4ff50c96:	b0070713          	addi	a4,a4,-1280 # 381b00 <_image_irom_size>
++4ff50c96:	b8070713          	addi	a4,a4,-1152 # 381b80 <_image_irom_size>
+ 4ff50c9a:	86d2                	mv	a3,s4
+ 4ff50c9c:	864a                	mv	a2,s2
+ 4ff50c9e:	4585                	li	a1,1
+@@ -408,7 +408,7 @@
+ 4ff4ed2c:	483827b7          	lui	a5,0x48382
+ 4ff4ed30:	177d                	addi	a4,a4,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4ed32:	01069613          	slli	a2,a3,0x10
+-4ff4ed36:	b0078793          	addi	a5,a5,-1280 # 48381b00 <_etext>
++4ff4ed36:	b8078793          	addi	a5,a5,-1152 # 48381b80 <_etext>
+ 4ff4ed3a:	8241                	srli	a2,a2,0x10
+ 4ff4ed3c:	97ba                	add	a5,a5,a4
+ 4ff4ed3e:	97b2                	add	a5,a5,a2
+@@ -436,7 +436,7 @@
+ 4ff4ed80:	46cc                	lw	a1,12(a3)
+ 4ff4ed82:	12b7ed63          	bltu	a5,a1,4ff4eebc <esp_mmu_map_init+0x1f6>
+ 4ff4ed86:	4688                	lw	a0,8(a3)
+-4ff4ed88:	0006aa23          	sw	zero,20(a3) # 4c000014 <_esp_system_init_fn_array_end+0x36296f8>
++4ff4ed88:	0006aa23          	sw	zero,20(a3) # 4c000014 <_esp_system_init_fn_array_end+0x36296e8>
+ 4ff4ed8c:	8f8d                	sub	a5,a5,a1
+ 4ff4ed8e:	ca88                	sw	a0,16(a3)
+ 4ff4ed90:	02868693          	addi	a3,a3,40
+@@ -448,7 +448,7 @@
+ 4ff4eda6:	65c1                	lui	a1,0x10
+ 4ff4eda8:	15fd                	addi	a1,a1,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4edaa:	01061793          	slli	a5,a2,0x10
+-4ff4edae:	91c68693          	addi	a3,a3,-1764 # 489d691c <_esp_system_init_fn_array_end>
++4ff4edae:	92c68693          	addi	a3,a3,-1748 # 489d692c <_esp_system_init_fn_array_end>
+ 4ff4edb2:	96ae                	add	a3,a3,a1
+ 4ff4edb4:	83c1                	srli	a5,a5,0x10
+ 4ff4edb6:	97b6                	add	a5,a5,a3
+@@ -698,7 +698,7 @@
+ 4ff4f1b4:	6741                	lui	a4,0x10
+ 4ff4f1b6:	177d                	addi	a4,a4,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4f1b8:	da26                	sw	s1,52(sp)
+-4ff4f1ba:	b0078793          	addi	a5,a5,-1280 # 48381b00 <_etext>
++4ff4f1ba:	b8078793          	addi	a5,a5,-1152 # 48381b80 <_etext>
+ 4ff4f1be:	480004b7          	lui	s1,0x48000
+ 4ff4f1c2:	97ba                	add	a5,a5,a4
+ 4ff4f1c4:	d256                	sw	s5,36(sp)
+@@ -780,7 +780,7 @@
+ 4ff4f30e:	6741                	lui	a4,0x10
+ 4ff4f310:	177d                	addi	a4,a4,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4f312:	da26                	sw	s1,52(sp)
+-4ff4f314:	91c78793          	addi	a5,a5,-1764 # 489d691c <_esp_system_init_fn_array_end>
++4ff4f314:	92c78793          	addi	a5,a5,-1748 # 489d692c <_esp_system_init_fn_array_end>
+ 4ff4f318:	483904b7          	lui	s1,0x48390
+ 4ff4f31c:	97ba                	add	a5,a5,a4
+ 4ff4f31e:	d256                	sw	s5,36(sp)

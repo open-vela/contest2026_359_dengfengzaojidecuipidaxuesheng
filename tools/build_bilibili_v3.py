@@ -22,6 +22,27 @@ def storage_layout(config,requested='preserve'):
     if tuple(values) not in layouts.values():raise ValueError('Unsupported prepared storage layout; inspect the board before changing it')
     return tuple(values)
 
+def forwarding_config(config, slots=4, statistics=False):
+    """Bound forwarding and retain IOB/callback capacity for local traffic."""
+    if slots not in (4,8,16):
+        raise ValueError('Forwarding slots must be 4, 8 or 16')
+    match=re.search(r'^CONFIG_IOB_NBUFFERS=(\d+)$',config,re.M)
+    if not match or slots*4+32>int(match.group(1)):
+        raise ValueError('Forwarding queue must leave at least 32 IOBs reserved')
+    callbacks=re.search(r'^CONFIG_NET_PREALLOC_DEVIF_CALLBACKS=(\d+)$',config,re.M)
+    if not callbacks:
+        raise ValueError('Missing prepared network callback pool size')
+    callback_count=max(int(callbacks.group(1)),slots+16)
+    for name,value in [('NET_FORWARD_NSTRUCT',str(slots)),
+                       ('NET_FORWARD_ALLOC_STRUCT','0'),
+                       ('NET_PREALLOC_DEVIF_CALLBACKS',str(callback_count)),
+                       ('NET_STATISTICS','y' if statistics else 'n')]:
+        key='CONFIG_'+name
+        line=key+'='+value if value!='n' else '# '+key+' is not set'
+        pattern=r'^(?:'+key+r'=.*|# '+key+r' is not set)$'
+        config=re.sub(pattern,line,config,flags=re.M) if re.search(pattern,config,re.M) else config+line+'\n'
+    return config
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--baseline',type=Path,required=True)
@@ -40,14 +61,27 @@ def main():
     p.add_argument('--source-revision',help='Explicit 40-hex source revision for Windows-mounted Git worktrees')
     p.add_argument('--usb-camera',action='store_true',help='Include the dedicated P4 HS/UTMI UVC MJPEG host alongside the existing CSI camera')
     p.add_argument('--psram-xip',action='store_true',help='Opt-in experimental P4 Simple Boot text/rodata PSRAM XIP; requires dedicated trial workspace and physical validation')
+    p.add_argument('--hardware-jpeg',action='store_true',help='Opt-in native P4 JPEG decoder with shared PPA/DMA2D ownership; requires image and display validation')
+    p.add_argument('--ethernet-share',action='store_true',help='Opt-in eth0 to SoftAP NAT44 with resident wired DHCP ownership')
+    p.add_argument('--share-forward-slots',type=int,choices=[4,8,16],default=4,help='Bounded static forwarding pool; requires --ethernet-share for non-default values')
+    p.add_argument('--share-net-stats',action='store_true',help='Enable native network statistics for an Ethernet-sharing diagnostic candidate')
+    p.add_argument('--ble-connections',type=int,choices=[1,2,3,8],help='NimBLE host pool capacity; 8 requires --ble-eight-test and does not change C6 firmware')
+    p.add_argument('--ble-eight-test',action='store_true',help='Isolated offline experiment: 8 ordinary sessions and 8 host slots; current C6 controller is only configured for 3, do not treat this as hardware qualification')
     p.add_argument('--flash-auto-suspend-jedec',choices=['c84018'],help='Rejected experiment; retained only to reject old deployment commands explicitly')
     p.add_argument('--dsi-flash-reload',action='store_true',help='Rejected physical experiment; retained to reject old deployment commands')
     p.add_argument('--factory-header',action='store_true',help='Use factory P4X J1 pins, reserving GPIO0/1 for XTAL32K: I2C1=2/3, SPI2=6/3/4/5, PWM0=2')
     a=p.parse_args();repo=Path(__file__).resolve().parent.parent
+    if a.ble_connections==8 and not a.ble_eight_test:
+        p.error('Eight host slots require explicit --ble-eight-test; current C6 firmware is not qualified for eight links')
+    if a.ble_eight_test:
+        if a.ble_connections not in (None,8):p.error('--ble-eight-test requires eight host slots')
+        a.ble_connections=8
     if a.flash_auto_suspend_jedec:
         p.error('P4 Flash auto-suspend candidate failed physical Bot/PSRAM testing; deployment is disabled')
     if a.dsi_flash_reload:
         p.error('P4 DSI reload candidate still flickered during USB/Flash testing; deployment is disabled')
+    if not a.ethernet_share and (a.share_forward_slots!=4 or a.share_net_stats):
+        p.error('Forwarding diagnostics require --ethernet-share')
     if a.esp_tts_prepared and not a.speech_runtime:p.error('--esp-tts-prepared requires --speech-runtime')
     if a.esp_tts_prepared and a.tts_backend!='esp-tts':p.error('--esp-tts-prepared conflicts with --tts-backend sanotts')
     base=a.baseline.resolve();root=a.workspace.resolve();out=a.output.resolve()
@@ -99,8 +133,28 @@ def main():
         target=root/'apps/system/c6probe'/src.name
         if not target.exists() or target.read_bytes()!=src.read_bytes():
             target.write_bytes(src.read_bytes())
+    central_capacity=root/'apps/wireless/bluetooth/nimble/glass_ble_capacity_config.h'
+    if a.ble_eight_test:
+        central_capacity.write_text('/* Generated offline eight-peer experiment. C6 unchanged. */\n'
+                                    '#pragma once\n#define GLASS_BLE_CENTRAL_LIMIT 8\n')
     from adapt_c6_status import apply as apply_c6_status
     apply_c6_status(root/'apps')
+    from prepare_c6_ota import apply as prepare_c6_ota
+    c6_ota_sources=prepare_c6_ota(root/'apps')
+    from prepare_c6_softap import apply as prepare_c6_softap
+    c6_softap_sources=prepare_c6_softap(root/'apps')
+    from prepare_c6_wifi_trial import apply as prepare_c6_wifi_trial
+    c6_wifi_trial_sources=prepare_c6_wifi_trial(root/'apps')
+    from prepare_dhcpd_status import apply as prepare_dhcpd_status
+    dhcpd_sources=prepare_dhcpd_status(root/'apps')
+    network_share_sources={}
+    if a.ethernet_share:
+        from prepare_network_share import apply as prepare_network_share
+        network_share_sources=prepare_network_share(root/'nuttx')
+    from prepare_nimble_store import apply as prepare_nimble_store
+    ble_store_sources=prepare_nimble_store(root/'apps')
+    from ble_candidate_identity import create as create_ble_identity
+    ble_identity=create_ble_identity(root/'apps',out)
     from instrument_p4_timing import apply as apply_camera_timing
     camera_timing_sources=apply_camera_timing(root/'nuttx')
     from protect_p4_display_flash import restore as restore_display_flash
@@ -136,11 +190,23 @@ def main():
     # pool bounded (48 KiB payload) and leave internal RAM for DMA/threads.
     for name,value in [('ESP32P4_FLASH_AUTO_SUSPEND','y' if a.flash_auto_suspend_jedec else 'n'),('ESPRESSIF_STORAGE_MTD_OFFSET',hex(data_offset)),('ESPRESSIF_STORAGE_MTD_SIZE',hex(data_size)),('LIBM','y'),('LIBM_TOOLCHAIN','n'),('LIBM_NONE','n'),('NET_BROADCAST','y'),('SYSTEM_BILIBILI_LIVE','y'),('PTHREAD_MUTEX_TYPES','y'),('NSH_DISABLE_DATE','n'),
                        ('ESP32P4_PSRAM_XIP','y' if a.psram_xip else 'n'),
+                       ('ESP32P4_JPEG','y' if a.hardware_jpeg else 'n'),
+                       ('NET_IPFORWARD','y' if a.ethernet_share else 'n'),
+                       ('NET_NAT','y' if a.ethernet_share else 'n'),
+                       ('NET_NAT44','y' if a.ethernet_share else 'n'),
                        ('ESP32P4_DSI_FLASH_RELOAD','y' if a.dsi_flash_reload else 'n'),
                        ('NET_RECV_BUFSIZE','32768'),('NET_MAX_RECV_BUFSIZE','32768'),('NSH_NETINIT','n'),('LV_USE_SNAPSHOT','y'),
                        # A cancelled ASR must not sit behind 30s x 3 DNS retries.
                        ('NETDB_DNSCLIENT_RECV_TIMEOUT','3'),('NETDB_DNSCLIENT_SEND_TIMEOUT','3'),('NETDB_DNSCLIENT_RETRIES','2'),
                        ('IOB_NBUFFERS','96'),('IOB_BUFSIZE','512'),('RR_INTERVAL','20'),('ESP32P4_PPA','y'),
+                       # Lease reservations outlive association, including
+                       # failed handshakes and private MAC reconnects.
+                       ('NETUTILS_DHCPD','y'),('NETUTILS_DHCPD_MAXLEASES','8'),
+                       ('NETUTILS_DHCPD_OFFERTIME','30'),
+                       ('NETUTILS_DHCPD_STACKSIZE','4096'),
+                       ('NETUTILS_DHCPD_LEASETIME','600'),('NETUTILS_DHCPD_MINLEASETIME','60'),
+                       ('NETUTILS_DHCPD_MAXLEASETIME','600'),('NETUTILS_DHCPD_ROUTERIP','0x0'),
+                       ('NETUTILS_DHCPD_DNSIP','0x0'),('NETUTILS_DHCPD_NETMASK','0xffffff00'),
                        # Manifest model filenames and audio clips exceed 32 bytes.
                        ('NAME_MAX','64'),('FAT_MAXFNAME','64'),
                        ('ESPRESSIF_CACHE_L2_CACHE_128KB','n'),
@@ -152,7 +218,26 @@ def main():
         pattern=r'^(?:'+key+r'=.*|# '+key+r' is not set)$'
         if re.search(pattern,s,re.M):s=re.sub(pattern,line,s,flags=re.M)
         else:s+=line+'\n'
+    if a.ethernet_share:
+        for name,value in [('NET_IPFORWARD','y'),('NET_NAT','y'),('NET_NAT44','y'),
+                           ('NET_NAT66','n'),('NET_NAT44_FULL_CONE','y'),
+                           ('NET_IPFORWARD_BROADCAST','n'),('NET_NAT_HASH_BITS','8'),
+                           ('NET_NAT_TCP_EXPIRE_SEC','300'),('NET_NAT_UDP_EXPIRE_SEC','60'),
+                           ('NET_NAT_ENTRY_RECLAIM_SEC','30'),
+                           ('NETUTILS_DHCPD_ROUTERIP','0xc0a80401'),
+                           ('NETUTILS_DHCPD_DNSIP','0x01010101'),
+                           ('NETUTILS_DHCPD_LEASETIME','120'),('NETUTILS_DHCPD_MAXLEASETIME','120')]:
+            key='CONFIG_'+name;line=key+'='+value if value!='n' else '# '+key+' is not set'
+            pattern=r'^(?:'+key+r'=.*|# '+key+r' is not set)$'
+            s=re.sub(pattern,line,s,flags=re.M) if re.search(pattern,s,re.M) else s+line+'\n'
+        try:s=forwarding_config(s,a.share_forward_slots,a.share_net_stats)
+        except ValueError as error:p.error(str(error))
     if cfg.read_text()!=s:cfg.write_text(s)
+    if a.ble_connections is not None:
+        key='CONFIG_NIMBLE_BLE_MAX_CONN'
+        s,n=re.subn(r'^'+key+r'=.*$',key+'='+str(a.ble_connections),s,flags=re.M)
+        if n!=1:p.error('Prepared NimBLE connection capacity missing or duplicated')
+        cfg.write_text(s)
     if a.factory_header:
         for key,value in [('ESPRESSIF_I2C1_SDAPIN',2),('ESPRESSIF_I2C1_SCLPIN',3),('ESPRESSIF_SPI2_CSPIN',6),('ESPRESSIF_LEDC_CHANNEL0_PIN',2)]:
             name='CONFIG_'+key;pattern=r'^'+name+r'=.*$'
@@ -174,10 +259,19 @@ def main():
         libs.append(Path(subprocess.check_output([str(tc/'riscv32-esp-elf-g++'),*abi,'-print-file-name='+name],text=True).strip()))
     run(['make','olddefconfig',cross],cwd=root/'nuttx')
     config=cfg.read_text()
+    if a.ble_connections is not None and f'CONFIG_NIMBLE_BLE_MAX_CONN={a.ble_connections}\n' not in config:
+        raise RuntimeError('Requested NimBLE connection capacity disabled by Kconfig')
     if a.factory_header:
         for value in ['CONFIG_ESPRESSIF_I2C1_SDAPIN=2','CONFIG_ESPRESSIF_I2C1_SCLPIN=3','CONFIG_ESPRESSIF_SPI2_CSPIN=6','CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN=2']:
             if value not in config:raise RuntimeError('Factory J1 pin configuration missing: '+value)
     if a.usb_camera and 'CONFIG_ESP32P4_CAMERA_USB=y' not in config:raise RuntimeError('USB camera disabled by Kconfig')
+    for option in ['NETUTILS_DHCPD','NET_BINDTODEVICE','SCHED_WAITPID']:
+        if 'CONFIG_'+option+'=y\n' not in config:raise RuntimeError('SoftAP recovery dependency not enabled: '+option)
+    if a.ethernet_share:
+        for option in ['NET_IPFORWARD','NET_NAT','NET_NAT44','NET_NAT44_FULL_CONE']:
+            if 'CONFIG_'+option+'=y\n' not in config:raise RuntimeError('Sharing dependency disabled: '+option)
+        for option in ['NET_IPFORWARD_BROADCAST','NET_NAT66','NSH_NETINIT']:
+            if 'CONFIG_'+option+'=y\n' in config:raise RuntimeError('Unexpected sharing configuration: '+option)
     if a.psram_xip:
         for option in ['ESP32P4_PSRAM_XIP','SPIRAM_FETCH_INSTRUCTIONS','SPIRAM_RODATA','SPIRAM_XIP_FROM_PSRAM','SPIRAM_FLASH_LOAD_TO_PSRAM']:
             if 'CONFIG_'+option+'=y' not in config:raise RuntimeError('PSRAM XIP dependency not enabled: '+option)
@@ -199,6 +293,7 @@ def main():
     for header in sorted(path for path in overlay.rglob('*') if path.suffix in ['.h','.inc']):
         headers.update(str(header.relative_to(overlay)).encode())
         headers.update(hashlib.sha256(header.read_bytes()).digest())
+    headers.update(ble_identity['header_sha256'].encode())
     # The SDK DMA propagation API is inline: invalidate every object if its
     # guarded implementation changes, even when overlay headers do not.
     headers.update(hashlib.sha256((repo/'tools/protect_p4_display_flash.py').read_bytes()).digest())
@@ -223,10 +318,15 @@ def main():
     if 0x2000+(root/'nuttx/nuttx.bin').stat().st_size>program_limit:raise RuntimeError('Firmware overlaps reserved storage')
     out.mkdir(parents=True,exist_ok=True)
     for name,target in [('nuttx.bin','nuttx.bin'),('nuttx','nuttx.elf'),('.config','resolved.config')]:shutil.copy2(root/'nuttx'/name,out/target)
+    from nimble_capacity import audit as audit_nimble_capacity
+    ble_capacity=audit_nimble_capacity(root/'apps',root/'nuttx',
+        tc/'riscv32-esp-elf-gcc',out/'nimble-capacity',out/'nuttx.elf')
     def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
     nm=subprocess.check_output([str(tc/'riscv32-esp-elf-nm'),'-C',str(out/'nuttx.elf')],text=True)
     for symbol in ['bili_live_show','bili_flv_run','glass_https_tls_ops','WelsCreateDecoder',
-                   'qpk_photo_store_initialize','esp_camera_display_frame','esp_camera_flash_end']:
+                   'qpk_photo_store_initialize','esp_camera_display_frame','esp_camera_flash_end',
+                   'c6_softap_start','c6net_trial_connect','glass_network_recovery_start',
+                   'dhcpd_runtime_status','esp_hosted_rpc_c6_ota']:
         if symbol not in nm:raise RuntimeError('Missing linked symbol '+symbol)
     if re.search(r'\besp_display_flash_isr_enter$',nm,re.M):
         raise RuntimeError('Rejected cache-off IRQ experiment is still linked')
@@ -236,6 +336,15 @@ def main():
     if a.usb_camera:
         for symbol in ['camera_usb_initialize','glass_vision_analyze']:
             if not re.search(r'\b'+symbol+r'$',nm,re.M):raise RuntimeError('Missing linked camera/vision symbol '+symbol)
+    if a.hardware_jpeg:
+        table_header=root/'nuttx/arch/risc-v/src/esp32p4/esp32p4_jpeg_tables.h'
+        table_source=root/'nuttx/arch/risc-v/src/esp32p4/esp-hal-3rdparty/components/upper_hal_jpeg/jpeg_param.c'
+        if 'SHA256: '+sha(table_source) not in table_header.read_text():
+            raise RuntimeError('JPEG tables do not match the prepared SDK; regenerate explicitly')
+        for symbol in ['esp32p4_jpeg_register','esp32p4_jpeg_parse','esp32p4_jpeg_emit',
+                       'qpk_jpeg_hw_encode565','qpk_jpeg_encode_selftest',
+                       'jpeg_hal_init','esp32p4_dma2d_acquire','esp32p4_dma2d_stop']:
+            if not re.search(r'\b'+symbol+r'$',nm,re.M):raise RuntimeError('Missing linked JPEG/DMA2D symbol '+symbol)
     if a.esp_tts_prepared:
         for symbol in ['glass_esp_synthesize','esp_tts_create','esp_tts_stream_play','glass_esp_tts_voice_load']:
             if not re.search(r'\b'+symbol+r'$',nm,re.M):raise RuntimeError('Missing linked ESP-TTS symbol '+symbol)
@@ -247,6 +356,30 @@ def main():
         if not re.fullmatch('[0-9a-f]{40}',revision):p.error('source-revision must be 40-hex')
     else:revision=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip()
     metadata={'camera_timing':camera_timing_sources,
+              'hardware_jpeg':{'enabled':a.hardware_jpeg,
+                'sdk_sources':{name:sha(root/'nuttx/arch/risc-v/src/esp32p4/esp-hal-3rdparty'/name)
+                  for name in ['components/esp_hal_jpeg/jpeg_hal.c',
+                    'components/esp_hal_jpeg/esp32p4/include/hal/jpeg_ll.h',
+                    'components/esp_hal_dma/esp32p4/include/hal/dma2d_ll.h',
+                    'components/upper_hal_jpeg/jpeg_param.c',
+                    'components/upper_hal_jpeg/jpeg_encode.c',
+                    'components/upper_hal_jpeg/jpeg_emit_marker.c']} if a.hardware_jpeg else {}},
+              'ble_connections_requested':a.ble_connections,
+              'ble_eight_test':a.ble_eight_test,
+              'ble_central_capacity_header_sha256':sha(central_capacity),
+              'ble_c6_eight_link_qualified':False,
+              'ble_capacity':ble_capacity,
+              'ble_store':ble_store_sources,
+              'ble_identity':ble_identity,
+              'c6_ota':c6_ota_sources,
+              'network_recovery':{'softap':c6_softap_sources,
+                                  'credential_trial':c6_wifi_trial_sources,
+                                  'dhcpd':dhcpd_sources,'ethernet_share':network_share_sources},
+              'forwarding_diagnostics':{'enabled':a.ethernet_share,
+                                        'static_slots':a.share_forward_slots if a.ethernet_share else None,
+                                        'dynamic_allocations':False,
+                                        'network_statistics':a.share_net_stats,
+                                        'sdio_clock_or_scheduler_changed':False},
               'psram_xip':{'enabled':a.psram_xip,'sources':psram_xip_sources,'tool_sha256':sha(repo/'tools/prepare_p4_psram_xip.py')},
               'display_flash':display_flash_sources,
               'scanout_reload':{'enabled':a.dsi_flash_reload,'sources':scanout_reload_sources},

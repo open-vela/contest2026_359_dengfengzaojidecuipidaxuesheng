@@ -1,0 +1,29 @@
+{
+  "image_sha256": "fde34fcd6ced46fa8c1dc7b8b10f14a73114495dfe115a9b8f53ccf23bf12011",
+  "elf_sha256": "6330a321f847269f71115286d544426143719a4f680670738f7c1a81378eaa81",
+  "previous_image_sha256": "42fc7d5bea78ebb217fcc068a788cbe42a4b1f41dd75e4e129a0b248c4768836",
+  "source_changes": [
+    "app/espdl-quickapp/overlay/apps/system/c6ble/ble_main.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ble_central.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_bluetooth.inc",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_central.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_central.h",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_name.h"
+  ],
+  "configuration_changes": {},
+  "xip_input_sources_unchanged": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "rejected_experiments_disabled": true,
+  "security_provisioning_configs_enabled": false,
+  "manual_indirect_closure_review": "see XIP-REVIEW.md",
+  "physical_acceptance": "pending; not inherited"
+}

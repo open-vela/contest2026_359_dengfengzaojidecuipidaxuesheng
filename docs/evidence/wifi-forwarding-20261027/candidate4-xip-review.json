@@ -1,0 +1,12 @@
+{
+  "xip_sources_unchanged": true,
+  "early_closure_unchanged": true,
+  "same_calibration_indirect_calls": true,
+  "linked_boundaries_reviewed": [
+    1207959552,
+    1211665024,
+    1211695136,
+    1218281656
+  ],
+  "review": "Network callback reserve and application drain/probe changes only. Copy bounds match relocated linker symbols; original SDK calibration edges retained."
+}

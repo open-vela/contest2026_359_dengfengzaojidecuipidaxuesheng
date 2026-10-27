@@ -1,0 +1,1 @@
+BLE_STORE_OK: actual SDK RAM store; 54 insert/update/delete filesystem faults; RAM/disk rollback; sticky errors; legacy keys preserved; purpose bound to LTK, reorder/delete/renewal; no-op writes; capacity; corrupt file preserved

@@ -1,0 +1,1 @@
+NPL_CALLOUT_OK: 100 coincident-expiry batches, 32 distinct timers/two queues/direct callbacks, duplicate coalescing, rearm, persistent dispatcher ownership; HCI-poll timer never lost

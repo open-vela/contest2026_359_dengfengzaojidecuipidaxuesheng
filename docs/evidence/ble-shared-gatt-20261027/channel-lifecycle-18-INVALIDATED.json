@@ -1,0 +1,5 @@
+{
+  "supersedes": "channel-lifecycle-18.json",
+  "acceptance_valid": false,
+  "reason": "Original -11 substring assertion also matched -116. Actual new epoch 3 read was stale after transient disconnect reason 520; no EAGAIN proof in that attempt. Raw original retained. Corrected exact-line test is channel-lifecycle-18b.json."
+}

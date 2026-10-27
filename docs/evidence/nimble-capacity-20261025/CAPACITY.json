@@ -1,0 +1,7 @@
+{
+  "configured_connections": 2,
+  "effective_connections": 2,
+  "expected_connection_pool_bytes": 224,
+  "linked_connection_pool_verified": true,
+  "linked_connection_pool_bytes": 224
+}

@@ -31,8 +31,7 @@
 #include "esp_memory_utils.h"
 #include "hal/ppa_ll.h"
 #include "hal/dma2d_ll.h"
-#include "esp_irq.h"
-#include "soc/interrupts.h"
+#include "esp32p4_dma2d.h"
 
 /****************************************************************************
  * Private Types
@@ -47,7 +46,6 @@ struct p4_ppa_dev_s
   sem_t done;
   spinlock_t irq_lock;
   uint32_t status;
-  int cpuint;
 };
 
 /****************************************************************************
@@ -66,13 +64,10 @@ static void ppa_reset(void)
   dma2d_ll_hw_enable(DMA2D_LL_GET_HW(0), true);
 }
 
-static int ppa_interrupt(int irq, FAR void *context, FAR void *arg)
+static void ppa_interrupt(FAR void *arg, uint32_t status)
 {
   FAR struct p4_ppa_dev_s *dev = arg;
-  FAR dma2d_dev_t *dma = DMA2D_LL_GET_HW(0);
   irqstate_t flags = spin_lock_irqsave(&dev->irq_lock);
-  uint32_t status = dma->in_channel[0].in_int_raw.val;
-  dma2d_ll_rx_clear_interrupt_status(dma, 0, status);
   if (status & (DMA2D_LL_EVENT_RX_SUC_EOF | DMA2D_LL_EVENT_RX_DESC_ERROR))
     {
       dev->status = status;
@@ -80,7 +75,6 @@ static int ppa_interrupt(int irq, FAR void *context, FAR void *arg)
     }
 
   spin_unlock_irqrestore(&dev->irq_lock, flags);
-  return OK;
 }
 
 static bool ppa_ram(FAR const void *p, size_t n)
@@ -98,7 +92,8 @@ static bool ppa_ram(FAR const void *p, size_t n)
 }
 
 static int ppa_run(FAR struct p4_ppa_dev_s *dev,
-                   FAR const struct p4_ppa_job_s *j)
+                   FAR const struct p4_ppa_job_s *j,
+                   ppa_srm_color_mode_t input_format)
 {
   FAR dma2d_dev_t *dma = DMA2D_LL_GET_HW(0);
   FAR ppa_dev_t *ppa = PPA_LL_GET_HW;
@@ -109,7 +104,8 @@ static int ppa_run(FAR struct p4_ppa_dev_s *dev,
   uint32_t status;
   int ret;
 
-  if (!j || j->width < 2 || j->width > 1280 || (j->width & 1) ||
+  if (!j || j->width < 2 || j->width > 1280 ||
+      (input_format == PPA_SRM_COLOR_MODE_YUV422_UYVY && (j->width & 1)) ||
       j->height < 2 || j->height > 720 || j->out_width < 2 ||
       j->out_width > 1280 || j->out_height < 2 ||
       j->out_height > 720 || j->scale256 < 16 || j->scale256 > 256 ||
@@ -179,8 +175,16 @@ static int ppa_run(FAR struct p4_ppa_dev_s *dev,
       return -EIO;
     }
 
-  esp_cache_msync(dev->tx, 128, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
-  esp_cache_msync(dev->rx, 128, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
+  ret = esp_cache_msync(dev->tx, 128, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
+  if (ret == 0)
+    {
+      ret = esp_cache_msync(dev->rx, 128, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
+    }
+
+  if (ret != 0)
+    {
+      return -EIO;
+    }
   dma2d_ll_tx_stop(dma, 0);
   dma2d_ll_rx_stop(dma, 0);
   dma2d_ll_tx_reset_channel(dma, 0);
@@ -215,9 +219,9 @@ static int ppa_run(FAR struct p4_ppa_dev_s *dev,
 
   ppa_ll_srm_set_mb_size(ppa, PPA_LL_SRM_MB_SIZE_16_16);
   ppa_ll_srm_get_dma_dscr_port_mode_block_size(ppa,
-    PPA_SRM_COLOR_MODE_YUV422_UYVY, PPA_LL_SRM_MB_SIZE_16_16, &bh, &bv);
+    input_format, PPA_LL_SRM_MB_SIZE_16_16, &bh, &bv);
   dma2d_ll_tx_set_dscr_port_block_size(dma, 0, bh, bv);
-  ppa_ll_srm_set_rx_color_mode(ppa, PPA_SRM_COLOR_MODE_YUV422_UYVY);
+  ppa_ll_srm_set_rx_color_mode(ppa, input_format);
   ppa_ll_srm_set_rx_yuv_range(ppa, PPA_COLOR_RANGE_LIMIT);
   ppa_ll_srm_set_rx_yuv2rgb_std(ppa, PPA_COLOR_CONV_STD_RGB_YUV_BT601);
   ppa_ll_srm_enable_rx_byte_swap(ppa, false);
@@ -292,19 +296,46 @@ static int ppa_run(FAR struct p4_ppa_dev_s *dev,
 static int ppa_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   FAR struct p4_ppa_dev_s *dev = filep->f_inode->i_private;
+  struct p4_ppa_job_s job;
+  ppa_srm_color_mode_t input_format;
   int ret;
-  if (cmd != P4_PPA_SRM)
+  if (cmd == P4_PPA_SRM)
+    {
+      input_format = PPA_SRM_COLOR_MODE_YUV422_UYVY;
+    }
+  else if (cmd == P4_PPA_SRM_RGB565)
+    {
+      input_format = PPA_SRM_COLOR_MODE_RGB565;
+    }
+  else
     {
       return -ENOTTY;
     }
 
+  if (arg == 0)
+    {
+      return -EINVAL;
+    }
+
+  /* This board uses a FLAT build. Snapshot the bounded job once, so fields
+   * validated by ppa_run cannot change while it waits for the shared engine.
+   * The caller must still own both RAM buffers until ioctl returns.
+   */
+
+  job = *(FAR const struct p4_ppa_job_s *)arg;
   ret = nxmutex_lock(&dev->lock);
   if (ret < 0)
     {
       return ret;
     }
 
-  ret = ppa_run(dev, (FAR const struct p4_ppa_job_s *)arg);
+  ret = esp32p4_dma2d_acquire(ppa_interrupt, dev);
+  if (ret == OK)
+    {
+      ret = ppa_run(dev, &job, input_format);
+      esp32p4_dma2d_release();
+    }
+
   nxmutex_unlock(&dev->lock);
   return ret;
 }
@@ -330,7 +361,6 @@ int esp32p4_ppa_register(FAR const char *path)
   nxmutex_init(&dev->lock);
   nxsem_init(&dev->done, 0, 0);
   dev->irq_lock = (spinlock_t)SP_UNLOCKED;
-  dev->cpuint = -1;
   dev->tx = kmm_memalign(128, 128);
   dev->rx = kmm_memalign(128, 128);
   if (!dev->tx || !dev->rx)
@@ -339,35 +369,17 @@ int esp32p4_ppa_register(FAR const char *path)
     }
   else
     {
-      ret = esp_setup_irq(ETS_DMA2D_IN_CH0_INTR_SOURCE,
-                          ESP_IRQ_PRIORITY_DEFAULT, ESP_IRQ_TRIGGER_LEVEL,
-                          ppa_interrupt, dev);
-      if (ret >= 0)
-        {
-          dev->cpuint = ret;
-          ret = register_driver(path, &g_ppa_ops, 0660, dev);
-        }
+      ret = register_driver(path, &g_ppa_ops, 0660, dev);
     }
 
   if (ret < 0)
     {
       kmm_free(dev->tx);
       kmm_free(dev->rx);
-      if (dev->cpuint >= 0)
-        {
-          esp_teardown_irq(ETS_DMA2D_IN_CH0_INTR_SOURCE, dev->cpuint);
-          irq_detach(ESP_SOURCE2IRQ(ETS_DMA2D_IN_CH0_INTR_SOURCE));
-        }
-
       nxsem_destroy(&dev->done);
       nxmutex_destroy(&dev->lock);
       kmm_free(dev);
     }
-  else
-    {
-      up_enable_irq(ESP_SOURCE2IRQ(ETS_DMA2D_IN_CH0_INTR_SOURCE));
-    }
-
   return ret;
 }
 #endif

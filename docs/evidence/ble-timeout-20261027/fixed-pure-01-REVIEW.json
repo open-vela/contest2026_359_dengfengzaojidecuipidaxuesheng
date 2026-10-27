@@ -1,0 +1,16 @@
+{
+  "reviewed_cycles": 6,
+  "hid_connection_checks_passed": true,
+  "numeric_timer_accounting_passed": true,
+  "raw_log_sha256": "a4567b62146859642f7ee38a089ea6e21f029eb4600bfcfff31731d5fb9d974a",
+  "original_runner_result": "failed parsing the label expiratons (missing i); original JSON retained unchanged",
+  "numeric_field_order": "immutable C19 CLI format, every numeric digit retained; exact conservation and before/after comparison checked",
+  "last_timer_snapshot": {
+    "expirations": 2525,
+    "dispatched": 2525,
+    "coalesced": 0,
+    "pending": 0,
+    "highwater": 2
+  },
+  "radio_or_firmware_failure_observed": false
+}

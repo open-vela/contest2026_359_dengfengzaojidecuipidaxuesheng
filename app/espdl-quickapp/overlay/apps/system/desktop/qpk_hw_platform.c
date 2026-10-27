@@ -5,6 +5,7 @@
 #include "qpk_volume.h"
 #include "glass_ble.h"
 #include "glass_ble_central.h"
+#include "glass_ble_channel.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -32,6 +33,7 @@ struct hw_platform {
   struct spi_dev_s *spi;
   int uart, pwm[4];
   bool ble;
+  uint32_t channel_epoch,ble_scan,ble_links[GLASS_BLE_CENTRAL_LIMIT];
   void *usb;
 };
 static pthread_mutex_t claims_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -104,6 +106,29 @@ void *qpk_hw_platform_create_at(const char *package,const char *data_root)
 }
 void *qpk_hw_platform_create(const char *package)
 {return qpk_hw_platform_create_at(package,qpk_volume_data_root(QPK_VOLUME_INTERNAL));}
+static bool ble_owned(const struct hw_platform *p,uint32_t generation)
+{
+  if(!generation)return false;
+  for(unsigned i=0;i<GLASS_BLE_CENTRAL_LIMIT;i++)if(p->ble_links[i]==generation)return true;
+  return false;
+}
+static void ble_prune(struct hw_platform *p,const struct glass_ble_state *s)
+{
+  for(unsigned i=0;i<GLASS_BLE_CENTRAL_LIMIT;i++)if(p->ble_links[i]){
+    bool found=false;
+    for(unsigned n=0;n<s->session_count&&n<GLASS_BLE_CENTRAL_LIMIT;n++)
+      if(s->sessions[n].generation==p->ble_links[i])found=true;
+    if(!found)p->ble_links[i]=0;
+  }
+}
+static void ble_cleanup_owned(struct hw_platform *p)
+{
+  if(!p->ble)return;
+  if(p->channel_epoch)(void)glass_ble_channel_clear(p->channel_epoch);
+  if(p->ble_scan)(void)glass_ble_central_scan_stop(p->ble_scan);
+  for(unsigned i=0;i<GLASS_BLE_CENTRAL_LIMIT;i++)if(p->ble_links[i])
+    (void)glass_ble_central_disconnect_generation(p->ble_links[i]);
+}
 void qpk_hw_platform_destroy(void *opaque)
 {
   struct hw_platform *p = opaque; if (!p) return;
@@ -112,7 +137,7 @@ void qpk_hw_platform_destroy(void *opaque)
   if (p->spi) esp_spibus_uninitialize(p->spi);
   if (p->uart >= 0) close(p->uart);
   for (unsigned i = 0; i < 4; i++) if (p->pwm[i] >= 0) { ioctl(p->pwm[i], PWMIOC_STOP, 0); close(p->pwm[i]); }
-  if (p->ble) { glass_ble_cancel(); glass_ble_disconnect(); }
+  ble_cleanup_owned(p);
   pthread_mutex_lock(&claims_lock); if (ble_owner == p) ble_owner = NULL; pthread_mutex_unlock(&claims_lock);
   unclaim(p, 0x7f); free(p);
 }
@@ -290,11 +315,14 @@ static int pwm_operation(struct hw_platform *p, const char *op, const cJSON *a, 
   cJSON_AddNumberToObject(out, "pin", pwm_pins[channel]); return ret;
 }
 
+extern int qpk_ble_channel_execute(const char *,const cJSON *,cJSON *,struct qpk_hw_progress *);
 extern int qpk_ble_gatt_execute(const char *,const cJSON *,cJSON *,struct qpk_hw_progress *);
 static int ble_operation(struct hw_platform *p, const char *op, const cJSON *a, cJSON *out,struct qpk_hw_progress *progress)
 {
+  if(!strcmp(op,"channelStatus"))return qpk_ble_channel_execute(op,a,out,progress);
   struct glass_ble_state *s = malloc(sizeof(*s)); if (!s) return -ENOMEM;
   glass_ble_read(s);
+  ble_prune(p,s);
   int ret = 0;
   if (!strcmp(op, "status")) {
     cJSON_AddBoolToObject(out, "ready", s->ready); cJSON_AddBoolToObject(out, "scanning", s->scanning);
@@ -302,9 +330,36 @@ static int ble_operation(struct hw_platform *p, const char *op, const cJSON *a, 
     cJSON_AddNumberToObject(out, "error", s->error);
     cJSON_AddNumberToObject(out,"generation",s->generation);cJSON_AddNumberToObject(out,"scanGeneration",s->scan_generation);
     cJSON_AddNumberToObject(out,"mtu",s->mtu);cJSON_AddBoolToObject(out,"encrypted",s->encrypted);cJSON_AddBoolToObject(out,"bonded",s->bonded);
+    cJSON_AddNumberToObject(out,"connectionCount",s->connection_count);
+    cJSON_AddNumberToObject(out,"centralCapacity",s->central_capacity);
+    cJSON_AddBoolToObject(out,"mousePaused",s->mouse_paused);
+    cJSON_AddBoolToObject(out,"restoring",s->restoring);
+    cJSON *restores=cJSON_AddArrayToObject(out,"restores");
+    if(!restores){free(s);return -ENOMEM;}
+    for(unsigned i=0;i<s->restore_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++){
+      const struct glass_ble_restore_result *r=&s->restores[i];
+      cJSON *d=cJSON_CreateObject();if(!d){free(s);return -ENOMEM;}
+      cJSON_AddNumberToObject(d,"generation",r->generation);
+      cJSON_AddBoolToObject(d,"attempted",r->attempted);
+      cJSON_AddBoolToObject(d,"connected",r->connected);
+      cJSON_AddNumberToObject(d,"error",r->error);
+      cJSON_AddItemToArray(restores,d);
+    }
+    cJSON *sessions=cJSON_AddArrayToObject(out,"sessions");
+    if(!sessions){free(s);return -ENOMEM;}
+    for(unsigned i=0;i<s->session_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++){
+      const struct glass_ble_session *v=&s->sessions[i];cJSON *d=cJSON_CreateObject();
+      if(!d){free(s);return -ENOMEM;}
+      cJSON_AddNumberToObject(d,"generation",v->generation);cJSON_AddBoolToObject(d,"owned",ble_owned(p,v->generation));
+      cJSON_AddBoolToObject(d,"connecting",v->connecting);cJSON_AddBoolToObject(d,"connected",v->connected);
+      cJSON_AddBoolToObject(d,"disconnecting",v->disconnecting);cJSON_AddBoolToObject(d,"encrypted",v->encrypted);
+      cJSON_AddBoolToObject(d,"mousePaused",v->mouse_paused);
+      cJSON_AddBoolToObject(d,"bonded",v->bonded);cJSON_AddNumberToObject(d,"mtu",v->mtu);
+      cJSON_AddStringToObject(d,"name",v->peer.name);cJSON_AddItemToArray(sessions,d);
+    }
     cJSON *list = cJSON_AddArrayToObject(out, "devices");
     if (!list) { free(s); return -ENOMEM; }
-    for (unsigned i = 0; i < s->count; i++) {
+    for (unsigned i = 0; i < s->count && i < GLASS_BLE_LIMIT; i++) {
       cJSON *d = cJSON_CreateObject(); if (!d) { ret = -ENOMEM; break; }
       char address[18]; struct glass_ble_device *v = &s->devices[i];
       snprintf(address, sizeof(address), "%02x:%02x:%02x:%02x:%02x:%02x", v->address[5],v->address[4],v->address[3],v->address[2],v->address[1],v->address[0]);
@@ -313,18 +368,45 @@ static int ble_operation(struct hw_platform *p, const char *op, const cJSON *a, 
     }
   } else {
     pthread_mutex_lock(&claims_lock);
-    if ((ble_owner && ble_owner != p) || (!p->ble && (s->scanning || s->connecting || s->connected))) ret = -EBUSY;
+    if ((ble_owner && ble_owner != p) || (!p->ble && (s->scanning || s->session_count || s->connecting || s->connected))) ret = -EBUSY;
     else { ble_owner = p; p->ble = true; }
     pthread_mutex_unlock(&claims_lock);
     if (!ret) {
-      if (!strcmp(op, "start")) ret = glass_ble_start();
-      else if (!strcmp(op, "scan")) ret = glass_ble_scan();
-      else if (!strcmp(op, "connect")) { int index = number_arg(a, "index", -1, 0, GLASS_BLE_LIMIT - 1);
-        int generation=number_arg(a,"scanGeneration",0,0,INT_MAX);
-        ret = index < 0 || generation<0 ? -EINVAL : glass_ble_central_connect(index,generation); }
-      else if (!strcmp(op, "cancel")) ret = glass_ble_cancel();
-      else if (!strcmp(op, "disconnect")) ret = glass_ble_disconnect();
-      else ret = qpk_ble_gatt_execute(op,a,out,progress);
+      if(!strcmp(op,"channelSend")||!strcmp(op,"channelReceive")){
+        ret=qpk_ble_channel_execute(op,a,out,progress);
+        if(!ret){const cJSON *epoch=cJSON_GetObjectItemCaseSensitive(a,"epoch");p->channel_epoch=epoch->valueint;}
+      }else if (!strcmp(op, "start")) ret = glass_ble_start();
+      else if (!strcmp(op, "scan")) {
+        uint32_t accepted=0;ret=glass_ble_central_scan_session(NULL,&accepted);if(!ret)p->ble_scan=accepted;
+      }else if (!strcmp(op, "connect")) {
+        int index=number_arg(a,"index",-1,0,GLASS_BLE_LIMIT-1);
+        int scan=number_arg(a,"scanGeneration",0,0,INT_MAX);uint32_t accepted=0;
+        unsigned slot=0;while(slot<GLASS_BLE_CENTRAL_LIMIT&&p->ble_links[slot])slot++;
+        ret=index<0||scan<0?-EINVAL:slot==GLASS_BLE_CENTRAL_LIMIT?-ENOSPC:
+          glass_ble_central_connect_session(index,scan,&accepted);
+        if(!ret){
+          p->ble_links[slot]=accepted;
+          cJSON_AddNumberToObject(out,"generation",accepted);
+          cJSON_AddStringToObject(out,"scope","accepted_not_connected");
+        }
+      }else if (!strcmp(op,"cancel")) {
+        if(p->ble_scan)ret=glass_ble_central_scan_stop(p->ble_scan);
+        for(unsigned i=0;i<s->session_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++)
+          if(s->sessions[i].connecting&&ble_owned(p,s->sessions[i].generation)){
+            int rc=glass_ble_central_disconnect_generation(s->sessions[i].generation);if(!ret)ret=rc;
+          }
+      }else{
+        int generation=number_arg(a,"generation",0,0,INT_MAX);
+        if(!strcmp(op,"disconnect")&&!generation){
+          unsigned owned=0;
+          for(unsigned i=0;i<GLASS_BLE_CENTRAL_LIMIT;i++)if(p->ble_links[i]){generation=p->ble_links[i];owned++;}
+          if(owned>1)generation=-1;
+        }
+        if(generation<0)ret=-EINVAL;
+        else if(!ble_owned(p,generation))ret=-EACCES;
+        else if(!strcmp(op,"disconnect"))ret=glass_ble_central_disconnect_generation(generation);
+        else ret=qpk_ble_gatt_execute(op,a,out,progress);
+      }
     }
   }
   free(s); return ret;

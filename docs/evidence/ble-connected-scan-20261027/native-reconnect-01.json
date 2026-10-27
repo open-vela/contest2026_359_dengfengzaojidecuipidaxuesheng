@@ -1,0 +1,11 @@
+{
+  "identity": "D3:38:F6:39:04:87",
+  "name": "OpenVela Mouse-F6390487",
+  "mode": "reconnect",
+  "observed": true,
+  "pairing": null,
+  "services": [],
+  "initially_paired": true,
+  "service_result": "UNREACHABLE",
+  "error": "AssertionError: UNREACHABLE"
+}

@@ -1,0 +1,44 @@
+{
+  "nuttx/arch/risc-v/src/esp32p4/esp32p4_ppa.c": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "084356ae339dabad2eaf029cd9913c00c7dbcc785b9a5f75a1158d6f4e58cea1",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  },
+  "nuttx/include/nuttx/video/p4_ppa.h": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "29ea50106f1d6bc79cfd3803e2397c3e3c4049f3a96ca16cdfe417969541a8cd",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  },
+  "apps/system/desktop/qpk_ppa.c": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "2d2b8061b1e4f197cc80d82edfe63a69b6e5c91a938bfc166b7927da5c9fe75a",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  },
+  "apps/system/desktop/qpk_ppa.h": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "5237202c45442020008bd9caee7661e190b442a4b077301ae269c53f8ffca383",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  },
+  "apps/system/desktop/qpk_jpeg_hw.c": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "926b4c3ab3b85da613ce1de86be4f998263a63dc7b70fdae1e9378b2ee40fed4",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  },
+  "apps/system/desktop/qpk_jpeg_hw.h": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "2909d1915ee79ad04fc8aa3fd0bbe300f644aa0b581a33bc2d44a39f24c76ea4",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  },
+  "apps/system/desktop/qpk_mjpeg.c": {
+    "returncode": 1,
+    "passed": false,
+    "source_sha256": "f2a6008913b4197ec6ddf77542bea5db7a85cbee028e12fca348f3741e870934",
+    "scope": "whole file, including existing compact style; NTFS execute-bit reports also retained"
+  }
+}

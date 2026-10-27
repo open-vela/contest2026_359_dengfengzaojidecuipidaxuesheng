@@ -1,0 +1,81 @@
+{
+  "ble-central-02": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-central-02",
+    "binary_sha256": "c6cf3ca9eac764dd9973be11390c591a2d22d1e9b609c94cba5b13e1c935f76a",
+    "scope": "host-only; hardware I/O replaced"
+  },
+  "softap-02": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\softap-02",
+    "binary_sha256": "58fb361e3864ef8ce188b1c2a77fb621fcce918092a9fe47585347edb388e6e7",
+    "scope": "host-only; hardware I/O replaced",
+    "RESULT.json_sha256": "c5aa732e21a2e6839b6dfd1de651f029b193e48048fdb2c0d56852eb171047a2"
+  },
+  "tx-deferred-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\tx-deferred-01",
+    "binary_sha256": "580be7801f2e6dca077c38b1f5f24b1c726bb5377b58a6561de2427738c0e18e",
+    "scope": "host-only; hardware I/O replaced",
+    "RESULT.json_sha256": "076c5e75f25c77b2d53c261a24db6e5bd1e8cf408946358cc4cb4ec06dd4d62c"
+  },
+  "ble-snapshots-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-snapshots-01",
+    "binary_sha256": "b5de25ac41c48ae94fd0000d1b3ff5b68e2915c5c5335bab21efb3a6dc283dd4",
+    "scope": "host-only; hardware I/O replaced",
+    "test.log_sha256": "308e3bb189e7155060793d06c144168c9e17a4dc0d90c998911dc4706d61f66e"
+  },
+  "ble-ownership-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-ownership-01",
+    "binary_sha256": "cfd9f4be06015be403d78b4ce1f5c7613c9fdffa239495970c8cc09925aeb6b3",
+    "scope": "host-only; hardware I/O replaced",
+    "test.log_sha256": "53c5784e32a1436ecf2cb0bd18a9493fd0fc9b851f1a7138912a487242e6f47e"
+  },
+  "ble-bonding-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-bonding-01",
+    "binary_sha256": "dfc3f46e9dda4d80aeea3002b4ece661068a8483a98c077e2c09608dc173143c",
+    "scope": "host-only; hardware I/O replaced",
+    "test.log_sha256": "e6490f1eca74e96fc3ab99706b766f967bb1027a4a4626fc440d3bcc01b59645"
+  },
+  "ble-identity-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-identity-01",
+    "binary_sha256": "0e4d0aa6178775d3b6876a6e57a5035fb327a9de08c27617254447139d771373",
+    "scope": "host-only; hardware I/O replaced",
+    "test.log_sha256": "5a1e2e5cebca8d7865c71b1cbd91fe1f4554002c0426b390ceaaa13d89710768"
+  },
+  "ble-mailbox-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-mailbox-01",
+    "binary_sha256": "f428634f914a7f256f550eacde656b06c993aa68a439c1f6dca9352de4433369",
+    "scope": "host-only; hardware I/O replaced",
+    "VERIFICATION.json_sha256": "17df96b2e43c5c3c06a6fcd7b6727a0c37a87fd035b106680e6733ea6774055c",
+    "test.log_sha256": "d3c761fb60774e3eea733715ab682442830d818f05acf6fb0c7580946631deb5"
+  },
+  "ble-ui-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\ble-ui-01",
+    "binary_sha256": "1da0b6c98ce17310e168b968a0c24c1d28e5d3977c83046eb4d7e7ddd9783a1f",
+    "scope": "host-only; hardware I/O replaced",
+    "render-sources.json_sha256": "129154285129854cab65f4eb3e332ef366da4fa581b443a1f6754a60770b6fee"
+  },
+  "xip-01": {
+    "passed": true,
+    "observed_process_exit_code": 0,
+    "artifact": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\feature-gap-20261027\\host\\xip-01",
+    "binary_sha256": "dd5d1c4d5ec7738732e6978765c8444ef864ca5d2a2959f8fbdb88eb1ee5a95b",
+    "scope": "host-only; hardware I/O replaced"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "mode": "camera",
+  "rounds": 2,
+  "flash_delta_read_write_erase": [
+    3227,
+    767,
+    78
+  ],
+  "physical_screen_observation": "user confirmed normal throughout",
+  "passed": true,
+  "user_response": "两个场景全程正常",
+  "user_confirmation_date": "2026-10-27"
+}

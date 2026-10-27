@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-27",
+  "user_instruction": "停止测试，总结失败经验，使用好的办法",
+  "tests": "stopped_by_user",
+  "build_flash_reset": "stopped_by_user",
+  "matching_active_processes_at_stop": [],
+  "last_verified_flash_candidate": 19,
+  "last_verified_flash_sha256": "b6b17eed6481edfa4ba977a2c19a5930452081281b0ae585f44a039c8ca39b0f",
+  "current_device_runtime": "unconfirmed_after_last_jtag_reset; do not inherit historical C19 success",
+  "candidate20": "ran; business reconnect failed with supervision timeout 520 and epoch 13 -> 15",
+  "candidate21": "frozen build/host/link checks passed; boot query failed; rollback image verified; no native pairing acceptance",
+  "current_source": "passive GAP parameter observation; no automatic update; not built, tested or flashed",
+  "timeout_root_cause": "not_uniquely_proven",
+  "lock_order_root_cause": "spin waits observed; lock ownership/full chain not proven",
+  "c6_firmware_modified": false,
+  "user_data_backups": "retained privately in output; not copied into repository"
+}

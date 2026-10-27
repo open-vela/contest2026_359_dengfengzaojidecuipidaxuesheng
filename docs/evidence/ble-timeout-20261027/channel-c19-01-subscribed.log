@@ -1,0 +1,15 @@
+c6ble channel status
+BLE_CHANNEL ready=1 connected=1 encrypted=1 notify=1 epoch=1 connection=0 mtu=256 payload=244 queued=0 received=0 sent=0 rejected=0 error=0
+BLE_CHANNEL_UUID service=69d14e9d-5e2a-4564-8b03-7acf16a046bc rx=fe295b09-ba85-4b80-aec3-095121e8ae2f tx=9fc89159-b5c1-4797-8f7a-0f375f7e8138 info=e86cb6ea-0566-4ea9-b513-1d94e99c9a54
+c6ble channel status result=0
+nsh> [K
+nsh> [Kc6ble mrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 14 aa 15 00
+ouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=1 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble status
+configured_connections=3 effective_connections=3 host_ready=1 device_connected=0 mouse_connected=1 store_error=0
+reserved_connections=1 central_reserved=0 hid_reserved=1 central_reservations=0 device_connections=0 mixed_role_capacity=1
+nsh> [K
+nsh> [K

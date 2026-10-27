@@ -1,0 +1,127 @@
+--- C18
++++ C19
+@@ -238,5 +238,5 @@
+ 4ff50c7a:	00647737          	lui	a4,0x647
+ 4ff50c7e:	087c                	addi	a5,sp,28
+-4ff50c80:	77870713          	addi	a4,a4,1912 # 647778 <_image_drom_size>
++4ff50c80:	7e870713          	addi	a4,a4,2024 # 6477e8 <_image_drom_size>
+ 4ff50c84:	86d6                	mv	a3,s5
+ 4ff50c86:	964e                	add	a2,a2,s3
+@@ -246,5 +246,5 @@
+ 4ff50c90:	00386737          	lui	a4,0x386
+ 4ff50c94:	087c                	addi	a5,sp,28
+-4ff50c96:	38070713          	addi	a4,a4,896 # 386380 <_image_irom_size>
++4ff50c96:	30070713          	addi	a4,a4,768 # 386300 <_image_irom_size>
+ 4ff50c9a:	86d2                	mv	a3,s4
+ 4ff50c9c:	864a                	mv	a2,s2
+@@ -409,5 +409,5 @@
+ 4ff4ed30:	177d                	addi	a4,a4,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4ed32:	01069613          	slli	a2,a3,0x10
+-4ff4ed36:	38078793          	addi	a5,a5,896 # 48386380 <_etext>
++4ff4ed36:	30078793          	addi	a5,a5,768 # 48386300 <_etext>
+ 4ff4ed3a:	8241                	srli	a2,a2,0x10
+ 4ff4ed3c:	97ba                	add	a5,a5,a4
+@@ -437,5 +437,5 @@
+ 4ff4ed82:	12b7ed63          	bltu	a5,a1,4ff4eebc <esp_mmu_map_init+0x1f6>
+ 4ff4ed86:	4688                	lw	a0,8(a3)
+-4ff4ed88:	0006aa23          	sw	zero,20(a3) # 4c000014 <_esp_system_init_fn_array_end+0x362887c>
++4ff4ed88:	0006aa23          	sw	zero,20(a3) # 4c000014 <_esp_system_init_fn_array_end+0x362880c>
+ 4ff4ed8c:	8f8d                	sub	a5,a5,a1
+ 4ff4ed8e:	ca88                	sw	a0,16(a3)
+@@ -445,9 +445,9 @@
+ 4ff4ed9a:	48390637          	lui	a2,0x48390
+ 4ff4ed9e:	02060613          	addi	a2,a2,32 # 48390020 <g_stub_table>
+-4ff4eda2:	489d76b7          	lui	a3,0x489d7
++4ff4eda2:	489d86b7          	lui	a3,0x489d8
+ 4ff4eda6:	65c1                	lui	a1,0x10
+ 4ff4eda8:	15fd                	addi	a1,a1,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4edaa:	01061793          	slli	a5,a2,0x10
+-4ff4edae:	79868693          	addi	a3,a3,1944 # 489d7798 <_esp_system_init_fn_array_end>
++4ff4edae:	80868693          	addi	a3,a3,-2040 # 489d7808 <_esp_system_init_fn_array_end>
+ 4ff4edb2:	96ae                	add	a3,a3,a1
+ 4ff4edb4:	83c1                	srli	a5,a5,0x10
+@@ -497,7 +497,7 @@
+ 4ff4ee34:	01203933          	snez	s2,s2
+ 4ff4ee38:	9922                	add	s2,s2,s0
+-4ff4ee3a:	a924a423          	sw	s2,-1400(s1) # 4ff6aa88 <s_mmu_ctx>
++4ff4ee3a:	a924ac23          	sw	s2,-1384(s1) # 4ff6aa98 <s_mmu_ctx>
+ 4ff4ee3e:	577d                	li	a4,-1
+-4ff4ee40:	a8848493          	addi	s1,s1,-1400
++4ff4ee40:	a9848493          	addi	s1,s1,-1384
+ 4ff4ee44:	00e78b63          	beq	a5,a4,4ff4ee5a <esp_mmu_map_init+0x194>
+ 4ff4ee48:	02800613          	li	a2,40
+@@ -513,5 +513,5 @@
+ 4ff4ee6a:	02878793          	addi	a5,a5,40
+ 4ff4ee6e:	02800613          	li	a2,40
+-4ff4ee72:	a8c50513          	addi	a0,a0,-1396 # 4ff6aa8c <s_mmu_ctx+0x4>
++4ff4ee72:	a9c50513          	addi	a0,a0,-1380 # 4ff6aa9c <s_mmu_ctx+0x4>
+ 4ff4ee76:	00c105b3          	add	a1,sp,a2
+ 4ff4ee7a:	953e                	add	a0,a0,a5
+@@ -520,5 +520,5 @@
+ 4ff4ee84:	02090363          	beqz	s2,4ff4eeaa <esp_mmu_map_init+0x1e4>
+ 4ff4ee88:	4ff6b7b7          	lui	a5,0x4ff6b
+-4ff4ee8c:	aac78793          	addi	a5,a5,-1364 # 4ff6aaac <s_mmu_ctx+0x24>
++4ff4ee8c:	abc78793          	addi	a5,a5,-1348 # 4ff6aabc <s_mmu_ctx+0x24>
+ 4ff4ee90:	d49c                	sw	a5,40(s1)
+ 4ff4ee92:	0204a223          	sw	zero,36(s1)
+@@ -526,5 +526,5 @@
+ 4ff4ee98:	00f91963          	bne	s2,a5,4ff4eeaa <esp_mmu_map_init+0x1e4>
+ 4ff4ee9c:	4ff6b7b7          	lui	a5,0x4ff6b
+-4ff4eea0:	ad478793          	addi	a5,a5,-1324 # 4ff6aad4 <s_mmu_ctx+0x4c>
++4ff4eea0:	ae478793          	addi	a5,a5,-1308 # 4ff6aae4 <s_mmu_ctx+0x4c>
+ 4ff4eea4:	0404a623          	sw	zero,76(s1)
+ 4ff4eea8:	c8bc                	sw	a5,80(s1)
+@@ -586,5 +586,5 @@
+ 4ff4e9bc:	d422                	sw	s0,40(sp)
+ 4ff4e9be:	4ff6b437          	lui	s0,0x4ff6b
+-4ff4e9c2:	ae044783          	lbu	a5,-1312(s0) # 4ff6aae0 <s_psram_ctx>
++4ff4e9c2:	af044783          	lbu	a5,-1296(s0) # 4ff6aaf0 <s_psram_ctx>
+ 4ff4e9c6:	d606                	sw	ra,44(sp)
+ 4ff4e9c8:	d226                	sw	s1,36(sp)
+@@ -593,5 +593,5 @@
+ 4ff4e9ce:	cc52                	sw	s4,24(sp)
+ 4ff4e9d0:	ca56                	sw	s5,20(sp)
+-4ff4e9d2:	ae040413          	addi	s0,s0,-1312
++4ff4e9d2:	af040413          	addi	s0,s0,-1296
+ 4ff4e9d6:	c7b1                	beqz	a5,4ff4ea22 <esp_psram_init+0x68>
+ 4ff4e9d8:	aaaf20ef          	jal	4ff40c82 <efuse_hal_chip_revision>
+@@ -699,5 +699,5 @@
+ 4ff4f1b6:	177d                	addi	a4,a4,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4f1b8:	da26                	sw	s1,52(sp)
+-4ff4f1ba:	38078793          	addi	a5,a5,896 # 48386380 <_etext>
++4ff4f1ba:	30078793          	addi	a5,a5,768 # 48386300 <_etext>
+ 4ff4f1be:	480004b7          	lui	s1,0x48000
+ 4ff4f1c2:	97ba                	add	a5,a5,a4
+@@ -777,9 +777,9 @@
+ 4ff4f308 <mmu_config_psram_rodata_segment>:
+ 4ff4f308:	7139                	addi	sp,sp,-64
+-4ff4f30a:	489d77b7          	lui	a5,0x489d7
++4ff4f30a:	489d87b7          	lui	a5,0x489d8
+ 4ff4f30e:	6741                	lui	a4,0x10
+ 4ff4f310:	177d                	addi	a4,a4,-1 # ffff <regnum_t6+0xffe0>
+ 4ff4f312:	da26                	sw	s1,52(sp)
+-4ff4f314:	79878793          	addi	a5,a5,1944 # 489d7798 <_esp_system_init_fn_array_end>
++4ff4f314:	80878793          	addi	a5,a5,-2040 # 489d7808 <_esp_system_init_fn_array_end>
+ 4ff4f318:	483904b7          	lui	s1,0x48390
+ 4ff4f31c:	97ba                	add	a5,a5,a4
+@@ -876,5 +876,5 @@
+ 4ff4f42e:	ffcb1097          	auipc	ra,0xffcb1
+ 4ff4f432:	e3a080e7          	jalr	-454(ra) # 4fc00268 <memset>
+-4ff4f436:	de440793          	addi	a5,s0,-540 # 4ff6ade4 <s_tuning_cfg_drv>
++4ff4f436:	df440793          	addi	a5,s0,-524 # 4ff6adf4 <s_tuning_cfg_drv>
+ 4ff4f43a:	539c                	lw	a5,32(a5)
+ 4ff4f43c:	0c800513          	li	a0,200
+@@ -883,5 +883,5 @@
+ 4ff4f444:	898a                	mv	s3,sp
+ 4ff4f446:	4a81                	li	s5,0
+-4ff4f448:	de440413          	addi	s0,s0,-540
++4ff4f448:	df440413          	addi	s0,s0,-524
+ 4ff4f44c:	0b492683          	lw	a3,180(s2)
+ 4ff4f450:	04daeb63          	bltu	s5,a3,4ff4f4a6 <s_do_tuning.constprop.0+0xae>
+@@ -961,5 +961,5 @@
+ 4ff4f524 <s_register_config_driver>:
+ 4ff4f524:	4ff6b7b7          	lui	a5,0x4ff6b
+-4ff4f528:	de478793          	addi	a5,a5,-540 # 4ff6ade4 <s_tuning_cfg_drv>
++4ff4f528:	df478793          	addi	a5,a5,-524 # 4ff6adf4 <s_tuning_cfg_drv>
+ 4ff4f52c:	c185                	beqz	a1,4ff4f54c <s_register_config_driver+0x28>
+ 4ff4f52e:	4118                	lw	a4,0(a0)

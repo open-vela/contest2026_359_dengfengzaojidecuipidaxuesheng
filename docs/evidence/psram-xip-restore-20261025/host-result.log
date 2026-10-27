@@ -1,0 +1,3 @@
+Command: python3 source/tools/test_p4_psram_xip.py --nuttx /home/flash/vela-p4/psram-xip-restore-20261025/nuttx --output host
+Exit code: 0
+P4_PSRAM_XIP_OK: real verifier good/corrupt/MMU-target/heap-overlap; SDK SPI1 ready gate and 100 mutex pairs, zero cache-off

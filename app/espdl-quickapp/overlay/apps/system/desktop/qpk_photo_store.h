@@ -6,7 +6,8 @@
 
 #define QPK_PHOTO_COPY_MAX (2u * 1024u * 1024u)
 enum qpk_photo_owner { QPK_PHOTO_PREVIEW, QPK_PHOTO_ASSISTANT, QPK_PHOTO_OWNERS };
-enum qpk_photo_format { QPK_PHOTO_JPEG, QPK_PHOTO_BMP565, QPK_PHOTO_BMP24 };
+enum qpk_photo_format { QPK_PHOTO_JPEG, QPK_PHOTO_BMP565, QPK_PHOTO_BMP24,
+                        QPK_PHOTO_JPEG565 };
 struct qpk_photo_input {
   enum qpk_photo_format format;
   const void *data;

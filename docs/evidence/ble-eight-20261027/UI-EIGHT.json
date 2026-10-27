@@ -1,0 +1,17 @@
+{
+  "scope": "native_lvgl_host_not_device",
+  "asan_ubsan": true,
+  "passed": true,
+  "central_capacity": 8,
+  "themes": [
+    "dark",
+    "light"
+  ],
+  "screens": {
+    "dark-bluetooth-eight-paused.png": "776881695413dbca77058fbfbd6f1eec2fa100183fa3fc835740a984a312d78e",
+    "dark-bluetooth-eight.png": "ff160a2147b7f4d2a82802198ad97a49b8378e3c77d54a52d01a51f05ea7334a",
+    "light-bluetooth-eight-paused.png": "9aafb717e1d04ee2b7385420a4bfbaa98772557ba5f0158d1c61d8daacc0f25b",
+    "light-bluetooth-eight.png": "c06209979dfceaa656050a794965b485a4444f7091786b2a3e86edb6ba9c5ebc"
+  },
+  "source_sha256": "9808229c35877b471327225346f83869446e43491d72df983849bf8925070a1b"
+}

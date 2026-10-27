@@ -1,0 +1,1 @@
+P4_PSRAM_XIP_OK: real verifier good/corrupt/MMU-target/heap-overlap; SDK SPI1 ready gate and 100 mutex pairs, zero cache-off

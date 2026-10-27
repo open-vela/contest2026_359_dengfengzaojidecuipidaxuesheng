@@ -1,0 +1,363 @@
+c6ble identity
+type=static-random address=F9:71:66:11:70:FC name=OpenVela Mouse-661170FC
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=13 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=3967 dispatched=3967 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse stop
+[CPU1] [ble-hid] disconnect reason=534 encrypted=1
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 46 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=14 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=14 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 47 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 48 aa 15 00
+c6ble timers
+NPL_CALLOUT expirations=4127 dispatched=4127 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=15 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4140 dispatched=4140 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse stop
+[CPU0] [ble-hid] disconnect reason=534 encrypted=1
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=16 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=16 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=16 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=16 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 49 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 4a aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4319 dispatched=4319 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=17 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4332 dispatched=4332 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse strpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 4b aa 15 00
+op
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=18 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 4c aa 15 00
+ouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 4d aa 15 00
+c6ble timers
+NPL_CALLOUT expirations=4492 dispatched=4492 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=19 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4505 dispatched=4505 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse stop
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=20 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6be mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 4e aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 4f aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4655 dispatched=4655 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=21 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4668 dispatched=4668 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse stop
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=22 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=22 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 50 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 51 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4828 dispatched=4828 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=23 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=4841 dispatched=4841 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [Kc6rpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 52 aa 15 00
+ble mouse stop
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=0 advertising=0 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=24 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=24 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 53 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble morpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 54 aa 15 00
+use status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=25 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble timers
+NPL_CALLOUT expirations=5002 dispatched=5002 coalesced=0 pending=0 highwater=2
+nsh> [K
+nsh> [K

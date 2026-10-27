@@ -1,0 +1,20 @@
+{
+  "client_ip": "192.168.4.3",
+  "ifindex": 7,
+  "path": "explicit WLAN interface -> C6 SoftAP -> P4 NAT -> Ethernet",
+  "checks": [
+    {
+      "kind": "HTTP",
+      "host": "192.168.31.95",
+      "ip": "192.168.31.95",
+      "port": 8765,
+      "error": "timed out"
+    },
+    {
+      "kind": "DNS",
+      "server": "192.168.31.1",
+      "name": "www.baidu.com",
+      "error": "timed out"
+    }
+  ]
+}

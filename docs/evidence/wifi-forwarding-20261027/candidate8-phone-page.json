@@ -1,0 +1,8 @@
+{
+  "image_sha256": "32e718bfe1eaca246393065fc35602809fc170ecf73b962dc6c2b41631eb3404",
+  "source": "direct human reply in this task",
+  "question": "phone on ESPClaw-FCA21C opens http://192.168.31.95:8765/ without starting bulk test",
+  "answer": "page displays normally",
+  "phone_browser_page_verified_by_user": true,
+  "phone_full_speed_test_completed": false
+}

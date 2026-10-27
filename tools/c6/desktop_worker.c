@@ -2,6 +2,7 @@
 #include "desktop_worker.h"
 #include <limits.h>
 #include <string.h>
+#include <time.h>
 
 #ifndef CONFIG_SYSTEM_C6_DESKTOP_STACKSIZE
 #define CONFIG_SYSTEM_C6_DESKTOP_STACKSIZE 8192
@@ -16,12 +17,40 @@ static void wipe(void *data, size_t length)
 static void *run(void *arg)
 {
   struct c6_desktop_worker *w = arg;
+  struct timespec next_maintain = {0};
+  if (w->backend.maintain)
+    { clock_gettime(CLOCK_MONOTONIC, &next_maintain); next_maintain.tv_sec++; }
   pthread_mutex_lock(&w->lock);
   for (;;)
     {
+      if (w->backend.maintain && !w->stopping)
+        {
+          struct timespec now;
+          clock_gettime(CLOCK_MONOTONIC, &now);
+          if (now.tv_sec > next_maintain.tv_sec ||
+              (now.tv_sec == next_maintain.tv_sec && now.tv_nsec >= next_maintain.tv_nsec))
+            {
+              pthread_mutex_unlock(&w->lock);
+              w->backend.maintain();
+              pthread_mutex_lock(&w->lock);
+              clock_gettime(CLOCK_MONOTONIC, &next_maintain);
+              next_maintain.tv_sec++;
+            }
+        }
       while (!w->queued && !w->stopping)
-        pthread_cond_wait(&w->wake, &w->lock);
+        {
+          if (!w->backend.maintain)
+            pthread_cond_wait(&w->wake, &w->lock);
+          else
+            {
+              int waited = pthread_cond_timedwait(&w->wake, &w->lock, &next_maintain);
+              if (waited == ETIMEDOUT) break;
+              if (waited && waited != EINTR)
+                { w->result.error = -waited; w->stopping = true; }
+            }
+        }
       if (w->stopping) break;
+      if (!w->queued) continue;
       struct c6_desktop_result result = {0};
       char ssid[33];
       char password[65];
@@ -53,6 +82,11 @@ static void *run(void *arg)
         result.error = w->backend.connect(ssid, password);
       else if (result.operation == C6_DESKTOP_DISCONNECT)
         result.error = w->backend.disconnect ? w->backend.disconnect() : -ENOTSUP;
+      else if (result.operation == C6_DESKTOP_SOFTAP_START)
+        result.error = w->backend.softap_start ?
+          w->backend.softap_start(ssid, password) : -ENOTSUP;
+      else if (result.operation == C6_DESKTOP_SOFTAP_STOP)
+        result.error = w->backend.softap_stop ? w->backend.softap_stop() : -ENOTSUP;
       else
         {
           result.error = w->backend.status ?
@@ -87,7 +121,13 @@ int c6_desktop_worker_start(struct c6_desktop_worker *w,
   w->backend = *backend;
   int ret = pthread_mutex_init(&w->lock, NULL);
   if (ret) return -ret;
-  ret = pthread_cond_init(&w->wake, NULL);
+  pthread_condattr_t condition;
+  ret = pthread_condattr_init(&condition);
+  if (ret) { pthread_mutex_destroy(&w->lock); return -ret; }
+  if (backend->maintain)
+    ret = pthread_condattr_setclock(&condition, CLOCK_MONOTONIC);
+  if (!ret) ret = pthread_cond_init(&w->wake, &condition);
+  pthread_condattr_destroy(&condition);
   if (ret) { pthread_mutex_destroy(&w->lock); return -ret; }
   pthread_attr_t attr;
   ret = pthread_attr_init(&attr);
@@ -113,10 +153,10 @@ int c6_desktop_worker_submit(struct c6_desktop_worker *w,
                              enum c6_desktop_operation operation,
                              const char *ssid, const char *password)
 {
-  if (!w || operation < C6_DESKTOP_SCAN || operation > C6_DESKTOP_DISCONNECT)
+  if (!w || operation < C6_DESKTOP_SCAN || operation > C6_DESKTOP_SOFTAP_STOP)
     return -EINVAL;
   size_t slen = 0, plen = 0;
-  if (operation == C6_DESKTOP_CONNECT)
+  if (operation == C6_DESKTOP_CONNECT || operation == C6_DESKTOP_SOFTAP_START)
     {
       if (!ssid || !password) return -EINVAL;
       slen = strnlen(ssid, 33);

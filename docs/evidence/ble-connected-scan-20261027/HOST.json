@@ -1,0 +1,69 @@
+{
+  "ble_central": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with transport/callback substitutes",
+    "log_sha256": "191f844e26a5be6ef3be62fe92862540e3b45bca47a8aa02caf7ba684775911b"
+  },
+  "ble_cli": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with transport/callback substitutes",
+    "log_sha256": "f6053b014f4cede2d23acb4a462b326ea9aceb309073b8f2a5c80fba13bdf7e2"
+  },
+  "ble_hid_ownership": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with transport/callback substitutes",
+    "log_sha256": "53c5784e32a1436ecf2cb0bd18a9493fd0fc9b851f1a7138912a487242e6f47e"
+  },
+  "ble_hid_bonding": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with transport/callback substitutes",
+    "log_sha256": "e6490f1eca74e96fc3ab99706b766f967bb1027a4a4626fc440d3bcc01b59645"
+  },
+  "ble_identity": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with transport/callback substitutes",
+    "log_sha256": "5a1e2e5cebca8d7865c71b1cbd91fe1f4554002c0426b390ceaaa13d89710768"
+  },
+  "ble_snapshots": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with transport/callback substitutes",
+    "log_sha256": "308e3bb189e7155060793d06c144168c9e17a4dc0d90c998911dc4706d61f66e"
+  },
+  "ble_store": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with pinned SDK",
+    "log_sha256": "eb2b63fc0b2e0beebd1c990c5e83501df98678130c28e9c47cfe1b065d6b316a"
+  },
+  "nimble_capacity": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host with pinned SDK",
+    "log_sha256": "2df4ae1ad18bca8837ad5c75910cfcf4dd1a1403e0c3b965c7c49ed78ae7e226"
+  },
+  "xip": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host startup and SDK SPI1 mutex",
+    "log_sha256": "d54878a4228e1fccebdbd4942d131091b88da77b22ed5432785578be3b9761ae"
+  },
+  "ui": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "native LVGL ASan/UBSan; both themes; connected scan/stop; 60 reopen cycles",
+    "render_sources_sha256": "ef3915d423587ebeb8fd6970e610e26beed369dee38b3c146c76d0a60682eba9",
+    "screens_sha256": "891eb8cfe2e1a2e05eed371cec628a4356375eff5c39434521b966fc4a29ab19"
+  },
+  "hid_mailbox": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "separate host thread and production RPC cancellation",
+    "log_sha256": "d3c761fb60774e3eea733715ab682442830d818f05acf6fb0c7580946631deb5"
+  }
+}

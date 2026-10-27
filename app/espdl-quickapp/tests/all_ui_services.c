@@ -1,9 +1,12 @@
 #include <assert.h>
 #include <time.h>
+#include "glass_network_recovery.h"
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Service fixtures only. None of these functions opens a device/network. */
+static bool review_wifi_ip_available=true;
+void review_wifi_ip_fixture(bool available){review_wifi_ip_available=available;}
 int netlib_get_ipv4addr(const char *name,struct in_addr *out)
-{(void)name;out->s_addr=htonl(0xc0a80158);return 0;}
+{(void)name;out->s_addr=review_wifi_ip_available?htonl(0xc0a80158):0;return 0;}
 const struct c6_desktop_backend g_c6_desktop_backend={0};
 static int review_music_mode,review_chat_mode,review_weather_mode,review_ble_mode;
 static int review_grok_mode=-1;
@@ -245,23 +248,50 @@ void glass_ble_read(struct glass_ble_state *out)
 }
 int glass_ble_start(void)
 {pthread_mutex_lock(&review_ble_lock);if(review_ble_custom)assert(!pthread_equal(pthread_self(),review_ble_ui_thread));int ret=review_ble_error;pthread_mutex_unlock(&review_ble_lock);return ret;}
-int glass_ble_scan(void)
+unsigned glass_ble_capacity(void) { return 3; }
+int glass_ble_central_scan_stop(uint32_t generation)
 {
+  pthread_mutex_lock(&review_ble_lock);review_ble_calls[3]++;
+  if(review_ble_custom)assert(!pthread_equal(pthread_self(),review_ble_ui_thread));
+  review_ble_hold_locked(3);
+  int ret=review_ble_custom&&generation&&generation!=review_ble_state.scan_generation?-ESTALE:0;
+  if(!ret&&review_ble_custom)review_ble_state.scanning=false;
+  pthread_mutex_unlock(&review_ble_lock);return ret;
+}
+int glass_ble_central_scan_session(const uint8_t service[16],uint32_t *accepted)
+{
+  (void)service;
   pthread_mutex_lock(&review_ble_lock);review_ble_calls[1]++;int ret=review_ble_error;
-  if(review_ble_custom){assert(!pthread_equal(pthread_self(),review_ble_ui_thread));if(!ret){review_ble_state.scanning=true;review_ble_state.count=0;review_ble_state.scan_generation++;review_ble_state.error=0;}}
+  if(review_ble_custom){assert(!pthread_equal(pthread_self(),review_ble_ui_thread));if(!ret){review_ble_state.scanning=true;review_ble_state.count=0;review_ble_state.scan_generation++;if(accepted)*accepted=review_ble_state.scan_generation;review_ble_state.error=0;}}
   if(!ret)review_ble_hold_locked(1);
   pthread_mutex_unlock(&review_ble_lock);return ret;
 }
-int glass_ble_central_connect(unsigned index,uint32_t generation)
+int glass_ble_scan(void)
+{return glass_ble_central_scan_session(NULL,NULL);}
+int glass_ble_central_connect_session(unsigned index,uint32_t generation,uint32_t *accepted)
 {
   pthread_mutex_lock(&review_ble_lock);review_ble_calls[2]++;int ret=review_ble_error;
   if(review_ble_custom){
     assert(!pthread_equal(pthread_self(),review_ble_ui_thread));
     if(!ret&&(generation!=review_ble_state.scan_generation||index>=review_ble_state.count))ret=-ESTALE;
     if(!ret&&review_ble_state.scanning)ret=-EBUSY;
-    if(!ret){review_ble_state.connecting=true;review_ble_state.peer_valid=true;review_ble_state.peer=review_ble_state.devices[index];review_ble_state.error=0;}
+    if(!ret){review_ble_state.connecting=true;review_ble_state.peer_valid=true;review_ble_state.peer=review_ble_state.devices[index];review_ble_state.error=0;review_ble_state.generation++;if(accepted)*accepted=review_ble_state.generation;}
   }
   if(!ret)review_ble_hold_locked(2);
+  pthread_mutex_unlock(&review_ble_lock);return ret;
+}
+int glass_ble_central_connect(unsigned index,uint32_t generation)
+{return glass_ble_central_connect_session(index,generation,NULL);}
+int glass_ble_central_select(uint32_t generation)
+{
+  pthread_mutex_lock(&review_ble_lock);int ret=-ESTALE;
+  for(unsigned i=0;i<review_ble_state.session_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++){
+    struct glass_ble_session *v=&review_ble_state.sessions[i];if(v->generation!=generation)continue;
+    review_ble_state.generation=v->generation;review_ble_state.connected=v->connected;
+    review_ble_state.connecting=v->connecting;review_ble_state.disconnecting=v->disconnecting;
+    review_ble_state.encrypted=v->encrypted;review_ble_state.bonded=v->bonded;
+    review_ble_state.peer_valid=true;review_ble_state.peer=v->peer;ret=0;break;
+  }
   pthread_mutex_unlock(&review_ble_lock);return ret;
 }
 int glass_ble_cancel(void)
@@ -276,6 +306,15 @@ int glass_ble_disconnect(void)
   pthread_mutex_lock(&review_ble_lock);review_ble_calls[4]++;int ret=review_ble_error;
   if(review_ble_custom){assert(!pthread_equal(pthread_self(),review_ble_ui_thread));if(!ret)review_ble_state.disconnecting=review_ble_state.connected;}
   pthread_mutex_unlock(&review_ble_lock);return ret;
+}
+int glass_ble_central_disconnect_generation(uint32_t generation)
+{
+  pthread_mutex_lock(&review_ble_lock);
+  bool stale=review_ble_custom&&generation!=review_ble_state.generation;
+  if(!stale)for(unsigned i=0;i<review_ble_state.session_count&&i<GLASS_BLE_CENTRAL_LIMIT;i++)
+    if(review_ble_state.sessions[i].generation==generation)review_ble_state.sessions[i].disconnecting=true;
+  pthread_mutex_unlock(&review_ble_lock);
+  return stale?-ESTALE:glass_ble_disconnect();
 }
 int glass_ble_gatt(const struct glass_gatt_request *request,struct glass_gatt_result *reply,atomic_bool *cancel)
 {
@@ -301,6 +340,7 @@ void glass_status_power_read(int *percent,bool *charging)
 {*percent=review_battery_percent;*charging=review_battery_charging;}
 static bool review_hid_custom,review_wifi_custom;
 static struct glass_ble_hid_state review_hid_state;
+const char *glass_ble_identity_name(void){return "OpenVela Mouse-A17C0001";}
 static struct c6_desktop_result review_wifi_result;
 static enum c6_desktop_operation review_wifi_operation;
 static char review_wifi_ssid[33],review_wifi_password[65];
@@ -309,12 +349,70 @@ void review_hid_snapshot_fixture(const struct glass_ble_hid_state *state)
 void review_wifi_snapshot_fixture(const struct c6_desktop_result *state)
 {review_wifi_custom=state!=NULL;if(state)review_wifi_result=*state;}
 void glass_ble_hid_read(struct glass_ble_hid_state *out){if(review_hid_custom){*out=review_hid_state;return;}memset(out,0,sizeof(*out));out->connected=review_bluetooth_connected;}
+static uint32_t review_input_owner,review_input_sequence;
+unsigned review_input_reports,review_input_ends,review_input_leases,review_input_clicks;
+int review_input_buttons,review_input_x,review_input_y,review_input_wheel;
+bool review_input_stale;
+int glass_ble_hid_input_begin(uint32_t epoch,uint32_t *owner)
+{if(epoch!=review_hid_state.epoch)return -ESTALE;if(review_input_owner)return -EBUSY;*owner=review_input_owner=++review_input_sequence;return 0;}
+int glass_ble_hid_input_report(uint32_t owner,int b,int x,int y,int wheel)
+{if(review_input_stale||!owner||owner!=review_input_owner)return -ESTALE;review_input_reports++;review_input_buttons=b;review_input_x=x;review_input_y=y;review_input_wheel=wheel;return 0;}
+int glass_ble_hid_input_click(uint32_t owner,unsigned b)
+{if(!owner||owner!=review_input_owner)return -ESTALE;review_input_clicks++;review_input_buttons=b;return 0;}
+int glass_ble_hid_input_keepalive(uint32_t owner)
+{if(!owner||owner!=review_input_owner)return -ESTALE;review_input_leases++;return 0;}
+int glass_ble_hid_input_end(uint32_t owner)
+{if(!owner||owner!=review_input_owner)return -ESTALE;review_input_ends++;review_input_owner=0;return 0;}
 int c6_desktop_worker_start(struct c6_desktop_worker *w,const struct c6_desktop_backend *b){memset(w,0,sizeof(*w));return 0;}
 int c6_desktop_worker_read(struct c6_desktop_worker *w,struct c6_desktop_result *out){if(review_wifi_custom){*out=review_wifi_result;return 0;}memset(out,0,sizeof(*out));out->sequence=1;out->operation=C6_DESKTOP_STATUS;return 0;}
 int c6_desktop_worker_submit(struct c6_desktop_worker *w,enum c6_desktop_operation operation,const char *ssid,const char *password)
 {review_wifi_operation=operation;snprintf(review_wifi_ssid,sizeof(review_wifi_ssid),"%s",ssid?ssid:"");snprintf(review_wifi_password,sizeof(review_wifi_password),"%s",password?password:"");return review_wifi_custom&&review_wifi_result.busy?-EBUSY:0;}
 bool review_wifi_request_matches(enum c6_desktop_operation operation,const char *ssid,const char *password)
 {return review_wifi_operation==operation&&!strcmp(review_wifi_ssid,ssid?ssid:"")&&!strcmp(review_wifi_password,password?password:"");}
+static struct glass_recovery_snapshot_s review_recovery_state;
+static char review_recovery_password[65]="Demo-7391-5930";
+static bool review_recovery_initialized;
+static unsigned review_recovery_calls[4];
+void review_recovery_fixture(const struct glass_recovery_snapshot_s *state,
+                              const char *password)
+{
+  if(state)review_recovery_state=*state;
+  else memset(&review_recovery_state,0,sizeof(review_recovery_state));
+  snprintf(review_recovery_password,sizeof(review_recovery_password),"%s",
+           password?password:"Demo-7391-5930");
+}
+unsigned review_recovery_call_count(unsigned operation)
+{assert(operation<4);return review_recovery_calls[operation];}
+int glass_network_recovery_init(void)
+{
+  if(!review_recovery_initialized){review_recovery_initialized=true;review_recovery_calls[0]++;}
+  return 0;
+}
+int glass_network_recovery_start(void)
+{
+  review_recovery_calls[1]++;review_recovery_state.state=GLASS_RECOVERY_STARTING;
+  review_recovery_state.busy=true;return 0;
+}
+int glass_network_recovery_stop(void)
+{
+  review_recovery_calls[2]++;review_recovery_state.state=GLASS_RECOVERY_STOPPING;
+  review_recovery_state.busy=true;return 0;
+}
+int glass_network_recovery_read(struct glass_recovery_snapshot_s *out)
+{*out=review_recovery_state;return 0;}
+int glass_network_recovery_credentials(char *ssid,size_t ssid_size,
+                                        char *password,size_t password_size)
+{
+  review_recovery_calls[3]++;
+  if(!review_recovery_state.ap_running||!review_recovery_state.dhcp_ready)return -EAGAIN;
+  if(strlen(review_recovery_state.ssid)>=ssid_size||strlen(review_recovery_password)>=password_size)return -ENOSPC;
+  strcpy(ssid,review_recovery_state.ssid);strcpy(password,review_recovery_password);return 0;
+}
+int glass_wifi_service_read(struct c6_desktop_result *out)
+{return c6_desktop_worker_read(NULL,out);}
+int glass_wifi_service_submit(enum c6_desktop_operation operation,
+                               const char *ssid,const char *password)
+{return c6_desktop_worker_submit(NULL,operation,ssid,password);}
 /* The keyboard/IME UI is production code; dictionary/voice backends stay offline. */
 static unsigned review_pinyin_count;
 static char review_pinyin_input[33];

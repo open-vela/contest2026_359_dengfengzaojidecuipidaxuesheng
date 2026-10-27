@@ -1,8 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
+#ifdef __NuttX__
+#include <nuttx/config.h>
+#endif
 #include "qpk_mjpeg.h"
 #include "camera_color.h"
 #include "qpk_tjpgd.h"
 #include "qpk_mjpeg_dht.h"
+#ifdef CONFIG_ESP32P4_JPEG
+#include "qpk_jpeg_hw.h"
+#endif
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -139,6 +145,49 @@ static int jpeg_decode_pixels(void *decoder, const uint8_t *input, size_t size,
    * buffer and publish only on success, avoiding a temporary frame and copy. */
   bool direct = !view_width && d->width == width && d->height == height;
   bool twice = !view_width && stride == width && d->width * 2 == width && d->height * 2 == height;
+#ifdef CONFIG_ESP32P4_JPEG
+  /* Full-size frames use private aligned DMA output. Reduced live previews
+   * retain their existing decoder and sampling policy. Unsupported streams
+   * and hardware failures fall through to the software decoder.
+   */
+  if (direct && scale == 0 &&
+      qpk_jpeg_hw_decode(input, size, output, width, height, stride) == 0)
+    return 0;
+  if ((!direct || scale > 0) && !view_width && (!view || !view->style))
+    {
+      unsigned fw = width;
+      unsigned fh = (uint64_t)expected_height * width / expected_width;
+      if (fh > height)
+        {
+          fh = height;
+          fw = (uint64_t)expected_width * height / expected_height;
+        }
+
+      unsigned left = (width - fw) / 2;
+      unsigned top = (height - fh) / 2;
+      if (fw && fh && qpk_jpeg_hw_decode_scaled(input, size,
+          output + (size_t)top * stride + left, expected_width,
+          expected_height, fw, fh, stride) == 0)
+        {
+          /* No caller pixels were changed on failure. On success, clear
+           * only the letterbox while preserving stride padding.
+           */
+          for (unsigned y = 0; y < height; y++)
+            {
+              uint16_t *row = output + (size_t)y * stride;
+              if (y < top || y >= top + fh)
+                memset(row, 0, (size_t)width * 2);
+              else
+                {
+                  memset(row, 0, (size_t)left * 2);
+                  memset(row + left + fw, 0, (size_t)(width - left - fw) * 2);
+                }
+            }
+
+          return 0;
+        }
+    }
+#endif
   if (!direct && !twice && pixels > d->scratch_capacity) {
     uint16_t *scratch = realloc(d->scratch, pixels * sizeof(*scratch));
     if (!scratch) return -ENOMEM;

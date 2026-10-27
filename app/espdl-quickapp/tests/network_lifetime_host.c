@@ -33,6 +33,7 @@ static size_t test_strlcpy(char *dst, const char *src, size_t size)
 static struct c6_link_state g_c6link = C6_LINK_STATE_INITIALIZER;
 static pthread_mutex_t g_c6net_connect_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool g_c6net_reconnect = true;
+static bool c6_wifi_trial_pending(void) { return false; }
 static unsigned connects, disconnects;
 static int esp_hosted_rpc_wifi_connect(const char *ssid, const char *password)
 {

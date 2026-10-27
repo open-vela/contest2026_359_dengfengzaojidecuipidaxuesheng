@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "results": {
+    "previous": "PREVIOUS_TWO_OFFERS_EXHAUST_POOL_FOR_HOUR",
+    "fixed": "DHCPD_LEASE_BUDGET_OK: pending offers bounded, expired slots reused, active lease preserved, capacity bounded"
+  },
+  "lease_capacity": 8,
+  "offer_hold_seconds": 30,
+  "source_sha256": "1a13b3e06e740e978675a073d1131d5dd7ffe6195a2fec9e4b94f38893a48cda",
+  "scope": "actual allocator/expiry/setlease bodies; does not claim phone DORA packet capture"
+}

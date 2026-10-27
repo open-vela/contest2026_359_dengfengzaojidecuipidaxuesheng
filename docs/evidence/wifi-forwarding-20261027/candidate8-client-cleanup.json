@@ -1,0 +1,7 @@
+{
+  "task_profile_deleted": true,
+  "pc_wlan_disconnected": true,
+  "initial_pc_wlan_state": "disconnected",
+  "board_hotspot_left_running": true,
+  "no_board_restart": true
+}

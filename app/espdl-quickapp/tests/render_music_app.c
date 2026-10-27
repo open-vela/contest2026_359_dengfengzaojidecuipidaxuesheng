@@ -1,6 +1,15 @@
 /* Real LVGL launcher/card/player integration; playback I/O is offline. */
+#include <stdlib.h>
+static size_t music_snapshot_fail_bytes;
+static void *music_snapshot_test_calloc(size_t count,size_t bytes)
+{
+  if(music_snapshot_fail_bytes && count*bytes==music_snapshot_fail_bytes)return NULL;
+  return calloc(count,bytes);
+}
+#define calloc music_snapshot_test_calloc
 #define MUSIC_FULL_NO_MAIN
 #include "render_music_full.c"
+#undef calloc
 
 static void music_app_click(lv_obj_t *root,lv_event_cb_t callback)
 {
@@ -138,7 +147,7 @@ int main(int argc,char **argv)
 
     glass_apps(NULL);lv_obj_update_layout(g_desktop.screen);
     assert(review_find(g_apps_grid,"音乐"));
-    assert(review_label_find(review_find(g_apps_grid,"音乐"),"内置应用"));
+    assert(review_callback_find(g_apps_grid,glass_music));
     review_capture(display,"music-app-launcher","音乐已注册到全部应用");
     music_app_click(g_apps_grid,glass_music);
     assert(g_music_ui.return_apps&&!g_desktop.apps_page);
@@ -205,7 +214,16 @@ int main(int argc,char **argv)
     assert(lv_bar_get_value(g_home_music.progress)==0);
     for(unsigned round=0;round<30;round++){
       glass_apps(NULL);music_app_click(g_apps_grid,glass_music);
-      music_app_click(g_music_ui.root,music_ui_back);assert(g_desktop.apps_page&&!g_music_ui.timer);
+      assert(g_music_ui.snapshot);
+      if(!round){
+        struct music_snapshot *saved=g_music_ui.snapshot;
+        lv_obj_t *root=g_music_ui.root;lv_timer_t *timer=g_music_ui.timer;
+        music_snapshot_fail_bytes=sizeof(*saved);
+        glass_music_app(root,true);
+        music_snapshot_fail_bytes=0;
+        assert(g_music_ui.root==root&&g_music_ui.snapshot==saved&&g_music_ui.timer==timer);
+      }
+      music_app_click(g_music_ui.root,music_ui_back);assert(g_desktop.apps_page&&!g_music_ui.timer&&!g_music_ui.snapshot);
       panel_hide(NULL);glass_rebuild();assert(g_home_music.root&&g_home_music.valid);
     }
   }

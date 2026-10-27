@@ -1,0 +1,94 @@
+{
+  "image_sha256": "574bcd6aad8affb803a3a6440a1c1a34b0dab627f6cca0dd86de92d2f8793a82",
+  "elf_sha256": "b3e1739f1da9c874f271d363263d37adeff2db0c63d498e740d91ab34bf626ff",
+  "status": "current bounded acceptance passed; prior intermittent fault unresolved",
+  "production_change_from_candidate4": false,
+  "phone_feedback_initial": "已经可以上网",
+  "phone_feedback_after_reopen": "关闭移动数据后仍能上网",
+  "phone_mobile_data_disabled_confirmed": true,
+  "first_cycle_forwarding_counters": {
+    "outbound": 2120,
+    "inbound": 893
+  },
+  "stop_after_first_cycle": {
+    "actual_lvgl_button": true,
+    "ap_down": true,
+    "dhcp_stopped": true,
+    "nat_stopped": true,
+    "busy": false,
+    "ifconfig_returned": true
+  },
+  "reopen": {
+    "backend_ready": true,
+    "user_internet_confirmed": true
+  },
+  "counter_limitation": "Counters remained 2120/893 after reopening through final health. No independently measured additional forwarding traffic in second cycle or during Flash stress; second-cycle browsing is user-confirmed only.",
+  "flash_stress": {
+    "game": {
+      "mode": "game",
+      "rounds": 2,
+      "flash_delta_read_write_erase": [
+        3259,
+        798,
+        82
+      ],
+      "physical_screen_observation": "user confirmed normal for this scene",
+      "passed": true,
+      "observation_scope_note": "2048 confirmation received after game test; CSI confirmation recorded separately after CSI completed"
+    },
+    "camera": {
+      "mode": "camera",
+      "rounds": 2,
+      "flash_delta_read_write_erase": [
+        3264,
+        799,
+        85
+      ],
+      "physical_screen_observation": "user confirmed normal for this scene",
+      "passed": true,
+      "observation_scope_note": "2048 confirmation received after game test; CSI confirmation recorded separately after CSI completed"
+    }
+  },
+  "flash_total_write": 1597,
+  "flash_total_erase": 167,
+  "display_irq_gap_max_us": 16656,
+  "display_underruns": 0,
+  "display_pan_errors": 0,
+  "xip": {
+    "ready": true,
+    "protected_cpus": 3,
+    "text_hash": "99a93bbd",
+    "rodata_hash": "90cb2588"
+  },
+  "jpeg": {
+    "decode_cases_passed": 22,
+    "encode_cases_passed": 19,
+    "ppa_pixel_checks_passed": true,
+    "new_photo_save_test": false
+  },
+  "final_state": {
+    "sharing_active": true,
+    "ap_running": true,
+    "dhcp_ready": true,
+    "busy": false,
+    "kernel_free_bytes": 13000
+  },
+  "pending": [
+    "prior intermittent network blocking root cause",
+    "cold power cycle",
+    "new BLE identity pairing",
+    "phone portal configuration save (previously skipped)",
+    "long-duration stability"
+  ],
+  "log_sha256": {
+    "start-diag.log": "1e0e5ec1bf4f947537a29262f565fb2dd826e5cf71fc6a7f0d9936bff98d1037",
+    "live-check.log": "3ab45a637f9e9ecd6b01d0c58b866d85083008ba62bd1dc73c852556cad574f9",
+    "traffic-health.log": "6557578b4359192c8b9d5bfbc970bfb14bd3800908b2968b2b58780e88a515bf",
+    "stop-after-traffic.log": "1dbe69285d661b68e52128640bb658df3daa68b230065d910ebbb39454ab205d",
+    "reopen-after-traffic.log": "50eb5a6fecbc59989a6432eaa7014ab1e85bd80d59ecaf19a7ac6cdb3d02156c",
+    "followup-status.log": "bf7c356ca3901c89a4c2347fe3f7f2c3f032b54c7bfaf0a43fbad29a996907ab",
+    "game-stress.log": "b42959add2d236e1b87fa358ab9f92aa02e02955cd7568916e53cfcbf947cf2e",
+    "camera-stress.log": "70d804fc29b7dc46da7803599fa8e9676d8f8f6ad895d25bfb88e9e4d3b9d9fe",
+    "final-health.log": "d97dc17317c97c6d203c145fc6213c6951c2d5528748c7b9cc0dcac589fc2236"
+  }
+}

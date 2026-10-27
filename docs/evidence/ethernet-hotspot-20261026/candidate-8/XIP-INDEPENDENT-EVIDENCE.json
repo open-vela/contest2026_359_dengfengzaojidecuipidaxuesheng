@@ -1,0 +1,133 @@
+{
+  "image_sha256": "232409de5177f07cbdcd08dd40c377452892be3820c59b6df9b89bb58cbcc179",
+  "elf_sha256": "1624c78c727fad7379715f0f3924308d69b9d270bed5a9fbd099965e464cf7ef",
+  "previous_image_sha256": "bf542ed81a6b7b2799be54dcaae25609782e733b9fc465c978a3aafb0219cfd4",
+  "accepted_image_sha256": "9a48e6dac5db9a8b2e6e43e0b978b69784dfdd6e847e9934e71a72017b9f20d3",
+  "source_changes_from_jpeg3": [
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_softap_net.inc",
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6net.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/Makefile",
+    "app/espdl-quickapp/overlay/apps/system/desktop/desktop_main.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ethernet.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ethernet.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_netboot.inc",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_network_recovery.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_network_recovery.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_portal_http.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_wifi.inc",
+    "app/espdl-quickapp/overlay/nuttx/include/nuttx/net/espclaw_share.h",
+    "app/espdl-quickapp/overlay/nuttx/net/espclaw_share.c"
+  ],
+  "configuration_changes": {
+    "CONFIG_NETUTILS_DHCPD_DNSIP": [
+      "0x0",
+      "0x01010101"
+    ],
+    "CONFIG_NETUTILS_DHCPD_LEASETIME": [
+      "600",
+      "120"
+    ],
+    "CONFIG_NETUTILS_DHCPD_MAXLEASETIME": [
+      "600",
+      "120"
+    ],
+    "CONFIG_NETUTILS_DHCPD_ROUTERIP": [
+      "0x0",
+      "0xc0a80401"
+    ],
+    "CONFIG_NET_FORWARD_ALLOC_STRUCT": [
+      "1",
+      "0"
+    ],
+    "CONFIG_NET_FORWARD_NSTRUCT": [
+      null,
+      "4"
+    ],
+    "CONFIG_NET_IPFORWARD": [
+      null,
+      "y"
+    ],
+    "CONFIG_NET_IPTABLES": [
+      null,
+      "y"
+    ],
+    "CONFIG_NET_NAT": [
+      null,
+      "y"
+    ],
+    "CONFIG_NET_NAT44": [
+      null,
+      "y"
+    ],
+    "CONFIG_NET_NAT44_FULL_CONE": [
+      null,
+      "y"
+    ],
+    "CONFIG_NET_NAT_ENTRY_RECLAIM_SEC": [
+      null,
+      "30"
+    ],
+    "CONFIG_NET_NAT_HASH_BITS": [
+      null,
+      "8"
+    ],
+    "CONFIG_NET_NAT_ICMP_EXPIRE_SEC": [
+      null,
+      "60"
+    ],
+    "CONFIG_NET_NAT_ICMPv6_EXPIRE_SEC": [
+      null,
+      "60"
+    ],
+    "CONFIG_NET_NAT_TCP_EXPIRE_SEC": [
+      null,
+      "300"
+    ],
+    "CONFIG_NET_NAT_UDP_EXPIRE_SEC": [
+      null,
+      "60"
+    ]
+  },
+  "all_nine_xip_inputs_equal_jpeg3": true,
+  "seven_runtime_xip_inputs_equal_accepted": true,
+  "twenty_tuning_sources_equal": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "early_indirect_calls_equal_previous": true,
+  "radio_sources_unchanged": false,
+  "radio_changed_files": [
+    "c6_softap_net.inc",
+    "c6net.c"
+  ],
+  "codec_metadata_unchanged": true,
+  "sharing_sources": {
+    "enabled": true,
+    "wan": "eth0",
+    "lan": "ap0",
+    "nat_entry_limit": 2048,
+    "nat_entry_heap": "bounded PSRAM user heap (flat build)",
+    "recursive_port_selection_lock": true,
+    "outbound_failure_unlock": true,
+    "port_table_lock_order": "NAT gate before TCP/UDP connection table",
+    "source_sha256": {
+      "net/Makefile": "7f2fb8b89051876b2465e0312926abedd9d1c2596a0bb7586b64199cdda45fc2",
+      "net/netforward/ipv4_forward.c": "39444c5d2ceb4e7f2d5a0a6af87a3b438fe96b4ad238ffa8797a0b4440904802",
+      "net/nat/nat.c": "e02596cefba7602e6faa058fb3bc83e30ebebc8c6439525f4a8d6cccf083f85a",
+      "net/nat/ipv4_nat.c": "2a8fd1fca68ba0421ae781ae40130bc2e5fbb8033cd1bed437e059092ae907e9",
+      "net/tcp/tcp_conn.c": "ac2ce5dc5c35d2282a90144ef983f72c964cb6260dc8bfc0a1306e7b9e64d563",
+      "net/udp/udp_conn.c": "b62d800fe5969fe24b0c1c640f7ac11cd0b5d91b50e222bd289a5d884516235e",
+      "net/nat/ipv4_nat_entry.c": "8826ebd3c4068c22b346c01b60c51130282d4a40e2dab32653ff921e0b59c53c"
+    }
+  },
+  "rejected_experiments_disabled": true,
+  "security_provisioning_configs_enabled": false,
+  "manual_disassembly_review": "required before flash; see focused diff"
+}

@@ -1,0 +1,31 @@
+{
+  "image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+  "elf_sha256": "32c44dfa4695d3a115d11f64cbd23905a22f18307fa971adc43040ea3797e68a",
+  "previous_image_sha256": "232409de5177f07cbdcd08dd40c377452892be3820c59b6df9b89bb58cbcc179",
+  "source_changes": [
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_softap.h",
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_softap_net.inc",
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_softap_rpc.inc",
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_wifi_phy.h",
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_wifi_phy_net.inc",
+    "app/espdl-quickapp/overlay/apps/system/c6probe/c6_wifi_phy_rpc.inc",
+    "app/espdl-quickapp/overlay/apps/system/desktop/desktop_main.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_network_recovery.c"
+  ],
+  "configuration_changes": {},
+  "xip_input_sources_unchanged": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "rejected_experiments_disabled": true,
+  "security_provisioning_configs_enabled": false,
+  "manual_indirect_closure_review": "see XIP-REVIEW.md",
+  "physical_acceptance": "pending; not inherited"
+}

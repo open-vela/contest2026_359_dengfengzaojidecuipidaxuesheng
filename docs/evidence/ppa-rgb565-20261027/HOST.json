@@ -1,0 +1,86 @@
+{
+  "app-03": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\app-03",
+    "evidence_sha256": {
+      "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "RESULT.json": "1413ee8c2f5ae1a85c1206bfdd3e2819dadfca32b95e6957112d0591bd5945f4",
+      "run.log": "98d6d6f1cf60e217ce74be7da1808f009df2ef4b171656ce5635f0ebfe26fa5a"
+    }
+  },
+  "driver-03": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\driver-03",
+    "evidence_sha256": {
+      "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "RESULT.json": "354779f0b029f9984b084b304e6a25dcdbf03eac9f5be35c6aa110003d3fd68f",
+      "run.log": "d934f7a5b6a007525b6ccabbca7e4b86c64e76d1d61566ef61486381b7dccbe1"
+    }
+  },
+  "dma2d-01": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\dma2d-01",
+    "evidence_sha256": {
+      "esp32p4_dma2d.c-target.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "esp32p4_jpeg.c-target.log": "c05f1472f07e5244eb26d910af1224b195b969a7564d2f42881a6167663d10cf",
+      "esp32p4_jpeg_emit.c-target.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "esp32p4_ppa.c-target.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "host-compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "host-run.log": "40c9cb56e5bab779ccc400c998d14e166fd071d1e6622825de0ac5d4ec644a81",
+      "RESULT.json": "1cea6a1d32acd431d1f57a2cf71ec8ac8a336d300649c7f6fa033588ba5f4835"
+    }
+  },
+  "jpeg-adapter-01": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\jpeg-adapter-01",
+    "evidence_sha256": {
+      "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "RESULT.json": "9eb02f249a584c2402f54048a091580e55f61655d4809a0736c75d46df174cf5",
+      "run.log": "6cb79f9ecf098a3d5eb01bb3bdb5146e3bcf8cfe11f2d67e33a3771e130e8699"
+    }
+  },
+  "local-album": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "command": "python3 tools/test_local_album.py",
+    "observed_marker": "ALBUM_BACKEND_OK",
+    "artifact_scope": "temporary host fixtures removed by test after successful run"
+  },
+  "camera-sync-01": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\camera-sync-01",
+    "evidence_sha256": {}
+  },
+  "preview-01": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\preview-01",
+    "evidence_sha256": {}
+  },
+  "camera-boundary-01": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\camera-boundary-01",
+    "evidence_sha256": {}
+  },
+  "xip-01": {
+    "passed": true,
+    "observed_exit_code": 0,
+    "scope": "host-only, no physical PPA claim",
+    "artifacts": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\ppa-rgb565-20261027\\host\\xip-01",
+    "evidence_sha256": {}
+  }
+}

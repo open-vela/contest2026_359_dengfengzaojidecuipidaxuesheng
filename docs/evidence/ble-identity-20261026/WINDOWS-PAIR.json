@@ -1,0 +1,14 @@
+{
+  "Address": "D2:78:47:0A:87:28",
+  "Name": "OpenVela Mouse-470A8728",
+  "IsPaired": true,
+  "PairingPerformedByUser": true,
+  "GattStatus": "Success",
+  "ProtocolError": null,
+  "Services": [
+    "00001800-0000-1000-8000-00805f9b34fb",
+    "00001801-0000-1000-8000-00805f9b34fb",
+    "00001812-0000-1000-8000-00805f9b34fb"
+  ],
+  "ConnectionStatus": "Connected"
+}

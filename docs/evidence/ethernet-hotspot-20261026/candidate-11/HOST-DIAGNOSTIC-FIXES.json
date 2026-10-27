@@ -1,0 +1,19 @@
+{
+  "scope": "host-only diagnostic bug fixes, no firmware change or device test",
+  "tests": {
+    "test_network_benchmark.py": 9,
+    "test_network_benchmark_summary.py": 5
+  },
+  "all_passed": true,
+  "fixes": [
+    "seed CRC failure metadata retained without invented byte offsets",
+    "truncated/extra response tail included in mismatch offsets and count"
+  ],
+  "source_sha256": {
+    "network_benchmark.py": "694c3390a437a199bfa6da3a2cbf9a498bbeb1f1e1312b7f3ca5d29117b467da",
+    "network_benchmark.html": "59ee923c0261863e3178f8ba72c2b695ca46e87c0e4bdbf74682369aa5e55c16",
+    "test_network_benchmark.py": "33274f1b233cc2e339f8092c488f83da7bddd87df8347bc46db5f1afd3ce8cb0",
+    "summarize_network_benchmark.py": "0c198fc5b56998edf3e388ee5489950af60590acdfce1a1e51c9bcbb517a8952",
+    "test_network_benchmark_summary.py": "200e0ea7d02a99e1969ef73bc4baa88d98c3d0ba44639be84714dc9c845a6193"
+  }
+}

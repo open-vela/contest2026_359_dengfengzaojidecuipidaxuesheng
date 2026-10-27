@@ -1,0 +1,1 @@
+BLE_HID_MAILBOX_OK: 30 start/stop cycles; all protocol and role release on host thread; inactive-role cleanup despite stop error; release/click; stop invalidates queued start; no cross-task NPL queue posts

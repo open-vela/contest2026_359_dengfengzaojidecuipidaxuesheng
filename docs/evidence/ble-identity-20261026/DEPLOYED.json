@@ -1,0 +1,34 @@
+{
+  "image_sha256": "9a48e6dac5db9a8b2e6e43e0b978b69784dfdd6e847e9934e71a72017b9f20d3",
+  "independent_readback_verified": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "data_partition_unchanged_after_flash": true,
+  "cold_power_cycle_verified": false,
+  "physical_acceptance": "用户确认本候选两个场景全程正常",
+  "ble_configured_connections": 2,
+  "ble_effective_connections": 2,
+  "ble_host_initialized": true,
+  "mouse_encrypted_and_subscribed": true,
+  "hid_purpose_survived_warm_reboot": true,
+  "fresh_candidate_identity": {
+    "address": "D2:78:47:0A:87:28",
+    "address_little_endian": [
+      40,
+      135,
+      10,
+      71,
+      120,
+      210
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-470A8728",
+    "store_path": "/data/config/ble_d278470a8728.bin",
+    "store_temp": "/data/config/.ble_d278470a8728.tmp",
+    "purpose_path": "/data/config/bh_d278470a8728.bin",
+    "purpose_temp": "/data/config/.bh_d278470a8728.tmp",
+    "header_sha256": "cb1fcc8063b256901d98415aae75b18e35d9a561d63f8f791d2ecce086b16b9c"
+  },
+  "dual_connection_tested": false
+}

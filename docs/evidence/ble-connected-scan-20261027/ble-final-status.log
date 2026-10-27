@@ -1,0 +1,16 @@
+c6ble identity
+type=static-random address=D3:38:F6:39:04:87 name=OpenVela Mouse-F6390487
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=13 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble strpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 39 aa 15 00
+atus
+configured_connections=2 effective_connections=2 host_ready=1 device_connected=0 mouse_connected=1 store_error=0
+reserved_connection=1 central_reserved=0 hid_reserved=1 mixed_role_capacity=1
+nsh> [K
+nsh> [Kdesktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=4190 text_hash=e45e2f81 rodata_hash=049c3da8 cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [K

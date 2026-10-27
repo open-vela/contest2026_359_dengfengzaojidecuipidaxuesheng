@@ -1115,6 +1115,19 @@ void nuttx_enter_critical(void)
 
   flags = up_irq_save();
 
+#ifdef CONFIG_IDF_TARGET_ARCH_RISCV
+  __asm__ __volatile__("csrr %0, mhartid" : "=r"(cpu));
+#else
+  cpu = this_cpu();
+#endif
+
+  /* Check the per-CPU bookkeeping before changing scheduler or lock state.
+   * A wrapped count would lose the outermost saved interrupt state.
+   */
+
+  DEBUGASSERT(cpu >= 0 && cpu < OS_PORT_NUM_PROCESSORS);
+  DEBUGASSERT(g_int_flags_count[cpu] < UINT8_MAX);
+
   /* A local IRQ mask alone does not prevent NuttX from preempting a task
    * at a scheduler unlock (for example, when releasing the heap mutex).
    * The recursive spinlock and saved IRQ state are owned by this CPU, so
@@ -1126,12 +1139,6 @@ void nuttx_enter_critical(void)
     {
       sched_lock();
     }
-
-#ifdef CONFIG_IDF_TARGET_ARCH_RISCV
-  __asm__ __volatile__("csrr %0, mhartid" : "=r"(cpu));
-#else
-  cpu = this_cpu();
-#endif
 
   if (g_int_flags_count[cpu] == 0)
     {
@@ -1180,6 +1187,13 @@ void nuttx_exit_critical(void)
 #else
   cpu = this_cpu();
 #endif
+
+  /* An unmatched exit must be diagnosed before the unsigned count wraps
+   * or an unowned recursive lock is released.
+   */
+
+  DEBUGASSERT(cpu >= 0 && cpu < OS_PORT_NUM_PROCESSORS);
+  DEBUGASSERT(g_int_flags_count[cpu] > 0);
 
   g_int_flags_count[cpu]--;
 

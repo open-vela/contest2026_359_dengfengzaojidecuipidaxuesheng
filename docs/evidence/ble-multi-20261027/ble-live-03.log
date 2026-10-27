@@ -1,0 +1,11 @@
+c6ble identity
+type=static-random address=C9:9E:3C:DD:5A:CB name=OpenVela Mouse-3CDD5ACB
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=1 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 

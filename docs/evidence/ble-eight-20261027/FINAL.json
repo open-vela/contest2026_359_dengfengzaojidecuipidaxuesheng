@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-27",
+  "automated_tests": "passed",
+  "passed_checks": [
+    "central-eight",
+    "central-default",
+    "hid-mailbox",
+    "qpk-default",
+    "qpk-eight",
+    "cli",
+    "nimble-capacity-1-2-3-8",
+    "native-ui-eight",
+    "final-elf-capacity",
+    "xip-static-link-audit"
+  ],
+  "simulated_peak_connections": 8,
+  "eight_peer_restore_cycles": 10,
+  "runtime_source_matches_frozen_build": true,
+  "normal_source_central_limit": 2,
+  "experimental_central_limit": 8,
+  "host_capacity": {
+    "configured_connections": 8,
+    "effective_connections": 8,
+    "ordinary_session_capacity": 8,
+    "expected_connection_pool_bytes": 896,
+    "linked_connection_pool_verified": true,
+    "linked_connection_pool_bytes": 896
+  },
+  "image_sha256": "4c7c78a0ec810eb4bfb32c45e3c29c198a03b9c618052c0d85d812d4af07ffaa",
+  "elf_sha256": "ef69f2fa10a9d43d94b56b2143f9977d9de34c3c1511b25cb97286854c4c8025",
+  "image_bytes": 10510976,
+  "ebss": "0x4ffad830",
+  "bss_limit": "0x4ffaefc0",
+  "c6_observed_build_config_limit": 3,
+  "c6_device_config_readback": false,
+  "c6_firmware_changed": false,
+  "flash_reset_or_radio_test": false,
+  "physical_eight_peer_test": "not_performed_no_test_devices",
+  "first_build_failure": "missing frozen ESP-TTS lock; original log retained; inputs supplemented",
+  "format_check": "not_claimed",
+  "test_source_sha256": {
+    "app/espdl-quickapp/tests/ble_eight_host.c": "39cdcff737b6466eafd2b3d7954a7370745e283707ad902c2e431b5365521298",
+    "app/espdl-quickapp/tests/ble_central_host.c": "3b3a44c40b5e6cd43917da106e24c86d6c3aab24eb184bc2c888666724061932",
+    "tools/test_ble_central.py": "4187d0c32598e419b4f579f6c10900488c901476244f34199ef13c4b5b0673c2",
+    "tools/test_ble_platform.py": "4616377c259d59e3d04c8d09c79d642f88b9b5d8706391c76205d28a6cf9bb19",
+    "tools/test_nimble_capacity.py": "b282f5220e65cbaa0f7633f5213108535a54eeb77c897e5812243c59e24f7f5d",
+    "tools/nimble_capacity.py": "1e96e2d4731c1f1cc897d962dbb3bb6895ff848c7a2f79c82121254cfc25837a"
+  }
+}

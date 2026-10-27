@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "scope": "actual_initializer_API_stubs_not_radio",
+  "source_sha256": "24c937a65388aa33678439b8eee6138a72a08b83a372f0f76399f5bcfac91a0a",
+  "rejected_configurations": 5,
+  "results": [
+    {
+      "case": "eight",
+      "mode": 0,
+      "passed": true
+    },
+    {
+      "case": "eight",
+      "mode": 1,
+      "passed": true
+    },
+    {
+      "case": "eight",
+      "mode": 2,
+      "passed": true
+    },
+    {
+      "case": "bad-initializer",
+      "mode": 0,
+      "passed": true
+    },
+    {
+      "case": "three-rejected",
+      "expected_compile_rejection": true,
+      "passed": true
+    },
+    {
+      "case": "second-host-rejected",
+      "expected_compile_rejection": true,
+      "passed": true
+    }
+  ],
+  "device_actions": false
+}

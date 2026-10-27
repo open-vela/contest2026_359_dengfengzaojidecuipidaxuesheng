@@ -1,0 +1,94 @@
+c6ble mouse stop
+[CPU1] [ble-hid] disconnect reason=534 encrypted=1
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=3 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central scan 970b7622-55cbrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 16 aa 15 00
+-4c65-9f7e-faffa29f64fb
+c6ble central scan result=0
+nsh> [K
+nsh> [Kc6ble central devices
+BLE_SCAN generation=1 scanning=1 count=0 connected=0 connection_generation=0
+BLE_SESSIONS active=0 connected=0 capacity=2 selected=0
+c6ble central devices result=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=3 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central stop 1
+c6ble central stop result=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=3 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse stop
+[CPU0] [ble-hid] disconnect reason=534 encrypted=1
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 17 aa 15 00
+c6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=1 connected=0 encrypted=0 notify=0 suspended=0 boot=0 buttons=0 epoch=4 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=5 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central scan 970b7622-55cb-4c65-9f7e-faffa29f64fb
+c6ble central scan result=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 18 aa 15 00
+c6ble central devices
+BLE_SCAN generation=2 scanning=1 count=0 connected=0 connection_generation=0
+BLE_SESSIONS active=0 connected=0 capacity=2 selected=0
+c6ble central devices result=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=5 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central stop 2
+c6ble central stop result=0
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=5 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble mouse stop
+[CPU0] [ble-hid] disconnect reason=534 encrypted=1
+c6ble mouse stop: ok
+nsh> [K
+nsh> [Kc6ble mouse start
+c6ble mouse start: ok
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 19 aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=7 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central scan 970b7622-55cb-4c65-9f7e-faffa29f64fb
+c6ble central scan result=0
+nsh> [K
+nsh> [Kc6ble central devices
+BLE_SCAN generation=3 scanning=1 count=0 connected=0 connection_generation=0
+BLE_SESSIONS active=0 connected=0 capacity=2 selected=0
+c6ble central devices result=0
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=7 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [Kc6ble central stop 3
+c6ble central stop result=0
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 1a aa 15 00
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=7 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [K

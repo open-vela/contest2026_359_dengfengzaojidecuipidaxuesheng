@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Exercise the production NimBLE boundary using deterministic host callbacks."""
-import argparse,os,subprocess
+import argparse,hashlib,json,os,subprocess
 from pathlib import Path
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+from render_all_ui import function
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True)
+p.add_argument('--connections',type=int,choices=[2,8],default=2);a=p.parse_args()
 root=Path(__file__).resolve().parents[1];out=a.output.resolve();(out/'host').mkdir(parents=True,exist_ok=True)
 header='''#pragma once
 #include <stdint.h>
@@ -69,6 +71,19 @@ static inline void *nimble_port_get_dflt_eventq(void){return 0;}
 static inline void ble_npl_eventq_put(void *q,struct ble_npl_event *e){(void)q;host_context=1;e->fn(e);host_context=0;}
 ''')
 ble=root/'app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble'
+owner=(ble/'glass_ble.c').read_text()
+(out/'role-under-test.inc').write_text('\n\n'.join(function(owner,name) for name in
+    ['glass_ble_central_reserve','glass_ble_role_claim','glass_ble_role_release','glass_ble_capacity_read']))
 flags=['-std=gnu11','-D_GNU_SOURCE','-O1','-g','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-fsanitize=address,undefined','-fno-omit-frame-pointer','-fno-pie','-no-pie','-pthread']
-subprocess.run(['gcc',*flags,'-I'+str(out),'-I'+str(ble),str(root/'app/espdl-quickapp/tests/ble_central_host.c'),str(ble/'glass_ble_central.c'),'-o',str(out/'test')],check=True)
-subprocess.run([str(out/'test')],check=True,env={**os.environ,'ASAN_OPTIONS':'detect_leaks=1','UBSAN_OPTIONS':'halt_on_error=1'})
+flags+=['-DGLASS_BLE_CENTRAL_LIMIT='+str(a.connections)]
+harness='ble_eight_host.c' if a.connections==8 else 'ble_central_host.c'
+subprocess.run(['gcc',*flags,'-I'+str(out),'-I'+str(ble),str(root/'app/espdl-quickapp/tests'/harness),str(ble/'glass_ble_central.c'),'-o',str(out/'test')],check=True)
+result=subprocess.run([str(out/'test')],capture_output=True,text=True,
+  env={**os.environ,'ASAN_OPTIONS':'detect_leaks=1','UBSAN_OPTIONS':'halt_on_error=1'})
+(out/'run.log').write_text(result.stdout+result.stderr)
+print(result.stdout,end='');print(result.stderr,end='')
+report={'scope':'host_simulation_not_radio','ordinary_sessions':a.connections,
+        'asan_ubsan':True,'passed':result.returncode==0,'returncode':result.returncode,
+        'source_sha256':hashlib.sha256((ble/'glass_ble_central.c').read_bytes()).hexdigest()}
+(out/'VERIFICATION.json').write_text(json.dumps(report,indent=2)+'\n')
+result.check_returncode()

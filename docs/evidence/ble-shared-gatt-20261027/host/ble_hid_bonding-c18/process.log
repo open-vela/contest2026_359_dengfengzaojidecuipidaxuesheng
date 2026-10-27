@@ -1,0 +1,1 @@
+BLE_HID_BONDING_OK: defer past SMP persistence; event queue only; pending consumed once; current encrypted 16-byte bonded owner; reset/disconnect guards; errors retained

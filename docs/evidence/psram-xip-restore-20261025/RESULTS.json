@@ -1,0 +1,33 @@
+{
+  "time": "2026-10-25T22:14:00.943191+08:00",
+  "image_sha256": "77845a88158ea9e737cbb1230aeed3b0550f9cc48ff0c77d925c8e6ca6ab0030",
+  "xip_enabled": true,
+  "protected_cpus": 3,
+  "flash_write_operations": 4805,
+  "flash_erase_operations": 508,
+  "max_display_irq_gap_us": {
+    "game": 16624,
+    "camera": 16646
+  },
+  "screen_observation": {
+    "screen": "passed：用户重测后反馈没问题，并对 CSI Flash 写擦阶段明确确认这一段也没有问题",
+    "game_flash_stress": "passed: user reported 没问题 after retest",
+    "camera_preview": "passed: user reported 没问题 while preview was active",
+    "camera_flash_stress": "passed: user explicitly reported 这一段也没有问题",
+    "cold_power_cycle": "pending"
+  },
+  "usb_camera_tested": false,
+  "real_model_tested": false,
+  "camera_pan_max_us": 33115,
+  "camera_fps_samples": [
+    "10.0",
+    "10.0",
+    "9.9",
+    "10.0",
+    "9.8",
+    "9.7",
+    "9.7",
+    "9.5"
+  ],
+  "data_unchanged_after_flashing": true
+}

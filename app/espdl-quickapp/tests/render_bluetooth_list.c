@@ -154,11 +154,60 @@ int main(int argc,char **argv)
     assert(state.encrypted&&state.bonded&&strstr(lv_label_get_text(g_ble_list->status),"配对成功"));
     assert(strstr(lv_label_get_text(g_ble_list->status),"无线键盘"));
     glass_status_tick();assert(!strcmp(lv_label_get_text(g_status_ui.ble_count),"1"));
+    hid.connected=true;review_hid_snapshot_fixture(&hid);
+    glass_status_tick();assert(!strcmp(lv_label_get_text(g_status_ui.ble_count),"2"));
+    hid.connected=false;review_hid_snapshot_fixture(&hid);
     assert(strstr(lv_label_get_text(g_ble_list->detail),"已配对"));
-    assert(lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));
+    state.store_error=-ENOSPC;state.bonded=false;fixture(&state);
+    assert(strstr(lv_label_get_text(g_ble_list->detail),"保存失败"));
+    assert(strstr(lv_label_get_text(g_ble_list->detail),"重启"));
+    review_capture(display,"bluetooth-store-failed","蓝牙 · 配对保存失败");
+    state.store_error=0;state.bonded=true;fixture(&state);
+    assert(!lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));
     review_capture(display,"bluetooth-connected","蓝牙 · 当前连接与配对状态");
-    review_click("无线触摸板");assert(!g_ble_list&&g_mouse_status&&lv_obj_has_state(g_mouse_start,LV_STATE_DISABLED));
-    assert(strstr(lv_label_get_text(g_mouse_detail),"设备连接"));
+    struct glass_ble_state before_scan=state;
+    click(g_ble_list->scan);wait_job();glass_ble_read(&state);
+    assert(state.connected&&state.scanning&&state.generation==before_scan.generation);
+    assert(!strcmp(lv_label_get_text(lv_obj_get_child(g_ble_list->scan,0)),"停止搜索"));
+    click(g_ble_list->scan);wait_job();glass_ble_read(&state);
+    assert(state.connected&&!state.scanning&&state.generation==before_scan.generation&&state.peer_valid);
+    before_scan.scan_generation=state.scan_generation;state=before_scan;fixture(&state);
+
+    struct glass_ble_state single=state;
+    state.central_capacity=2;state.session_count=state.connection_count=2;
+    state.sessions[0]=(struct glass_ble_session){.generation=state.generation,.connected=true,.encrypted=true,.bonded=true,.peer=state.peer};
+    state.sessions[1]=(struct glass_ble_session){.generation=state.generation+20,.connected=true,.encrypted=true,.bonded=true,.peer=state.devices[2]};
+    fixture(&state);glass_status_tick();assert(!strcmp(lv_label_get_text(g_status_ui.ble_count),"2"));
+    assert(!lv_obj_has_state(row_for(2)->root,LV_STATE_DISABLED));
+    click(row_for(2)->root);wait_job();glass_ble_read(&state);
+    assert(state.generation==single.generation+20&&state.connection_count==2&&state.sessions[0].connected);
+    review_capture(display,"bluetooth-multiple","蓝牙 · 两个普通连接独立管理");
+    click(g_ble_list->control);wait_job();glass_ble_read(&state);
+    assert(state.sessions[1].disconnecting&&!state.sessions[0].disconnecting&&state.sessions[0].connected);
+#if GLASS_BLE_CENTRAL_LIMIT == 8
+    state=single;fill_devices(&state,8);state.central_capacity=8;
+    state.session_count=state.connection_count=8;state.connected=state.peer_valid=true;
+    for(unsigned i=0;i<8;i++)state.sessions[i]=(struct glass_ble_session){
+      .generation=100+i,.connected=true,.encrypted=true,.bonded=true,.peer=state.devices[i]};
+    state.generation=100;state.peer=state.devices[0];fixture(&state);glass_status_tick();
+    assert(!strcmp(lv_label_get_text(g_status_ui.ble_count),"8"));
+    for(unsigned i=0;i<8;i++)assert(!lv_obj_has_state(row_for(i)->root,LV_STATE_DISABLED));
+    click(row_for(7)->root);wait_job();glass_ble_read(&state);
+    assert(state.generation==107&&state.connection_count==8);
+    review_capture(display,"bluetooth-eight","蓝牙 · 八个普通设备独立选择");
+    state.connected=false;state.connection_count=0;state.mouse_paused=true;
+    for(unsigned i=0;i<8;i++){state.sessions[i].connected=false;state.sessions[i].mouse_paused=true;}
+    fixture(&state);glass_status_tick();
+    assert(!strcmp(lv_label_get_text(g_status_ui.ble_count),"0"));
+    assert(lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));
+    assert(!strcmp(lv_label_get_text(lv_obj_get_child(g_ble_list->control,0)),"取消恢复"));
+    assert(!strcmp(lv_label_get_text(row_for(7)->action),"等待恢复"));
+    lv_obj_invalidate(lv_screen_active());
+    review_capture(display,"bluetooth-eight-paused","蓝牙 · 八个设备暂停，保留恢复身份");
+#endif
+    state=single;fixture(&state);
+    review_click("无线触摸板");assert(!g_ble_list&&g_mouse_status&&!lv_obj_has_state(g_mouse_start,LV_STATE_DISABLED));
+    assert(!g_mouse_input_ready);
     review_click("设备连接");assert(g_ble_list&&!g_mouse_status);
     review_ble_error_fixture(-EBUSY);click(g_ble_list->control);wait_job();glass_ble_read(&state);
     assert(state.connected&&!state.disconnecting&&!lv_obj_has_state(g_ble_list->control,LV_STATE_DISABLED));
@@ -193,14 +242,27 @@ int main(int argc,char **argv)
     state.scan_generation++;state.count=0;state.scanning=true;fixture(&state);
     assert(lv_obj_get_scroll_y(g_ble_list->list)==0);
     state.scanning=false;fixture(&state);
-    hid.enabled=hid.connected=true;hid.advertising=false;state.connected=true;
+    hid.enabled=hid.connected=true;hid.advertising=false;state.connected=false;
     review_hid_snapshot_fixture(&hid);fixture(&state);
     assert(g_ble_list->action==BLE_LIST_MOUSE);
-    scans=review_ble_call_count(1);click(g_ble_list->scan);assert(!job_busy()&&review_ble_call_count(1)==scans);
-    review_capture(display,"bluetooth-hid-busy","蓝牙 · 触摸板占用提示");
+    assert(lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));
+    scans=review_ble_call_count(1);
+    click(g_ble_list->scan);wait_job();
+    assert(review_ble_call_count(1)==scans);
+    assert(!g_ble_list->state.connected&&g_ble_list->hid.connected);
+    review_ble_error_fixture(0);
+    review_capture(display,"bluetooth-hid-busy","蓝牙 · 独立业务状态与后端忙反馈");
     review_click("无线触摸板");assert(!g_ble_list&&g_mouse_status);
     review_capture(display,"bluetooth-touchpad","蓝牙 · 原有触摸板入口");
+    hid.store_error=-ENOSPC;review_hid_snapshot_fixture(&hid);glass_mouse_refresh(NULL);
+    assert(strstr(lv_label_get_text(g_mouse_detail),"保存失败"));
+    review_capture(display,"bluetooth-mouse-store-failed","蓝牙 · 鼠标配对保存失败");
+    hid.store_error=0;review_hid_snapshot_fixture(&hid);glass_mouse_refresh(NULL);
     review_click("设备连接");assert(g_ble_list&&!g_mouse_timer&&!g_mouse_status);
+    wait_job();glass_ble_read(&state);
+    assert(!state.scanning&&g_ble_list->hid.connected);
+    assert(lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));
+    scans=review_ble_call_count(1);
     hid.enabled=hid.advertising=hid.connected=false;state.connected=false;review_hid_snapshot_fixture(&hid);
     /* Initialization can be cancelled while the controller is not ready;
      * it never blocks the LVGL caller or launches a late scan after cancel. */
@@ -241,6 +303,6 @@ int main(int argc,char **argv)
     wait_job();glass_bluetooth_page(NULL);click(g_ble_list->control);wait_job();panel_hide(NULL);
   }
   fputs("\n]\n",review_manifest);fclose(review_manifest);
-  puts("BLUETOOTH_LIST_OK: both themes; automatic scan; stop-scan/connect; observed connection success; explicit pairing, accepted-only rejection, refusal/timeout/retry/cancel; encrypted session versus saved bond; pairing across page deletion; stale pairing preserves newer peer; confirmed disconnect and row opacity reset; addresses/RSSI; stale rows; 32 retained rows; HID exclusion; 60 reopen cycles; all BLE commands off UI thread");
+  puts("BLUETOOTH_LIST_OK: both themes; automatic scan; stop-scan/connect; observed connection success; explicit pairing, accepted-only rejection, refusal/timeout/retry/cancel; encrypted session versus saved bond; pairing across page deletion; stale pairing preserves newer peer; confirmed disconnect and row opacity reset; addresses/RSSI; stale rows; 32 retained rows; independent HID/device state and controls; per-business peer count; backend busy feedback; 60 reopen cycles; all BLE commands off UI thread");
   return 0;
 }

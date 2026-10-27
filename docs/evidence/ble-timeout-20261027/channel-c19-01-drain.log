@@ -1,0 +1,19 @@
+c6ble channel receive 1
+BLE_CHANNEL_DATA bytes=4 fnv32=a235ae95
+c6ble channel receive result=0
+nsh> [K
+nsh> [Kc6rpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 21 aa 15 00
+ble channel receive 1
+BLE_CHANNEL_DATA bytes=4 fnv32=97f57519
+c6ble channel receive result=0
+nsh> [K
+nsh> [Kc6ble channel receive 1
+BLE_CHANNEL_DATA bytes=4 fnv32=1405eb85
+c6ble channel receive result=0
+nsh> [K
+nsh> [Kc6ble channel receive 1
+BLE_CHANNEL_DATA bytes=4 fnv32=0da15179
+c6ble channel receive result=0
+nsh> [K
+nsh> [K

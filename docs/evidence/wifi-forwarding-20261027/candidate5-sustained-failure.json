@@ -1,0 +1,62 @@
+{
+  "path": "PC WLAN explicitly bound -> C6 SoftAP -> P4 NAT -> eth0 -> PC wired server; requires server source 192.168.31.64, rejects local bypass",
+  "client_ip": "192.168.4.2",
+  "client_ifindex": 7,
+  "source_bound": true,
+  "server_required_peer": "192.168.31.64",
+  "bytes_per_transfer": 4194304,
+  "minimum_window_seconds": 60.0,
+  "payload_crc32": "2463a2c3",
+  "storage": "random payload RAM only, CRC verified at receiver in both directions",
+  "blocks": 4,
+  "rounds": [],
+  "median_mbps": {},
+  "server": [
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 262144,
+      "error": "[WinError 10054] 远程主机强迫关闭了一个现有的连接。",
+      "direction": "download"
+    }
+  ],
+  "complete": false,
+  "scope": "sustained TCP NAT test; each transfer CRC verified; not browser/phone latency acceptance",
+  "tx_wake": 1,
+  "deployment_record": "8ea8773c477a396dabc4f42273eff2aaa8d69d6a20baf4ec22bf7bab0c3f77a1"
+}

@@ -1,0 +1,14 @@
+{
+  "recorded_date": "2026-10-27",
+  "timezone": "Asia/Shanghai",
+  "goal": "stable download",
+  "download_goal_mbps": 5,
+  "download_goal_test_status": "skipped_by_user",
+  "download_goal_verified": false,
+  "new_measurement_performed": false,
+  "automatic_scheduling_enabled": false,
+  "test_reminders_enabled": false,
+  "other_automatic_verification_enabled": true,
+  "prior_c10_checksum_regression_resolved": false,
+  "user_request": "稳定下载 5 Mbps 记录并且跳过测试"
+}

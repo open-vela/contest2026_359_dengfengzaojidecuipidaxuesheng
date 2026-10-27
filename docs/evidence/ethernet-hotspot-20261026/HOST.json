@@ -1,0 +1,86 @@
+{
+  "recovery": {
+    "passed": true,
+    "script": "test_network_recovery.py",
+    "log_sha256": "01ca22e766b923bbaf53e08de4c32d213246eb0cc1af59e6eb617fbad65867a5",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "dhcp": {
+    "passed": true,
+    "script": "test_dhcpd_status.py",
+    "log_sha256": "c9faad510c2e5433e5e93c3132db2a7f6529d058e82b3bd933ef76bfee1d8e10",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "recovery-sharing": {
+    "passed": true,
+    "script": "test_network_recovery.py",
+    "log_sha256": "3172bf13a37c041796db2778b9734992ebe391c5082bd1667c07256327ad7856",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "portal-network": {
+    "passed": true,
+    "script": "test_portal_network.py",
+    "log_sha256": "50f44bad2e0fb21b5b17ef995d94a293ccad25b57a62a85fa2f39fc6f18b37ef",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "portal-worker": {
+    "passed": true,
+    "script": "test_portal_worker.py",
+    "log_sha256": "ef9f31b90f6ea6d66542112d88d88b3998a29f661dc8e9d2a3b501a21a56b04a",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "portal-fd": {
+    "passed": true,
+    "script": "test_portal_fd_inheritance.py",
+    "log_sha256": "f09cbe8f0c6405e41dd537985b00c233f3e39ce5db82af25cde3e5b6fb0a6598",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "softap": {
+    "passed": true,
+    "script": "test_c6_softap.py",
+    "log_sha256": "a260fa355d48dfc8917fcf27c1bab5e71ef14e53184d58dbcc98949eec31a1d1",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "trial": {
+    "passed": true,
+    "script": "test_c6_wifi_trial.py",
+    "log_sha256": "ee2ce18a42aa3dbd61898cd5725d5ec918d7c68f38b62b026d394296d4a6d7e3",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "share": {
+    "passed": true,
+    "result_sha256": "59f17c9a3c5b119407c65da60ed3da0e84fe7052f4ccc0890c1ac63210b399ed",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "xip": {
+    "passed": true,
+    "result": "P4_PSRAM_XIP_OK observed; exit=0",
+    "script_sha256": "93175f1b5042c4ff0303dec1a69015b050caa7610f3183326a20457d4c5b0d63",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "native-ui": {
+    "passed": true,
+    "screens_sha256": "58ac590ad7ec2bd0c009e3e2eeecf89671abcd95d1ca14d7f6da4a6a864c7d2a",
+    "inherited": "candidate-2: all application/radio source hashes and resolved config identical; new kernel controller/locks tested separately",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "nat-locking": {
+    "passed": true,
+    "result_sha256": "c71f1a95e52586b611be675b4db53d6eaafdf446e77aa980e40e5133c43a8033",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  },
+  "nat-order": {
+    "passed": true,
+    "result_sha256": "78dca3ccb4eea6beeb5ed390c1a5e062b8d0988a80c3c505b18abe7b4edd7d9a",
+    "diagnostic_candidate_inheritance": "candidate-4 unchanged production source/config/SDK; runtime failures are NOT inherited as passes"
+  }
+}

@@ -26,6 +26,24 @@ static int test_sync(int fd)
 #undef malloc
 #undef fsync
 
+#ifdef CONFIG_ESP32P4_JPEG
+static int encode_error;
+static uint16_t encode_expected;
+int qpk_jpeg_hw_encode565(const uint16_t *pixels,unsigned width,unsigned height,
+                          unsigned stride,unsigned quality,uint8_t **out,size_t *size)
+{
+  assert(!pthread_equal(pthread_self(),producer));
+  assert(width==512&&height==384&&stride==512&&quality==90);
+  for(size_t i=0;i<(size_t)width*height;i++)assert(pixels[i]==encode_expected);
+  pthread_mutex_lock(&gate_lock);entered=true;pthread_cond_broadcast(&gate_wake);
+  while(held)pthread_cond_wait(&gate_wake,&gate_lock);
+  pthread_mutex_unlock(&gate_lock);
+  if(encode_error)return encode_error;
+  *out=malloc(4);assert(*out);*size=4;
+  const uint8_t fixture[]={255,216,255,217};memcpy(*out,fixture,4);return 0;
+}
+#endif
+
 static void hold(void){pthread_mutex_lock(&gate_lock);held=true;entered=false;pthread_mutex_unlock(&gate_lock);}
 static void wait_gate(void){pthread_mutex_lock(&gate_lock);while(!entered)pthread_cond_wait(&gate_wake,&gate_lock);pthread_mutex_unlock(&gate_lock);}
 static void release_gate(void){pthread_mutex_lock(&gate_lock);held=false;pthread_cond_broadcast(&gate_wake);pthread_mutex_unlock(&gate_lock);}
@@ -84,6 +102,28 @@ int main(void)
   jpg.bytes=4;atomic_store(&fail_alloc,true);
   assert(qpk_photo_store_submit(QPK_PHOTO_PREVIEW,&jpg,&other)==0);
   result=wait_result(QPK_PHOTO_PREVIEW,other);assert(result.error==-ENOMEM);
+  rgb.format=QPK_PHOTO_JPEG565;
+#ifdef CONFIG_ESP32P4_JPEG
+  for(unsigned i=0;i<320*240;i++)pixels[i]=0xf800;
+  encode_expected=camera_color_pixel(0xf800,2);
+  hold();assert(!qpk_photo_store_submit(QPK_PHOTO_PREVIEW,&rgb,&other));wait_gate();
+  memset(pixels,0,320*240*2);
+  release_gate();result=wait_result(QPK_PHOTO_PREVIEW,other);
+  assert(!result.error&&strstr(result.path,".jpg"));
+  file=fopen(result.path,"rb");assert(file);assert(fread(saved,1,4,file)==4&&!memcmp(saved,jpeg,4));fclose(file);
+  encode_expected=0;
+  hold();assert(!qpk_photo_store_submit(QPK_PHOTO_PREVIEW,&rgb,&other));wait_gate();
+  qpk_photo_store_cancel(QPK_PHOTO_PREVIEW,other);
+  assert(!qpk_photo_store_status(QPK_PHOTO_PREVIEW,other,&result)&&!result.done);
+  release_gate();result=wait_result(QPK_PHOTO_PREVIEW,other);
+  assert(result.error==-ECANCELED&&!result.path[0]);
+  encode_error=-ENOSPC;assert(!qpk_photo_store_submit(QPK_PHOTO_PREVIEW,&rgb,&other));
+  result=wait_result(QPK_PHOTO_PREVIEW,other);assert(result.error==-ENOSPC&&!result.path[0]);
+  puts("PHOTO_JPEG_WORKER_OK: owned crop/style input; JPEG receipt; encoder cancellation waits; ENOSPC preserves failure without BMP fallback");
+#else
+  assert(!qpk_photo_store_submit(QPK_PHOTO_PREVIEW,&rgb,&other));
+  result=wait_result(QPK_PHOTO_PREVIEW,other);assert(result.error==-ENOSYS&&!result.path[0]);
+#endif
   free(pixels);qpk_photo_store_shutdown();
   assert(qpk_photo_store_submit(QPK_PHOTO_PREVIEW,&jpg,&other)==-EAGAIN);
   puts("PHOTO_ASYNC_OK: slow fsync off producer, independent copied payload, two bounded owners, duplicate rejection, stale ID, queued/fsync cancellation, JPEG/BMP565/BMP24, allocation error and clean shutdown");

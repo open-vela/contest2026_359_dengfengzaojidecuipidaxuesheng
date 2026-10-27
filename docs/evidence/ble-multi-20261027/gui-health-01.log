@@ -1,0 +1,17 @@
+desktop ui render-metrics
+UI_RENDER_METRICS elapsed_ms=74020 frames=798 render_avg_us=8696 render_max_us=1140000 refreshes=798 refresh_avg_us=8834 refresh_max_us=1170000 widgets=0
+desktop: ui render-metrics ready
+nsh> [K
+nsh> [Kdesktop ui navigation-status
+navigation page=home return=home
+nsh> [K
+nsh> [Kdesktop ui home
+desktop: ui home ready
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 13 aa 15 00
+desktop ui render-metrics
+UI_RENDER_METRICS elapsed_ms=78300 frames=836 render_avg_us=8624 render_max_us=1140000 refreshes=836 refresh_avg_us=8755 refresh_max_us=1170000 widgets=0
+desktop: ui render-metrics ready
+nsh> [K
+nsh> [K

@@ -1,0 +1,31 @@
+{
+  "image_sha256": "42fc7d5bea78ebb217fcc068a788cbe42a4b1f41dd75e4e129a0b248c4768836",
+  "elf_sha256": "17ad00325777fa0f79b74b382f95dfca06a00f3210482e326713962334182969",
+  "previous_image_sha256": "d59370b63de3f2eca8e6445e1fa627777b566e9843d1ccc45b45942c4f03bb85",
+  "source_changes": [
+    "app/espdl-quickapp/overlay/apps/system/desktop/Makefile",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_jpeg_hw.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_jpeg_hw.h",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_mjpeg.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_ppa.c",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_ppa.h",
+    "app/espdl-quickapp/overlay/nuttx/arch/risc-v/src/esp32p4/esp32p4_ppa.c",
+    "app/espdl-quickapp/overlay/nuttx/include/nuttx/video/p4_ppa.h"
+  ],
+  "configuration_changes": {},
+  "xip_input_sources_unchanged": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "rejected_experiments_disabled": true,
+  "security_provisioning_configs_enabled": false,
+  "manual_indirect_closure_review": "see XIP-REVIEW.md",
+  "physical_acceptance": "pending; not inherited"
+}

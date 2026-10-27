@@ -1,0 +1,10 @@
+{
+  "net/espclaw_share.c": {
+    "returncode": 0,
+    "source_sha256": "edcdd10a5f99ad514911419bf41681e04c7abc89cbae55611b75f43f5c4e774f"
+  },
+  "include/nuttx/net/espclaw_share.h": {
+    "returncode": 0,
+    "source_sha256": "957e5dc2bea319896b2f6627599bca855e4991c2f9d6d2002a08b1b5fffde715"
+  }
+}

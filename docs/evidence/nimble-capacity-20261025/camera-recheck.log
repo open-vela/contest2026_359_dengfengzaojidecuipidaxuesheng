@@ -1,0 +1,141 @@
+
+HOST 2026-10-25 23:33:41 desktop cameras
+desktop cameras
+camera app: busy=1 alive=1 frames=214 error=0 photo=0 path=
+camera display: frames=183663 underruns=0 pan_errors=0 mode=0x0
+[display-time] frames=183664 irq_gap_max_us=16721 pans=565 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=14942/2652/273 max_us=2710/31543/59304 total_us=1245638/6156085/9705940
+camera: connected=1 CSI=1 USB=0
+camera: csi0 SC2336 1024x600 RGB565 30 fps
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:33:42 desktop xip
+desktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=17880 text_hash=136a9526 rodata_hash=28c1efdd cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:33:43 free
+free
+      total       used       free    maxused    maxfree  nused  nfree name
+   23330816    8249152   15081664    9341744   13408056  13741    295 Umem
+      76816      72272       4544      72736       2728    309     15 Kmem
+nsh> [K
+nsh> [K[qpk] camera stages: capture=9.9 fps dq=0 us invalidate=0 us copy=0 us clean=0 us qbuf=0 us converted=60/60
+[display-time] frames=183820 irq_gap_max_us=16721 pans=591 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=14942/2652/273 max_us=2710/31543/59304 total_us=1245638/6156085/9705940
+rpc: WifiStaGetRssi tx pb=11 tlv=23
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 e3 04 aa 15 00
+
+HOST 2026-10-25 23:33:48 desktop cameras
+desktop cameras
+camera app: busy=1 alive=1 frames=290 error=0 photo=0 path=
+camera display: frames=184122 underruns=0 pan_errors=0 mode=0x0
+[display-time] frames=184122 irq_gap_max_us=16721 pans=641 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=14942/2652/273 max_us=2710/31543/59304 total_us=1245638/6156085/9705940
+camera: connected=1 CSI=1 USB=0
+camera: csi0 SC2336 1024x600 RGB565 30 fps
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:33:49 desktop storage-test
+desktop storag[qpk] camera stages: capture=10.0 fps dq=0 us invalidate=0 us copy=0 us clean=0 us qbuf=0 us converted=60/60
+[display-time] frames=184182 irq_gap_max_us=16721 pans=651 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=14942/2652/273 max_us=2710/31543/59304 total_us=1245638/6156085/9705940
+[qpk] camera health: captured=300 displayed=300 dropped=0 heap_free=15082184 heap_largest=13408056 dqerr=0 qbuferr=0 panerr=0
+e-test
+rpc: WifiStaGetRssi tx pb=11 tlv=23
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 e4 04 aa 15 00
+[flash-time] op=2 bytes=4096 us=48551 result=0
+[flash-time] op=2 bytes=4096 us=35400 result=0
+[flash-time] op=2 bytes=4096 us=34073 result=0
+desktop: storage selftest PASS (ret=0, 3 namespaces, overwrite/read/delete)
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:33:53 desktop xip
+desktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=19904 text_hash=136a9526 rodata_hash=28c1efdd cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:33:54 desktop cameras
+desktop cameras
+camera app: busy=1 alive=1 frames=346 error=0 photo=0 path=
+camera display: frames=184463 underruns=0 pan_errors=0 mode=0x0
+[display-time] frames=184463 irq_gap_max_us=16721 pans=697 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=16552/3029/310 max_us=2710/31543/59304 total_us=1438612/7051435/11043763
+camera: connected=1 CSI=1 USB=0
+camera: csi0 SC2336 1024x600 RGB565 30 fps
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=11 tlv=23
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 e5 04 aa 15 00
+
+HOST 2026-10-25 23:33:56 desktop cameras
+[qpk] camera stages: capture=9.9 fps dq=0 us invalidate=0 us copy=0 us clean=0 us qbuf=0 us converted=60/60
+[display-time] frames=184546 irq_gap_max_us=16721 pans=711 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=16552/3029/310 max_us=2710/31543/59304 total_us=1438612/7051435/11043763
+desktop cameras
+camera app: busy=1 alive=1 frames=367 error=0 photo=0 path=
+camera display: frames=184591 underruns=0 pan_errors=0 mode=0x0
+[display-time] frames=184592 irq_gap_max_us=16721 pans=718 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=16552/3029/310 max_us=2710/31543/59304 total_us=1438612/7051435/11043763
+camera: connected=1 CSI=1 USB=0
+camera: csi0 SC2336 1024x600 RGB565 30 fps
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:33:57 desktop storage-test
+desktop storage-test
+[flash-time] op=2 bytes=4096 us=46898 result=0
+[flash-time] op=2 bytes=4096 us=35476 result=0
+[flash-time] op=2 bytes=4096 us=34174 result=0
+rpc: WifiStaGetRssi tx pb=11 tlv=23
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 e6 04 aa 15 00
+desktop: storage selftest PASS (ret=0, 3 namespaces, overwrite/read/delete)
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:34:01 desktop xip
+desktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=21924 text_hash=136a9526 rodata_hash=28c1efdd cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:34:02 desktop cameras
+desktop[qpk] camera stages: capture=10.0 fps dq=0 us invalidate=0 us copy=0 us clean=0 us qbuf=0 us converted=60/60
+[display-time] frames=184908 irq_gap_max_us=16721 pans=771 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=18156/3407/348 max_us=2710/31543/59304 total_us=1624937/7939426/12379855
+ cameras
+camera app: busy=1 alive=1 frames=424 error=0 photo=0 path=
+camera display: frames=184932 underruns=0 pan_errors=0 mode=0x0
+[display-time] frames=184932 irq_gap_max_us=16721 pans=775 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=18156/3407/348 max_us=2710/31543/59304 total_us=1624937/7939426/12379855
+camera: connected=1 CSI=1 USB=0
+camera: csi0 SC2336 1024x600 RGB565 30 fps
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:34:04 desktop cameras
+desktop cameras
+camera app: busy=1 alive=1 frames=445 error=0 photo=0 path=
+camera display: frames=185061 underruns=0 pan_errors=0 mode=0x0
+[display-time] frames=185061 irq_gap_max_us=16721 pans=796 pan_max_us=20385 pan_errors=0 flash_guard_frames=0
+[flash-time] active=0 ops(r/w/e)=18156/3407/348 max_us=2710/31543/59304 total_us=1624937/7939426/12379855
+camera: connected=1 CSI=1 USB=0
+camera: csi0 SC2336 1024x600 RGB565 30 fps
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:34:05 free
+free
+      total       used       free    maxused    maxfree  nused  nfree name
+   23330816    8281928   15048888    9341744   13408056  13742    295 Umem
+      76816      72272       4544      73016       2096    309     15 Kmem
+nsh> [K
+nsh> [K
+HOST 2026-10-25 23:34:05 desktop camera-stop
+desrpc: WifiStaGetRssi tx pb=11 tlv=23
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 e7 04 aa 15 00
+ktop camera-stop
+desktop: camera diagnostic stop requested
+nsh> [K
+nsh> [K[display-owner] camera return page=2 result=0 ms=30
+
+HOST 2026-10-25 23:34:10 desktop ui home
+desktop ui home
+desktop: ui home ready
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=11 tlv=23
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 e8 04 aa 15 00

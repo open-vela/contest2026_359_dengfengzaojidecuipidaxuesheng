@@ -1,0 +1,10 @@
+{
+  "identity": "DB:9B:EB:2E:71:EF",
+  "passed": true,
+  "old_epoch": 1,
+  "new_epoch": 3,
+  "queued_frame_cleared_on_disconnect": true,
+  "stale_epoch_send_receive_rejected": true,
+  "new_epoch_empty_fifo": true,
+  "hid_reconnected": true
+}

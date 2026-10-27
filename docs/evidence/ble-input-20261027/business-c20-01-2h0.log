@@ -1,0 +1,4 @@
+c6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=13 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [K[CPU0] [ble-hid] disconnect reason=520 encrypted=0

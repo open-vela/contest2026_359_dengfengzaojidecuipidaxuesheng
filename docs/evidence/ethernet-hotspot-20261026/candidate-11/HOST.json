@@ -1,0 +1,103 @@
+{
+  "recovery": {
+    "passed": true,
+    "result_sha256": "8fc91542f4adf42be88daa6fd442abae7695d4b0ffce5c48599341b4b9dc047f",
+    "result_path": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\network-share-20261026\\host\\wifi6-recovery-01\\RESULT.json",
+    "rerun_for_candidate9": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "dhcp": {
+    "passed": true,
+    "script": "test_dhcpd_status.py",
+    "log_sha256": "c9faad510c2e5433e5e93c3132db2a7f6529d058e82b3bd933ef76bfee1d8e10",
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "recovery-sharing": {
+    "passed": true,
+    "result_sha256": "8fc91542f4adf42be88daa6fd442abae7695d4b0ffce5c48599341b4b9dc047f",
+    "result_path": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\network-share-20261026\\host\\wifi6-recovery-01\\RESULT.json",
+    "rerun_for_candidate9": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "portal-network": {
+    "passed": true,
+    "script": "test_portal_network.py",
+    "log_sha256": "50f44bad2e0fb21b5b17ef995d94a293ccad25b57a62a85fa2f39fc6f18b37ef",
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "portal-worker": {
+    "passed": true,
+    "script": "test_portal_worker.py",
+    "log_sha256": "ef9f31b90f6ea6d66542112d88d88b3998a29f661dc8e9d2a3b501a21a56b04a",
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "portal-fd": {
+    "passed": true,
+    "script": "test_portal_fd_inheritance.py",
+    "log_sha256": "f09cbe8f0c6405e41dd537985b00c233f3e39ce5db82af25cde3e5b6fb0a6598",
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "softap": {
+    "passed": true,
+    "result_sha256": "116bb9315605dc8203590210092202b47b9f7cd7eeb678a25556b6726f13e147",
+    "rerun_for_candidate10": true,
+    "actual_locked_owner_and_real_mailbox": true,
+    "old_zero_uid_negative_control_rejected": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "trial": {
+    "passed": true,
+    "result_sha256": "2b1cf367df180bfbc2ff2b97510109051a6598c03ee1a0bf2dedbf13b3d7ba83",
+    "result_path": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\network-share-20261026\\host\\wifi6-trial-final\\RESULT.json",
+    "rerun_for_candidate9": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "share": {
+    "passed": true,
+    "result_sha256": "c2e8f7bde055a231d181b1d4f3210709d57d270e376876b40e0019c36ccdb607",
+    "rerun_for_candidate8": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "xip": {
+    "passed": true,
+    "result": "P4_PSRAM_XIP_OK; current prepared SDK, exit 0",
+    "script_sha256": "93175f1b5042c4ff0303dec1a69015b050caa7610f3183326a20457d4c5b0d63",
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "native-ui": {
+    "passed": true,
+    "screens_sha256": "58ac590ad7ec2bd0c009e3e2eeecf89671abcd95d1ca14d7f6da4a6a864c7d2a",
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "nat-locking": {
+    "passed": true,
+    "result_sha256": "c71f1a95e52586b611be675b4db53d6eaafdf446e77aa980e40e5133c43a8033",
+    "rerun_for_candidate6": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "nat-order": {
+    "passed": true,
+    "result_sha256": "78dca3ccb4eea6beeb5ed390c1a5e062b8d0988a80c3c505b18abe7b4edd7d9a",
+    "rerun_for_candidate6": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "capacity-negative-control": {
+    "passed": true,
+    "result_sha256": "aacb2a60cebc3efdd9149a62de8b353e32588d9880a06c396cc5335719179dc5",
+    "rerun_for_candidate8": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "deferred-tx": {
+    "passed": true,
+    "result_sha256": "3bbc16dcdaa0fe63e570fb730e1edd5f142789426446634ce36df15d060724f4",
+    "rerun_for_candidate7": true,
+    "inheritance_scope": "Unchanged component and production source; previous host evidence only. No device acceptance inherited."
+  },
+  "forwarding-config": {
+    "passed": true,
+    "script": "source/tools/test_forwarding_config.py",
+    "source_sha256": "3f51e749867c941bbbf3ae687857e5324779fa9a1d0b1a8ea7df2fd30b0f81ee",
+    "frozen_source_tests": 3,
+    "run_in_wsl": true
+  }
+}

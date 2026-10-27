@@ -1,0 +1,49 @@
+{
+  "image_sha256": "1b963fd4c0e6db73ce7600576b8eef3ee049bffd84596e559567e2578605274c",
+  "elf_sha256": "32c44dfa4695d3a115d11f64cbd23905a22f18307fa971adc43040ea3797e68a",
+  "ble_identity": "C0:40:64:8A:D7:55",
+  "ble_name": "OpenVela Mouse-648AD755",
+  "app_readback_verified": true,
+  "full_data_partition_unchanged_at_flash": true,
+  "warm_boot_xip_verified": true,
+  "xip_protected_cpus": 3,
+  "legacy_bgn_ht20_start_and_stop_verified": true,
+  "he_bgnax_ht20_start_stop_and_reopen_verified": true,
+  "active_policy_change_rejected": true,
+  "ap_protocol": 71,
+  "ap_bandwidth_enum": 1,
+  "phy_query_apply_restore_errors": [
+    0,
+    0,
+    0
+  ],
+  "ap_generation": 3,
+  "sta_to_router_negotiated_phy": 6,
+  "sta_to_router_he20": true,
+  "ap_clients_at_baseline": 0,
+  "phone_actual_phy": "pending; AP config and STA uplink are not phone PHY proof",
+  "forwarding_configured": true,
+  "phone_internet": "pending",
+  "throughput_mbps": null,
+  "sdio_clock_mhz": 20,
+  "sdio_clock_and_tx_scheduling_changed": false,
+  "display_irq_gap_max_us": 16594,
+  "display_underruns": 0,
+  "display_pan_errors": 0,
+  "flash_writes_erases_at_baseline": [
+    0,
+    0
+  ],
+  "physical_display_acceptance": "pending",
+  "flash_and_csi_acceptance": "pending",
+  "cold_power_cycle": "pending",
+  "new_ble_pairing": "pending",
+  "evidence_sha256": {
+    "first-boot.log": "862230ab289b38d3bdec2278aa3bf3b6b027dba97c09f793b4518f2fe49e9bdf",
+    "legacy-start.log": "9730077a0d58756eecadfa71b146071d2675219dcfb7bb382dac4f90f1e85512",
+    "legacy-close.log": "48583a04792f6d4775106a0ad6d13c2f889449fb86312f3078f89c119497d1f9",
+    "he-start.log": "1f80d50a9dc299543ba446329cbccba5f11c61afd2c2fb6371fe31e0879b495f",
+    "he-close-reopen.log": "8bf5605c228b4d1d5026bfc7ae592d33268c20014c752148f8c65c2840c17c46",
+    "he-ready.log": "69555d6dbe69605418a7d4cef3df56bca9524dd487c71665e1871205677789de"
+  }
+}

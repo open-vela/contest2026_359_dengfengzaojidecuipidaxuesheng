@@ -1,0 +1,22 @@
+{
+  "CONFIG_ESP32P4_PSRAM_XIP": {
+    "before": null,
+    "after": "y"
+  },
+  "CONFIG_SPIRAM_FETCH_INSTRUCTIONS": {
+    "before": null,
+    "after": "y"
+  },
+  "CONFIG_SPIRAM_FLASH_LOAD_TO_PSRAM": {
+    "before": null,
+    "after": "y"
+  },
+  "CONFIG_SPIRAM_RODATA": {
+    "before": null,
+    "after": "y"
+  },
+  "CONFIG_SPIRAM_XIP_FROM_PSRAM": {
+    "before": null,
+    "after": "y"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "source_sha256": "0b66519c53dcdf9a9b2a224f72d746666000e1ee984cf766eacc76bd88e8a4dc",
+  "scope": "actual guard/snapshot functions and real notify; deterministic clock, pending callback lists and mutex ownership; no hardware claim"
+}

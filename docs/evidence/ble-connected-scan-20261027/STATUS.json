@@ -1,0 +1,8 @@
+{
+  "state": "deployed_with_bounded_automatic_ble_verification",
+  "image_sha256": "fde34fcd6ced46fa8c1dc7b8b10f14a73114495dfe115a9b8f53ccf23bf12011",
+  "runtime": "BLE-RUNTIME.json",
+  "known_transients_recorded": true,
+  "ordinary_central_gatt_plus_hid_two_live_links_verified": false,
+  "user_participation_requested": false
+}

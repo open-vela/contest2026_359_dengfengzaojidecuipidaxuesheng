@@ -1,0 +1,15 @@
+{
+  "service_uuid": "970b7622-55cb-4c65-9f7e-faffa29f64fb",
+  "events": [
+    {
+      "status": "WAITING",
+      "error": "SUCCESS"
+    },
+    {
+      "status": "STARTED",
+      "error": "SUCCESS"
+    }
+  ],
+  "status": "STARTED",
+  "final_status": "STARTED"
+}

@@ -1,0 +1,26 @@
+{
+  "esp32p4_dma2d.c": {
+    "returncode": 0,
+    "sha256": "bec658d57dce7dfb8412ad7229598e14416a17ca7334e1d6323c8516373fd024"
+  },
+  "esp32p4_dma2d.h": {
+    "returncode": 0,
+    "sha256": "12be5e665fec8684bcf6bdfb4d5ac6faae412f3ed3a93bded7489b8678f53dfa"
+  },
+  "esp32p4_jpeg.c": {
+    "returncode": 0,
+    "sha256": "d6638873af99cb17cbdcab1b2b876266aad0951a83eeaeee60ad831358e92900"
+  },
+  "esp32p4_jpeg_parse.c": {
+    "returncode": 0,
+    "sha256": "7f380c007eafc231de40a5e4e9a229ac9ff8f06042865d7aedacdc939b0fa667"
+  },
+  "esp32p4_jpeg_internal.h": {
+    "returncode": 0,
+    "sha256": "527c54cd7c29caaed45a7427c6489d3cf47555b16149e1e1af8fd69fe27482ea"
+  },
+  "esp32p4_jpeg_tables.h": {
+    "returncode": 0,
+    "sha256": "05222428fdc255435a67f64c0e72444c201a785341b20646756a58d9b2a17855"
+  }
+}

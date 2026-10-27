@@ -1,0 +1,126 @@
+{
+  "path": "PC WLAN explicitly bound -> C6 SoftAP -> P4 NAT -> eth0 -> PC wired server; requires server source 192.168.31.64, rejects local bypass",
+  "client_ip": "192.168.4.3",
+  "client_ifindex": 7,
+  "source_bound": true,
+  "server_required_peer": "192.168.31.64",
+  "bytes_per_round": 4194304,
+  "payload_crc32": "df148207",
+  "storage": "random payload RAM only, CRC verified at receiver in both directions",
+  "blocks": 4,
+  "rounds": [
+    {
+      "round": 1,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 5.716322300024331,
+      "mbps": 5.869933540986166,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 963,
+        "inbound": 2795,
+        "dropped": 0
+      }
+    },
+    {
+      "round": 1,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 2.4304019000846893,
+      "mbps": 13.806124821919687,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 2328,
+        "inbound": 1252,
+        "dropped": 0
+      }
+    },
+    {
+      "round": 2,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 4.266856999951415,
+      "mbps": 7.863969193338814,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 1593,
+        "inbound": 3286,
+        "dropped": 17
+      }
+    },
+    {
+      "round": 2,
+      "direction": "upload",
+      "bytes": 4194304,
+      "seconds": 2.229200799949467,
+      "mbps": 15.052224995056807,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 2959,
+        "inbound": 1485,
+        "dropped": 1
+      }
+    },
+    {
+      "round": 3,
+      "direction": "download",
+      "bytes": 4194304,
+      "seconds": 4.461407999973744,
+      "mbps": 7.521040891171009,
+      "crc_passed": true,
+      "nat_delta": {
+        "outbound": 837,
+        "inbound": 2788,
+        "dropped": 6
+      }
+    }
+  ],
+  "median_mbps": {
+    "download": 7.521040891171009,
+    "upload": 14.429174908488246
+  },
+  "server": [
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "upload"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 4194304,
+      "error": null,
+      "direction": "download"
+    },
+    {
+      "peer": "192.168.31.64",
+      "bytes": 2228224,
+      "error": null,
+      "direction": "upload"
+    }
+  ],
+  "complete": false,
+  "scope": "short paired TCP test; not browser/phone 3x60s acceptance",
+  "tx_wake": 1,
+  "deployment_record": "8c268297ba02c4ea8e00489759217c201497cf1d02480370d45eb07a3179f60d",
+  "operator_interruption_requested_for_phone_dhcp": true,
+  "acceptance": "incomplete; no complete 3-pair conclusion"
+}

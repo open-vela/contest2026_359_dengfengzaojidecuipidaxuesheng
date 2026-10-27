@@ -1,0 +1,22 @@
+[
+  {
+    "configured": 1,
+    "actual_syscfg_matches": true,
+    "original_bug_rejected": true
+  },
+  {
+    "configured": 2,
+    "actual_syscfg_matches": true,
+    "original_bug_rejected": true
+  },
+  {
+    "configured": 3,
+    "actual_syscfg_matches": true,
+    "original_bug_rejected": true
+  },
+  {
+    "configured": 8,
+    "actual_syscfg_matches": true,
+    "original_bug_rejected": true
+  }
+]

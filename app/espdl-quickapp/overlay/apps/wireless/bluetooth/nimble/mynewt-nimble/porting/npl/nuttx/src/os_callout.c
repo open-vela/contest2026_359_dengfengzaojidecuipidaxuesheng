@@ -27,12 +27,15 @@
 #include <signal.h>
 
 #include "nimble/nimble_npl.h"
+#include "nimble/nuttx_callout.h"
 
 #ifndef CONFIG_NIMBLE_CALLOUT_THREAD_STACKSIZE
 #define CONFIG_NIMBLE_CALLOUT_THREAD_STACKSIZE 1024
 #endif
 
-struct ble_npl_callout *pending_callout = NULL;
+static struct ble_npl_callout *pending_head;
+static struct ble_npl_callout *pending_tail;
+static struct ble_npl_nuttx_callout_stats callout_stats;
 
 bool thread_started = false;
 pthread_t callout_thread;
@@ -46,12 +49,19 @@ callout_handler(pthread_addr_t arg)
 
     while (true) {
         pthread_mutex_lock(&callout_mutex);
-        while (!pending_callout) {
+        while (!pending_head) {
           pthread_cond_wait(&callout_cond, &callout_mutex);
         }
 
-        c = pending_callout;
-        pending_callout = NULL;
+        c = pending_head;
+        pending_head = c->c_pending_next;
+        if (!pending_head) {
+            pending_tail = NULL;
+        }
+        c->c_pending_next = NULL;
+        c->c_pending = false;
+        callout_stats.pending--;
+        callout_stats.dispatched++;
         pthread_mutex_unlock(&callout_mutex);
 
         /* Invoke callback */
@@ -73,9 +83,37 @@ ble_npl_callout_timer_cb(union sigval sv)
     assert(c);
 
     pthread_mutex_lock(&callout_mutex);
-    pending_callout = c;
-    pthread_cond_signal(&callout_cond);
+    callout_stats.expirations++;
+    if (!c->c_pending) {
+        c->c_pending = true;
+        c->c_pending_next = NULL;
+        if (pending_tail) {
+            pending_tail->c_pending_next = c;
+        } else {
+            pending_head = c;
+        }
+        pending_tail = c;
+        callout_stats.pending++;
+        if (callout_stats.pending > callout_stats.highwater) {
+            callout_stats.highwater = callout_stats.pending;
+        }
+        pthread_cond_signal(&callout_cond);
+    } else {
+        /* One timer's repeated expiry coalesces like its NPL event. Never
+         * coalesce expirations belonging to different callouts/queues. */
+        callout_stats.coalesced++;
+    }
     pthread_mutex_unlock(&callout_mutex);
+}
+
+void
+ble_npl_nuttx_callout_read(struct ble_npl_nuttx_callout_stats *stats)
+{
+    if (stats) {
+        pthread_mutex_lock(&callout_mutex);
+        *stats = callout_stats;
+        pthread_mutex_unlock(&callout_mutex);
+    }
 }
 
 void

@@ -1,0 +1,18 @@
+{
+  "address": "F9:71:66:11:70:FC",
+  "address_little_endian": [
+    252,
+    112,
+    17,
+    102,
+    113,
+    249
+  ],
+  "address_type": "static-random",
+  "name": "OpenVela Mouse-661170FC",
+  "store_path": "/data/config/ble_f971661170fc.bin",
+  "store_temp": "/data/config/.ble_f971661170fc.tmp",
+  "purpose_path": "/data/config/bh_f971661170fc.bin",
+  "purpose_temp": "/data/config/.bh_f971661170fc.tmp",
+  "header_sha256": "b75713a13cb772fcf287da840d98b3b0de462de8b893ba9690347d8f328a676f"
+}

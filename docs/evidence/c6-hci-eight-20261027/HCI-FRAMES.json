@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "scope": "actual_Hosted_and_SDK_functions_with_queue_API_stubs_not_radio",
+  "synthetic_peers": 8,
+  "candidate_c2h_frames": 8000,
+  "candidate_h2c_acl_frames": 8000,
+  "malformed_short_type_cases": 325,
+  "source_before_sha256": "9c0894e20640bca76fd42090b5e95a5282018aa329b18602638549f64766f408",
+  "source_sha256": "24c937a65388aa33678439b8eee6138a72a08b83a372f0f76399f5bcfac91a0a",
+  "sdk_source_sha256": "5ff8fd12c8d2b1790da6e8874e55b4f2e58b1ed37f12a00733b58f17103586ba",
+  "results": [
+    {
+      "variant": "baseline",
+      "mode": "stress",
+      "expected_failure": false,
+      "passed": true
+    },
+    {
+      "variant": "baseline",
+      "mode": "oversize",
+      "expected_failure": true,
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "mode": "stress",
+      "expected_failure": false,
+      "passed": true
+    },
+    {
+      "variant": "candidate",
+      "mode": "oversize",
+      "expected_failure": false,
+      "passed": true
+    }
+  ],
+  "device_actions": false,
+  "limits": [
+    "valid Hosted outer header/headroom assumed",
+    "queue rejection modeled before ownership transfer",
+    "SDK internal allocation-failure assertions unchanged"
+  ]
+}

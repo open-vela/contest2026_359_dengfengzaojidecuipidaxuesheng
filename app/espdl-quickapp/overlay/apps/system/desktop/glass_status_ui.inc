@@ -105,10 +105,12 @@ static void glass_status_tick(void)
     }
     g_status_ui.signal_bars=bars;g_status_ui.signal_level=level;
   }
-  /* The controller has one active role. Discoveries never count as peers. */
+  /* Each connected business contributes one peer; discoveries do not. */
   struct glass_ble_hid_state ble={0};glass_ble_hid_read(&ble);
   struct glass_ble_state central={0};glass_ble_read(&central);
-  unsigned bluetooth_count=ble.connected||central.connected?1:0;
+  unsigned bluetooth_count=(unsigned)ble.connected+
+    (central.session_count?central.connection_count:
+     (unsigned)(central.connected&&central.peer_valid));
   if(first||bluetooth_count!=g_status_ui.bluetooth_count)
     lv_obj_set_style_opa(g_status_ui.bluetooth,bluetooth_count?LV_OPA_COVER:LV_OPA_40,0);
   g_status_ui.bluetooth_count=bluetooth_count;

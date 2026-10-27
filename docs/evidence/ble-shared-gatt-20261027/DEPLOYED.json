@@ -1,0 +1,23 @@
+{
+  "ethernet_sharing_verified": false,
+  "phone_internet_verified": false,
+  "jpeg_encoding_verified": false,
+  "real_photo_save_verified": false,
+  "image_sha256": "7d9715148a1ddcac9a534b5feea1e4ae8d70592e4e5573c44589340daff4ed48",
+  "independent_readback_verified": true,
+  "data_partition_unchanged_after_flash": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "jpeg_pixels_verified": false,
+  "personal_tests": "not_requested_by_user_preference",
+  "physical_display_acceptance": "not_verified",
+  "cold_power_cycle_verified": false,
+  "ble_new_identity_pairing_verified": true,
+  "ble_hid_encrypted_notify_verified": true,
+  "ble_bond_warm_reconnect_verified": true,
+  "ble_shared_gatt_verified": true,
+  "ble_shared_gatt_real_rx_max": 244,
+  "ble_shared_gatt_real_tx_max": 20,
+  "ble_stability_complete": false
+}

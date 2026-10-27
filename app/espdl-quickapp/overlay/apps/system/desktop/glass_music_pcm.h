@@ -6,8 +6,11 @@
 #include <nuttx/audio/audio.h>
 #define MUSIC_PCM_BUFFERS 4
 /* The I2S bus runs two 16-bit slots per frame, so one frame is four bytes. */
-/* Four APBs plus two lower-half DMA copies must fit the small kernel heap. */
-#define MUSIC_PCM_FRAMES 576
+/* Keep each DMA copy at 960 bytes, matching the microphone observer. Two
+ * playback transfers plus observation must fit the internal kernel heap.
+ * 240 frames retain the required 64-byte cache-line alignment.
+ */
+#define MUSIC_PCM_FRAMES 240
 struct music_pcm {
   int fd;
   mqd_t mq;

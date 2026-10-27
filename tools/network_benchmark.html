@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>局域网网络测速</title>
+<style>
+body{margin:0;background:#101820;color:#e8eff5;font:16px system-ui,sans-serif}main{max-width:760px;margin:32px auto;padding:24px}
+h1{font-size:28px}p{line-height:1.7;color:#b8c8d5}.card{background:#192731;border:1px solid #31434f;border-radius:14px;padding:20px;margin:20px 0}
+button{padding:13px 22px;border:0;border-radius:9px;background:#52dec0;color:#08221c;font:600 16px system-ui;margin-right:8px}
+button:disabled{opacity:.4}#stop{background:#b9c8d4}label{display:block;line-height:1.8;margin:14px 0}table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{text-align:left;padding:10px 5px;border-bottom:1px solid #31434f}#status{font-size:19px;color:#75e7cd}#details{white-space:pre-wrap;font:13px monospace}small{color:#b8c8d5}
+</style>
+<main><h1>局域网网络测速</h1>
+<p>连接设备屏幕上的热点，关闭手机移动数据。测试期间请保持本页面在前台。</p>
+<div class="card"><div id="status">准备就绪</div>
+<p id="plan"></p><label><input id="ready" type="checkbox"> 我已连接设备热点，并关闭移动数据</label>
+<button id="start" disabled>开始测速</button><button id="stop" disabled>停止</button>
+<p id="progress">下载：电脑 → 手机；上传：手机 → 电脑。测试数据只在内存中处理。</p></div>
+<div class="card"><table><thead><tr><th>方向 / 轮次</th><th>有效速率</th><th>延迟 p95</th><th>校验</th></tr></thead><tbody id="rows"></tbody></table>
+<p id="summary">完成后自动保存结果。</p><small>结果为局域网 HTTP 应用吞吐，包含请求、校验及控制往返开销，采用客户端与服务端中较长的计时。预热不计入最终速率。</small></div>
+<details><summary>测试详情</summary><pre id="details"></pre></details></main>
+<script>
+'use strict';
+const cfg = __BENCH_CONFIG__;
+const $ = id => document.getElementById(id);
+const table = new Uint32Array(256);
+for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;table[n]=c>>>0;}
+function crc32(buffer){let c=0xffffffff;for(const b of new Uint8Array(buffer))c=table[(c^b)&255]^(c>>>8);return((c^0xffffffff)>>>0).toString(16).padStart(8,'0');}
+function verifyDownload(body,seed,phase='download'){
+  const actual=crc32(body);
+  if(body.byteLength===cfg.bytes&&actual===cfg.crc32)return;
+  const expectedView=seed?new Uint8Array(seed):null,actualView=new Uint8Array(body);
+  let first=-1,last=-1,count=0;const offsets=[];
+  for(let index=0;expectedView&&index<Math.min(expectedView.length,actualView.length);index++){
+    if(expectedView[index]!==actualView[index]){
+      if(first<0)first=index;last=index;count++;if(offsets.length<16)offsets.push(index);
+    }
+  }
+  if(expectedView&&expectedView.length!==actualView.length){
+    const missingStart=Math.min(expectedView.length,actualView.length);
+    const missingEnd=Math.max(expectedView.length,actualView.length);
+    if(first<0)first=missingStart;last=missingEnd-1;count+=missingEnd-missingStart;
+    for(let index=missingStart;index<missingEnd&&offsets.length<16;index++)offsets.push(index);
+  }
+  const error=Error(phase==='seed'?'准备数据校验失败':'下载数据校验失败');
+  error.benchDiagnostic={phase,comparison_available:expectedView!==null,expected_crc32:cfg.crc32,actual_crc32:actual,
+    expected_bytes:cfg.bytes,actual_bytes:body.byteLength,first_mismatch:first,last_mismatch:last,
+    mismatched_bytes:expectedView?count:null,first_mismatch_offsets:offsets};
+  throw error;
+}
+const pause = ms => new Promise(resolve=>setTimeout(resolve,ms));
+let run='', stage='', stopped=false;
+const active = new Set();
+async function request(path, options={}, timeout=120000, controller=new AbortController()){
+  const timer=setTimeout(()=>controller.abort(),timeout);active.add(controller);
+  try{
+    const headers={'X-Bench-Key':cfg.key,'X-Bench-Run':run,'X-Bench-Stage':stage,...options.headers};
+    const response=await fetch(path,{...options,headers,cache:'no-store',credentials:'omit',signal:controller.signal});
+    if(!response.ok){const error=await response.json();throw Error(error.error||`HTTP ${response.status}`);}
+    return options.binary?await response.arrayBuffer():await response.json();
+  }finally{clearTimeout(timer);active.delete(controller);}
+}
+async function post(path, body){return request(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+function cancelled(){if(stopped)throw Error('已停止，未完成的轮次不会记为通过');}
+function median(values){const a=[...values].sort((x,y)=>x-y);return a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2;}
+async function windowTest(direction, seed){
+  cancelled();
+  const spec=await post('/stage',{direction});stage=spec.id;
+  let bytes=0,requests=0,checkMs=0,failures=0,pingCancelled=0,stopPing=false,pingController=null;
+  const rtt=[];
+  const name=direction==='download'?'下载':'上传';
+  const start=performance.now();
+  const pingTask=(async()=>{
+    while(!stopPing){
+      pingController=new AbortController();const began=performance.now();
+      try{await request('/ping',{binary:true},5000,pingController);if(!stopPing)rtt.push(performance.now()-began);}
+      catch(error){if(!stopPing)failures++;}
+      finally{pingController=null;}
+      if(!stopPing)await pause(500);
+    }
+  })();
+  let elapsed;
+  try{
+    do{
+      cancelled();
+      if(direction==='download'){
+        const body=await request('/payload',{binary:true});
+        const checkStart=performance.now();
+        verifyDownload(body,seed);
+        checkMs+=performance.now()-checkStart;
+      }else{
+        const result=await request('/upload',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:seed});
+        if(result.bytes!==cfg.bytes||result.crc32!==cfg.crc32)throw Error('上传数据校验失败');
+      }
+      bytes+=cfg.bytes;requests++;
+      const seconds=(performance.now()-start)/1000;
+      $('status').textContent=`${name}${spec.warmup?'预热':'测速'} · ${Math.floor(seconds)} 秒`;
+      $('progress').textContent=`当前 ${(bytes*8/seconds/1e6).toFixed(2)} Mbps · 已校验 ${(bytes/1048576).toFixed(0)} MiB`;
+    }while(performance.now()-start<spec.seconds*1000);
+    elapsed=performance.now()-start;
+  }finally{
+    stopPing=true;if(pingController){pingCancelled=1;pingController.abort();}await pingTask;
+  }
+  cancelled();
+  const result=await post('/finish',{bytes,requests,elapsed_ms:elapsed,check_ms:checkMs,crc_errors:0,
+                                    rtt_ms:rtt,ping_failures:failures,ping_cancelled:pingCancelled});
+  $('details').textContent+=JSON.stringify({direction,...spec,...result,bytes,elapsed_ms:elapsed,
+    check_ms:checkMs,ping_failures:failures,ping_cancelled:pingCancelled})+'\n';
+  return result;
+}
+const directions=cfg.directions||['download','upload'];
+$('plan').textContent=`先预热，再测试${directions.length===1?'下载':'下载和上传'}，各 ${cfg.repeats} 轮、每轮至少 ${cfg.seconds} 秒，总计至少约 ${Math.ceil((cfg.seconds*cfg.repeats+cfg.warmup)*directions.length/60)} 分钟。`;
+$('ready').addEventListener('change',()=>{$('start').disabled=!$('ready').checked;});
+$('stop').addEventListener('click',()=>{stopped=true;for(const controller of active)controller.abort();$('status').textContent='正在停止';});
+$('start').addEventListener('click',async()=>{
+  $('start').disabled=true;$('ready').disabled=true;$('stop').disabled=false;
+  $('rows').replaceChildren();$('details').textContent='';stopped=false;run='';stage='';
+  const measurements={download:[],upload:[]};
+  try{
+    $('status').textContent='正在准备并校验测试数据';
+    run=(await post('/begin',{})).run;
+    const seed=await request('/seed',{binary:true});
+    verifyDownload(seed,null,'seed');
+    for(const direction of directions){
+      for(let index=0;index<=cfg.repeats;index++){
+        const result=await windowTest(direction,seed);
+        if(result.warmup)continue;
+        measurements[direction].push(result.mbps);
+        const row=document.createElement('tr');
+        for(const text of [`${direction==='download'?'下载':'上传'} ${index}`,`${result.mbps.toFixed(2)} Mbps`,
+                           result.rtt_p95===null?'无样本':`${result.rtt_p95.toFixed(1)} ms`,'通过']){
+          const cell=document.createElement('td');cell.textContent=text;row.append(cell);
+        }
+        $('rows').append(row);
+      }
+    }
+    $('status').textContent='测速完成，结果已保存';
+    const describe=(label,values)=>`${label}中位数 ${median(values).toFixed(2)} Mbps（${Math.min(...values).toFixed(2)}–${Math.max(...values).toFixed(2)}）`;
+    $('summary').textContent=directions.map(direction=>describe(direction==='download'?'下载':'上传',measurements[direction])).join('；');
+  }catch(error){
+    $('status').textContent=stopped?'已停止':'测试未完成';
+    $('summary').textContent=String(error.message||error);
+    const reason=stopped?'user_stop':error.name==='AbortError'?'timeout':
+      /校验/.test(error.message)?'checksum':error instanceof TypeError?'network_error':'http_error';
+    if(run){try{await post('/abort',{reason,diagnostic:error.benchDiagnostic});}catch(ignored){}}
+  }finally{
+    $('stop').disabled=true;$('ready').disabled=false;$('start').disabled=!$('ready').checked;
+  }
+});
+</script></html>

@@ -45,6 +45,7 @@ def main():
     p.add_argument('--prepare-only',action='store_true')
     p.add_argument('--harness-source',type=Path,help='Optional focused native page harness')
     p.add_argument('--png-prefix',default='',help='Convert only the matching native captures; all pages still run under sanitizers')
+    p.add_argument('--ble-central-limit',type=int,choices=[2,8],default=2,help='Offline BLE snapshot capacity; never changes a controller')
     p.add_argument('--grok-assets',type=Path,help='Predecoded SD banks used by the actual native player')
     p.add_argument('--music-font',type=Path,help='Pinned SD font file used by the native streaming-font review')
     p.add_argument('--lyric-fonts',type=Path,help='Verified optional lyric font pack directory')
@@ -54,6 +55,10 @@ def main():
     for path in (apps/'system/desktop').glob('*.h'):shutil.copy2(path,work/path.name)
     for path in desktop.iterdir():
         if path.suffix in ('.h','.inc'):shutil.copy2(path,work/path.name)
+    # The UI under review must use the matching public BLE snapshot ABI,
+    # even when LVGL/dependencies come from an older prepared apps tree.
+    for path in (repo/'app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble').glob('*.h'):
+        shutil.copy2(path,work/path.name)
     for folder in ['c6probe','hass']:
         for path in (apps/f'system/{folder}').glob('*.h'):shutil.copy2(path,work/path.name)
     for name in ['desktop_worker.h','desktop_backend.h']:
@@ -75,7 +80,19 @@ def main():
     main=(desktop/'desktop_main.c').read_text().split('#include "glass_ui_probe.inc"')[0]
     main=main.replace('#include "../bilibili_live/', '#include "')
     (work/'production_desktop.inc').write_text(main)
-    ui=(desktop/'glass_ui.inc').read_text().replace('#include "glass_netboot.inc"','#include <arpa/inet.h>\n#include <netutils/netlib.h>\n#define C6NET_IFNAME "wlan0"\nstatic void glass_net_lease(bool wait) {(void)wait;}\nstatic bool review_wifi_lease_ready=true;\nstatic bool glass_net_wifi_ready(uint64_t generation) {(void)generation;return review_wifi_lease_ready;}\nstatic struct glass_status_network review_net;\nstatic void glass_status_network_get(struct glass_status_network *out) {*out=review_net;}')
+    (work/'production_board_ui_labels.inc').write_text(
+        function((desktop/'glass_board_ui.inc').read_text(),'board_ui_labels'))
+    ui=(desktop/'glass_ui.inc').read_text().replace('#include "glass_netboot.inc"','''#include <arpa/inet.h>
+#include <netutils/netlib.h>
+#define C6NET_IFNAME "wlan0"
+static void glass_net_lease(bool wait) {(void)wait;}
+void glass_wifi_request_lease(void) {}
+static bool review_wifi_lease_ready=true;
+static bool glass_net_wifi_ready(uint64_t generation) {(void)generation;return review_wifi_lease_ready;}
+bool glass_wifi_lease_ready(uint64_t generation) {return glass_net_wifi_ready(generation);}
+static struct glass_status_network review_net;
+static void glass_status_network_get(struct glass_status_network *out) {*out=review_net;}
+''')
     ui=ui.replace(function(ui,'desktop_ui_create'),'static void desktop_ui_create(void) {}')
     (work/'glass_ui.inc').write_text(ui)
     # The media constructors are unchanged; workers are replaced by inert
@@ -171,6 +188,7 @@ void local_video_play_path(const char *path){(void)path;}
     (work/'service_mocks.c').write_text('\n'.join(mocks))
     if a.prepare_only:return
     flags=['-std=gnu11','-O1','-g','-ffunction-sections','-fdata-sections','-pthread',
+      '-DGLASS_BLE_CENTRAL_LIMIT='+str(a.ble_central_limit),
       '-fsanitize=address,undefined','-fno-omit-frame-pointer',
       '-I'+str(work),'-I'+str(desktop),'-I'+str(apps/'system/desktop'),
       '-I'+str(repo/'app/bilibili_live'),'-I'+str(apps/'graphics/lvgl'),

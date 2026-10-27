@@ -1,0 +1,28 @@
+{
+  "image_sha256": "b6b17eed6481edfa4ba977a2c19a5930452081281b0ae585f44a039c8ca39b0f",
+  "elf_sha256": "574c8fad502bbb1c7bf31aefb08b8887bb90e18d00a5f100a91723d577ac428c",
+  "previous_image_sha256": "7d9715148a1ddcac9a534b5feea1e4ae8d70592e4e5573c44589340daff4ed48",
+  "source_changes": [
+    "app/espdl-quickapp/overlay/apps/system/c6ble/ble_main.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_hid.c",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/mynewt-nimble/porting/npl/nuttx/include/nimble/nuttx_callout.h",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/mynewt-nimble/porting/npl/nuttx/include/nimble/os_types.h",
+    "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/mynewt-nimble/porting/npl/nuttx/src/os_callout.c"
+  ],
+  "configuration_changes": {},
+  "xip_input_sources_unchanged": true,
+  "callback_addresses": {
+    "mspi_timing_psram_init": "0x4ff501c2",
+    "mspi_timing_config_psram_set_tuning_phase": "0x4ff5036c",
+    "mspi_timing_config_psram_read_data": "0x4ff50292",
+    "mspi_timing_psram_select_best_tuning_phase": "0x4ff50398",
+    "mspi_timing_psram_set_best_tuning_phase": "0x4ff503ca",
+    "mspi_timing_config_psram_set_tuning_delayline": "0x4ff503ee",
+    "mspi_timing_psram_select_best_tuning_delayline": "0x4ff504da",
+    "mspi_timing_psram_set_best_tuning_delayline": "0x4ff5050a"
+  },
+  "rejected_experiments_disabled": true,
+  "security_provisioning_configs_enabled": false,
+  "manual_indirect_closure_review": "see XIP-REVIEW.md",
+  "physical_acceptance": "pending; not inherited"
+}

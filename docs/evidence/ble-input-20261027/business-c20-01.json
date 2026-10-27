@@ -1,0 +1,171 @@
+{
+  "candidate": 20,
+  "image_sha256": "becda11d37b0d94cf48083fc7d6ddf6b85b0edd11bce520bbeb0673abf2616cf",
+  "identity": "EB:EB:A2:7C:7B:A2",
+  "cycles": [
+    {
+      "cycle": 1,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 11,
+          "store_error": 0,
+          "t_ms": 38601
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 11,
+          "store_error": 0,
+          "t_ms": 40735
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 11,
+          "store_error": 0,
+          "t_ms": 42933
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 11,
+          "store_error": 0,
+          "t_ms": 45128
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 11,
+          "store_error": 0,
+          "t_ms": 47294
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 9,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 16477,
+        "dispatched": 16477,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 9,
+        "store_error": 0
+      },
+      "first_secure_epoch": 11,
+      "final": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 11,
+        "store_error": 0,
+        "t_ms": 47294
+      },
+      "timers_after": {
+        "expirations": 17871,
+        "dispatched": 17871,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "passed": true
+    },
+    {
+      "cycle": 2,
+      "samples": [
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 13,
+          "store_error": 0,
+          "t_ms": 88498
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 13,
+          "store_error": 0,
+          "t_ms": 90713
+        },
+        {
+          "enabled": 1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 15,
+          "store_error": 0,
+          "t_ms": 92885
+        }
+      ],
+      "before": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 11,
+        "store_error": 0
+      },
+      "timers_before": {
+        "expirations": 18085,
+        "dispatched": 18085,
+        "coalesced": 0,
+        "pending": 0,
+        "highwater": 2
+      },
+      "byte_verified_rounds": 2,
+      "after_client_close": {
+        "enabled": 1,
+        "advertising": 0,
+        "connected": 1,
+        "encrypted": 1,
+        "notify": 1,
+        "epoch": 11,
+        "store_error": 0
+      },
+      "first_secure_epoch": 13
+    }
+  ],
+  "passed": false,
+  "error": "AssertionError: ('unexpected disconnect', {'cycle': 2, 'samples': [{'enabled': 1, 'advertising': 0, 'connected': 1, 'encrypted': 1, 'notify': 1, 'epoch': 13, 'store_error': 0, 't_ms': 88498}, {'enabled': 1, 'advertising': 0, 'connected': 1, 'encrypted': 1, 'notify': 1, 'epoch': 13, 'store_error': 0, 't_ms': 90713}, {'enabled': 1, 'advertising': 0, 'connected': 1, 'encrypted': 1, 'notify': 1, 'epoch': 15, 'store_e"
+}

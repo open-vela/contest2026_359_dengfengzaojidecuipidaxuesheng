@@ -3,6 +3,8 @@
 #include "qpk_hardware.h"
 #include "qpk_board_pins.h"
 #include "qpk_volume.h"
+#include "glass_ble.h"
+#include "glass_ble_channel.h"
 #include <net/if.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
@@ -130,7 +132,7 @@ char *qpk_board_interfaces(void)
   const bool wireless=false;
 #endif
   entry(items,"wifi","ESP32-C6 / SDIO / Wi-Fi","device network service",wireless,"net:wlan0",false,"Query diagnostics for actual association/address; compiled support is not Internet reachability.");
-  entry(items,"ble","ESP32-C6 / HCI / BLE","system.ble",wireless,NULL,false,"Central scan/connect, GATT discovery/read/write/notify, MTU and encrypted bonding; exclusive with HID mouse. No Classic A2DP; pairing uses NoInputNoOutput and rejects repeat-pair bond replacement.");
+  entry(items,"ble","ESP32-C6 / HCI / BLE","system.ble",wireless,NULL,false,"Up to two ordinary central sessions, generation-addressed GATT/notifications and one reserved HID slot when configured for three connections; encrypted opaque-data GATT channel shares the HID connection. No Classic A2DP; pairing uses NoInputNoOutput and rejects repeat-pair bond replacement.");
   entry(items,"ethernet","IP101GR / RMII / 10-100 Ethernet","POSIX network / network service",BOARD_HAS_ETHERNET,"net:eth0",false,"Registered RMII network endpoint only; cable, link speed and DHCP require their own network status.");
   entry(items,"gpio","3.3V GPIO","system.gpio / hardware_submit",true,NULL,false,"Only capabilities.gpioPins are exposed; factory GPIO0/1 are reserved for XTAL32K.");
   entry(items,"i2c","7-bit I2C / repeated start","system.i2c / hardware_submit",BOARD_HAS_I2C,NULL,false,"Use capabilities for resolved pins; driver errors are returned, not fabricated readings.");
@@ -175,6 +177,18 @@ char *qpk_hw_capabilities(void)
   cJSON_AddBoolToObject(bluetooth,"ble",ble);cJSON_AddBoolToObject(bluetooth,"classic",false);
   cJSON_AddBoolToObject(bluetooth,"scan",ble);cJSON_AddBoolToObject(bluetooth,"connect",ble);
   cJSON_AddBoolToObject(bluetooth,"gatt",ble);cJSON_AddBoolToObject(bluetooth,"pair",ble);
+  unsigned ordinary=0;
+#if defined(CONFIG_SYSTEM_C6_DESKTOP) && defined(CONFIG_NIMBLE_BLE_MAX_CONN)
+  ordinary=CONFIG_NIMBLE_BLE_MAX_CONN;
+  if(ordinary>1)ordinary--;
+  if(ordinary>GLASS_BLE_CENTRAL_LIMIT)ordinary=GLASS_BLE_CENTRAL_LIMIT;
+#endif
+  cJSON_AddNumberToObject(bluetooth,"maxOrdinaryConnections",ordinary);
+  cJSON_AddBoolToObject(bluetooth,"generationAddressing",ble);
+  cJSON_AddBoolToObject(bluetooth,"sharedHidGatt",ble);
+  cJSON_AddStringToObject(bluetooth,"channelService",GLASS_BLE_CHANNEL_SERVICE);
+  cJSON_AddNumberToObject(bluetooth,"channelFrameMax",ble?GLASS_BLE_CHANNEL_BYTES:0);
+
   char *interfaces=qpk_board_interfaces();cJSON *board=interfaces?cJSON_Parse(interfaces):NULL;free(interfaces);
   if(!board){cJSON_Delete(r);return NULL;}cJSON_AddItemToObject(r,"boardInterfaces",board);
   char *text=cJSON_PrintUnformatted(r);cJSON_Delete(r);return text;

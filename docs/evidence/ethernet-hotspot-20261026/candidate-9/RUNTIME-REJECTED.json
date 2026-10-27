@@ -1,0 +1,13 @@
+{
+  "image_sha256": "6f8515b4bb6b47496d635aa8f8549f369e32982c4b714d999e5f3664336d08df",
+  "status": "rejected-phy-transaction-integration",
+  "evidence": "legacy-start.log",
+  "reason": "New RAM storage/setter path called rpc_transact_locked with UID zero; c6_rpc_begin rejects it before transport send. Standalone peer incorrectly accepted UID zero.",
+  "ap_ready": false,
+  "policy": "legacy BGN/HT20 requested",
+  "apply_error": -117,
+  "restore_error": -117,
+  "forwarding_active": false,
+  "physical_display_acceptance": "not performed",
+  "fix": "Assign each locked request a fresh UID under transaction mutex. Test actual locked entry and production mailbox, including old zero-UID negative control. Candidate 10 pending."
+}

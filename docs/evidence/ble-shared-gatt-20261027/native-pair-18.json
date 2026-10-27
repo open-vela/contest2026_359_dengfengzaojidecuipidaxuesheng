@@ -1,0 +1,18 @@
+{
+  "identity": "DB:9B:EB:2E:71:EF",
+  "name": "OpenVela Mouse-EB2E71EF",
+  "mode": "pair",
+  "observed": true,
+  "pairing": "PAIRED",
+  "services": [
+    "00001800-0000-1000-8000-00805f9b34fb",
+    "00001801-0000-1000-8000-00805f9b34fb",
+    "00001812-0000-1000-8000-00805f9b34fb",
+    "69d14e9d-5e2a-4564-8b03-7acf16a046bc"
+  ],
+  "initially_paired": false,
+  "protection": "ENCRYPTION",
+  "service_result": "SUCCESS",
+  "connected": "CONNECTED",
+  "final_connection": "CONNECTED"
+}

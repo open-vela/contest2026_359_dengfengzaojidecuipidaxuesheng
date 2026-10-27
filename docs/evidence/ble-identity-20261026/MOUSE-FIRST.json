@@ -1,0 +1,13 @@
+{
+  "phase": "first",
+  "address": "D2:78:47:0A:87:28",
+  "name": "OpenVela Mouse-470A8728",
+  "candidate_identity_confirmed": true,
+  "encrypted": true,
+  "notifications_subscribed": true,
+  "store_error": 0,
+  "independent_device_disconnected_mouse_connected": true,
+  "dual_connection_tested": false,
+  "no_mouse_input_sent": true,
+  "fresh_identity_paired_on_native_windows": true
+}

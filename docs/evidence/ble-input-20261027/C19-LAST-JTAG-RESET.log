@@ -1,0 +1,28 @@
+Open On-Chip Debugger v0.12.0-esp32-20260831 (2026-08-31-22:09)
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+Info : esp_usb_jtag: capabilities descriptor set to 0x2000
+Info : esp_usb_jtag: serial (E8:F6:0A:E7:6F:F1)
+Info : esp_usb_jtag: Device found. Base speed 24000KHz, div range 1 to 255
+Info : clock speed 24000 kHz
+Info : JTAG tap: esp32p4.tap0 tap/device found: 0x00012c25 (mfg: 0x612 (Espressif Systems), part: 0x0012, ver: 0x0)
+Info : JTAG tap: esp32p4.tap1 tap/device found: 0x00012c25 (mfg: 0x612 (Espressif Systems), part: 0x0012, ver: 0x0)
+Info : [esp32p4.hp.cpu0] datacount=1 progbufsize=2
+Info : [esp32p4.hp.cpu0] Core 0 made part of halt group 1.
+Info : [esp32p4.hp.cpu0] Examined RISC-V core
+Info : [esp32p4.hp.cpu0]  XLEN=32, misa=0x40903127
+Info : [esp32p4.hp.cpu0] Chip revision v3.2
+Info : [esp32p4.hp.cpu0] Examination succeed
+Info : [esp32p4.hp.cpu1] datacount=1 progbufsize=2
+Info : [esp32p4.hp.cpu1] Core 1 made part of halt group 1.
+Info : [esp32p4.hp.cpu1] Examined RISC-V core
+Info : [esp32p4.hp.cpu1]  XLEN=32, misa=0x40903127
+Info : [esp32p4.hp.cpu1] Examination succeed
+Info : [esp32p4.hp.cpu0] starting gdb server on 3333
+Info : Listening on port 3333 for gdb connections
+Info : JTAG tap: esp32p4.tap0 tap/device found: 0x00012c25 (mfg: 0x612 (Espressif Systems), part: 0x0012, ver: 0x0)
+Info : JTAG tap: esp32p4.tap1 tap/device found: 0x00012c25 (mfg: 0x612 (Espressif Systems), part: 0x0012, ver: 0x0)
+Info : [esp32p4.hp.cpu0] Reset cause (24) - (JTAG CPU reset)
+Info : [esp32p4.hp.cpu1] Reset cause (24) - (JTAG CPU reset)
+shutdown command invoked

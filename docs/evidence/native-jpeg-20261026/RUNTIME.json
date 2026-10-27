@@ -1,0 +1,89 @@
+{
+  "image_sha256": "1165ffbe30d98dc713b01cbbdbdaa75adff9cd6c59f6577df9a56b028a9d8902",
+  "elf_sha256": "d63ed6cc71f421752ce93085229b2ca31802246dccb9b170d93915b19e6bdc2a",
+  "passed": true,
+  "scope": "Hardware buffer-level known-image tests; not physical display/Flash acceptance",
+  "logs": {
+    "jpeg-test-1": {
+      "sha256": "f1cb28b0b17c981d90299c10aa4159e935cb742c6c719967b7c7bd1e189f7042",
+      "jpeg_cases": 22,
+      "empty_entropy_recovery": true,
+      "ppa_before_after_mismatch_zero": true,
+      "output_guard_all_passed": true,
+      "max_channel_error_rgb565": 6,
+      "max_channel_error_rgb888": 0,
+      "max_channel_error_gray": 1
+    },
+    "jpeg-test-2": {
+      "sha256": "7d57dddd3e92a654c8c4c05f1486aebe8857df528bd9f39c15c601bce5a2f278",
+      "jpeg_cases": 22,
+      "empty_entropy_recovery": true,
+      "ppa_before_after_mismatch_zero": true,
+      "output_guard_all_passed": true,
+      "max_channel_error_rgb565": 6,
+      "max_channel_error_rgb888": 0,
+      "max_channel_error_gray": 1
+    }
+  },
+  "bounded_repeat_memory": {
+    "Umem": {
+      "used_before": 5502088,
+      "used_after": 5502088,
+      "delta": 0
+    },
+    "Kmem": {
+      "used_before": 62056,
+      "used_after": 62016,
+      "delta": -40
+    }
+  },
+  "runtime_fnv1a_matches_binary": {
+    "rodata": "364f2778",
+    "text": "ad635a4a"
+  },
+  "large_case": "1024x600 YUV420 -> RGB565 and RGB888, MCU-padded 1024x608",
+  "phone_acceptance": "skipped_by_user; unverified",
+  "physical_display_flash_acceptance": "pending",
+  "cold_power_cycle_verified": false,
+  "new_ble_identity_pairing_verified": false,
+  "host_regressions": {
+    "test_p4_jpeg_parser.py": {
+      "passed": true,
+      "log_sha256": "197427d9fe5a9ce6f624a313ec73ee67e89bd8064061667c2933d9e43a95938e"
+    },
+    "test_p4_dma2d.py": {
+      "passed": true,
+      "log_sha256": "53255358cc631cd471c2eea27fb1a03bfbb3ffeb06fd994883b30f48aad3dbcc"
+    },
+    "test_p4_jpeg_adapter.py": {
+      "passed": true,
+      "log_sha256": "6cb79f9ecf098a3d5eb01bb3bdb5146e3bcf8cfe11f2d67e33a3771e130e8699"
+    },
+    "test_mjpeg_preview.py": {
+      "passed": true,
+      "log_sha256": "dbca3a4c5331488e03c2a1723839b764483e78fedece345fc1a386700b1103ab"
+    },
+    "test_camera_sync.py": {
+      "passed": true,
+      "log_sha256": "715152dbc4872d5cf7449f5d22cdeec06990603373e32d778b14ee4bce3adb79"
+    },
+    "test_camera_boundary.py": {
+      "passed": true,
+      "log_sha256": "8ee7cb3e895bbef26d38cce9f113526f33277a0dd881239b9789191e24286b98"
+    },
+    "test_p4_psram_xip.py": {
+      "passed": true,
+      "log_sha256": "d54878a4228e1fccebdbd4942d131091b88da77b22ed5432785578be3b9761ae"
+    },
+    "test_ble_identity.py": {
+      "passed": true,
+      "log_sha256": "5a1e2e5cebca8d7865c71b1cbd91fe1f4554002c0426b390ceaaa13d89710768"
+    },
+    "test_nimble_capacity.py": {
+      "passed": true,
+      "log_sha256": "2df4ae1ad18bca8837ad5c75910cfcf4dd1a1403e0c3b965c7c49ed78ae7e226"
+    }
+  },
+  "source_count": 672,
+  "source_hashes_match_frozen_and_workspace": true
+}

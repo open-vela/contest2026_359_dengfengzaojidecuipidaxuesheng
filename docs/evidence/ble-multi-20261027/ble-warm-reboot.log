@@ -1,0 +1,73 @@
+ESP-ROM:esp32p4-eco7-20260109
+Build:Jan  9 2026
+rst:0x17 (CHIP_USB_UART_RESET),boot:0x4 (DOWNLOAD(USB/UART0/SPI))
+waiting for download
+ESP-ROM:esp32p4-eco7-20260109
+Build:Jan  9 2026
+rst:0x17 (CHIP_USB_UART_RESET),boot:0xc (SPI_FAST_FLASH_BOOT)
+SPI mode:DIO, clock div:1
+load:0x30100000,len:0x88
+load:0x4ff40000,len:0x28564
+entry 0x4ff50938
+*** Booting NuttX ***
+I (39) boot: chip revision: v3.2
+I (39) boot: efuse block revision: v1.2
+I (40) boot.esp32p4: SPI Speed      : 80MHz
+I (40) boot.esp32p4: SPI Mode       : DIO
+I (43) boot.esp32p4: SPI Flash Size : 16MB
+I (47) boot: Enabling RNG early entropy source...
+tcm: lma 0x00002020 vma 0x30100000 len 0x88     (136)
+dram: lma 0x000020b0 vma 0x4ff40000 len 0x28564  (165220)
+padd: lma 0x0002a648 vma 0x00000000 len 0x59d0   (22992)
+imap: lma 0x00030020 vma 0x48390020 len 0x647398 (6583192)
+padd: lma 0x006773c0 vma 0x00000000 len 0x8c38   (35896)
+imap: lma 0x00680000 vma 0x48000000 len 0x385280 (3691136)
+total segments stored 6
+I (87) hex_psram: vendor id    : 0x0d (AP)
+I (87) hex_psram: Latency      : 0x01 (Fixed)
+I (92) hex_psram: DriveStr.    : 0x00 (25 Ohm)
+I (96) hex_psram: dev id       : 0x03 (generation 4)
+I (100) hex_psram: density      : 0x07 (256 Mbit)
+I (105) hex_psram: good-die     : 0x06 (Pass)
+I (109) hex_psram: SRF          : 0x02 (Slow Refresh)
+I (114) hex_psram: BurstType    : 0x00 ( Wrap)
+I (118) hex_psram: BurstLen     : 0x03 (2048 Byte)
+I (122) hex_psram: BitMode      : 0x01 (X16 Mode)
+I (127) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)
+I (132) hex_psram: DriveStrength: 0x00 (1/1)
+I (136) MSPI Timing: Enter psram timing tuning
+I esp_psram: Found 32MB PSRAM device
+I esp_psram: Speed: 200MHz
+I (819) mmu_psram: .rodata xip on psram
+I (1114) mmu_psram: .text xip on psram
+[psram-xip] verified text=48000000..48385280 hash=e15077f6 rodata=48390020..489d73b8 hash=82ef2ebf heap=489e0000..4a000000
+I (3234) hex_psram: psram CS IO is dedicated
+ABCDV1: soc startup begin
+I (3234) cpu_start: Pro cpu start user code
+I (3235) cpu_start: cpu freq: 400000000 Hz
+I (3236) esp_psram: Adding pool of 22656K of PSRAM memory to heap allocator
+I (3243) esp_psram: Adding pool of 43K of PSRAM memory gap generated due to end address alignment of irom to the heap allocator
+I (3254) esp_psram: Adding pool of 35K of PSRAM memory gap generated due to end address alignment of drom to the heap allocator
+W (3266) spi_flash: Detected GigaDevice flash chip but using generic driver. For optimal functionality, enable `SPI_FLASH_SUPPORT_GD_CHIP` in menuconfig
+I (3279) spi_flash: detected chip: generic
+I (3283) spi_flash: flash io: dio
+V1: soc startup end
+uptime
+02:01:12 up  0:00, load average: 0.89, 0.89, 0.89
+nsh> [K
+nsh> [Kdesktop xip
+[psram-xip] ready=1 protected_cpus=3 flash_entries=4174 text_hash=e15077f6 rodata_hash=82ef2ebf cache_policy=on spi1_mutex=1
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 08 aa 15 00
+c6ble status
+configured_connections=3 effective_connections=3 host_ready=0 device_connected=0 mouse_connected=0 store_error=0
+reserved_connections=0 central_reserved=0 hid_reserved=0 central_reservations=0 device_connections=0 mixed_role_capacity=1
+nsh> [K
+nsh> [Kfree
+      total       used       free    maxused    maxfree  nused  nfree name
+   23199744    9303832   13895912    9488040   13860104   3579     14 Umem
+      72104      62272       9832      62664       7976    251      9 Kmem
+nsh> [K
+nsh> [Krpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 09 aa 15 00

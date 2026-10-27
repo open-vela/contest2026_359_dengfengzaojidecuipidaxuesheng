@@ -1,0 +1,8 @@
+{
+  "result": "rolled_back",
+  "installed_after_attempt": "7d9715148a1ddcac9a534b5feea1e4ae8d70592e4e5573c44589340daff4ed48",
+  "app_write_verify_independent_readback_and_data_preservation_passed": true,
+  "failure": "SerialTimeoutException: Write timeout during boot diagnostic command write",
+  "initial_boot_log": "not_saved_by_previous_delayed_log_helper; cannot infer firmware boot success/failure",
+  "rollback_write_verify_and_boot_passed": true
+}

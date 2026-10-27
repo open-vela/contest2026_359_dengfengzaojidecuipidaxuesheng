@@ -1,0 +1,79 @@
+{
+  "cycles": [
+    {
+      "cycle": 1,
+      "reconnect_observations": [
+        {
+          "t": 2.74,
+          "advertising": 1,
+          "connected": 0,
+          "encrypted": 0,
+          "notify": 0,
+          "epoch": 8,
+          "store_error": 0
+        },
+        {
+          "t": 4.5,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 9,
+          "store_error": 0
+        }
+      ],
+      "scan_generation": 2,
+      "connected_scan_stop_preserved_hid": true
+    },
+    {
+      "cycle": 2,
+      "reconnect_observations": [
+        {
+          "t": 12.1,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 0,
+          "notify": 0,
+          "epoch": 11,
+          "store_error": 0
+        },
+        {
+          "t": 13.85,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 11,
+          "store_error": 0
+        }
+      ],
+      "scan_generation": 3,
+      "connected_scan_stop_preserved_hid": true
+    },
+    {
+      "cycle": 3,
+      "reconnect_observations": [
+        {
+          "t": 21.5,
+          "advertising": 1,
+          "connected": 0,
+          "encrypted": 0,
+          "notify": 0,
+          "epoch": 12,
+          "store_error": 0
+        },
+        {
+          "t": 23.25,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 13,
+          "store_error": 0
+        }
+      ],
+      "scan_generation": 4,
+      "connected_scan_stop_preserved_hid": true
+    }
+  ]
+}

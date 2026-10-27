@@ -1,0 +1,23 @@
+{
+  "ethernet_sharing_verified": false,
+  "phone_internet_verified": false,
+  "jpeg_encoding_verified": false,
+  "real_photo_save_verified": false,
+  "image_sha256": "11aaf366e2ba2d758ef432a01141be69ea16b4ce3eff1f245608c16096228863",
+  "independent_readback_verified": true,
+  "data_partition_unchanged_after_flash": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "jpeg_pixels_verified": false,
+  "phone_acceptance": "deferred by user; no new phone test requested or started",
+  "physical_display_acceptance": "deferred by user; cannot inherit C10",
+  "cold_power_cycle_verified": false,
+  "ble_new_identity_pairing_verified": false,
+  "user_requested_no_further_physical_tests": true,
+  "performance_release_accepted": false,
+  "download_goal_mbps": 5,
+  "download_goal_verified": false,
+  "bulk_transfer_integrity_verified": false,
+  "prior_c10_checksum_regression_resolved": false
+}

@@ -1,0 +1,16 @@
+c6ble channel receive 1
+BLE_CHANNEL_DATA bytes=4 fnv32=ad216b39
+c6ble channel receive result=0
+nsh> [K
+nsh> [Kc6ble channrpc: WifiStaGetRssi tx pb=10 tlv=22
+rpc: WifiStaGetRssi pb bytes: 08 01 10 d5 02 18 16 aa 15 00
+el send 1 24313e4b
+c6ble channel send result=0
+nsh> [K
+nsh> [Kc6ble mouse release
+c6ble mouse release: ok
+nsh> [K
+nsh> [Kc6ble mouse status
+host_ready=1 enabled=1 advertising=0 connected=1 encrypted=1 notify=1 suspended=0 boot=0 buttons=0 epoch=1 error=0 ble_error=0 store_error=0
+nsh> [K
+nsh> [K

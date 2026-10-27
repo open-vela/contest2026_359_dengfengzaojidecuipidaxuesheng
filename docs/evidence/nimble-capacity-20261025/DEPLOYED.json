@@ -1,0 +1,13 @@
+{
+  "image_sha256": "68013af36b8d2678d321452efcbc6840146d8fd40297284702cb89bb6865f57d",
+  "independent_readback_verified": true,
+  "warm_boot_verified": true,
+  "xip_ready": true,
+  "protected_cpus": 3,
+  "data_partition_unchanged_after_flash": true,
+  "cold_power_cycle_verified": false,
+  "physical_acceptance": "用户确认：这一版两个场景都正常；随后同意暂停手动切页以完成持续 CSI 写擦验收",
+  "ble_configured_connections": 2,
+  "ble_effective_connections": 2,
+  "ble_host_initialized": true
+}

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "results": {
+    "previous": "PREVIOUS_ORPHAN_REPRODUCED: target lists modified without target lock",
+    "fixed": "NETFWD_PUBLICATION_OK: deferred packet ownership, locked dual-list publication, error cleanup and 100000 immediate lifecycles"
+  },
+  "source_sha256": {
+    "net/netforward/netfwd_forward.c": "0cd8215f5c324af59db322d9cb93233c3109a0e10d64a74a82b1ff8e0851fa2a",
+    "devif_callback.c": "07d1832e4e770ab9bf93cf57ebed88bf1bd80f1e28acc83d9d9ff0b5613108f8"
+  },
+  "scope": "actual pinned callback insertion/removal and forwarding functions; controlled last-node removal interleaving, scheduler/mutex substitutes; ASan/UBSan; no hardware acceptance"
+}

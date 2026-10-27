@@ -41,3 +41,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--ui-accent);box-shadow
 #status:not(:empty){background:var(--ui-soft);color:var(--ui-accent)}
 #status.error{background:var(--ui-soft);color:var(--ui-danger)}
 progress{accent-color:var(--ui-accent)}
+.network-detail,.network-status{font-size:13px;overflow-wrap:anywhere}
+.network-status{padding:12px 14px;background:var(--ui-soft);border-radius:12px;color:var(--ui-ink)}
+.network-status.error{color:var(--ui-danger)}
+.network-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+@media(max-width:640px){#network .form-footer{align-items:flex-start;flex-direction:column}#network .form-footer>span{max-width:100%}.network-actions{width:100%}.network-actions button{flex:1}}

@@ -1,0 +1,61 @@
+{
+  "cycles": [
+    {
+      "cycle": 1,
+      "reconnect_observations": [
+        {
+          "t": 2.81,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 3,
+          "store_error": 0
+        }
+      ],
+      "scan_generation": 1,
+      "connected_scan_stop_preserved_hid": true
+    },
+    {
+      "cycle": 2,
+      "reconnect_observations": [
+        {
+          "t": 10.42,
+          "advertising": 1,
+          "connected": 0,
+          "encrypted": 0,
+          "notify": 0,
+          "epoch": 4,
+          "store_error": 0
+        },
+        {
+          "t": 12.17,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 5,
+          "store_error": 0
+        }
+      ],
+      "scan_generation": 2,
+      "connected_scan_stop_preserved_hid": true
+    },
+    {
+      "cycle": 3,
+      "reconnect_observations": [
+        {
+          "t": 19.87,
+          "advertising": 0,
+          "connected": 1,
+          "encrypted": 1,
+          "notify": 1,
+          "epoch": 7,
+          "store_error": 0
+        }
+      ],
+      "scan_generation": 3,
+      "connected_scan_stop_preserved_hid": true
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "app/espdl-quickapp/overlay/apps/system/c6ble/ble_main.c": "0dc6b4975a4d2758b5f9ae2a94defe8cdd94558e372eac292b28d2aba53274a9",
+  "app/espdl-quickapp/overlay/apps/system/desktop/glass_ble_central.h": "3e010c8b301cfd5bc65a9f093dcdf9626aa139aee79e9bd1aca842aaa8053785",
+  "app/espdl-quickapp/overlay/apps/system/desktop/glass_bluetooth.inc": "09a3dd901ac7f5abddbcea5679c885dbca75ac06e2b639935ecc44741ddfa0f2",
+  "app/espdl-quickapp/overlay/apps/system/desktop/glass_status_ui.inc": "361844d368711199e3f60bc0b61b754e766026e71b6ec2ea9adffbab0229bbca",
+  "app/espdl-quickapp/overlay/apps/system/desktop/qpk_board_interfaces.c": "2a9b1382993456543fb33a507ea106ef82c96f648299c50279becfedbd16813f",
+  "app/espdl-quickapp/overlay/apps/system/desktop/qpk_hw_platform.c": "f75c435e5eccacdc036d74893afd169249b45683985443ae22cf7eb618b516a7",
+  "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble.c": "b46b375b8f3d683c84c51df3640ecb02cdb1528579a93830a77b3d2c3d2c9d51",
+  "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble.h": "a61c91699d74b66c6d30bd5fb4fd543a76a15ec25783c0b86650fc5fe0a95b2c",
+  "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_central.c": "aa5497709c2a97b5d9e94295f3922fcef5320345e6b255b16fc930805a20591e",
+  "app/espdl-quickapp/overlay/apps/wireless/bluetooth/nimble/glass_ble_central.h": "3e010c8b301cfd5bc65a9f093dcdf9626aa139aee79e9bd1aca842aaa8053785"
+}

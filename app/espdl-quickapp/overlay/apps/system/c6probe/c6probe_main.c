@@ -90,6 +90,9 @@ static int c6probe_tcp(FAR const char *host, FAR const char *service)
 
 #include "esp_hosted.h"
 #include "c6net.h"
+#include "c6_ota.h"
+#include "c6_rx_burst.h"
+#include "c6_rx_bench.inc"
 
 #ifdef CONFIG_NETDB_DNSCLIENT
 static int c6probe_dns_print(FAR void *arg, FAR struct sockaddr *addr,
@@ -132,6 +135,56 @@ int main(int argc, FAR char *argv[])
   int polls;
   int ret;
   int i;
+
+  if (argc > 1 && strcmp(argv[1], "rxbench") == 0)
+    {
+      return c6_rx_bench_command(argc, argv);
+    }
+
+  if (argc == 3 && strcmp(argv[1], "txwake") == 0)
+    {
+      if (strcmp(argv[2], "0") && strcmp(argv[2], "1")) return 1;
+      ret = c6net_tx_wake(argv[2][0] == '1');
+      printf("TXWAKE result=%d enabled=%c\n", ret, argv[2][0]);
+      return ret < 0 ? 1 : 0;
+    }
+
+  if (argc == 3 && strcmp(argv[1], "rxblocks") == 0)
+    {
+      if (strcmp(argv[2], "1") && strcmp(argv[2], "4")) return 1;
+      ret = esp_hosted_rx_block_limit((unsigned int)(argv[2][0] - '0'));
+      printf("RXBLOCKS result=%d\n", ret);
+      return ret < 0 ? 1 : 0;
+    }
+
+  if (argc > 1 && strcmp(argv[1], "ota") == 0)
+    {
+      return c6_ota_command(argc, argv);
+    }
+
+  if (argc == 2 && strcmp(argv[1], "netstat") == 0)
+    {
+      for (unsigned index = 0; index < 2; index++)
+        {
+          struct c6net_stats_s stats;
+          ret = c6net_stats_read(index != 0, &stats);
+          if (ret < 0) return EXIT_FAILURE;
+          printf("c6net if=%s notify=%" PRIu32 " polls=%" PRIu32
+                 " tx_packets=%" PRIu32 " tx_bytes=%" PRIu32
+                 " tx_errors=%" PRIu32 " tx_down=%" PRIu32
+                 " send_max_us=%" PRIu32 " last_send_error=%d\n",
+                 index ? "ap0" : C6NET_IFNAME, stats.tx_notifications,
+                 stats.tx_polls, stats.tx_packets, stats.tx_bytes,
+                 stats.tx_errors, stats.tx_down_drops, stats.tx_send_max_us,
+                 stats.tx_last_error);
+          printf("c6net if=%s rx_packets=%" PRIu32 " rx_bytes=%" PRIu32
+                 " rx_invalid=%" PRIu32 " rx_down=%" PRIu32
+                 " rx_unsupported=%" PRIu32 "\n",
+                 index ? "ap0" : C6NET_IFNAME, stats.rx_packets, stats.rx_bytes,
+                 stats.rx_invalid, stats.rx_down_drops, stats.rx_unsupported);
+        }
+      return EXIT_SUCCESS;
+    }
 
   /* stat reports the low-level link state without touching it, so it can be
    * run straight after a failure to see whether the C6 is still alive.

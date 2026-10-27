@@ -1,0 +1,22 @@
+{
+  "arch/risc-v/src/esp32p4/esp32p4_jpeg.c": {
+    "returncode": 0,
+    "sha256": "a20e9163598c66add425321c2a1ed07ee70cfc5c4a69e5e7b6ecb356e45c789b"
+  },
+  "arch/risc-v/src/esp32p4/esp32p4_jpeg_emit.c": {
+    "returncode": 0,
+    "sha256": "02374db468f8b26e7591c2d57b7a478a715595d63da0b53cd426c484d2d5d5b6"
+  },
+  "arch/risc-v/src/esp32p4/esp32p4_jpeg_emit.h": {
+    "returncode": 0,
+    "sha256": "0da33906d99a4c67a2800889899b2932e0a322db87834e4ab868a7a2f9165416"
+  },
+  "arch/risc-v/src/esp32p4/esp32p4_jpeg_tables.h": {
+    "returncode": 0,
+    "sha256": "8917894538a24d80f47772f0ed2f7a266c70da7fa468721a2ee5be4370ed65c1"
+  },
+  "include/nuttx/video/p4_jpeg.h": {
+    "returncode": 0,
+    "sha256": "622c9e9731acea57256878ee248ee1fb30c2d1ae11366a9d282d20022dd9fa44"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "image_sha256": "b6b17eed6481edfa4ba977a2c19a5930452081281b0ae585f44a039c8ca39b0f",
+  "identity": "F9:71:66:11:70:FC",
+  "name": "OpenVela Mouse-661170FC",
+  "uuids": {
+    "service": "69d14e9d-5e2a-4564-8b03-7acf16a046bc",
+    "rx": "fe295b09-ba85-4b80-aec3-095121e8ae2f",
+    "tx": "9fc89159-b5c1-4797-8f7a-0f375f7e8138",
+    "info": "e86cb6ea-0566-4ea9-b513-1d94e99c9a54"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "bytes": 1,
+      "fnv32": "020c5866",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 2,
+      "bytes": 4,
+      "fnv32": "ad216b39",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 3,
+      "bytes": 20,
+      "fnv32": "af0ea32d",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 4,
+      "bytes": 20,
+      "fnv32": "4c49a2d5",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 5,
+      "bytes": 20,
+      "fnv32": "43a5e051",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 6,
+      "bytes": 7,
+      "fnv32": "5a99402c",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 7,
+      "bytes": 20,
+      "fnv32": "a34e45b5",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    },
+    {
+      "round": 8,
+      "bytes": 16,
+      "fnv32": "d56793e5",
+      "receive_and_notify_and_readback": true,
+      "hid_release_accepted": true
+    }
+  ],
+  "passed": false,
+  "write_buffer": "DataWriter.detach_buffer IBuffer",
+  "epoch": 1,
+  "service_access": "ALLOWED",
+  "characteristics": {
+    "rx": {
+      "handle": 31,
+      "properties": 8,
+      "protection": "PLAIN"
+    },
+    "tx": {
+      "handle": 33,
+      "properties": 18,
+      "protection": "PLAIN"
+    },
+    "info": {
+      "handle": 36,
+      "properties": 2,
+      "protection": "PLAIN"
+    }
+  },
+  "requested_protection": "ENCRYPTION_REQUIRED",
+  "protocol_info": [
+    1,
+    0,
+    244,
+    0,
+    4,
+    0,
+    3,
+    0
+  ],
+  "negotiated_payload": 244,
+  "last_write": {
+    "round": 8,
+    "status": "SUCCESS",
+    "protocol_error": null
+  },
+  "large_receive_bytes_verified": 244,
+  "outgoing_bytes_verified": 20,
+  "queue_full_status": "PROTOCOL_ERROR",
+  "queue_full_att_error": 17,
+  "error": "AssertionError: ['a235ae95', '97f57519', '1405eb85']"
+}
