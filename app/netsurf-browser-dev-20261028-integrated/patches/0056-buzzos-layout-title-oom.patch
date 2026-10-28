@@ -1,0 +1,62 @@
+--- a/netsurf/content/handlers/html/box_construct.c
++++ b/netsurf/content/handlers/html/box_construct.c
+@@ -918,7 +918,7 @@
+ 	/* Extract title attribute, if present */
+ 	err = dom_element_get_attribute(ctx->n, corestring_dom_title, &title0);
+ 	if (err != DOM_NO_ERR)
+-		return false;
++		goto no_box;
+ 
+ 	if (title0 != NULL) {
+ 		char *t = squash_whitespace(dom_string_data(title0));
+@@ -926,20 +926,20 @@
+ 		dom_string_unref(title0);
+ 
+ 		if (t == NULL)
+-			return false;
++			goto no_box;
+ 
+ 		props.title = talloc_strdup(ctx->bctx, t);
+ 
+ 		free(t);
+ 
+ 		if (props.title == NULL)
+-			return false;
++			goto no_box;
+ 	}
+ 
+ 	/* Extract id attribute, if present */
+ 	err = dom_element_get_attribute(ctx->n, corestring_dom_id, &s);
+ 	if (err != DOM_NO_ERR)
+-		return false;
++		goto no_box;
+ 
+ 	if (s != NULL) {
+ 		err = dom_string_intern(s, &id);
+@@ -952,11 +952,8 @@
+ 	box = box_create(styles, styles->styles[CSS_PSEUDO_ELEMENT_NONE], false,
+ 			props.href, props.target, props.title, id,
+ 			ctx->bctx);
+-	if (box == NULL) {
+-		css_select_results_destroy(styles);
+-		lwc_string_unref(id);
+-		return false;
+-	}
++	if (box == NULL)
++		goto no_box;
+ 
+ 	/* If this is the root box, add it to the context */
+ 	if (props.node_is_root)
+@@ -1202,6 +1199,12 @@
+ 	}
+ 
+ 	return true;
++
++no_box:
++	/* No box owns the selected styles or interned id on these failures. */
++	css_select_results_destroy(styles);
++	lwc_string_unref(id);
++	return false;
+ }
+ 
+ 

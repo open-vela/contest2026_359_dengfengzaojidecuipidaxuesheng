@@ -1,0 +1,20 @@
+--- a/netsurf/content/handlers/html/script.c
++++ b/netsurf/content/handlers/html/script.c
+@@ -638,7 +638,7 @@
+ 	dom_html_script_element_flags flags;
+ 	/* DOM reinsertion and recursive mutation events must not execute a
+ 	 * prepared script twice. Fragment-parsed scripts also remain inert. */
+-	if (dom_html_script_element_get_flags(node, &flags) != DOM_NO_ERR ||
++	if (dom_html_script_element_get_flags((dom_html_script_element *)node, &flags) != DOM_NO_ERR ||
+ 		(flags & DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED))
+ 		return DOM_HUBBUB_OK;
+ 
+@@ -696,7 +696,7 @@
+ 				}
+ 			}
+ 			flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED;
+-			dom_html_script_element_set_flags(node, flags);
++			dom_html_script_element_set_flags((dom_html_script_element *)node, flags);
+ 		}
+ 	}
+ 	if (exc != DOM_NO_ERR || src == NULL) {

@@ -19,7 +19,7 @@ static unsigned album_generation;
 static bool album_busy, album_image_ready;
 static struct album_listing *album_list_result;
 static struct album_image album_image_result;
-struct album_job { char path[ALBUM_PATH]; unsigned generation, width, height; struct album_listing *listing; };
+struct album_job { char path[ALBUM_PATH]; unsigned generation, width, height, directories, visited; int kind; struct album_listing *listing; };
 
 bool local_album_valid_path(const char *path)
 {
@@ -49,12 +49,59 @@ static int album_order(const void *a, const void *b)
   const struct album_entry *x=a,*y=b;
   if ((x->kind==ALBUM_FOLDER)!=(y->kind==ALBUM_FOLDER)) return x->kind==ALBUM_FOLDER?-1:1;
   if (x->kind!=ALBUM_FOLDER && x->modified!=y->modified) return x->modified>y->modified?-1:1;
-  return strcmp(x->name,y->name);
+  int order=strcmp(x->name,y->name);
+  return order?order:(x->directory>y->directory)-(x->directory<y->directory);
+}
+static void album_collect(struct album_job *job,const char *directory,unsigned depth)
+{
+  struct album_listing *out=job->listing;
+  if(album_cancelled(job))return;
+  /* Bound stack use, open directory handles and work on directory-only trees. */
+  if(depth>12 || job->directories++>=1024){out->truncated=true;return;}
+  DIR *dir=opendir(directory);
+  if(!dir){if(!depth)out->error=-errno;else out->truncated=true;return;}
+  unsigned directory_offset=0;
+  struct dirent *item;
+  while(!album_cancelled(job) && (item=readdir(dir))){
+    if(++job->visited>16384){out->truncated=true;break;}
+    if(item->d_name[0]=='.')continue;
+    char path[ALBUM_PATH];
+    if(snprintf(path,sizeof(path),"%s/%s",directory,item->d_name)>=(int)sizeof(path)){
+      out->truncated=true;continue;
+    }
+    if(!local_album_valid_path(path))continue;
+    struct stat st;
+    if(lstat(path,&st)){out->truncated=true;continue;}
+    if(S_ISLNK(st.st_mode))continue;
+    if(S_ISDIR(st.st_mode)){
+      if(job->kind)album_collect(job,path,depth+1);
+      if(job->kind)continue;
+    }else if(!S_ISREG(st.st_mode))continue;
+    enum album_format format=ALBUM_UNKNOWN;
+    if(S_ISREG(st.st_mode)){format=local_album_probe_regular(path);if(format==ALBUM_UNKNOWN)format=local_album_name_format(item->d_name);}
+    int kind=S_ISDIR(st.st_mode)?ALBUM_FOLDER:local_album_format_kind(format);
+    if(kind<0 || (job->kind && kind!=job->kind))continue;
+    if(strlen(item->d_name)>=ALBUM_NAME){out->truncated=true;continue;}
+    if(out->count==ALBUM_FILES){out->truncated=true;break;}
+    /* Store a prefix once for this directory, only when it contains results. */
+    if(depth&&!directory_offset){
+      const char *relative=directory+strlen(job->path)+1;size_t bytes=strlen(relative)+1;
+      if(bytes>sizeof(out->directories)-out->directory_bytes){out->truncated=true;break;}
+      directory_offset=out->directory_bytes;
+      memcpy(out->directories+directory_offset,relative,bytes);out->directory_bytes+=bytes;
+    }
+    struct album_entry *entry=&out->entries[out->count++];
+    strcpy(entry->name,item->d_name);
+    entry->directory=directory_offset;
+    entry->kind=kind;entry->modified=st.st_mtime;entry->format=format;
+  }
+  closedir(dir);
 }
 static struct album_listing *album_read_directory(struct album_job *job)
 {
   struct album_listing *out=job->listing;
   strcpy(out->path,job->path);
+  out->directory_bytes=1;
 #ifndef ALBUM_HOST_TEST
   struct statfs fs;
   if (!strncmp(job->path,ALBUM_ROOT,strlen(ALBUM_ROOT)) &&
@@ -63,23 +110,8 @@ static struct album_listing *album_read_directory(struct album_job *job)
         (statfs(ALBUM_ROOT,&fs)<0 || fs.f_type!=0x4d44)) {out->error=-ENODEV;return out;}
   }
 #endif
-  DIR *dir=opendir(job->path); if (!dir) {out->error=-errno;return out;}
-  struct dirent *item;
-  while (!album_cancelled(job) && (item=readdir(dir))) {
-    if (item->d_name[0]=='.' || strlen(item->d_name)>=ALBUM_NAME) continue;
-    char path[ALBUM_PATH];
-    if (snprintf(path,sizeof(path),"%s/%s",job->path,item->d_name)>=(int)sizeof(path)) continue;
-    if (!local_album_valid_path(path)) continue;
-    struct stat st; if (lstat(path,&st)) continue;
-    enum album_format format=ALBUM_UNKNOWN;
-    if(S_ISREG(st.st_mode)){format=local_album_probe(path);if(format==ALBUM_UNKNOWN)format=local_album_name_format(item->d_name);}
-    int kind=S_ISDIR(st.st_mode)?ALBUM_FOLDER:local_album_format_kind(format);
-    if (kind<0) continue;
-    if (out->count==ALBUM_FILES) {out->truncated=true;break;}
-    struct album_entry *entry=&out->entries[out->count++];
-    strcpy(entry->name,item->d_name);entry->kind=kind;entry->modified=st.st_mtime;entry->format=format;
-  }
-  closedir(dir);qsort(out->entries,out->count,sizeof(out->entries[0]),album_order);return out;
+  album_collect(job,job->path,0);
+  qsort(out->entries,out->count,sizeof(out->entries[0]),album_order);return out;
 }
 static uint32_t album_le32(const uint8_t *p)
 {return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
@@ -194,7 +226,7 @@ static void *album_worker(void *opaque)
   album_busy=false;pthread_mutex_unlock(&album_lock);
   free(image.pixels);free(list);free(job);return NULL;
 }
-static int album_request(const char *path,unsigned width,unsigned height)
+static int album_request(const char *path,unsigned width,unsigned height,int kind)
 {
   if (!local_album_valid_path(path) || (width && (width>1024 || !height || height>600))) return -EINVAL;
   pthread_mutex_lock(&album_lock);
@@ -204,16 +236,18 @@ static int album_request(const char *path,unsigned width,unsigned height)
   if (!width) {job->listing=calloc(1,sizeof(*job->listing));if(!job->listing){free(job);pthread_mutex_unlock(&album_lock);return -ENOMEM;}}
   free(album_list_result);album_list_result=NULL;free(album_image_result.pixels);
   album_image_result=(struct album_image){0};album_image_ready=false;
-  strcpy(job->path,path);job->width=width;job->height=height;job->generation=++album_generation;
+  strcpy(job->path,path);job->width=width;job->height=height;job->kind=kind;job->generation=++album_generation;
   pthread_attr_t attr;pthread_t thread;pthread_attr_init(&attr);
   int ret=pthread_attr_setstacksize(&attr,32768);album_busy=true;
   if (!ret) ret=pthread_create(&thread,&attr,album_worker,job);
   pthread_attr_destroy(&attr);if (ret) {album_busy=false;free(job->listing);free(job);} else pthread_detach(thread);
   pthread_mutex_unlock(&album_lock);return ret?-ret:0;
 }
-int local_album_scan(const char *path) {return album_request(path,0,0);}
+int local_album_scan(const char *path) {return album_request(path,0,0,0);}
+int local_album_search(const char *path,enum album_kind kind)
+{return kind==ALBUM_PHOTO||kind==ALBUM_VIDEO?album_request(path,0,0,kind):-EINVAL;}
 int local_album_decode(const char *path,unsigned width,unsigned height)
-{return width?album_request(path,width,height):-EINVAL;}
+{return width?album_request(path,width,height,0):-EINVAL;}
 void local_album_cancel(void)
 {
   pthread_mutex_lock(&album_lock);album_generation++;

@@ -167,8 +167,8 @@ static void chat_ui_label(lv_obj_t *label, const char *text)
 
 static const char *chat_ui_placeholder(void)
 {
-  return g_chat_ui.mode==AGENT_MODE_CREATE?"描述你想做的应用…":
-    g_chat_ui.mode==AGENT_MODE_ASSISTANT?"告诉我需要完成的任务…":"聊点什么…";
+  return g_chat_ui.mode==AGENT_MODE_CREATE?glass_tr("描述你想做的应用…"):
+    g_chat_ui.mode==AGENT_MODE_ASSISTANT?glass_tr("告诉我需要完成的任务…"):glass_tr("聊点什么…");
 }
 
 #include "glass_chat_output.inc"
@@ -186,31 +186,31 @@ static void chat_ui_preview_app(lv_event_t *e)
   if (!g_chat_ui.root || g_chat_ui.snapshot->phase != CHAT_IDLE) return;
   struct qpk_draft_info draft;
   char *source = glass_qpk_preview_source(&draft);
-  if (!source) { show_toast("请先让 AI 生成草稿，或等待保存结束"); return; }
+  if (!source) { show_toast(glass_tr("请先让 AI 生成草稿，或等待保存结束")); return; }
   bool origin = g_desktop.chat_return_apps;
   char title[96], package[48], filename[192];
-  snprintf(title, sizeof(title), "预览 · %s", draft.name);
+  snprintf(title, sizeof(title), glass_tr("预览 · %s"), draft.name);
   snprintf(package, sizeof(package), "preview.%s", draft.slug);
   /* Runtime storage follows the native source volume. A bare "app.js"
    * defaults to internal Flash even when this draft lives on SD. */
   snprintf(filename, sizeof(filename), "%s/.draft/%s.js",
            qpk_volume_root(draft.draft_volume), draft.slug);
   lv_obj_t *card = qapp_page_prepare(title);
-  if (!card) { free(source); show_toast("内存不足，无法预览"); return; }
+  if (!card) { free(source); show_toast(glass_tr("内存不足，无法预览")); return; }
   int ret = qpk_runtime_launch(card, draft.name, package, "draft", filename, source, strlen(source),
                                zh_font, show_toast, qpk_show_dialog, qpk_show_unresponsive);
   free(source);
   const char *error = qpk_runtime_last_error();
   if (ret || error[0] || !qpk_runtime_widget_count()) {
-    glass_qpk_preview_result(draft.revision, error[0] ? error : ret ? "预览启动失败，请检查脚本或可用内存。" : "脚本未创建任何可见控件。" );
+    glass_qpk_preview_result(draft.revision, error[0] ? error : ret ? glass_tr("预览启动失败，请检查脚本或可用内存。") : glass_tr("脚本未创建任何可见控件。") );
     qapp_page_discard(lv_obj_get_parent(card));
-    show_toast("预览失败，返回对话让 AI 根据错误修改"); return;
+    show_toast(glass_tr("预览失败，返回对话让 AI 根据错误修改")); return;
   }
   glass_qpk_preview_result(draft.revision, "");
   qapp_page_commit(card);
   chat_qpk_preview_active = true; chat_qpk_preview_origin = origin;
   chat_qpk_preview_revision = draft.revision;
-  show_toast("试用后点左上角返回，可以继续修改或保存应用");
+  show_toast(glass_tr("试用后点左上角返回，可以继续修改或保存应用"));
 }
 
 static void chat_ui_install_choice(lv_event_t *e)
@@ -219,7 +219,7 @@ static void chat_ui_install_choice(lv_event_t *e)
   if(g_chat_ui.confirm){lv_obj_delete(g_chat_ui.confirm);g_chat_ui.confirm=NULL;}
   if(choice>1)return;
   int ret=glass_qpk_save_async_to(g_chat_ui.app.revision,(enum qpk_volume)choice);
-  show_toast(ret?glass_qpk_error_text(ret):"正在安装应用…");chat_ui_refresh(NULL);
+  show_toast(ret?glass_qpk_error_text(ret):glass_tr("正在安装应用…"));chat_ui_refresh(NULL);
 }
 static void chat_ui_save_app(lv_event_t *e)
 {
@@ -228,13 +228,13 @@ static void chat_ui_save_app(lv_event_t *e)
   lv_obj_t *shade=glass_box(g_chat_ui.root,0,0,1024,CHAT_CONTENT_HEIGHT,0x000000,0);
   lv_obj_set_style_bg_opa(shade,LV_OPA_60,0);g_chat_ui.confirm=shade;
   lv_obj_t *card=glass_box(shade,252,150,520,300,g_chat_ui.background,20);
-  chat_ui_text(card,"选择安装位置",28,26,464,28,g_chat_ui.primary,false);
-  chat_ui_text(card,"内置存储与系统数据共享 2 MiB。\n安装到 SD 卡的应用需要插卡运行。",28,78,464,20,g_chat_ui.secondary,true);
-  glass_button(card,"内置存储",28,172,210,g_chat_ui.surface,chat_ui_install_choice,(void *)0);
+  chat_ui_text(card,glass_tr("选择安装位置"),28,26,464,28,g_chat_ui.primary,false);
+  chat_ui_text(card,glass_tr("内置存储与系统数据共享 2 MiB。\n安装到 SD 卡的应用需要插卡运行。"),28,78,464,20,g_chat_ui.secondary,true);
+  glass_button(card,glass_tr("内置存储"),28,172,210,g_chat_ui.surface,chat_ui_install_choice,(void *)0);
   bool sd_ready=qpk_volume_mounted(QPK_VOLUME_SD)==0;
-  lv_obj_t *sd=glass_button(card,sd_ready?"SD 卡":"SD 卡未就绪",256,172,236,g_chat_ui.surface,chat_ui_install_choice,(void *)1);
+  lv_obj_t *sd=glass_button(card,sd_ready?glass_tr("SD 卡"):glass_tr("SD 卡未就绪"),256,172,236,g_chat_ui.surface,chat_ui_install_choice,(void *)1);
   if(!sd_ready){lv_obj_add_state(sd,LV_STATE_DISABLED);lv_obj_set_style_opa(sd,LV_OPA_40,LV_STATE_DISABLED);}
-  glass_button(card,"取消",176,238,168,g_chat_ui.surface,chat_ui_install_choice,(void *)2);
+  glass_button(card,glass_tr("取消"),176,238,168,g_chat_ui.surface,chat_ui_install_choice,(void *)2);
 }
 
 static lv_obj_t *chat_ui_text(lv_obj_t *parent, const char *text, int x, int y,
@@ -265,6 +265,7 @@ static lv_obj_t *chat_ui_button(lv_obj_t *parent, const char *text, int x, int y
   lv_obj_set_style_bg_opa(button, LV_OPA_40, LV_STATE_DISABLED);
   lv_obj_t *label = chat_ui_text(button, text, 0, 0, width - 20, 16,
                                 filled ? g_chat_ui.on_accent : g_chat_ui.primary, false);
+  lv_obj_set_height(label,lv_obj_get_style_text_font(label,0)->line_height);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0); lv_obj_center(label);
   return button;
 }
@@ -292,15 +293,15 @@ static void chat_ui_send(lv_event_t *e)
 {
   LV_UNUSED(e);
   struct qpk_draft_info app; glass_qpk_get(&app);
-  if (g_chat_ui.mode==AGENT_MODE_CREATE&&(app.discarding || g_chat_ui.discard_requested)) { show_toast("正在放弃创意，请稍候"); return; }
+  if (g_chat_ui.mode==AGENT_MODE_CREATE&&(app.discarding || g_chat_ui.discard_requested)) { show_toast(glass_tr("正在放弃创意，请稍候")); return; }
   const char *text = chat_draft;
   if (g_chat_ui.editor) { glass_ime_commit(g_chat_ui.keyboard); text = lv_textarea_get_text(g_chat_ui.input); }
-  if (strlen(text) > CHAT_PROMPT_BYTES) { show_toast("消息太长，请删减少量文字后再试"); return; }
+  if (strlen(text) > CHAT_PROMPT_BYTES) { show_toast(glass_tr("消息太长，请删减少量文字后再试")); return; }
   bool camera=g_chat_ui.ball_mode&&g_chat_ui.voice_camera_armed;
   int ret = camera?glass_chat_send_bot_camera(text,g_chat_ui.mode):
     g_chat_ui.ball_mode?glass_chat_send_bot(text,g_chat_ui.mode):glass_chat_send_mode(text,g_chat_ui.mode);
   if (ret) {
-    show_toast(ret == -ENOKEY ? "先扫码完成 AI 配置" : ret == -EBUSY ? "请等待当前回复结束" : "请输入有效的消息");
+    show_toast(ret == -ENOKEY ? glass_tr("先扫码完成 AI 配置") : ret == -EBUSY ? glass_tr("请等待当前回复结束") : glass_tr("请输入有效的消息"));
     return;
   }
   g_chat_ui.voice_camera_armed=false;
@@ -319,7 +320,7 @@ static void chat_ui_action(lv_event_t *e)
 {
   LV_UNUSED(e);
   if (g_chat_ui.snapshot->phase == CHAT_REQUESTING || g_chat_ui.snapshot->phase == CHAT_QUEUED) {
-    if(g_chat_ui.snapshot->active_mode!=g_chat_ui.mode){show_toast("其他模式正在回复，请稍候");return;}
+    if(g_chat_ui.snapshot->active_mode!=g_chat_ui.mode){show_toast(glass_tr("其他模式正在回复，请稍候"));return;}
     glass_chat_cancel(); chat_ui_refresh(NULL);
   } else if (chat_ui_busy()) return;
   else if (!g_chat_ui.snapshot->configured) chat_ui_config(NULL);
@@ -343,9 +344,9 @@ static void chat_ui_editor_open(lv_event_t *e)
   if (g_chat_ui.editor) return;
   lv_obj_t *editor = glass_box(g_chat_ui.root, 168, 0, 856, CHAT_CONTENT_HEIGHT, g_chat_ui.background, 0);
   g_chat_ui.editor = editor;
-  chat_ui_text(editor, g_chat_ui.mode==AGENT_MODE_CHAT?"写下消息":"描述任务", 26, 28, 430, 28, g_chat_ui.primary, false);
-  chat_ui_button(editor, "收起", 624, 23, 88, 46, false, chat_ui_editor_close, NULL);
-  chat_ui_button(editor, "发送", 726, 23, 102, 46, true, chat_ui_send, NULL);
+  chat_ui_text(editor, g_chat_ui.mode==AGENT_MODE_CHAT?glass_tr("写下消息"):glass_tr("描述任务"), 26, 28, 430, 28, g_chat_ui.primary, false);
+  chat_ui_button(editor, glass_tr("收起"), 624, 23, 88, 46, false, chat_ui_editor_close, NULL);
+  chat_ui_button(editor, glass_tr("发送"), 726, 23, 102, 46, true, chat_ui_send, NULL);
   g_chat_ui.input = lv_textarea_create(editor);
   glass_input_style(g_chat_ui.input);
   lv_obj_set_pos(g_chat_ui.input, 26, 92); lv_obj_set_size(g_chat_ui.input, 804, 116);
@@ -359,7 +360,7 @@ static void chat_ui_editor_open(lv_event_t *e)
   lv_textarea_set_placeholder_text(g_chat_ui.input, chat_ui_placeholder());
   lv_textarea_set_text(g_chat_ui.input, chat_draft);
   lv_textarea_set_cursor_pos(g_chat_ui.input, LV_TEXTAREA_CURSOR_LAST);
-  chat_ui_text(editor, "中文 / English · 连续拼音选词 · 空格确认", 28, 222, 556, 16, g_chat_ui.secondary, false);
+  chat_ui_text(editor, glass_tr("中文 / English · 连续拼音选词 · 空格确认"), 28, 222, 556, 16, g_chat_ui.secondary, false);
   g_chat_ui.counter = chat_ui_text(editor, "", 640, 222, 190, 16, g_chat_ui.secondary, false);
   lv_obj_set_style_text_align(g_chat_ui.counter, LV_TEXT_ALIGN_RIGHT, 0);
   lv_obj_add_event_cb(g_chat_ui.input, chat_ui_counter, LV_EVENT_VALUE_CHANGED, NULL);
@@ -397,7 +398,7 @@ static void chat_ui_retry(lv_event_t *e)
 {
   LV_UNUSED(e);
   int ret = glass_chat_retry_mode(g_chat_ui.mode);
-  if (ret) show_toast(ret == -ENOKEY ? "先扫码完成 AI 配置" : "请等待当前操作结束");
+  if (ret) show_toast(ret == -ENOKEY ? glass_tr("先扫码完成 AI 配置") : glass_tr("请等待当前操作结束"));
   else g_chat_ui.began = lv_tick_get();
   chat_ui_refresh(NULL);
 }
@@ -417,7 +418,7 @@ static void chat_ui_archive_step(void *context,unsigned target)
   if (!p || p->busy) return;
   (void)context;int page=(int)target;
   if (page < 0 || page >= (int)p->pages) return;
-  if (glass_chat_page_request(g_chat_ui.archive_name, page)) show_toast("正在读取，请稍候");
+  if (glass_chat_page_request(g_chat_ui.archive_name, page)) show_toast(glass_tr("正在读取，请稍候"));
   else {
     p->busy = true;
     glass_pager_set_enabled(g_chat_ui.archive_pager,false);
@@ -428,20 +429,20 @@ static void chat_ui_archive_open(lv_event_t *e)
   const char *name = lv_event_get_user_data(e);
   if (!name || g_chat_ui.archive_panel) return;
   struct chat_page *p = calloc(1, sizeof(*p));
-  if (!p) { show_toast("内存不足"); return; }
+  if (!p) { show_toast(glass_tr("内存不足")); return; }
   int error = glass_chat_page_request(name, 0);
-  if (error) { free(p); show_toast("暂时无法读取完整回复"); return; }
+  if (error) { free(p); show_toast(glass_tr("暂时无法读取完整回复")); return; }
   g_chat_ui.archive_page = p; snprintf(g_chat_ui.archive_name, sizeof(g_chat_ui.archive_name), "%s", name);
   int panel_height=CHAT_CONTENT_HEIGHT-88;
   lv_obj_t *panel = glass_box(g_chat_ui.root, 244, 64, 760, panel_height, g_chat_ui.background, 16);
   g_chat_ui.archive_panel = panel;
-  g_chat_ui.archive_status = chat_ui_text(panel, "正在读取完整回复…", 20, 14, 680, 18, g_chat_ui.primary, false);
+  g_chat_ui.archive_status = chat_ui_text(panel, glass_tr("正在读取完整回复…"), 20, 14, 680, 18, g_chat_ui.primary, false);
   g_chat_ui.archive_content = glass_box(panel, 8, 48, 744, panel_height-116, g_chat_ui.surface, 0);
   lv_obj_add_flag(g_chat_ui.archive_content, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_scroll_dir(g_chat_ui.archive_content, LV_DIR_VER);
   g_chat_ui.archive_pager=glass_pager_create(panel,g_chat_ui.surface,g_chat_ui.primary,g_chat_ui.secondary,chat_ui_archive_step,NULL);
   if(g_chat_ui.archive_pager)lv_obj_align(g_chat_ui.archive_pager,LV_ALIGN_BOTTOM_MID,0,-16);
-  chat_ui_button(panel, "返回对话", 574, panel_height-56, 168, 42, true, chat_ui_archive_close, NULL);
+  chat_ui_button(panel, glass_tr("返回对话"), 574, panel_height-56, 168, 42, true, chat_ui_archive_close, NULL);
   chat_ui_ball_position(NULL);
 }
 
@@ -470,25 +471,25 @@ static void chat_ui_messages(void)
   g_chat_ui.cards_root=NULL;g_chat_ui.cards_h=0;
   if(!s->count||g_chat_ui.drawn_id!=s->turns[s->count-1].id)g_chat_ui.trace_expanded=false;
   if (!s->count) {
-    chat_ui_text(g_chat_ui.messages, g_chat_ui.mode==AGENT_MODE_CREATE?"让想法开始运行。":g_chat_ui.mode==AGENT_MODE_ASSISTANT?"有什么任务交给我？":"想聊些什么？", 16, 76, CHAT_WORKSPACE_WIDTH, 28, g_chat_ui.primary, false);
-    chat_ui_text(g_chat_ui.messages, s->configured ? (g_chat_ui.mode==AGENT_MODE_CREATE?"描述想做的功能，先生成草稿，再预览和保存。":g_chat_ui.mode==AGENT_MODE_ASSISTANT?"查询信息、完成任务，使用你已授权的工具。":"聊想法、写文字，一起把问题想明白。") : "先连接你的 AI 服务，让灵感从这里开始。",
+    chat_ui_text(g_chat_ui.messages, g_chat_ui.mode==AGENT_MODE_CREATE?glass_tr("让想法开始运行。"):g_chat_ui.mode==AGENT_MODE_ASSISTANT?glass_tr("有什么任务交给我？"):glass_tr("想聊些什么？"), 16, 76, CHAT_WORKSPACE_WIDTH, 28, g_chat_ui.primary, false);
+    chat_ui_text(g_chat_ui.messages, s->configured ? (g_chat_ui.mode==AGENT_MODE_CREATE?glass_tr("描述想做的功能，先生成草稿，再预览和保存。"):g_chat_ui.mode==AGENT_MODE_ASSISTANT?glass_tr("查询信息、完成任务，使用你已授权的工具。"):glass_tr("聊想法、写文字，一起把问题想明白。")) : glass_tr("先连接你的 AI 服务，让灵感从这里开始。"),
                   16, 122, CHAT_WORKSPACE_WIDTH, 16, g_chat_ui.secondary, false);
-    if (!s->configured) chat_ui_button(g_chat_ui.messages, "扫码配置 AI", 310, 166, 178, 42, true, chat_ui_config, NULL);
-    const char *titles[] = {g_chat_ui.mode!=AGENT_MODE_CREATE?"聊聊今天":"制作计数器",g_chat_ui.mode!=AGENT_MODE_CREATE?"帮我想想":"制作计时器","自由聊聊"};
-    const char *prompts[] = {g_chat_ui.mode!=AGENT_MODE_CREATE?"我想聊聊今天发生的事。":"做一个大数字计数器快应用，有加一、减一和清零，退出后保留计数。请先生成草稿让我预览。",g_chat_ui.mode!=AGENT_MODE_CREATE?"帮我一起理清现在的想法。":"做一个可以开始、暂停和重置的倒计时快应用，先生成草稿让我预览。", "帮我安排今天的学习计划。"};
+    if (!s->configured) chat_ui_button(g_chat_ui.messages, glass_tr("扫码配置 AI"), 310, 166, 178, 42, true, chat_ui_config, NULL);
+    const char *titles[] = {g_chat_ui.mode!=AGENT_MODE_CREATE?glass_tr("聊聊今天"):glass_tr("制作计数器"),g_chat_ui.mode!=AGENT_MODE_CREATE?glass_tr("帮我想想"):glass_tr("制作计时器"),glass_tr("自由聊聊")};
+    const char *prompts[] = {g_chat_ui.mode!=AGENT_MODE_CREATE?glass_tr("我想聊聊今天发生的事。"):glass_tr("做一个大数字计数器快应用，有加一、减一和清零，退出后保留计数。请先生成草稿让我预览。"),g_chat_ui.mode!=AGENT_MODE_CREATE?glass_tr("帮我一起理清现在的想法。"):glass_tr("做一个可以开始、暂停和重置的倒计时快应用，先生成草稿让我预览。"), glass_tr("帮我安排今天的学习计划。")};
     if(g_chat_ui.mode==AGENT_MODE_ASSISTANT){
-      titles[0]="查看可用工具";prompts[0]="请列出当前助手模式可用的 MCP 工具及其用途。";
-      titles[1]="查询信息";prompts[1]="我想查询一些信息，请先告诉我现在有哪些可用的信息查询工具。";
-      titles[2]="梳理任务";prompts[2]="请帮我整理待办事项，需要执行外部操作时先确认具体目标。";
+      titles[0]=glass_tr("查看可用工具");prompts[0]=glass_tr("请列出当前助手模式可用的 MCP 工具及其用途。");
+      titles[1]=glass_tr("查询信息");prompts[1]=glass_tr("我想查询一些信息，请先告诉我现在有哪些可用的信息查询工具。");
+      titles[2]=glass_tr("梳理任务");prompts[2]=glass_tr("请帮我整理待办事项，需要执行外部操作时先确认具体目标。");
     }else if(g_chat_ui.mode==AGENT_MODE_CREATE){
-      titles[2]="完善界面";prompts[2]="我想完善快应用的界面，请先和我确认要修改哪些功能和布局。";
+      titles[2]=glass_tr("完善界面");prompts[2]=glass_tr("我想完善快应用的界面，请先和我确认要修改哪些功能和布局。");
     }
     lv_obj_set_style_text_align(lv_obj_get_child(g_chat_ui.messages,0),LV_TEXT_ALIGN_CENTER,0);
     lv_obj_set_style_text_align(lv_obj_get_child(g_chat_ui.messages,1),LV_TEXT_ALIGN_CENTER,0);
     int y = s->configured ? 184 : 218;
-    const char *notes[]={"从一个小工具开始","让时间更有条理","继续打磨你的想法"};
-    if(g_chat_ui.mode==AGENT_MODE_CHAT){notes[0]="分享日常与心情";notes[1]="一起把问题想明白";notes[2]="从任何话题开始";}
-    if(g_chat_ui.mode==AGENT_MODE_ASSISTANT){notes[0]="了解已授权的能力";notes[1]="依据真实工具结果";notes[2]="把事情一件件理清";}
+    const char *notes[]={glass_tr("从一个小工具开始"),glass_tr("让时间更有条理"),glass_tr("继续打磨你的想法")};
+    if(g_chat_ui.mode==AGENT_MODE_CHAT){notes[0]=glass_tr("分享日常与心情");notes[1]=glass_tr("一起把问题想明白");notes[2]=glass_tr("从任何话题开始");}
+    if(g_chat_ui.mode==AGENT_MODE_ASSISTANT){notes[0]=glass_tr("了解已授权的能力");notes[1]=glass_tr("依据真实工具结果");notes[2]=glass_tr("把事情一件件理清");}
     for (unsigned i = 0; i < 3; i++) {
       lv_obj_t *tile = chat_ui_button(g_chat_ui.messages, titles[i], 56 + i * 248, y, 232, 76,
                                       false, chat_ui_suggestion, (void *)prompts[i]);
@@ -518,14 +519,14 @@ static void chat_ui_messages(void)
         }
         if (t->clipped) {
           if (t->archive[0]) {
-            chat_ui_button(g_chat_ui.messages, "阅读完整回复", 8, y, 188, 42, false, chat_ui_archive_open, (void *)t->archive);
+            chat_ui_button(g_chat_ui.messages, glass_tr("阅读完整回复"), 8, y, 188, 42, false, chat_ui_archive_open, (void *)t->archive);
             y += 52;
           } else {
-            chat_ui_text(g_chat_ui.messages, "完整回复未能保存；当前为已保留的片段，请检查存储空间。", 12, y, 704, 16, g_chat_ui.secondary, true);
+            chat_ui_text(g_chat_ui.messages, glass_tr("完整回复未能保存；当前为已保留的片段，请检查存储空间。"), 12, y, 704, 16, g_chat_ui.secondary, true);
             y += 58;
           }
         }
-        if (t->output_limited) { chat_ui_text(g_chat_ui.messages, "已达到本次输出 Token 上限，可调整设置后继续。", 12, y, 704, 16, g_chat_ui.secondary, true); y += 38; }
+        if (t->output_limited) { chat_ui_text(g_chat_ui.messages, glass_tr("已达到本次输出 Token 上限，可调整设置后继续。"), 12, y, 704, 16, g_chat_ui.secondary, true); y += 38; }
       } else if (t->state == CHAT_WAITING) {
         chat_ui_trace_create(t,y);
         chat_ui_cards_attach(t);
@@ -535,12 +536,12 @@ static void chat_ui_messages(void)
         chat_ui_trace_update(t);
       } else {
         if (t->reply[0]) y = chat_ui_bubble(t->reply, y, false);
-        if (t->archive[0]) { chat_ui_button(g_chat_ui.messages, "阅读已收到的内容", 8, y, 220, 42, false, chat_ui_archive_open, (void *)t->archive); y += 52; }
-        const char *text = t->state == CHAT_CANCELLED ? "已停止这次回复。" : glass_chat_error_text(t->error);
+        if (t->archive[0]) { chat_ui_button(g_chat_ui.messages, glass_tr("阅读已收到的内容"), 8, y, 220, 42, false, chat_ui_archive_open, (void *)t->archive); y += 52; }
+        const char *text = t->state == CHAT_CANCELLED ? glass_tr("已停止这次回复。") : glass_chat_error_text(t->error);
         y = chat_ui_bubble(text, y, false);
         y = chat_ui_cards_inline(t, y);
         if (i == s->count - 1) {
-          chat_ui_button(g_chat_ui.messages, "重新发送", 8, y - 6, 128, 42, false, chat_ui_retry, NULL);
+          chat_ui_button(g_chat_ui.messages, glass_tr("重新发送"), 8, y - 6, 128, 42, false, chat_ui_retry, NULL);
           y += 52;
         }
       }
@@ -583,7 +584,7 @@ static void chat_ui_new_confirm(lv_event_t *e)
 {
   LV_UNUSED(e);
   int ret = glass_chat_clear_mode(g_chat_ui.mode);
-  if (ret) { show_toast("请等待对话载入后再试"); return; }
+  if (ret) { show_toast(glass_tr("请等待对话载入后再试")); return; }
   if (g_chat_ui.editor) chat_ui_editor_close(NULL);
   chat_draft[0] = 0;
   chat_ui_label(g_chat_ui.draft_label, chat_ui_placeholder());
@@ -598,7 +599,7 @@ static void chat_ui_discard_confirm(lv_event_t *e)
   if (ret) { show_toast(glass_qpk_error_text(ret)); return; }
   g_chat_ui.discard_requested = true;
   chat_ui_confirm_close(NULL);
-  show_toast("正在放弃创意…");
+  show_toast(glass_tr("正在放弃创意…"));
   chat_ui_refresh(NULL);
 }
 
@@ -607,14 +608,14 @@ static void chat_ui_discard(lv_event_t *e)
   LV_UNUSED(e);
   if (g_chat_ui.confirm) return;
   struct qpk_draft_info app; glass_qpk_get(&app);
-  if (app.busy) { show_toast("正在处理草稿，请稍后重试"); return; }
+  if (app.busy) { show_toast(glass_tr("正在处理草稿，请稍后重试")); return; }
   lv_obj_t *shade = glass_box(g_chat_ui.root, 0, 0, 1024, CHAT_CONTENT_HEIGHT, 0x000000, 0);
   lv_obj_set_style_bg_opa(shade, LV_OPA_60, 0); g_chat_ui.confirm = shade;
   lv_obj_t *card = glass_box(shade, 252, 166, 520, 268, g_chat_ui.background, 22);
-  chat_ui_text(card, "放弃这个创意？", 28, 26, 464, 28, g_chat_ui.primary, false);
-  chat_ui_text(card, "停止本次生成并清除当前应用草稿。\n聊天记录和已安装的应用会保留。", 28, 84, 464, 20, g_chat_ui.secondary, true);
-  chat_ui_button(card, "继续创作", 28, 196, 214, 46, false, chat_ui_confirm_close, NULL);
-  chat_ui_button(card, "放弃创意", 258, 196, 234, 46, true, chat_ui_discard_confirm, NULL);
+  chat_ui_text(card, glass_tr("放弃这个创意？"), 28, 26, 464, 28, g_chat_ui.primary, false);
+  chat_ui_text(card, glass_tr("停止本次生成并清除当前应用草稿。\n聊天记录和已安装的应用会保留。"), 28, 84, 464, 20, g_chat_ui.secondary, true);
+  chat_ui_button(card, glass_tr("继续创作"), 28, 196, 214, 46, false, chat_ui_confirm_close, NULL);
+  chat_ui_button(card, glass_tr("放弃创意"), 258, 196, 234, 46, true, chat_ui_discard_confirm, NULL);
 }
 
 static void chat_ui_new(lv_event_t *e)
@@ -625,10 +626,10 @@ static void chat_ui_new(lv_event_t *e)
   lv_obj_t *shade = glass_box(g_chat_ui.root, 0, 0, 1024, CHAT_CONTENT_HEIGHT, 0x000000, 0);
   lv_obj_set_style_bg_opa(shade, LV_OPA_60, 0); g_chat_ui.confirm = shade;
   lv_obj_t *card = glass_box(shade, 272, 178, 480, 242, g_chat_ui.background, 22);
-  chat_ui_text(card, "开始新对话？", 28, 26, 424, 28, g_chat_ui.primary, false);
-  chat_ui_text(card, "清空当前模式的对话，其他模式保留。\n当前模式正在等待的回复也会停止。", 28, 82, 424, 20, g_chat_ui.secondary, true);
-  chat_ui_button(card, "保留对话", 28, 174, 186, 46, false, chat_ui_confirm_close, NULL);
-  chat_ui_button(card, "清空并开始", 238, 174, 214, 46, true, chat_ui_new_confirm, NULL);
+  chat_ui_text(card, glass_tr("开始新对话？"), 28, 26, 424, 28, g_chat_ui.primary, false);
+  chat_ui_text(card, glass_tr("清空当前模式的对话，其他模式保留。\n当前模式正在等待的回复也会停止。"), 28, 82, 424, 20, g_chat_ui.secondary, true);
+  chat_ui_button(card, glass_tr("保留对话"), 28, 174, 186, 46, false, chat_ui_confirm_close, NULL);
+  chat_ui_button(card, glass_tr("清空并开始"), 238, 174, 214, 46, true, chat_ui_new_confirm, NULL);
 }
 
 static void chat_ui_return_from_portal(lv_event_t *e)
@@ -657,10 +658,10 @@ static void chat_ui_refresh(lv_timer_t *timer)
     struct chat_page *page = g_chat_ui.archive_page;
     bool ready = !page->busy && !page->error;
     glass_pager_update(g_chat_ui.archive_pager,page->page,page->pages,ready);
-    if (page->busy) chat_ui_label(g_chat_ui.archive_status, "正在读取完整回复…");
-    else if (page->error) chat_ui_label(g_chat_ui.archive_status, "完整回复读取失败，请检查设备存储");
+    if (page->busy) chat_ui_label(g_chat_ui.archive_status, glass_tr("正在读取完整回复…"));
+    else if (page->error) chat_ui_label(g_chat_ui.archive_status, glass_tr("完整回复读取失败，请检查设备存储"));
     else {
-      char text[128]; snprintf(text, sizeof(text), "完整回复");
+      char text[128]; snprintf(text, sizeof(text), glass_tr("完整回复"));
       chat_ui_label(g_chat_ui.archive_status, text);
       lv_obj_clean(g_chat_ui.archive_content);
       lv_obj_t *content = glass_box(g_chat_ui.archive_content, 0, 0, 730, 60, g_chat_ui.surface, 0);
@@ -676,23 +677,23 @@ static void chat_ui_refresh(lv_timer_t *timer)
   glass_qpk_get(&app);
   if (g_chat_ui.discard_requested && !app.discarding) {
     g_chat_ui.discard_requested = false;
-    if (!app.error) show_toast("已放弃创意，可以开始新的想法");
+    if (!app.error) show_toast(glass_tr("已放弃创意，可以开始新的想法"));
   }
   if (app.saved_revision && app.saved_revision != g_chat_ui.app.saved_revision)
-    show_toast("应用已保存，可以从全部应用打开");
+    show_toast(glass_tr("应用已保存，可以从全部应用打开"));
   if (app.error && app.error != g_chat_ui.app.error) show_toast(glass_qpk_error_text(app.error));
   g_chat_ui.app = app;
   char app_text[192];
-  if (app.discarding) snprintf(app_text, sizeof(app_text), "正在放弃创意…");
-  else if (app.busy && app.save_stage) snprintf(app_text, sizeof(app_text), "%s\n请稍候，完成后会提示", app.save_stage == 1 ? "正在检查保存位置" : app.save_stage == 2 ? "正在写入应用脚本" : "正在写入应用信息");
-  else if (app.busy) snprintf(app_text, sizeof(app_text), "正在处理草稿…");
-  else if (app.error) snprintf(app_text, sizeof(app_text), "草稿操作未完成\n可检查后重试");
-  else if (app.name[0]) snprintf(app_text, sizeof(app_text), "第 %lu 版\n%s",
-    (unsigned long)app.revision, app.saved_revision == app.revision ? "已保存到全部应用" :
-    app.preview_error[0] ? "预览出错，可反馈修改" : app.previewed_revision == app.revision ? "已预览，可修改或保存" : "草稿已就绪，等待预览");
-  else snprintf(app_text, sizeof(app_text), "描述想做的应用\nAI 会先生成预览草稿");
+  if (app.discarding) snprintf(app_text, sizeof(app_text), glass_tr("正在放弃创意…"));
+  else if (app.busy && app.save_stage) snprintf(app_text, sizeof(app_text), glass_tr("%s\n请稍候，完成后会提示"), app.save_stage == 1 ? glass_tr("正在检查保存位置") : app.save_stage == 2 ? glass_tr("正在写入应用脚本") : glass_tr("正在写入应用信息"));
+  else if (app.busy) snprintf(app_text, sizeof(app_text), glass_tr("正在处理草稿…"));
+  else if (app.error) snprintf(app_text, sizeof(app_text), glass_tr("草稿操作未完成\n可检查后重试"));
+  else if (app.name[0]) snprintf(app_text, sizeof(app_text), glass_tr("第 %lu 版\n%s"),
+    (unsigned long)app.revision, app.saved_revision == app.revision ? glass_tr("已保存到全部应用") :
+    app.preview_error[0] ? glass_tr("预览出错，可反馈修改") : app.previewed_revision == app.revision ? glass_tr("已预览，可修改或保存") : glass_tr("草稿已就绪，等待预览"));
+  else snprintf(app_text, sizeof(app_text), glass_tr("描述想做的应用\nAI 会先生成预览草稿"));
   if(g_chat_ui.mode!=AGENT_MODE_CREATE)snprintf(app_text,sizeof(app_text),"%s",g_chat_ui.mode==AGENT_MODE_CHAT?
-    "自然交流\n不执行外部操作":"查询信息、完成任务\n使用已授权的工具");
+    glass_tr("自然交流\n不执行外部操作"):glass_tr("查询信息、完成任务\n使用已授权的工具"));
   chat_ui_label(g_chat_ui.app_status, app_text);
   bool can_preview = app.loaded && app.name[0] && !app.busy && s->phase == CHAT_IDLE;
   bool can_discard = app.loaded && !app.busy && (app.name[0] || s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED);
@@ -704,24 +705,24 @@ static void chat_ui_refresh(lv_timer_t *timer)
     lv_obj_remove_state(g_chat_ui.save_button, LV_STATE_DISABLED);
   else lv_obj_add_state(g_chat_ui.save_button, LV_STATE_DISABLED);
   if (update) {
-    if (s->storage_error && s->storage_error != old_storage) show_toast("对话记录未能保存，请检查设备存储");
+    if (s->storage_error && s->storage_error != old_storage) show_toast(glass_tr("对话记录未能保存，请检查设备存储"));
     if (previous_count != s->count || (s->count && previous_id != s->turns[s->count - 1].id)) {
       lv_obj_scroll_to_y(g_chat_ui.messages, LV_COORD_MAX, LV_ANIM_OFF);
       g_chat_ui.began = lv_tick_get();
     }
-    chat_ui_label(g_chat_ui.model, s->model[0] ? s->model : "选择你的 AI 服务，开始第一段对话");
-    char count_text[48]; snprintf(count_text, sizeof(count_text), "当前模式 · %u 轮", s->count); chat_ui_label(g_chat_ui.count, count_text);
+    chat_ui_label(g_chat_ui.model, s->model[0] ? s->model : glass_tr("选择你的 AI 服务，开始第一段对话"));
+    char count_text[48]; snprintf(count_text, sizeof(count_text), glass_tr("当前模式 · %u 轮"), s->count); chat_ui_label(g_chat_ui.count, count_text);
     const struct chat_turn *stored=s->count?&s->turns[s->count-1]:NULL;
     chat_ui_label(g_chat_ui.storage,stored&&stored->session_history?
-      (stored->state==CHAT_WAITING?"本次会话 · 完成后保存 SD":
-       stored->camera_observation[0]?"结果已独立保存 SD":"仅本次会话 · 未保存 SD"):
-      s->storage_error == -EINVAL ? "记录读取失败，原文件已保留" :
-      s->storage_error == -ENOSPC ? "存储空间不足" :
-      s->storage_error ? "记录暂未保存" : "自动保存在设备");
+      (stored->state==CHAT_WAITING?glass_tr("本次会话 · 完成后保存 SD"):
+       stored->camera_observation[0]?glass_tr("结果已独立保存 SD"):glass_tr("仅本次会话 · 未保存 SD")):
+      s->storage_error == -EINVAL ? glass_tr("记录读取失败，原文件已保留") :
+      s->storage_error == -ENOSPC ? glass_tr("存储空间不足") :
+      s->storage_error ? glass_tr("记录暂未保存") : glass_tr("自动保存在设备"));
     bool other_request=(s->phase==CHAT_REQUESTING||s->phase==CHAT_QUEUED)&&s->active_mode!=g_chat_ui.mode;
-    chat_ui_label(g_chat_ui.action_label, other_request?"等待":s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED ? "停止" :
-                       s->phase == CHAT_STOPPING ? "停止中" : s->phase == CHAT_CLEARING ? "请稍候" :
-                       !s->configured ? "去配置" : "发送");
+    chat_ui_label(g_chat_ui.action_label, other_request?glass_tr("等待"):s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED ? glass_tr("停止") :
+                       s->phase == CHAT_STOPPING ? glass_tr("停止中") : s->phase == CHAT_CLEARING ? glass_tr("请稍候") :
+                       !s->configured ? glass_tr("去配置") : glass_tr("发送"));
     if (other_request || s->phase == CHAT_LOADING || s->phase == CHAT_CLEARING || s->phase == CHAT_STOPPING)
       lv_obj_add_state(g_chat_ui.action, LV_STATE_DISABLED);
     else lv_obj_remove_state(g_chat_ui.action, LV_STATE_DISABLED);
@@ -735,20 +736,20 @@ static void chat_ui_refresh(lv_timer_t *timer)
         g_chat_ui.drawn_cards_signature == chat_ui_cards_signature(last)) chat_ui_live();
     else chat_ui_messages();
   }
-  const char *status = !s->loaded ? "正在载入对话" : s->phase == CHAT_CLEARING ? "正在新建对话" :
-    s->phase == CHAT_STOPPING ? "正在停止回复" : s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED ? "正在思考" :
-    s->configured ? "随时可以开始" : "需要配置 AI 服务";
+  const char *status = !s->loaded ? glass_tr("正在载入对话") : s->phase == CHAT_CLEARING ? glass_tr("正在新建对话") :
+    s->phase == CHAT_STOPPING ? glass_tr("正在停止回复") : s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED ? glass_tr("正在思考") :
+    s->configured ? glass_tr("随时可以开始") : glass_tr("需要配置 AI 服务");
   if ((s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED)&&s->active_mode!=g_chat_ui.mode) {
-    chat_ui_label(g_chat_ui.status,"其他模式正在回复，请稍候");
+    chat_ui_label(g_chat_ui.status,glass_tr("其他模式正在回复，请稍候"));
   } else if (s->phase == CHAT_REQUESTING || s->phase == CHAT_QUEUED) {
     unsigned seconds = (lv_tick_get() - g_chat_ui.began) / 1000;
     char text[160];
     const struct chat_turn *t = s->count ? &s->turns[s->count - 1] : NULL;
-    snprintf(text, sizeof(text), "%s · %u 秒", t && t->progress[0] ? t->progress : status, seconds);
+    snprintf(text, sizeof(text), glass_tr("%s · %u 秒"), t && t->progress[0] ? t->progress : status, seconds);
     chat_ui_label(g_chat_ui.status, text);
   } else {
     chat_ui_label(g_chat_ui.status, status);
-    if (g_chat_ui.waiting && s->phase != CHAT_IDLE) chat_ui_label(g_chat_ui.waiting, s->phase == CHAT_CLEARING ? "正在开始新对话…" : "正在停止回复…");
+    if (g_chat_ui.waiting && s->phase != CHAT_IDLE) chat_ui_label(g_chat_ui.waiting, s->phase == CHAT_CLEARING ? glass_tr("正在开始新对话…") : glass_tr("正在停止回复…"));
   }
   if (++g_chat_ui.ticks % 20 == 0 && s->phase == CHAT_IDLE) glass_chat_refresh_config();
   if(g_chat_ui.trace_root&&s->count&&s->turns[s->count-1].state==CHAT_WAITING)
@@ -827,7 +828,7 @@ static void chat_ui_mode_choose(lv_event_t *e)
   if(!glass_agent_mode_valid(mode))return;
   struct chat_activity_snapshot activity;glass_chat_activity_get(&activity);
   if(g_chat_ui.voice_session||(activity.loaded&&activity.phase!=CHAT_IDLE)){
-    show_toast("请先结束当前对话，再切换模式");return;
+    show_toast(glass_tr("请先结束当前对话，再切换模式"));return;
   }
   bool ball=g_chat_ui.ball_mode,apps=g_desktop.chat_return_apps;
   chat_interface_modes[ball?1:0]=mode;glass_chat_show_mode(apps,ball);
@@ -835,19 +836,19 @@ static void chat_ui_mode_choose(lv_event_t *e)
 static void chat_ui_modes(lv_event_t *e)
 {
   LV_UNUSED(e);if(g_chat_ui.mode_panel)return;
-  if(g_chat_ui.editor||g_chat_ui.voice_session){show_toast("请先结束输入或语音对话");return;}
+  if(g_chat_ui.editor||g_chat_ui.voice_session){show_toast(glass_tr("请先结束输入或语音对话"));return;}
   lv_obj_t *shade=glass_box(g_chat_ui.root,0,0,1024,CHAT_CONTENT_HEIGHT,0x000000,0);
   lv_obj_set_style_bg_opa(shade,LV_OPA_60,0);g_chat_ui.mode_panel=shade;
   lv_obj_t *box=glass_box(shade,282,100,460,370,g_chat_ui.background,22);
-  chat_ui_text(box,"选择模式",24,20,412,24,g_chat_ui.primary,false);
+  chat_ui_text(box,glass_tr("选择模式"),24,20,412,24,g_chat_ui.primary,false);
   const enum glass_agent_mode modes[]={AGENT_MODE_CHAT,AGENT_MODE_CREATE,AGENT_MODE_ASSISTANT};
-  const char *descriptions[]={"自然交流 · 不执行操作","制作应用 · 先预览草稿","查询与操作 · 已授权的工具"};
+  const char *descriptions[]={glass_tr("自然交流 · 不执行操作"),glass_tr("制作应用 · 先预览草稿"),glass_tr("查询与操作 · 已授权的工具")};
   for(unsigned i=0;i<3;i++){
     chat_ui_button(box,glass_agent_mode_title(modes[i]),24,66+i*80,140,48,modes[i]==g_chat_ui.mode,
                    chat_ui_mode_choose,(void *)(uintptr_t)modes[i]);
     chat_ui_text(box,descriptions[i],178,80+i*80,258,16,g_chat_ui.secondary,false);
   }
-  chat_ui_button(box,"取消",170,310,120,40,false,chat_ui_mode_close,NULL);
+  chat_ui_button(box,glass_tr("取消"),170,310,120,40,false,chat_ui_mode_close,NULL);
 }
 
 #include "glass_chat_workspace.inc"
@@ -858,9 +859,10 @@ static void glass_chat_show_mode(bool from_apps,bool ball_mode)
   lv_obj_clean(card); memset(&g_chat_ui, 0, sizeof(g_chat_ui)); g_chat_ui.root = card;
   g_chat_ui.ball_mode=ball_mode;g_chat_ui.mode=chat_interface_modes[ball_mode?1:0];
   g_chat_ui.snapshot = calloc(1, sizeof(*g_chat_ui.snapshot));
-  if (!g_chat_ui.snapshot) { memset(&g_chat_ui, 0, sizeof(g_chat_ui)); panel_hide(NULL); show_toast("内存不足，暂时无法打开聊天"); return; }
+  if (!g_chat_ui.snapshot) { memset(&g_chat_ui, 0, sizeof(g_chat_ui)); panel_hide(NULL); show_toast(glass_tr("内存不足，暂时无法打开聊天")); return; }
   chat_display_expand();
   g_desktop.chat_page = true; g_desktop.chat_return_apps = from_apps;
+  glass_navigation_register(ball_mode?glass_chat_ball_open:glass_chat_open,from_apps,0);
   bool light = g_desktop.light_theme;
   struct glass_app_palette palette=glass_app_palette(light);
   g_chat_ui.background=palette.canvas;g_chat_ui.surface=palette.paper;

@@ -1,0 +1,433 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -650,7 +650,9 @@
+  ['draggable', 'draggable', 'bool'], ['inert', 'inert', 'bool'],
+  ['href', 'href', 'url'], ['src', 'src', 'url'], ['action', 'action', 'url'],
+  ['poster', 'poster', 'url'], ['cite', 'cite', 'url'], ['data', 'data', 'url'],
+- ['formAction', 'formaction', 'url']
++ ['formAction', 'formaction', 'url'],
++ ['formMethod', 'formmethod'], ['formEnctype', 'formenctype'],
++ ['formTarget', 'formtarget'], ['formNoValidate', 'formnovalidate', 'bool']
+ ].forEach(function (r) { reflect(r[0], r[1], r[2]); });
+ 
+ /* type attribute (input defaults to "text") */
+@@ -743,7 +745,10 @@
+ });
+ accessor(ElementP, 'form', function () {
+ 	var f = this.getAttribute('form');
+-	if (f) return document.getElementById(f);
++	if (f !== null) {
++		var owner = f ? this.ownerDocument.getElementById(f) : null;
++		return owner && owner.tagName === 'FORM' ? owner : null;
++	}
+ 	return this.closest('form');
+ });
+ accessor(ElementP, 'elements', function () {
+@@ -1185,12 +1190,29 @@
+ 		if (f) f.requestSubmit(this);
+ 	}
+ });
+-method(ElementP, 'submit', function () { submitForm(this, null); });
++method(ElementP, 'submit', function () {
++	if (this.tagName !== 'FORM') throw new TypeError('Expected a form element');
++	submitForm(this, null);
++});
++var submittingForms = new WeakSet();
+ method(ElementP, 'requestSubmit', function (submitter) {
+-	if (this.tagName !== 'FORM') return;
+-	var ev = new Event('submit', { bubbles: true, cancelable: true });
+-	ev.submitter = submitter || null;
+-	if (this.dispatchEvent(ev)) submitForm(this, submitter);
++	if (this.tagName !== 'FORM') throw new TypeError('Expected a form element');
++	if (submitter !== undefined && submitter !== null) {
++		if (!submitter || !((submitter.tagName === 'BUTTON' && submitter.type === 'submit') ||
++		    (submitter.tagName === 'INPUT' && /^(submit|image)$/.test(submitter.type))))
++			throw new TypeError('Expected a submit button');
++		if (submitter.form !== this)
++			throw new DOMException('The submit button belongs to another form', 'NotFoundError');
++	}
++	if (submittingForms.has(this) || !this.isConnected || this.ownerDocument !== document) return;
++	submittingForms.add(this);
++	try {
++		var ev = new Event('submit', { bubbles: true, cancelable: true });
++		ev.submitter = submitter || null;
++		if (this.dispatchEvent(ev)) submitForm(this, submitter || null);
++	} finally {
++		submittingForms.delete(this);
++	}
+ });
+ method(ElementP, 'reset', function () {
+ 	if (this.tagName !== 'FORM') return;
+@@ -1221,17 +1243,24 @@
+ 	return out;
+ }
+ function submitForm(form, submitter) {
+-	var method = (submitter && submitter.getAttribute('formmethod')) || form.getAttribute('method') || 'get';
+-	var action = (submitter && submitter.getAttribute('formaction')) || form.getAttribute('action') || location.href;
+-	action = ns.resolveURL(action) || action;
+-	var q = new URLSearchParams(formEntries(form, submitter)).toString();
+-	if (method.toLowerCase() === 'post') {
+-		/* POST submission from script: fall back to GET-style
+-		 * navigation carrying the fields */
+-		ns.log('form POST from script submitted as GET');
+-	}
+-	var u = action.split('#')[0].split('?')[0];
+-	location.href = u + (q ? '?' + q : '');
++	if (!form.isConnected || form.ownerDocument !== document) return;
++	function attribute(name, override) {
++		return submitter && submitter.hasAttribute(override) ?
++			submitter.getAttribute(override) : (form.getAttribute(name) || '');
++	}
++	var method = attribute('method', 'formmethod').toLowerCase();
++	if (method === 'dialog') throw new DOMException('Dialog submission is not supported', 'NotSupportedError');
++	method = method === 'post' ? 'post' : 'get';
++	var enctype = attribute('enctype', 'formenctype').toLowerCase();
++	if (method === 'post' && (enctype === 'multipart/form-data' || enctype === 'text/plain'))
++		throw new DOMException('This form encoding is not supported for navigation', 'NotSupportedError');
++	var action = attribute('action', 'formaction');
++	action = action ? ns.resolveURL(action) : location.href;
++	if (!action) throw new DOMException('Invalid form action', 'SyntaxError');
++	if (!/^https?:/i.test(action))
++		throw new DOMException('This form action scheme is not supported', 'NotSupportedError');
++	ns.formSubmit(form, submitter, action, method, attribute('target', 'formtarget'),
++		form.getAttribute('accept-charset') || '');
+ }
+ 
+ accessor(ElementP, 'shadowRoot', function () { return null; });
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -46,6 +46,7 @@
+ #include "netsurf/browser_window.h"
+ #include "content/fetch.h"
+ #include "content/hlcache.h"
++#include "content/llcache.h"
+ #ifdef WITH_NS_SVG
+ #include <svgtiny.h>
+ #endif
+@@ -1421,6 +1422,52 @@
+ 			tag == want;
+ }
+ 
++static JSValue nat_form_submit(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	struct jsthread *thread = nat_thread(ctx);
++	struct form form = {0};
++	struct form_control submitter = {0};
++	const char *strings[4] = {NULL};
++	nserror result;
++	int index;
++	(void)this_val;
++	if (argc < 6 || !qjs_may_navigate(thread))
++		return JS_UNDEFINED;
++	form.node = nat_node(thread, argv[0]);
++	form.script_submission = true;
++	if (form.node == NULL || !nat_is_tag(form.node, DOM_HTML_ELEMENT_TYPE_FORM))
++		return JS_ThrowTypeError(ctx, "Expected a form element");
++	submitter.node = JS_IsNull(argv[1]) ? form.node : nat_node(thread, argv[1]);
++	if (submitter.node == NULL)
++		return JS_ThrowTypeError(ctx, "Expected a submit button");
++	for (index = 0; index < 4; index++) {
++		strings[index] = JS_ToCString(ctx, argv[index + 2]);
++		if (strings[index] == NULL)
++			goto failed;
++	}
++	form.action = (char *)strings[0];
++	form.method = strcmp(strings[1], "post") == 0 ? method_POST_URLENC : method_GET;
++	form.target = (char *)strings[2];
++	form.accept_charsets = strings[3][0] ? (char *)strings[3] : NULL;
++	form.document_charset = thread->htmlc->encoding;
++	result = form_submit(llcache_handle_get_url(thread->htmlc->base.llcache),
++		browser_window_find_target(thread->bw,
++			form.target[0] ? form.target : thread->htmlc->base_target, 0),
++		&form, &submitter);
++	for (index = 0; index < 4; index++)
++		JS_FreeCString(ctx, strings[index]);
++	if (result != NSERROR_OK)
++		return JS_ThrowInternalError(ctx, "Form navigation failed (%d)", result);
++	return JS_UNDEFINED;
++failed:
++	for (index = 0; index < 4; index++) {
++		if (strings[index] != NULL)
++			JS_FreeCString(ctx, strings[index]);
++	}
++	return JS_EXCEPTION;
++}
++
+ /** __ns.inputValue(el) -> current value of an input or textarea */
+ static JSValue nat_input_value(JSContext *ctx, JSValueConst this_val,
+ 		int argc, JSValueConst *argv)
+@@ -1553,6 +1600,7 @@
+     JS_CFUNC_DEF("imageAbort", 1, nat_image_abort),
+     JS_CFUNC_DEF("randomFill", 1, nat_random_fill),
+ 	JS_CFUNC_DEF("elements", 1, nat_elements),
++	JS_CFUNC_DEF("formSubmit", 6, nat_form_submit),
+ 	JS_CFUNC_DEF("attributes", 1, nat_attributes),
+ 	JS_CFUNC_DEF("inputValue", 1, nat_input_value),
+ 	JS_CFUNC_DEF("setInputValue", 2, nat_set_input_value),
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -2512,7 +2512,7 @@
+ 	return doc_get_URL(ctx, this_val);
+ }
+ 
+-static bool qjs_may_navigate(struct jsthread *t)
++bool qjs_may_navigate(struct jsthread *t)
+ {
+ 	if (t == NULL || t->closed || t->bw == NULL || t->htmlc == NULL)
+ 		return false;
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -107,6 +107,7 @@
+ 
+ /* DOM binding layer (qjs_dom.c) */
+ nserror qjs_dom_setup(struct jsthread *thread);
++bool qjs_may_navigate(struct jsthread *thread);
+ void qjs_dom_teardown(struct jsthread *thread);
+ void qjs_dom_closethread(struct jsthread *thread);
+ 
+--- a/netsurf/content/handlers/html/form.c
++++ b/netsurf/content/handlers/html/form.c
+@@ -563,6 +563,7 @@
+ 	nserror res;
+ 	dom_exception exp; /* the result from DOM operations */
+ 	struct image_input_coords *coords;
++	struct image_input_coords default_coords = {0};
+ 	char *basename;
+ 
+ 	/* Only use an image input if it was the thing which activated us */
+@@ -579,8 +580,7 @@
+ 	}
+ 
+ 	if (coords == NULL) {
+-		NSLOG(netsurf, INFO, "No XY data on the image input");
+-		return NSERROR_DOM;
++		coords = &default_coords;
+ 	}
+ 
+ 	/* encode input name once */
+@@ -1050,6 +1050,137 @@
+  *                             fetch_multipart_data, NULL if no controls
+  * \return NSERROR_OK on success or appropriate error code
+  */
++static nserror form_script_control_matches(struct form *form, dom_node *node,
++		bool *matches)
++{
++	dom_string *attribute = NULL;
++	dom_string *id = NULL;
++	dom_document *document = NULL;
++	dom_node *owner = NULL;
++	dom_exception error;
++	*matches = false;
++	error = dom_string_create((const uint8_t *)"form", 4, &attribute);
++	if (error != DOM_NO_ERR)
++		return NSERROR_DOM;
++	error = dom_element_get_attribute(node, attribute, &id);
++	dom_string_unref(attribute);
++	if (error != DOM_NO_ERR)
++		return NSERROR_DOM;
++	if (id != NULL) {
++		error = dom_node_get_owner_document(node, &document);
++		if (error == DOM_NO_ERR)
++			error = dom_document_get_element_by_id(document, id, &owner);
++		if (document != NULL)
++			dom_node_unref(document);
++		dom_string_unref(id);
++	} else {
++		error = dom_node_get_parent_node(node, &owner);
++		while (error == DOM_NO_ERR && owner != NULL) {
++			dom_html_element_type type;
++			dom_node_type node_type;
++			dom_node *parent = NULL;
++			error = dom_node_get_node_type(owner, &node_type);
++			if (error != DOM_NO_ERR || node_type != DOM_ELEMENT_NODE)
++				break;
++			if (dom_html_element_get_tag_type(owner, &type) == DOM_NO_ERR &&
++			    type == DOM_HTML_ELEMENT_TYPE_FORM)
++				break;
++			error = dom_node_get_parent_node(owner, &parent);
++			dom_node_unref(owner);
++			owner = parent;
++		}
++	}
++	*matches = owner == form->node;
++	if (owner != NULL)
++		dom_node_unref(owner);
++	return error == DOM_NO_ERR ? NSERROR_OK : NSERROR_DOM;
++}
++
++static nserror form_script_collect(struct form *form, dom_node ***output,
++		uint32_t *count)
++{
++	dom_document *document = NULL;
++	dom_node *node = NULL;
++	dom_node **nodes = NULL;
++	uint32_t length = 0, capacity = 0;
++	nserror result = NSERROR_DOM;
++	if (dom_node_get_owner_document(form->node, &document) != DOM_NO_ERR)
++		return NSERROR_DOM;
++	if (dom_node_get_first_child(document, &node) != DOM_NO_ERR)
++		goto failed;
++	while (node != NULL) {
++		dom_node *next = NULL;
++		dom_node_type type;
++		if (dom_node_get_node_type(node, &type) != DOM_NO_ERR)
++			goto failed;
++		if (type == DOM_ELEMENT_NODE) {
++			dom_string *name = NULL;
++			bool matches = false;
++			if (dom_node_get_node_name(node, &name) != DOM_NO_ERR)
++				goto failed;
++			if (dom_string_isequal(name, corestring_dom_INPUT) ||
++			    dom_string_isequal(name, corestring_dom_SELECT) ||
++			    dom_string_isequal(name, corestring_dom_TEXTAREA) ||
++			    dom_string_isequal(name, corestring_dom_BUTTON))
++				result = form_script_control_matches(form, node, &matches);
++			else
++				result = NSERROR_OK;
++			dom_string_unref(name);
++			if (result != NSERROR_OK)
++				goto failed;
++			if (matches) {
++				if (length == capacity) {
++					uint32_t expanded = capacity ? capacity * 2 : 16;
++					dom_node **allocated;
++					if (expanded < capacity ||
++					    (allocated = realloc(nodes, (size_t)expanded * sizeof(*nodes))) == NULL) {
++						result = NSERROR_NOMEM;
++						goto failed;
++					}
++					nodes = allocated;
++					capacity = expanded;
++				}
++				nodes[length++] = dom_node_ref(node);
++			}
++		}
++		result = NSERROR_DOM;
++		if (dom_node_get_first_child(node, &next) != DOM_NO_ERR)
++			goto failed;
++		if (next == NULL) {
++			dom_node *cursor = dom_node_ref(node);
++			while (cursor != NULL && cursor != (dom_node *)document) {
++				dom_node *parent = NULL;
++				if (dom_node_get_next_sibling(cursor, &next) != DOM_NO_ERR ||
++				    (next == NULL && dom_node_get_parent_node(cursor, &parent) != DOM_NO_ERR)) {
++					dom_node_unref(cursor);
++					goto failed;
++				}
++				dom_node_unref(cursor);
++				cursor = parent;
++				if (next != NULL)
++					break;
++			}
++			if (cursor != NULL)
++				dom_node_unref(cursor);
++		}
++		dom_node_unref(node);
++		node = next;
++	}
++	dom_node_unref(document);
++	*output = nodes;
++	*count = length;
++	return NSERROR_OK;
++failed:
++	if (node != NULL)
++		dom_node_unref(node);
++	if (document != NULL)
++		dom_node_unref(document);
++	while (length > 0)
++		dom_node_unref(nodes[--length]);
++	free(nodes);
++	return result;
++}
++
+ static nserror
+ form_dom_to_data(struct form *form,
+ 		 struct form_control *submit_control,
+@@ -1059,6 +1190,7 @@
+ 	char *charset; /* form characterset */
+ 	dom_exception exp; /* the result from DOM operations */
+ 	dom_html_collection *elements = NULL; /* the dom form elements */
++	dom_node **script_elements = NULL;
+ 	uint32_t element_count; /* the number of elements in the DOM form */
+ 	uint32_t element_idx; /* the index of thr enumerated element */
+ 	dom_node *element = NULL; /* the DOM form element */
+@@ -1082,14 +1214,23 @@
+ 	}
+ 
+ 	/* obtain the form elements and count */
+-	exp = dom_html_form_element_get_elements(form->node, &elements);
++	if (form->script_submission) {
++		res = form_script_collect(form, &script_elements, &element_count);
++		if (res != NSERROR_OK) {
++			free(charset);
++			return res;
++		}
++		exp = DOM_NO_ERR;
++	} else {
++		exp = dom_html_form_element_get_elements(form->node, &elements);
++	}
+ 	if (exp != DOM_NO_ERR) {
+ 		NSLOG(netsurf, INFO, "Could not get form elements");
+ 		free(charset);
+ 		return NSERROR_DOM;
+ 	}
+ 
+-	exp = dom_html_collection_get_length(elements, &element_count);
++	exp = form->script_submission ? DOM_NO_ERR : dom_html_collection_get_length(elements, &element_count);
+ 	if (exp != DOM_NO_ERR) {
+ 		NSLOG(netsurf, INFO, "Could not get form element count");
+ 		res = NSERROR_DOM;
+@@ -1098,7 +1239,12 @@
+ 
+ 	for (element_idx = 0; element_idx < element_count; element_idx++) {
+ 		/* obtain a form element */
+-		exp = dom_html_collection_item(elements, element_idx, &element);
++		if (form->script_submission) {
++			element = dom_node_ref(script_elements[element_idx]);
++			exp = DOM_NO_ERR;
++		} else {
++			exp = dom_html_collection_item(elements, element_idx, &element);
++		}
+ 		if (exp != DOM_NO_ERR) {
+ 			NSLOG(netsurf, INFO,
+ 			      "retrieving form element %"PRIu32" failed with %d",
+@@ -1172,14 +1318,26 @@
+ 	}
+ 
+ 	*fetch_data_out = fetch_data;
+-	dom_html_collection_unref(elements);
++	if (elements != NULL)
++		dom_html_collection_unref(elements);
++	if (form->script_submission) {
++		for (element_idx = 0; element_idx < element_count; element_idx++)
++			dom_node_unref(script_elements[element_idx]);
++		free(script_elements);
++	}
+ 	free(charset);
+ 
+ 	return NSERROR_OK;
+ 
+ form_dom_to_data_error:
+ 	fetch_multipart_data_destroy(fetch_data);
+-	dom_html_collection_unref(elements);
++	if (elements != NULL)
++		dom_html_collection_unref(elements);
++	if (form->script_submission) {
++		for (element_idx = 0; element_idx < element_count; element_idx++)
++			dom_node_unref(script_elements[element_idx]);
++		free(script_elements);
++	}
+ 	free(charset);
+ 
+ 	return res;
+--- a/netsurf/content/handlers/html/form_internal.h
++++ b/netsurf/content/handlers/html/form_internal.h
+@@ -126,6 +126,7 @@
+ 
+ /** HTML form. */
+ struct form {
++	bool script_submission;
+ 	void *node;			/**< Corresponding DOM node */
+ 
+ 	char *action;			/**< Absolute URL to submit to. */

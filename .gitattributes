@@ -35,3 +35,6 @@ docs/evidence/technical-20261019/** -text -whitespace
 
 # Preserve nested captured evidence bytes and intentional tool padding.
 docs/evidence/** -text -whitespace
+
+# Preserve the bundled upstream font license verbatim.
+app/espdl-quickapp/overlay/apps/system/desktop/fonts/LICENSE-NotoSansSC.txt -text -whitespace

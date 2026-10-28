@@ -1964,3 +1964,4 @@ const unsigned char glass_bold_font_data[] = {
   0x00,0x01,0x00,0x00,
 };
 const size_t glass_bold_font_size = sizeof(glass_bold_font_data);
+#include "glass_heading.inc"

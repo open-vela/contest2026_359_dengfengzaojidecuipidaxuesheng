@@ -1,0 +1,12 @@
+{
+  "package": "com.netsurf.browser",
+  "name": "NetSurf 浏览器",
+  "versionName": "0.5.0",
+  "versionCode": 5,
+  "minPlatformVersion": 1,
+  "entry": "app.js",
+  "features": [],
+  "router": {
+    "entry": "app.js"
+  }
+}

@@ -1,0 +1,32 @@
+--- a/netsurf/content/handlers/html/css.c
++++ b/netsurf/content/handlers/html/css.c
+@@ -155,6 +155,19 @@
+ 		break;
+ 	}
+ 
++	if (parent->had_initial_layout) {
++		/* A ready dynamic stylesheet must restyle the existing document
++		 * without waiting for unrelated images/scripts to finish. The
++		 * initial conversion path waits for base.active to reach zero,
++		 * which can leave a live component unstyled indefinitely. */
++		if (event->type == CONTENT_MSG_DONE ||
++		    event->type == CONTENT_MSG_ERROR) {
++			parent->rebuild_styles_changed = true;
++			html_rebuild_schedule(parent);
++		}
++		return NSERROR_OK;
++	}
++
+ 	if (html_can_begin_conversion(parent)) {
+ 		html_begin_conversion(parent);
+ 	}
+@@ -783,7 +796,8 @@
+ 			origin = CSS_ORIGIN_USER;
+ 		}
+ 
+-		if (hsheet->sheet != NULL) {
++		if (hsheet->sheet != NULL &&
++		    content_get_status(hsheet->sheet) == CONTENT_STATUS_DONE) {
+ 			sheet = nscss_get_stylesheet(hsheet->sheet);
+ 		}
+ 

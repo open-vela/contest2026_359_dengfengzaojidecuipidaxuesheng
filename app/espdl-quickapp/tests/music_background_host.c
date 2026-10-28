@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdatomic.h>
 #include "music_service_under_test.c"
+#include "speaker_under_test.c"
 #include "glass_agent.h"
 #include "glass_board_music.h"
 
@@ -60,6 +61,10 @@ static atomic_bool hold_lyrics,lyrics_entered;
 static atomic_uint opens,closes;
 static atomic_uint metadata_fetches;
 static atomic_uint search_requests;
+static atomic_uint audio_requests, pcm_pauses;
+static atomic_bool hold_audio, audio_held;
+static atomic_bool capture_pcm, captured_pcm;
+static int16_t captured_samples[128];
 static atomic_bool has_music_key=true;
 
 int portal_music_key(char *out,size_t cap)
@@ -98,20 +103,32 @@ int music_http_get(const char *url,music_data_cb sink,void *ctx,music_cancel_cb 
     int ret=sink(ctx,(const unsigned char *)body,strlen(body));cJSON_free(body);cJSON_Delete(metadata);return ret;
   }
   assert(!strcmp(url,"https://fixture/audio"));
+  atomic_fetch_add(&audio_requests, 1);
   FILE *f=fopen(mp3_path,"rb");assert(f);unsigned char bytes[4096];int ret=0;size_t n;
   while((n=fread(bytes,1,sizeof(bytes),f))) {
     if(cancel(ctx)){ret=-ECANCELED;break;}
     ret=sink(ctx,bytes,n);if(ret)break;
+    if (ftell(f) >= 65536 && atomic_load(&hold_audio)) {
+      atomic_store(&audio_held, true);
+      while (atomic_load(&hold_audio) && !cancel(ctx)) usleep(1000);
+    }
   }
   fclose(f);return ret;
 }
 
 int music_pcm_open(struct music_pcm *pcm,unsigned rate,unsigned volume)
-{(void)volume;pcm->fd=3;pcm->rate=rate;atomic_fetch_add(&opens,1);return 0;}
+{assert(volume==100);pcm->fd=3;pcm->rate=rate;atomic_fetch_add(&opens,1);return 0;}
 int music_pcm_write(struct music_pcm *pcm,const int16_t *samples,unsigned frames,unsigned channels)
-{assert(samples && (channels==1||channels==2));usleep(5000);pcm->played_samples+=frames;return 0;}
-int music_pcm_pause(struct music_pcm *pcm,bool pause){assert(pcm->fd>=0);(void)pause;return 0;}
-int music_pcm_volume(struct music_pcm *pcm,unsigned volume){(void)pcm;assert(volume<=100);return 0;}
+{
+ assert(samples && (channels==1||channels==2));
+ if(atomic_exchange(&capture_pcm,false)){
+   assert(frames*channels>=128);memcpy(captured_samples,samples,sizeof(captured_samples));
+   atomic_store(&captured_pcm,true);
+ }
+ usleep(5000);pcm->played_samples+=frames;return 0;
+}
+int music_pcm_pause(struct music_pcm *pcm,bool pause){assert(pcm->fd>=0);if(pause)atomic_fetch_add(&pcm_pauses,1);return 0;}
+int music_pcm_volume(struct music_pcm *pcm,unsigned volume){(void)pcm;assert(volume==100);return 0;}
 int music_pcm_drain(struct music_pcm *pcm){(void)pcm;return 0;}
 void music_pcm_close(struct music_pcm *pcm){if(pcm->fd>=0)atomic_fetch_add(&closes,1);pcm->fd=-1;}
 
@@ -322,10 +339,135 @@ static void selected_result_checks(void)
   puts("MUSIC_SELECTED_RESULT_OK: one lookup, exact song/artist and track, single use, replaced/expired/failed result rejection, strict arguments and query-only recovery");
 }
 
+static void audio_cache_checks(void)
+{
+  const char *key="https://fixture/cache-test";
+  const unsigned char bytes[]={0,255,1,7,99};
+  struct music_audio_cache cache;
+  music_audio_cache_begin(&cache,key);assert(cache.file);
+  music_audio_cache_append(&cache,bytes,sizeof(bytes));
+  music_audio_cache_finish(&cache,false);assert(!music_audio_cache_open(key));
+  music_audio_cache_begin(&cache,key);assert(cache.file);
+  music_audio_cache_append(&cache,bytes,2);
+  music_audio_cache_append(&cache,bytes+2,sizeof(bytes)-2);
+  music_audio_cache_finish(&cache,true);
+  FILE *f=music_audio_cache_open(key);assert(f);
+  unsigned char out[16];assert(fread(out,1,sizeof(out),f)==sizeof(bytes)&&!memcmp(out,bytes,sizeof(bytes)));fclose(f);
+  char other[80];unsigned slot=music_cache_hash(2166136261u,key,strlen(key))%8;
+  for(unsigned i=0;;i++){snprintf(other,sizeof(other),"https://fixture/other-%u",i);if(music_cache_hash(2166136261u,other,strlen(other))%8==slot)break;}
+  assert(!music_audio_cache_open(other));
+  f=fopen(cache.path,"r+b");assert(f);assert(!fseek(f,-1,SEEK_END));fputc(0,f);fclose(f);
+  assert(!music_audio_cache_open(key));
+  music_audio_cache_begin(&cache,key);assert(cache.file);
+  music_audio_cache_append(&cache,bytes,MUSIC_AUDIO_CACHE_MAX+1u);
+  assert(!cache.file && access(cache.temporary,F_OK));
+  f=fopen(cache.path,"wb");assert(f);fputs("partial",f);fclose(f);
+  assert(!music_audio_cache_open(key));
+  puts("MUSIC_AUDIO_CACHE_OK: binary round-trip, exact identity/collision, checksum, truncated/cancelled/oversize rejection");
+}
+
+static void seek_buffer_checks(void)
+{
+  /* Decode a whole track into an independent oracle, then compare the actual
+   * first audible samples after seeking against its absolute sample offsets. */
+  FILE *reference=fopen(mp3_path,"rb");assert(reference);
+  fseek(reference,0,SEEK_END);size_t size=ftell(reference);rewind(reference);
+  unsigned char *mp3=malloc(size);assert(mp3&&fread(mp3,1,size,reference)==size);fclose(reference);
+  int16_t *oracle=malloc(1000000*sizeof(*oracle));assert(oracle);
+  mp3dec_t decoder;mp3dec_init(&decoder);size_t offset=0,total=0;
+  while(offset<size){
+    mp3dec_frame_info_t info={0};int16_t frame[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    int frames=mp3dec_decode_frame(&decoder,mp3+offset,size-offset,frame,&info);
+    assert(info.frame_bytes>0);offset+=info.frame_bytes;
+    if(frames){assert(info.hz==22050&&info.channels==1&&total+frames<1000000);memcpy(oracle+total,frame,frames*sizeof(*frame));total+=frames;}
+  }
+  free(mp3);assert(total>22050*15);
+  struct music_song local={0};strcpy(local.name,"Local");strcpy(local.artist,"Demo");
+  snprintf(local.url,sizeof(local.url),"%s",mp3_path);
+  assert(!glass_music_play(&local));
+  struct music_now_playing s=wait_for("Local",MUSIC_PLAYING,MUSIC_LYRICS_MISSING);
+  assert(s.duration_ms>10000);
+  unsigned track=s.track_id;
+  assert(glass_music_seek(track+1,3000)==-ESTALE);
+  assert(!glass_music_set_paused(true));usleep(30000);
+  assert(!glass_music_seek(track,7000));
+  assert(!glass_music_seek(track,2000));
+  usleep(80000);glass_music_now_playing(&s);
+  assert(s.state==MUSIC_PAUSED && s.position_ms==2000 && s.track_id==track);
+  atomic_store(&captured_pcm,false);atomic_store(&capture_pcm,true);
+  assert(!glass_music_set_paused(false));
+  for(unsigned i=0;i<3000&&!atomic_load(&captured_pcm);i++)usleep(1000);
+  s=wait_for("Local",MUSIC_PLAYING,MUSIC_LYRICS_MISSING);
+  assert(s.position_ms>=2000 && s.position_ms<3000);
+  assert(atomic_load(&captured_pcm)&&!memcmp(captured_samples,oracle+44100,sizeof(captured_samples)));
+  assert(!glass_music_set_paused(true));usleep(30000);
+  atomic_store(&captured_pcm,false);atomic_store(&capture_pcm,true);
+  assert(!glass_music_seek(track,9000));
+  usleep(50000);assert(!glass_music_set_paused(false));
+  for(unsigned i=0;i<3000&&!atomic_load(&captured_pcm);i++)usleep(1000);
+  s=wait_for("Local",MUSIC_PLAYING,MUSIC_LYRICS_MISSING);
+  assert(s.position_ms>=9000 && s.position_ms<10000);
+  assert(atomic_load(&captured_pcm)&&!memcmp(captured_samples,oracle+198450,sizeof(captured_samples)));
+  assert(!glass_music_seek(track,0));
+  s=wait_for("Local",MUSIC_PLAYING,MUSIC_LYRICS_MISSING);assert(s.position_ms<1000);
+  assert(!glass_music_stop_wait(3000));assert(glass_music_seek(track,10)==-ESTALE);
+  free(oracle);
+  puts("MUSIC_SEEK_OK: sample-exact oracle at 2s/9s, stale track rejection, rapid last request wins, backward/forward/zero seek, pause retained, sample clock rebased");
+
+  char path[256];assert(!music_audio_cache_path("https://fixture/audio",path,sizeof(path)));unlink(path);
+  atomic_store(&hold_audio,true);atomic_store(&audio_held,false);
+  unsigned pauses=atomic_load(&pcm_pauses),requests=atomic_load(&audio_requests);
+  play("BufferTest");
+  for(unsigned i=0;i<3000;i++) {
+    glass_music_now_playing(&s);
+    if(atomic_load(&audio_held)&&atomic_load(&pcm_pauses)>pauses&&s.state==MUSIC_LOADING)break;
+    usleep(1000);
+  }
+  assert(atomic_load(&pcm_pauses)>pauses&&s.state==MUSIC_LOADING);
+  unsigned frozen=s.position_ms;usleep(30000);glass_music_now_playing(&s);assert(s.position_ms==frozen);
+  atomic_store(&hold_audio,false);
+  wait_for("BufferTest",MUSIC_PLAYING,MUSIC_LYRICS_READY);
+  wait_for("BufferTest",MUSIC_ENDED,MUSIC_LYRICS_READY);
+  assert(atomic_load(&audio_requests)==requests+1);
+  fputs("MUSIC_REBUFFER_OK: injected network stall pauses PCM, freezes position, resumes and finishes\n",stdout);
+  FILE *cached=music_audio_cache_open("https://fixture/audio");assert(cached);fclose(cached);
+  play("BufferTest");wait_for("BufferTest",MUSIC_PLAYING,MUSIC_LYRICS_READY);
+  assert(atomic_load(&audio_requests)==requests+1);
+  assert(!glass_music_stop_wait(3000));
+  puts("MUSIC_AUDIO_CACHE_HIT_OK: replay feeds real decoder from SD without another audio HTTP request");
+  /* An unavailable cache directory must leave streaming functional. */
+  char saved[300];snprintf(saved,sizeof(saved),"%s.saved",MUSIC_CACHE_ROOT);
+  assert(!rename(MUSIC_CACHE_ROOT,saved));
+  FILE *blocked=fopen(MUSIC_CACHE_ROOT,"wb");assert(blocked);fclose(blocked);
+  requests=atomic_load(&audio_requests);
+  play("NoCache");wait_for("NoCache",MUSIC_PLAYING,MUSIC_LYRICS_READY);
+  assert(atomic_load(&audio_requests)==requests+1);assert(!glass_music_stop_wait(3000));
+  assert(!unlink(MUSIC_CACHE_ROOT)&&!rename(saved,MUSIC_CACHE_ROOT));
+  puts("MUSIC_AUDIO_CACHE_UNAVAILABLE_OK: real streaming and teardown survive inaccessible SD cache");
+}
+
+static void volume_checks(void)
+{
+  unsigned levels[]={0,1,25,75,100};
+  struct music_snapshot snapshot;struct music_now_playing now;
+  for(unsigned i=0;i<sizeof(levels)/sizeof(*levels);i++){
+    assert(!glass_speaker_volume_set(levels[i]));
+    glass_music_get(&snapshot);glass_music_now_playing(&now);
+    assert(snapshot.volume==levels[i]&&now.volume==levels[i]);
+    glass_music_volume(100-levels[i]);
+    assert(glass_speaker_volume()==100-levels[i]);
+    glass_music_get(&snapshot);glass_music_now_playing(&now);
+    assert(snapshot.volume==100-levels[i]&&now.volume==snapshot.volume);
+  }
+  glass_music_volume(UINT_MAX);assert(glass_speaker_volume()==100);
+  assert(glass_speaker_volume_set(101)==-EINVAL&&glass_speaker_volume()==100);
+  glass_music_volume(40);
+  puts("MUSIC_MASTER_VOLUME_OK: real shared speaker state; settings/music bidirectional updates; snapshot/now-playing; mute/range; single master gain");
+}
 int main(int argc,char **argv)
 {
   if(argc==4 && !strcmp(argv[1],"--lyrics-response"))return live_response(argv[2],argv[3]);
-  assert(argc==2);mp3_path=argv[1];parser_checks();bilingual_checks();stream_checks();cache_checks();
+  assert(argc==2);mp3_path=argv[1];volume_checks();parser_checks();bilingual_checks();stream_checks();cache_checks();audio_cache_checks();
   /* Test the public bounded view against the real retained lyric store. */
   assert(!lyrics);lyrics=calloc(1,sizeof(*lyrics));assert(lyrics);
   lyrics->count=MUSIC_LRC_LINES;lyrics_state=MUSIC_LYRICS_READY;
@@ -363,6 +505,7 @@ int main(int argc,char **argv)
   assert(window.first+window.count==window.total);
   assert(strcmp(window.lines[0],"not owned by the service"));
   glass_music_toggle();usleep(30000);glass_music_now_playing(&s);assert(s.state==MUSIC_PAUSED);
+  volume_checks();
   unsigned position=s.position_ms;usleep(60000);glass_music_now_playing(&s);assert(s.position_ms==position);
   glass_music_toggle();wait_for("B",MUSIC_PLAYING,MUSIC_LYRICS_READY);
   /* Real workers keep advancing with no LVGL/music page alive. */
@@ -381,7 +524,7 @@ int main(int argc,char **argv)
   assert(!glass_music_stop_wait(3000));glass_music_now_playing(&s);assert(s.state==MUSIC_STOPPED && !s.lyrics[1][0]);
   assert(atomic_load(&opens)>2 && atomic_load(&opens)==atomic_load(&closes));
   printf("MUSIC_BACKGROUND_SERVICE_OK: real MP3 decoder/workers, pause freezes clock, resume, stale lyric cancellation, skip, missing lyrics, network failure and %u/%u PCM teardown\n",atomic_load(&opens),atomic_load(&closes));
-  missing_key_checks();mcp_checks();selected_result_checks();
+  missing_key_checks();mcp_checks();selected_result_checks();seek_buffer_checks();
   struct music_song local={0};strcpy(local.name,"Local");strcpy(local.artist,"Demo");snprintf(local.url,sizeof(local.url),"%s",mp3_path);
   assert(!glass_music_play(&local));wait_for("Local",MUSIC_PLAYING,MUSIC_LYRICS_MISSING);
   assert(!glass_music_set_paused(true));usleep(30000);glass_music_now_playing(&s);unsigned frozen=s.position_ms;

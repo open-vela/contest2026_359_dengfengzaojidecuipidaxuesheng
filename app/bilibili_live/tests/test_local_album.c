@@ -41,7 +41,46 @@ int main(void)
   image=decode("camera.bmp",224,140);assert(!image.error && image.pixels && image.width==224 && image.height<=140);assert(image.pixels[0]==0xf800 && image.pixels[image.width*(image.height-1)]==0x001f);free(image.pixels);
   image=decode("bottomup.bmp",224,140);assert(!image.error && image.width==7 && image.height==5);assert(image.pixels[0]==0xf800 && image.pixels[28]==0x001f);free(image.pixels);
   image=decode("bad.bmp",224,140);assert(image.error && !image.pixels);
-  assert(local_album_scan(ALBUM_LOCAL_ROOT)==0);quiet();list=local_album_take_listing();assert(list && !list->error && list->count==1 && list->entries[0].kind==ALBUM_PHOTO);free(list);
+  assert(local_album_scan(ALBUM_LOCAL_ROOT)==0);quiet();list=local_album_take_listing();assert(list && !list->error && list->count==2 && list->entries[0].kind==ALBUM_FOLDER);free(list);
+  assert(local_album_search(ALBUM_LOCAL_ROOT "/library",ALBUM_FOLDER)==-EINVAL);
+  for(int kind=ALBUM_PHOTO;kind<=ALBUM_VIDEO;kind++){
+    assert(local_album_search(ALBUM_LOCAL_ROOT "/library",kind)==0);quiet();list=local_album_take_listing();
+    assert(list&&!list->error&&!list->truncated&&list->count==2);
+    assert(list->directory_bytes<32);
+    assert(list->entries[0].directory!=list->entries[1].directory);
+    for(unsigned i=0;i<2;i++){
+      assert(list->entries[i].kind==(enum album_kind)kind&&list->entries[i].directory);
+      char full[ALBUM_PATH];assert(local_album_entry_path(list,i,full,sizeof(full)));
+      assert(!strstr(full,"loop")&&!strstr(full,"hidden-link"));
+      struct stat st;assert(!lstat(full,&st)&&S_ISREG(st.st_mode));
+      char short_path[4];assert(!local_album_entry_path(list,i,short_path,sizeof(short_path)));
+      if(kind==ALBUM_PHOTO){assert(local_album_decode(full,224,140)==0);quiet();struct album_image nested;assert(local_album_take_image(&nested)&&!nested.error);free(nested.pixels);}
+    }
+    free(list);
+  }
+  assert(local_album_search(ALBUM_ROOT "/many",ALBUM_PHOTO)==0);quiet();list=local_album_take_listing();
+  assert(list&&list->count==ALBUM_FILES&&list->truncated);free(list);
+  assert(local_album_search(ALBUM_ROOT "/missing",ALBUM_VIDEO)==0);quiet();list=local_album_take_listing();
+  assert(list&&list->error==-ENOENT);free(list);
+  char deep[ALBUM_PATH]=ALBUM_LOCAL_ROOT "/depth-bound";
+  assert(!mkdir(deep,0700));
+  for(unsigned i=0;i<14;i++){strcat(deep,"/d");assert(!mkdir(deep,0700));}
+  strcat(deep,"/beyond.jpg");FILE *beyond=fopen(deep,"wb");assert(beyond);fclose(beyond);
+  assert(local_album_search(ALBUM_LOCAL_ROOT "/depth-bound",ALBUM_PHOTO)==0);quiet();list=local_album_take_listing();
+  assert(list&&!list->error&&list->truncated&&!list->count);free(list);
+  char budget[ALBUM_PATH]=ALBUM_LOCAL_ROOT "/path-budget";assert(!mkdir(budget,0700));
+  for(unsigned i=0;i<170;i++){
+    char folder[ALBUM_PATH],prefix[108];memset(prefix,'x',100);snprintf(prefix+100,8,"%03u",i);
+    assert(snprintf(folder,sizeof(folder),"%s/%s",budget,prefix)<(int)sizeof(folder));assert(!mkdir(folder,0700));
+    strcat(folder,"/p.jpg");FILE *file=fopen(folder,"wb");assert(file);fclose(file);
+  }
+  assert(local_album_search(budget,ALBUM_PHOTO)==0);quiet();list=local_album_take_listing();
+  assert(list&&!list->error&&list->truncated&&list->count>0&&list->count<170);
+  assert(list->directory_bytes<=ALBUM_DIRECTORIES);
+  for(unsigned i=0;i<list->count;i++){
+    char full[ALBUM_PATH];struct stat st;assert(local_album_entry_path(list,i,full,sizeof(full))&&!lstat(full,&st));
+  }
+  free(list);
   image=decode("alpha.png",224,140);assert(!image.error && image.width==7 && image.height==5);assert(image.pixels[0]==0xf800 && image.pixels[1]==0xffff && image.pixels[2]==0x7bff);free(image.pixels);
   image=decode("too-large.png",224,140);assert(image.error==-E2BIG && !image.pixels);
   image=decode("broken.png",224,140);assert(image.error && !image.pixels);
@@ -57,7 +96,8 @@ int main(void)
     assert(local_album_decode(ALBUM_ROOT "/wide.jpg",224,140)==0);
     local_album_cancel();quiet();assert(!local_album_take_image(&image));
     assert(local_album_scan(ALBUM_ROOT)==0);local_album_cancel();quiet();assert(!local_album_take_listing());
+    assert(local_album_search(ALBUM_LOCAL_ROOT,ALBUM_PHOTO)==0);local_album_cancel();quiet();assert(!local_album_take_listing());
   }
   image=decode("wide.jpg",224,140);assert(!image.error);free(image.pixels);local_album_cancel();
-  puts("ALBUM_BACKEND_OK: real PNG alpha / JPEG / RGB565 camera BMP / RGB888 BMP; signature-based HEIC/MOV and renamed-file detection, bounded thumbnails/viewer, portrait, invalid/corrupt/oversized/missing/symlink inputs, mixed scan, 256-entry limit, path confinement and 160 cancellation cycles");return 0;
+  puts("ALBUM_BACKEND_OK: real PNG/JPEG/BMP; recursive photo/video search; duplicate basenames retain distinct decode paths; symlink loops excluded; missing roots and 256-entry bound; path confinement and 240 cancellation cycles");return 0;
 }

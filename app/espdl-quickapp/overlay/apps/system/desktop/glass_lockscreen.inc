@@ -70,7 +70,7 @@ static void lock_calendar_draw(lv_event_t *e)
 {
   lv_layer_t *layer=lv_event_get_layer(e);lv_area_t a;lv_obj_get_coords(lv_event_get_target(e),&a);
   if(!g_lock_ui.time_valid) {
-    lock_draw_text(layer,"联网后自动校准时间",a.x1,a.y1+160,420,zh_font(20),0x8f8f95,LV_TEXT_ALIGN_CENTER,false);return;
+    lock_draw_text(layer,glass_tr("联网后自动校准时间"),a.x1,a.y1+160,420,zh_font(20),0x8f8f95,LV_TEXT_ALIGN_CENTER,false);return;
   }
   static const char *months[]={"JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"};
   const struct tm *t=&g_lock_ui.local;
@@ -151,14 +151,14 @@ static void lock_refresh(lv_timer_t *timer)
       else lv_obj_add_flag(items[i],LV_OBJ_FLAG_HIDDEN);
     }
   }
-  if(first || strcmp(old->name,now.name))lv_label_set_text(g_lock_ui.title,now.name[0]?now.name:"此刻，安静也很好");
-  if(first || strcmp(old->artist,now.artist))lv_label_set_text(g_lock_ui.artist,now.artist[0]?now.artist:"未知歌手");
-  const char *status=now.state==MUSIC_ERROR?"播放失败 · 可点击播放重试":now.state==MUSIC_LOADING?
-    (now.pause_requested?"加载中 · 已暂停":"正在加载音乐"):now.state==MUSIC_PAUSED?"已暂停":
-    now.state==MUSIC_PLAYING?"后台播放中":now.state==MUSIC_ENDED?"播放结束":now.state==MUSIC_STOPPED?"已停止":"音乐待播放";
+  if(first || strcmp(old->name,now.name))lv_label_set_text(g_lock_ui.title,now.name[0]?now.name:glass_tr("此刻，安静也很好"));
+  if(first || strcmp(old->artist,now.artist))lv_label_set_text(g_lock_ui.artist,now.artist[0]?now.artist:glass_tr("未知歌手"));
+  const char *status=now.state==MUSIC_ERROR?glass_tr("播放失败 · 可点击播放重试"):now.state==MUSIC_LOADING?
+    (now.pause_requested?glass_tr("加载中 · 已暂停"):glass_tr("正在加载音乐")):now.state==MUSIC_PAUSED?glass_tr("已暂停"):
+    now.state==MUSIC_PLAYING?glass_tr("后台播放中"):now.state==MUSIC_ENDED?glass_tr("播放结束"):now.state==MUSIC_STOPPED?glass_tr("已停止"):glass_tr("音乐待播放");
   if(first || now.state!=old->state || now.pause_requested!=old->pause_requested)lv_label_set_text(g_lock_ui.status,status);
-  const char *fallback=!now.name[0]?"让喜欢的声音，陪伴此刻":now.lyrics_state==MUSIC_LYRICS_LOADING?
-    "正在获取歌词…":now.lyrics_state==MUSIC_LYRICS_READY?(now.lyrics_started?"间奏":"前奏 · 等待歌词"):"暂无歌词";
+  const char *fallback=!now.name[0]?glass_tr("让喜欢的声音，陪伴此刻"):now.lyrics_state==MUSIC_LYRICS_LOADING?
+    glass_tr("正在获取歌词…"):now.lyrics_state==MUSIC_LYRICS_READY?(now.lyrics_started?glass_tr("间奏"):glass_tr("前奏 · 等待歌词")):glass_tr("暂无歌词");
   if(first || now.lyrics_state!=old->lyrics_state || strcmp(now.lyrics[1],old->lyrics[1]) || now.lyrics_started!=old->lyrics_started || strcmp(now.name,old->name))
     lv_label_set_text(g_lock_ui.lyric[1],now.lyrics[1][0]?now.lyrics[1]:fallback);
   lock_text_set(g_lock_ui.lyric[0],old->lyrics[0],now.lyrics[0],first);
@@ -191,6 +191,7 @@ static void lock_deleted(lv_event_t *e)
   free(g_lock_ui.shown);memset(&g_lock_ui,0,sizeof(g_lock_ui));
   if(g_music_ui.timer)lv_timer_resume(g_music_ui.timer);
   glass_status_visibility(false);
+  glass_edge_lock(false);
 }
 
 static void lock_unlock(lv_event_t *e)
@@ -303,7 +304,7 @@ static void glass_lock_open(lv_event_t *e)
   /* Keep growing lyric snapshots in PSRAM and release them with the overlay;
    * internal static RAM is reserved for DMA and the kernel. */
   g_lock_ui.shown=calloc(1,sizeof(*g_lock_ui.shown));
-  if(!g_lock_ui.shown){show_toast("内存不足，稍后再试");return;}
+  if(!g_lock_ui.shown){show_toast(glass_tr("内存不足，稍后再试"));return;}
   desktop_navigation_cancel();
   music_full_close(NULL);
   toast_cancel();dialog_cancel();glass_status_visibility(true);
@@ -311,6 +312,7 @@ static void glass_lock_open(lv_event_t *e)
   if(g_music_ui.timer)lv_timer_pause(g_music_ui.timer);
   lv_obj_t *root=glass_box(lv_layer_top(),0,0,1024,600,0x000000,0);
   g_lock_ui.root=root;lv_obj_add_flag(root,LV_OBJ_FLAG_CLICKABLE);
+  glass_edge_lock(true);
   lv_obj_remove_flag(root,LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(root,lock_deleted,LV_EVENT_DELETE,NULL);
   lv_obj_add_event_cb(root,lock_gesture,LV_EVENT_GESTURE,NULL);
@@ -321,8 +323,8 @@ static void glass_lock_open(lv_event_t *e)
   lv_obj_t *pager=glass_pager_create(root,0x17171c,0xf5f5f7,0x8e8e95,lock_page_clicked,NULL);
   glass_pager_update(pager,g_lock_page,4,true);
   if(pager)lv_obj_align(pager,LV_ALIGN_BOTTOM_MID,0,0);
-  lock_label(root,"左右切换 · 上滑解锁",24,576,300,16,0x8e8e95);
+  lock_label(root,glass_tr("左右切换 · 上滑解锁"),24,576,300,16,0x8e8e95);
   lv_obj_t *unlock=glass_box(root,924,568,76,30,0x000000,12);lv_obj_set_style_bg_opa(unlock,LV_OPA_TRANSP,0);
-  glass_clickable(unlock,lock_unlock,NULL);lv_obj_t *hint=lock_label(unlock,"解锁",0,0,70,16,0xc6c6cc);lv_obj_center(hint);
+  glass_clickable(unlock,lock_unlock,NULL);lv_obj_t *hint=lock_label(unlock,glass_tr("解锁"),0,0,70,16,0xc6c6cc);lv_obj_center(hint);
   g_lock_ui.timer=lv_timer_create(lock_refresh,250,NULL);lock_refresh(NULL);
 }

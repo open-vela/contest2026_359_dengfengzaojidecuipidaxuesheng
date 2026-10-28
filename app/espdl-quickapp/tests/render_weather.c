@@ -21,7 +21,7 @@ static unsigned objects(lv_obj_t *o)
 static void check_text(lv_obj_t *o)
 {
   if(!lv_obj_is_visible(o))return;
-  if(lv_obj_check_type(o,&lv_label_class)){
+  if(lv_obj_has_class(o,&lv_label_class)){
     lv_area_t a,b;lv_obj_get_coords(o,&a);lv_obj_get_coords(lv_obj_get_parent(o),&b);
     assert(a.x1>=b.x1&&a.x2<=b.x2&&a.y1>=b.y1&&a.y2<=b.y2);
   }

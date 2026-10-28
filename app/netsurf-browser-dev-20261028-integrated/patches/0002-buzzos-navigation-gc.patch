@@ -1,0 +1,233 @@
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -25,6 +25,7 @@
+ 
+ #include <stdbool.h>
+ #include <stdint.h>
++#include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ 
+@@ -34,6 +35,8 @@
+ #include "utils/log.h"
+ #include "utils/nsoption.h"
+ #include "content/content.h"
++#include "netsurf/misc.h"
++#include "desktop/gui_internal.h"
+ 
+ #include "javascript/js.h"
+ #include "javascript/content.h"
+@@ -207,14 +210,46 @@
+ }
+ 
+ /* exported interface documented in js.h */
++static void qjs_release_context(jsthread *thread)
++{
++	JSMemoryUsage before, after;
++	if (thread->ctx == NULL)
++		return;
++	JS_ComputeMemoryUsage(thread->heap->rt, &before);
++	JS_CancelPendingJobs(thread->ctx);
++	qjs_modules_closethread(thread);
++	qjs_dom_teardown(thread);
++	JS_SetContextOpaque(thread->ctx, NULL);
++	JS_FreeContext(thread->ctx);
++	thread->ctx = NULL;
++	JS_RunGC(thread->heap->rt);
++	JS_ComputeMemoryUsage(thread->heap->rt, &after);
++	fprintf(stderr, "[js] closed-context bytes-before=%llu bytes-after=%llu\n",
++		(unsigned long long)before.memory_used_size,
++		(unsigned long long)after.memory_used_size);
++}
++
++static void qjs_release_closed_context(void *opaque)
++{
++	jsthread *thread = opaque;
++	if (!thread->closed || thread->ctx == NULL)
++		return;
++	if (thread->heap->deadline_depth || thread->heap->draining_jobs) {
++		guit->misc->schedule(1, qjs_release_closed_context, thread);
++		return;
++	}
++	qjs_release_context(thread);
++}
++
+ nserror js_closethread(jsthread *thread)
+ {
+-	if (thread == NULL)
++	if (thread == NULL || thread->ctx == NULL)
+ 		return NSERROR_OK;
+ 	thread->closed = true;
+ 	JS_CancelPendingJobs(thread->ctx);
+ 	qjs_modules_closethread(thread);
+ 	qjs_dom_closethread(thread);
++	guit->misc->schedule(0, qjs_release_closed_context, thread);
+ 	return NSERROR_OK;
+ }
+ 
+@@ -227,11 +262,8 @@
+ 
+ 	thread->closed = true;
+ 	heap = thread->heap;
+-	JS_CancelPendingJobs(thread->ctx);
+-	qjs_modules_closethread(thread);
+-	qjs_dom_teardown(thread);
+-	JS_SetContextOpaque(thread->ctx, NULL);
+-	JS_FreeContext(thread->ctx);
++	guit->misc->schedule(-1, qjs_release_closed_context, thread);
++	qjs_release_context(thread);
+ 	free(thread);
+ 
+ 	/* The runtime lives for the whole browser window, so a page's objects
+--- a/netsurf/content/hlcache.c
++++ b/netsurf/content/hlcache.c
+@@ -95,6 +95,8 @@
+ 	/* statistics */
+ 	unsigned int hit_count;
+ 	unsigned int miss_count;
++	bool cleaning;
++	bool stopped;
+ };
+ 
+ /** high level cache state */
+@@ -114,59 +116,69 @@
+ 	hlcache_entry *entry, *next;
+ 	bool force_clean = (force_clean_flag != NULL);
+ 	int traced = 0, destroyed = 0, retained = 0;
+-
+-	for (entry = hlcache->content_list; entry != NULL; entry = next) {
+-		next = entry->next;
+-
+-		if (entry->content == NULL)
+-			continue;
+-
+-		traced++;
+-		if (content_count_users(entry->content) != 0) {
+-			retained++;
+-			continue;
+-		}
+-
+-		if (content__get_status(entry->content) == CONTENT_STATUS_LOADING) {
+-			if (force_clean == false)
++	int previous_destroyed;
++	unsigned int passes = 0;
++
++	hlcache->cleaning = true;
++	do {
++		previous_destroyed = destroyed;
++		traced = retained = 0;
++		for (entry = hlcache->content_list; entry != NULL; entry = next) {
++			next = entry->next;
++
++			if (entry->content == NULL)
+ 				continue;
+-			NSLOG(netsurf, DEBUG, "Forcing content cleanup during shutdown");
+-			content_abort(entry->content);
+-			content_set_error(entry->content);
+-		}
+-
+-		/** \todo This is over-zealous: all unused contents
+-		 * will be immediately destroyed. Ideally, we want to
+-		 * purge all unused contents that are using stale
+-		 * source data, and enough fresh contents such that
+-		 * the cache fits in the configured cache size limit.
+-		 */
+-
+-		/* Remove entry from cache */
+-		if (entry->prev == NULL)
+-			hlcache->content_list = entry->next;
+-		else
+-			entry->prev->next = entry->next;
+-
+-		if (entry->next != NULL)
+-			entry->next->prev = entry->prev;
+-
+-		/* Destroy content */
+-		content_destroy(entry->content);
+-		destroyed++;
+-
+-		/* Destroy entry */
+-		free(entry);
+-	}
++
++			traced++;
++			if (content_count_users(entry->content) != 0) {
++				retained++;
++				continue;
++			}
++
++			if (content__get_status(entry->content) == CONTENT_STATUS_LOADING) {
++				if (force_clean == false)
++					continue;
++				NSLOG(netsurf, DEBUG, "Forcing content cleanup during shutdown");
++				content_abort(entry->content);
++				content_set_error(entry->content);
++			}
++
++			/** \todo This is over-zealous: all unused contents
++			 * will be immediately destroyed. Ideally, we want to
++			 * purge all unused contents that are using stale
++			 * source data, and enough fresh contents such that
++			 * the cache fits in the configured cache size limit.
++			 */
++
++			/* Remove entry from cache */
++			if (entry->prev == NULL)
++				hlcache->content_list = entry->next;
++			else
++				entry->prev->next = entry->next;
++
++			if (entry->next != NULL)
++				entry->next->prev = entry->prev;
++
++			/* Destroy content */
++			content_destroy(entry->content);
++			destroyed++;
++
++			/* Destroy entry */
++			free(entry);
++		}
++	} while (destroyed != previous_destroyed && ++passes < 8);
++	hlcache->cleaning = false;
+ 
+ 	fprintf(stderr, "[hlcache] clean total=%d destroyed=%d retained=%d\n",
+-		traced, destroyed, retained);
++		traced + destroyed, destroyed, retained);
+ 
+ 	/* Attempt to clean the llcache */
+ 	llcache_clean(false);
+ 
+ 	/* Re-schedule ourselves */
+-	guit->misc->schedule(hlcache->params.bg_clean_time, hlcache_clean, NULL);
++	if (!hlcache->stopped)
++		guit->misc->schedule(destroyed != previous_destroyed ? 0 :
++			hlcache->params.bg_clean_time, hlcache_clean, NULL);
+ }
+ 
+ /**
+@@ -581,6 +593,7 @@
+ /* See hlcache.h for documentation */
+ void hlcache_stop(void)
+ {
++	hlcache->stopped = true;
+ 	/* Remove the hlcache_clean schedule */
+ 	guit->misc->schedule(-1, hlcache_clean, NULL);
+ }
+@@ -591,6 +604,7 @@
+ 	uint32_t num_contents, prev_contents;
+ 	hlcache_entry *entry;
+ 	hlcache_retrieval_ctx *ctx, *next;
++	hlcache_stop();
+ 
+ 	/* Obtain initial count of contents remaining */
+ 	for (num_contents = 0, entry = hlcache->content_list;
+@@ -747,6 +761,9 @@
+ 	if (handle->entry != NULL) {
+ 		content_remove_user(handle->entry->content,
+ 				hlcache_content_callback, handle);
++		if (!hlcache->stopped && !hlcache->cleaning &&
++				content_count_users(handle->entry->content) == 0)
++			guit->misc->schedule(0, hlcache_clean, NULL);
+ 	} else {
+ 		RING_ITERATE_START(struct hlcache_retrieval_ctx,
+ 				   hlcache->retrieval_ctx_ring,

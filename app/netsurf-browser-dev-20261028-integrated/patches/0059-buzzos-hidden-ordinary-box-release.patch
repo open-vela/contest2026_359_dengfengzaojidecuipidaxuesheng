@@ -1,0 +1,25 @@
+--- a/netsurf/content/handlers/html/box_construct.c
++++ b/netsurf/content/handlers/html/box_construct.c
+@@ -1074,10 +1074,18 @@
+ 			box->gadget = NULL;
+ 		}
+ 
+-		/* Can't do this, because the lifetimes of boxes and gadgets
+-		 * are inextricably linked. Fortunately, talloc will save us
+-		 * (for now) */
+-		/* box_free_box(box); */
++		/* These ordinary tags have no conversion-owned gadgets or
++		 * fetched objects. Their hidden boxes are not in the layout tree
++		 * and need not survive until the whole allocation context dies.
++		 * Keep the existing lifetime for special/replaced elements. */
++		{
++			dom_html_element_type tag;
++			if (dom_html_element_get_tag_type(ctx->n, &tag) == DOM_NO_ERR &&
++			    (tag == DOM_HTML_ELEMENT_TYPE_DIV ||
++			     tag == DOM_HTML_ELEMENT_TYPE_SPAN ||
++			     tag == DOM_HTML_ELEMENT_TYPE_P))
++				talloc_free(box);
++		}
+ 
+ 		*convert_children = false;
+ 

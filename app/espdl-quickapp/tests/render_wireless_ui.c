@@ -167,7 +167,8 @@ int main(int argc,char **argv)
 
     struct glass_ble_hid_state hid={.enabled=true,.advertising=true,.host_ready=true};
     review_hid_snapshot_fixture(&hid);glass_bluetooth_page(NULL);check_full_page();
-    assert(g_ble_list);review_click("无线触摸板");assert(!g_ble_list);
+    assert(g_ble_list);assert(!review_find(g_desktop.panel,"无线触摸板"));
+    glass_mouse_open(NULL);assert(!g_ble_list);
     assert(!g_mouse_input_ready&&lv_obj_has_state(g_mouse_controls[0],LV_STATE_DISABLED));
     review_capture(display,"bluetooth-pairing","蓝牙 · 等待配对");
     hid.connected=true;hid.advertising=false;review_hid_snapshot_fixture(&hid);glass_mouse_refresh(NULL);
@@ -184,7 +185,7 @@ int main(int argc,char **argv)
     review_capture(display,"bluetooth-suspended","蓝牙 · 主机挂起");
     review_click("返回桌面");assert(!g_mouse_timer&&!g_mouse_status);
     /* The app-grid entry opens the identical production UI. */
-    glass_mouse_open(NULL);check_full_page();assert(review_label_find(g_desktop.panel,"蓝牙与鼠标"));
+    glass_mouse_open(NULL);check_full_page();assert(review_label_find(g_desktop.panel,"无线触摸板"));
     panel_hide(NULL);assert(!g_mouse_timer);
     for(unsigned i=0;i<20;i++){
       glass_wifi_page(NULL);panel_hide(NULL);glass_bluetooth_page(NULL);panel_hide(NULL);

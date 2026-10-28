@@ -1,0 +1,14 @@
+--- a/libcss/src/parse/properties/raw.c
++++ b/libcss/src/parse/properties/raw.c
+@@ -284,7 +284,10 @@
+ 	error = raw_read(vector, ctx, rv);
+ 	raw_lang = NULL;
+ 	if (error == CSS_OK) {
+-		if (rv->ncomp == 1 && rv->nslash == 0 && !rv->comma &&
++		/* pointer-events has initial value auto, not none. Keep its none
++		 * keyword as value text so selection/inheritance and hit testing
++		 * can distinguish it from the raw property's default NULL value. */
++		if (prop != CSS_PROP_POINTER_EVENTS && rv->ncomp == 1 && rv->nslash == 0 && !rv->comma &&
+ 				lwc_string_caseless_isequal(
+ 					((const css_token *)parserutils_vector_peek(
+ 						vector, rv->comp[0].ctx))->idata,

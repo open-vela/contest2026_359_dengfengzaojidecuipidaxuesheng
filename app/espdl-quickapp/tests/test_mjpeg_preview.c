@@ -2,6 +2,7 @@
 #include "qpk_mjpeg.h"
 #include "camera_frame.h"
 #include "camera_color.h"
+#include "camera_reference_layout.h"
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
@@ -51,6 +52,31 @@ int main(int argc,char **argv)
     assert(!qpk_mjpeg_decode_region(decoder,input,size,size+512,view,w,h,w,w,h));
     assert(!memcmp(view,full,count*2));
   }
-  qpk_mjpeg_destroy(decoder);free(view);free(full);free(input);
+  /* Exercise the actual enlarged USB view coordinates and reduced decoder,
+   * including source letterbox removal. The rest of the display is a canary. */
+  uint16_t *display=malloc(1024*600*2);assert(display);
+  assert(!qpk_mjpeg_preview_limits(decoder,w>>1,h>>1));
+  unsigned sw=w>>1,sh=h>>1,dw=896,dh=(uint64_t)sh*896/sw;
+  if(dh>600){dh=600;dw=(uint64_t)sw*600/sh;}
+  unsigned ox=(896-dw)/2,oy=(600-dh)/2;
+  for(unsigned aspect=0;aspect<=4;aspect++)for(unsigned z=0;z<4;z++){
+    unsigned zoom=camera_reference_zoom_values[z];
+    struct camera_reference_rect crop=camera_reference_crop(896,w,h,zoom,aspect);
+    struct camera_reference_rect target=camera_reference_output(896,w,h,zoom,aspect);
+    for(unsigned i=0;i<1024*600;i++)display[i]=0xa55a;
+    struct qpk_mjpeg_view options={.canvas_width=896,.canvas_height=600,.stride=1024,
+      .width=target.w,.height=target.h,.crop_x=crop.x,.crop_y=crop.y,.crop_width=crop.w,.crop_height=crop.h};
+    assert(!qpk_mjpeg_decode_preview(decoder,input,size,size+512,display+target.y*1024+target.x,w,h,&options));
+    for(unsigned y=0;y<600;y++)for(unsigned x=0;x<1024;x++){
+      bool inside=x>=target.x&&x<target.x+target.w&&y>=target.y&&y<target.y+target.h;
+      if(!inside){assert(display[y*1024+x]==0xa55a);continue;}
+      unsigned cx=crop.x+(x-target.x)*crop.w/target.w,cy=crop.y+(y-target.y)*crop.h/target.h;
+      uint16_t expected=0;
+      if(cx>=ox&&cx<ox+dw&&cy>=oy&&cy<oy+dh)
+        expected=full[(((cy-oy)*sh/dh)*2)*w+((cx-ox)*sw/dw)*2];
+      assert(display[y*1024+x]==expected);
+    }
+  }
+  free(display);qpk_mjpeg_destroy(decoder);free(view);free(full);free(input);
   puts("MJPEG_PREVIEW_OK: fused six colours/five aspects across three scales, crop bounds, clipped MCU edges, full-quality photo isolation and truncation");
 }

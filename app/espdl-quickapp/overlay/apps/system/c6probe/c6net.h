@@ -24,6 +24,7 @@ struct c6net_stats_s
   uint32_t tx_down_drops, tx_send_max_us;
   uint32_t rx_packets, rx_bytes, rx_invalid, rx_down_drops, rx_unsupported;
   int tx_last_error;
+  uint32_t tx_yields, tx_active, tx_poll_max_us, rx_stage;
 };
 
 #if defined(CONFIG_NET) && defined(CONFIG_SYSTEM_C6PROBE)

@@ -3,19 +3,19 @@
 static const char *chat_result_title(const struct chat_result_snapshot *r)
 {
   if(r->state==CHAT_WAITING)return r->progress[0]?r->progress:"正在处理";
-  if(r->state==CHAT_FAILED)return r->card_count?"回复未完成":"任务未完成";
-  if(r->state==CHAT_CANCELLED)return "已停止";
+  if(r->state==CHAT_FAILED)return r->card_count?glass_tr("回复未完成"):glass_tr("任务未完成");
+  if(r->state==CHAT_CANCELLED)return glass_tr("已停止");
   bool action=false;
   for(unsigned i=0;i<r->card_count;i++)if(r->cards[i].action){
-    action=true;if(!r->cards[i].verified)return "结果待确认";
+    action=true;if(!r->cards[i].verified)return glass_tr("结果待确认");
   }
-  return action?"执行已确认":r->card_count?"设备结果":"AI 回复";
+  return action?glass_tr("执行已确认"):r->card_count?glass_tr("设备结果"):glass_tr("AI 回复");
 }
 static size_t chat_result_voice(const struct chat_result_snapshot *r,char *out,size_t size)
 {
   if(!size)return 0;out[0]=0;
   if(r->state==CHAT_FAILED||r->state==CHAT_CANCELLED){
-    return glass_chat_copy_utf8(out,size,r->state==CHAT_CANCELLED?"本次任务已停止。":glass_chat_error_text(r->error));
+    return glass_chat_copy_utf8(out,size,r->state==CHAT_CANCELLED?glass_tr("本次任务已停止。"):glass_chat_error_text(r->error));
   }
   /* Describe receipts even if prose claims more. Unverified controls never
    * receive a generic success announcement. Ordinary answers use AI text. */
@@ -23,8 +23,8 @@ static size_t chat_result_voice(const struct chat_result_snapshot *r,char *out,s
     char line[256];size_t used=0;
     for(unsigned i=0;i<r->card_count;i++){
       const struct chat_card *c=&r->cards[i];
-      if(c->action&&!c->verified)snprintf(line,sizeof(line),"%s，结果还没有确认。",c->name);
-      else if(c->level>=0)snprintf(line,sizeof(line),"%s，%s，百分之%d。",c->name,c->state,c->level);
+      if(c->action&&!c->verified)snprintf(line,sizeof(line),glass_tr("%s，结果还没有确认。"),c->name);
+      else if(c->level>=0)snprintf(line,sizeof(line),glass_tr("%s，%s，百分之%d。"),c->name,c->state,c->level);
       else snprintf(line,sizeof(line),"%s，%s。",c->name,c->state);
       size_t n=glass_chat_copy_utf8(out+used,size-used,line);used+=n;
       if(n<strlen(line))break;
@@ -66,12 +66,12 @@ static lv_obj_t *chat_result_build(lv_obj_t *parent,int x,int y,int width,const 
   lv_obj_set_style_pad_all(root,12,0);lv_obj_remove_flag(root,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
   uint32_t accent=r->state==CHAT_FAILED?0xdf675d:!strcmp(chat_result_title(r),"结果待确认")?0xdba34b:0x5bb59a;
   chat_result_label(root,chat_result_title(r),0,0,width-26,24,16,accent);
-  const char *summary=r->state==CHAT_FAILED?glass_chat_error_text(r->error):r->state==CHAT_WAITING?"正在执行你的请求…":r->card_count?"设备状态如下。":r->reply[0]?r->reply:"结果已更新";
+  const char *summary=r->state==CHAT_FAILED?glass_chat_error_text(r->error):r->state==CHAT_WAITING?glass_tr("正在执行你的请求…"):r->card_count?glass_tr("设备状态如下。"):r->reply[0]?r->reply:glass_tr("结果已更新");
   chat_result_label(root,summary,0,30,width-26,60,16,ink);
   for(unsigned i=0;i<r->card_count;i++){
     const struct chat_card *c=&r->cards[i];int row=96+(int)i*50;char line[112];
     chat_result_label(root,c->name,0,row,width-26,20,14,ink);
-    if(c->action&&!c->verified)snprintf(line,sizeof(line),"结果待确认");
+    if(c->action&&!c->verified)snprintf(line,sizeof(line),glass_tr("结果待确认"));
     else if(c->level>=0)snprintf(line,sizeof(line),"%s · %d%%",c->state,c->level);
     else snprintf(line,sizeof(line),"%s",c->state);
     chat_result_label(root,line,0,row+20,width-26,20,14,muted);

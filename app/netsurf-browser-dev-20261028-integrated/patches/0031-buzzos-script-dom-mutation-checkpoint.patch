@@ -1,0 +1,250 @@
+--- a/libdom/include/dom/core/document.h
++++ b/libdom/include/dom/core/document.h
+@@ -468,4 +468,7 @@
+ #define dom_document_set_quirks_mode(d, q) \
+ 	dom_document_set_quirks_mode((dom_document *) (d), (q))
+ 
++/* Native integration: mutation-event listeners run under a document guard. */
++bool dom_document_is_in_mutation_event(dom_document *doc);
++
+ #endif
+--- a/libdom/src/core/document.c
++++ b/libdom/src/core/document.c
+@@ -1555,3 +1555,8 @@
+ 	doc->quirks = quirks;
+ 	return DOM_NO_ERR;
+ }
++
++bool dom_document_is_in_mutation_event(dom_document *doc)
++{
++	return doc != NULL && doc->dispatching_mutation > 0;
++}
+--- a/netsurf/content/handlers/html/private.h
++++ b/netsurf/content/handlers/html/private.h
+@@ -35,6 +35,7 @@
+ struct scrollbar_msg_data;
+ struct content_redraw_data;
+ struct selection;
++struct html_pending_dom_script;
+ 
+ typedef enum {
+ 	HTML_DRAG_NONE,			/** No drag */
+@@ -148,6 +149,10 @@
+ 	unsigned int scripts_count;
+ 	/** Scripts */
+ 	struct html_script *scripts;
++	/** DOM-inserted scripts run after libdom's mutation guard is released. */
++	struct html_pending_dom_script *pending_dom_scripts;
++	struct html_pending_dom_script *pending_dom_scripts_tail;
++	bool defer_dom_scripts;
+ 	/** javascript thread in use */
+ 	struct jsthread *jsthread;
+ 
+@@ -347,6 +352,8 @@
+ 
+ /* in html/script.c */
+ dom_hubbub_error html_process_script(void *ctx, dom_node *node);
++dom_hubbub_error html_queue_dom_script(html_content *html, dom_node *node);
++void html_flush_dom_scripts(html_content *html);
+ 
+ 
+ /* in html/forms.c */
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -274,7 +274,8 @@
+ 		return;
+ 	}
+ 
+-	if (flags & DOM_HTML_SCRIPT_ELEMENT_FLAG_PARSER_INSERTED) {
++	if (flags & (DOM_HTML_SCRIPT_ELEMENT_FLAG_PARSER_INSERTED |
++			DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED)) {
+ 		NSLOG(netsurf, DEBUG, "Script was parser inserted, skipping");
+ 		return;
+ 	}
+@@ -290,7 +291,9 @@
+ 		return;
+ 	}
+ 
+-	res = html_process_script(htmlc, (dom_node *) script);
++	res = htmlc->defer_dom_scripts ?
++		html_queue_dom_script(htmlc, (dom_node *) script) :
++		html_process_script(htmlc, (dom_node *) script);
+ 	if (res == DOM_HUBBUB_OK) {
+ 		NSLOG(netsurf, DEEPDEBUG, "Inserted script has finished running");
+ 	} else {
+--- a/netsurf/content/handlers/html/script.c
++++ b/netsurf/content/handlers/html/script.c
+@@ -628,6 +628,54 @@
+  *
+  *
+  */
++struct html_pending_dom_script {
++	dom_node *node;
++	struct html_pending_dom_script *next;
++};
++
++dom_hubbub_error html_queue_dom_script(html_content *html, dom_node *node)
++{
++	struct html_pending_dom_script *item;
++	for (item = html->pending_dom_scripts; item != NULL; item = item->next)
++		if (item->node == node)
++			return DOM_HUBBUB_OK;
++	item = malloc(sizeof(*item));
++	if (item == NULL)
++		return DOM_HUBBUB_NOMEM;
++	item->node = dom_node_ref(node);
++	item->next = NULL;
++	if (html->pending_dom_scripts_tail != NULL)
++		html->pending_dom_scripts_tail->next = item;
++	else
++		html->pending_dom_scripts = item;
++	html->pending_dom_scripts_tail = item;
++	return DOM_HUBBUB_OK;
++}
++
++/* Called by native DOM bindings after the mutation finishes, before returning
++ * to JavaScript. Pop first so nested insertion can flush synchronously too. */
++void html_flush_dom_scripts(html_content *html)
++{
++	if (html == NULL || dom_document_is_in_mutation_event(html->document))
++		return;
++	while (html->pending_dom_scripts != NULL) {
++		struct html_pending_dom_script *batch = html->pending_dom_scripts;
++		html->pending_dom_scripts = html->pending_dom_scripts_tail = NULL;
++		/* Keep original siblings local: a script inserted by the running
++		 * script must execute before the next original fragment sibling. */
++		while (batch != NULL) {
++			struct html_pending_dom_script *item = batch;
++			bool connected = false;
++			batch = item->next;
++			if (html->enable_scripting && html->document != NULL &&
++					dom_node_contains(html->document, item->node, &connected) == DOM_NO_ERR && connected)
++				html_process_script(html, item->node);
++			dom_node_unref(item->node);
++			free(item);
++		}
++	}
++}
++
+ dom_hubbub_error
+ html_process_script(void *ctx, dom_node *node)
+ {
+@@ -740,6 +788,13 @@
+ nserror html_script_free(html_content *html)
+ {
+ 	unsigned int i;
++	while (html->pending_dom_scripts != NULL) {
++		struct html_pending_dom_script *item = html->pending_dom_scripts;
++		html->pending_dom_scripts = item->next;
++		dom_node_unref(item->node);
++		free(item);
++	}
++	html->pending_dom_scripts_tail = NULL;
+ 
+ 	for (i = 0; i != html->scripts_count; i++) {
+ 		if (html->scripts[i].element != NULL)
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -94,6 +94,13 @@
+ static struct jsthread *qjs_thread(JSContext *ctx)
+ {
+ 	return JS_GetContextOpaque(ctx);
++}
++
++static void qjs_flush_dom_scripts(JSContext *ctx)
++{
++	struct jsthread *t = qjs_thread(ctx);
++	if (t != NULL && !t->closed && t->htmlc != NULL)
++		html_flush_dom_scripts(t->htmlc);
+ }
+ 
+ static void qjs_navigate(struct jsthread *t, const char *url_s);
+@@ -656,8 +663,10 @@
+ 		return JS_UNDEFINED;
+ 	ds = qjs_js_to_ds(ctx, v);
+ 	if (ds != NULL) {
+-		dom_node_set_text_content(node, ds);
++		dom_exception exc = dom_node_set_text_content(node, ds);
+ 		dom_string_unref(ds);
++		if (exc == DOM_NO_ERR)
++			qjs_flush_dom_scripts(ctx);
+ 	}
+ 	return JS_UNDEFINED;
+ }
+@@ -801,6 +810,7 @@
+ 	dom_exception exc = dom_node_append_child(node, child, &res);
+ 	if (exc != DOM_NO_ERR)
+ 		return qjs_throw_dom_exception(ctx, exc);
++	qjs_flush_dom_scripts(ctx);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -824,6 +834,7 @@
+ 	dom_exception exc = dom_node_insert_before(node, child, ref, &res);
+ 	if (exc != DOM_NO_ERR)
+ 		return qjs_throw_dom_exception(ctx, exc);
++	qjs_flush_dom_scripts(ctx);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -844,6 +855,7 @@
+ 	dom_exception exc = dom_node_remove_child(node, child, &res);
+ 	if (exc != DOM_NO_ERR)
+ 		return qjs_throw_dom_exception(ctx, exc);
++	qjs_flush_dom_scripts(ctx);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -866,6 +878,7 @@
+ 	dom_exception exc = dom_node_replace_child(node, newc, oldc, &res);
+ 	if (exc != DOM_NO_ERR)
+ 		return qjs_throw_dom_exception(ctx, exc);
++	qjs_flush_dom_scripts(ctx);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -1233,8 +1246,10 @@
+ 		return JS_UNDEFINED;
+ 	ds = qjs_js_to_ds(ctx, v);
+ 	if (ds != NULL) {
+-		dom_element_set_attribute((dom_element *)node, name, ds);
++		dom_exception exc = dom_element_set_attribute((dom_element *)node, name, ds);
+ 		dom_string_unref(ds);
++		if (exc == DOM_NO_ERR)
++			qjs_flush_dom_scripts(ctx);
+ 	}
+ 	return JS_UNDEFINED;
+ }
+@@ -1300,8 +1315,9 @@
+ 		return JS_UNDEFINED;
+ 	name = qjs_js_to_ds(ctx, argv[0]);
+ 	val = qjs_js_to_ds(ctx, argv[1]);
+-	if (name != NULL && val != NULL)
+-		dom_element_set_attribute((dom_element *)node, name, val);
++	if (name != NULL && val != NULL &&
++			dom_element_set_attribute((dom_element *)node, name, val) == DOM_NO_ERR)
++		qjs_flush_dom_scripts(ctx);
+ 	if (name != NULL)
+ 		dom_string_unref(name);
+ 	if (val != NULL)
+@@ -1320,8 +1336,10 @@
+ 		return JS_UNDEFINED;
+ 	name = qjs_js_to_ds(ctx, argv[0]);
+ 	if (name != NULL) {
+-		dom_element_remove_attribute((dom_element *)node, name);
++		dom_exception exc = dom_element_remove_attribute((dom_element *)node, name);
+ 		dom_string_unref(name);
++		if (exc == DOM_NO_ERR)
++			qjs_flush_dom_scripts(ctx);
+ 	}
+ 	return JS_UNDEFINED;
+ }
+@@ -3105,6 +3123,8 @@
+ 	JSValue location;
+ 	JSValue navigator;
+ 	JSValue setup;
++	if (t->htmlc != NULL)
++		t->htmlc->defer_dom_scripts = true;
+ 
+ 	JS_SetContextOpaque(ctx, t);
+ 	t->native_form_submit = JS_UNDEFINED;

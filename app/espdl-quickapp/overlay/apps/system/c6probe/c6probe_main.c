@@ -177,6 +177,10 @@ int main(int argc, FAR char *argv[])
                  stats.tx_polls, stats.tx_packets, stats.tx_bytes,
                  stats.tx_errors, stats.tx_down_drops, stats.tx_send_max_us,
                  stats.tx_last_error);
+          printf("c6net if=%s tx_yields=%" PRIu32 " tx_active=%" PRIu32
+                 " tx_poll_max_us=%" PRIu32 " rx_stage=%" PRIu32 "\n",
+                 index ? "ap0" : C6NET_IFNAME, stats.tx_yields,
+                 stats.tx_active, stats.tx_poll_max_us, stats.rx_stage);
           printf("c6net if=%s rx_packets=%" PRIu32 " rx_bytes=%" PRIu32
                  " rx_invalid=%" PRIu32 " rx_down=%" PRIu32
                  " rx_unsupported=%" PRIu32 "\n",

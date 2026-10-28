@@ -1,0 +1,370 @@
+--- a/libcss/include/libcss/computed.h
++++ b/libcss/include/libcss/computed.h
+@@ -331,6 +331,10 @@
+ 		const css_computed_style *style,
+ 		css_fixed *length, css_unit *unit);
+ 
++/* Preserve auto for flex items regardless of their own display type. */
++uint8_t css_computed_min_width_static(const css_computed_style *style,
++		css_fixed *length, css_unit *unit);
++
+ uint8_t css_computed_background_repeat(
+ 		const css_computed_style *style);
+ 
+--- a/libcss/src/select/computed.c
++++ b/libcss/src/select/computed.c
+@@ -944,6 +944,12 @@
+ 	return min_width;
+ }
+ 
++uint8_t css_computed_min_width_static(const css_computed_style *style,
++		css_fixed *length, css_unit *unit)
++{
++	return get_min_width(style, length, unit);
++}
++
+ uint8_t css_computed_background_repeat(const css_computed_style *style)
+ {
+ 	return get_background_repeat(style);
+@@ -2036,4 +2042,3 @@
+ 
+ 	return set(style, type, length1, unit1, length2, unit2);
+ }
+-
+--- a/netsurf/content/handlers/css/css_fx.c
++++ b/netsurf/content/handlers/css/css_fx.c
+@@ -918,6 +918,79 @@
+ }
+ 
+ /* exported interface documented in css_fx.h */
++bool cssfx_uniform_transform(const css_computed_style *style,
++		const css_unit_ctx *uctx, int w, int h,
++		float *factor, float *dx, float *dy)
++{
++	const char *t = cssfx_raw(style, CSS_PROP_TRANSFORM);
++	const char *origin;
++	float k = 1, tx = 0, ty = 0, ox = w / 2.0f, oy = h / 2.0f;
++	bool any = false;
++
++	if (t == NULL)
++		return false;
++	while (*t != '\0') {
++		float a, b;
++		skip_ws(&t);
++		if (*t == '\0') break;
++		if (match_fn(&t, "scale")) {
++			if (!parse_number(&t, &a)) return false;
++			b = a;
++			skip_ws(&t);
++			if (*t == ',') {
++				t++;
++				if (!parse_number(&t, &b)) return false;
++			}
++			if (!isfinite(a) || a < 0 || a != b) return false;
++			k *= a;
++		} else if (match_fn(&t, "translate")) {
++			if (!cssfx_length(&t, style, uctx, w, &a)) return false;
++			b = 0;
++			skip_ws(&t);
++			if (*t == ',') {
++				t++;
++				if (!cssfx_length(&t, style, uctx, h, &b)) return false;
++			}
++			tx += k * a; ty += k * b;
++		} else if (match_fn(&t, "translateX")) {
++			if (!cssfx_length(&t, style, uctx, w, &a)) return false;
++			tx += k * a;
++		} else if (match_fn(&t, "translateY")) {
++			if (!cssfx_length(&t, style, uctx, h, &a)) return false;
++			ty += k * a;
++		} else if (match_fn(&t, "matrix")) {
++			float m[6];
++			for (int i = 0; i < 6; i++) {
++				if (!parse_number(&t, &m[i]) || !isfinite(m[i])) return false;
++				skip_ws(&t);
++				if (i < 5) { if (*t != ',') return false; t++; }
++			}
++			if (m[1] != 0 || m[2] != 0 || m[0] != m[3] || m[0] < 0) return false;
++			tx += k * m[4]; ty += k * m[5]; k *= m[0];
++		} else {
++			return false;
++		}
++		skip_ws(&t);
++		if (*t != ')') return false;
++		t++;
++		any = true;
++	}
++	if (!any || !isfinite(k) || !isfinite(tx) || !isfinite(ty)) return false;
++	origin = cssfx_raw(style, CSS_PROP_TRANSFORM_ORIGIN);
++	if (origin != NULL) {
++		float x, y;
++		if (parse_pos_component(&origin, style, uctx, w, true, &x)) {
++			ox = x;
++			if (parse_pos_component(&origin, style, uctx, h, false, &y)) oy = y;
++		}
++	}
++	*factor = k;
++	*dx = tx + (1 - k) * ox;
++	*dy = ty + (1 - k) * oy;
++	return isfinite(*dx) && isfinite(*dy);
++}
++
++/* exported interface documented in css_fx.h */
+ bool cssfx_translation(const css_computed_style *style,
+ 		const css_unit_ctx *uctx, int w, int h, int *dx, int *dy)
+ {
+--- a/netsurf/content/handlers/css/css_fx.h
++++ b/netsurf/content/handlers/css/css_fx.h
+@@ -123,6 +123,14 @@
+ bool cssfx_translation(const css_computed_style *style,
+ 		const css_unit_ctx *uctx, int w, int h, int *dx, int *dy);
+ 
++/** Resolve non-negative uniform scale and translation, including origin.
++ * Returns false for an unsupported transform list (rotation, skew, unequal
++ * axes, reflection). Zero scale is valid and suppresses painting.
++ */
++bool cssfx_uniform_transform(const css_computed_style *style,
++		const css_unit_ctx *uctx, int w, int h,
++		float *factor, float *dx, float *dy);
++
+ /**
+  * Preferred aspect ratio (width / height) from aspect-ratio.
+  *
+--- a/netsurf/content/handlers/html/redraw.c
++++ b/netsurf/content/handlers/html/redraw.c
+@@ -2346,7 +2346,7 @@
+  */
+ bool html_redraw_box(const html_content *html, struct box *box,
+ 		int x_parent, int y_parent,
+-		const struct rect *clip, const float scale,
++		const struct rect *clip, float scale,
+ 		colour current_background_color,
+ 		const struct redraw_context *ctx)
+ {
+@@ -2354,6 +2354,7 @@
+ 	bool use_layer = false;
+ 	bool clip_round = false;
+ 	int tx, ty;
++	float factor, fx, fy;
+ 	bool ok;
+ 	struct rect area;
+ 	int x, y, bw, bh;
+@@ -2369,7 +2370,20 @@
+ 	bh = box->border[TOP].width + box->padding[TOP] + box->height +
+ 			box->padding[BOTTOM] + box->border[BOTTOM].width;
+ 
+-	if (cssfx_translation(box->style, &html->unit_len_ctx, bw, bh,
++	if (cssfx_uniform_transform(box->style, &html->unit_len_ctx,
++			bw, bh, &factor, &fx, &fy)) {
++		if (factor == 0) return true;
++		/* Keep the transformed border origin fixed while changing the
++		 * scale passed to all descendant painters. The ancestor's device
++		 * clip remains unchanged, which crops generated sprite images. */
++		float px = ((x_parent + box->x - box->border[LEFT].width) + fx) / factor;
++		float py = ((y_parent + box->y - box->border[TOP].width) + fy) / factor;
++		if (!isfinite(px) || !isfinite(py) || fabsf(px) > 100000000 ||
++				fabsf(py) > 100000000 || scale * factor > 100000) return true;
++		x_parent = (int)roundf(px) - box->x + box->border[LEFT].width;
++		y_parent = (int)roundf(py) - box->y + box->border[TOP].width;
++		scale *= factor;
++	} else if (cssfx_translation(box->style, &html->unit_len_ctx, bw, bh,
+ 			&tx, &ty)) {
+ 		x_parent += tx;
+ 		y_parent += ty;
+--- a/netsurf/content/handlers/html/layout_flex.c
++++ b/netsurf/content/handlers/html/layout_flex.c
+@@ -345,13 +345,12 @@
+ 
+ 	if (ctx->horizontal) {
+ 		item->base_size = min(item->base_size, available_width);
+-		item->base_size = max(item->base_size, content_min_width);
+ 	}
+ 
+ 	item->target_main_size = item->base_size;
+ 	item->main_size = item->base_size;
+ 
+-	if (item->max_main > 0 &&
++	if (item->max_main >= 0 &&
+ 	    item->main_size > item->max_main + delta_outer_main) {
+ 		item->main_size = item->max_main + delta_outer_main;
+ 	}
+@@ -404,6 +403,25 @@
+ 		css_computed_flex_shrink(b->style, &item->shrink);
+ 		css_computed_flex_grow(b->style, &item->grow);
+ 
++		/* Intrinsic min-content width is not an unconditional flex
++		 * minimum. A scrolling/hidden item may shrink, an explicit
++		 * min-width overrides auto, and a definite width caps auto.
++		 * Without this, a clipped generated sprite widens its parent
++		 * to the full sheet and pushes the neighbouring text away. */
++		if (horizontal) {
++			css_fixed mv;
++			css_unit mu;
++			if (css_computed_min_width_static(b->style, &mv, &mu) ==
++					CSS_MIN_WIDTH_AUTO &&
++					css_computed_overflow_x(b->style) == CSS_OVERFLOW_VISIBLE) {
++				int delta = lh__delta_outer_main(ctx->flex, b);
++				int minimum = max(0, b->min_width - delta);
++				if (b->width != AUTO) minimum = min(minimum, b->width);
++				if (item->max_main >= 0) minimum = min(minimum, item->max_main);
++				item->min_main = max(item->min_main, minimum);
++			}
++		}
++
+ 		layout_flex__base_and_main_sizes(ctx, item, available_width);
+ 	}
+ }
+@@ -600,6 +618,7 @@
+ 	for (size_t i = line->first; i < item_count; i++) {
+ 		struct flex_item_data *item = &ctx->item.data[i];
+ 		int target_main_size = item->target_main_size;
++		int delta = lh__delta_outer_main(ctx->flex, item->box);
+ 
+ 		NSLOG(flex, DEEPDEBUG, "item %p: target_main_size: %i",
+ 					item->box, target_main_size);
+@@ -608,26 +627,19 @@
+ 			continue;
+ 		}
+ 
+-		if (item->max_main > 0 &&
+-		    target_main_size > item->max_main) {
+-			target_main_size = item->max_main;
++		if (item->max_main >= 0 &&
++		    target_main_size > item->max_main + delta) {
++			target_main_size = item->max_main + delta;
+ 			item->max_violation = true;
+ 			NSLOG(flex, DEEPDEBUG, "Violation: max_main: %i",
+ 					item->max_main);
+ 		}
+ 
+-		if (target_main_size < item->min_main) {
+-			target_main_size = item->min_main;
++		if (target_main_size < item->min_main + delta) {
++			target_main_size = item->min_main + delta;
+ 			item->min_violation = true;
+ 			NSLOG(flex, DEEPDEBUG, "Violation: min_main: %i",
+ 					item->min_main);
+-		}
+-
+-		if (target_main_size < item->box->min_width) {
+-			target_main_size = item->box->min_width;
+-			item->min_violation = true;
+-			NSLOG(flex, DEEPDEBUG, "Violation: box min_width: %i",
+-					item->box->min_width);
+ 		}
+ 
+ 		if (target_main_size < 0) {
+--- a/netsurf/content/handlers/html/box_inspect.c
++++ b/netsurf/content/handlers/html/box_inspect.c
+@@ -23,6 +23,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <math.h>
+ #include <dom/dom.h>
+ 
+ #include "utils/utils.h"
+@@ -32,6 +33,7 @@
+ #include "netsurf/content.h"
+ #include "netsurf/mouse.h"
+ #include "css/utils.h"
++#include "css/css_fx.h"
+ #include "css/dump.h"
+ #include "desktop/scrollbar.h"
+ 
+@@ -578,6 +580,32 @@
+ }
+ 
+ 
++void box_document_transform(const css_unit_ctx *uctx, struct box *box,
++		float *factor, float *dx, float *dy)
++{
++	*factor = 1; *dx = 0; *dy = 0;
++	for (struct box *b = box; b != NULL; b = b->parent) {
++		float k, tx, ty;
++		int bx, by, ix, iy;
++		if (b->style == NULL || b->type == BOX_TEXT ||
++				b->type == BOX_INLINE_CONTAINER || b->type == BOX_INLINE_END ||
++				b->type == BOX_BR) continue;
++		int w = b->border[LEFT].width + b->padding[LEFT] + b->width +
++				b->padding[RIGHT] + b->border[RIGHT].width;
++		int h = b->border[TOP].width + b->padding[TOP] + b->height +
++				b->padding[BOTTOM] + b->border[BOTTOM].width;
++		if (!cssfx_uniform_transform(b->style, uctx, w, h, &k, &tx, &ty)) {
++			if (!cssfx_translation(b->style, uctx, w, h, &ix, &iy)) continue;
++			k = 1; tx = ix; ty = iy;
++		}
++		box_coords(b, &bx, &by);
++		bx -= b->border[LEFT].width; by -= b->border[TOP].width;
++		*dx = k * *dx + (1 - k) * bx + tx;
++		*dy = k * *dy + (1 - k) * by + ty;
++		*factor *= k;
++	}
++}
++
+ /* Exported function documented in html/box.h */
+ struct box *
+ box_at_point(const css_unit_ctx *unit_len_ctx,
+@@ -592,7 +620,14 @@
+ 
+ 	skip_children = false;
+ 	while ((box = box_next_xy(box, box_x, box_y, skip_children))) {
+-		if (box_contains_point(unit_len_ctx, box, x - *box_x, y - *box_y,
++		float k, dx, dy, px, py;
++		box_document_transform(unit_len_ctx, box, &k, &dx, &dy);
++		if (k == 0) { skip_children = true; continue; }
++		px = (x - dx) / k - *box_x;
++		py = (y - dy) / k - *box_y;
++		if (!isfinite(px) || !isfinite(py) || fabsf(px) > 100000000 ||
++				fabsf(py) > 100000000) { skip_children = true; continue; }
++		if (box_contains_point(unit_len_ctx, box, (int)floorf(px), (int)floorf(py),
+ 				       &physically)) {
+ 			*box_x -= scrollbar_get_offset(box->scroll_x);
+ 			*box_y -= scrollbar_get_offset(box->scroll_y);
+--- a/netsurf/content/handlers/html/box_inspect.h
++++ b/netsurf/content/handlers/html/box_inspect.h
+@@ -32,6 +32,11 @@
+  * \param  y    updated to y coordinate
+  */
+ void box_coords(struct box *box, int *x, int *y);
++
++/* Supported CSS transforms from layout document coordinates to paint
++ * coordinates, including ancestors. Layout metrics remain untransformed. */
++void box_document_transform(const css_unit_ctx *uctx, struct box *box,
++		float *factor, float *dx, float *dy);
+ 
+ 
+ /**
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -174,8 +174,17 @@
+ 	v[9] = box->border[TOP].width;
+ 
+ 	arr = JS_NewArray(ctx);
+-	for (i = 0; i < 10; i++)
+-		JS_SetPropertyUint32(ctx, arr, i, JS_NewInt32(ctx, v[i]));
++	float factor = 1, dx = 0, dy = 0;
++	bool visual = argc > 1 && JS_ToBool(ctx, argv[1]) > 0;
++	if (visual) box_document_transform(&t->htmlc->unit_len_ctx, box, &factor, &dx, &dy);
++	for (i = 0; i < 10; i++) {
++		if (visual && i < 4) {
++			float value = v[i] * factor + (i == 0 ? dx : i == 1 ? dy : 0);
++			JS_SetPropertyUint32(ctx, arr, i, JS_NewFloat64(ctx, value));
++		} else {
++			JS_SetPropertyUint32(ctx, arr, i, JS_NewInt32(ctx, v[i]));
++		}
++	}
+ 	return arr;
+ }
+ 
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -1379,7 +1379,7 @@
+ 
+ function docRect(el) { return ns.rect(el); }
+ method(ElementP, 'getBoundingClientRect', function () {
+-	var r = docRect(this);
++	var r = ns.rect(this, true);
+ 	if (!r) return new DOMRect(0, 0, 0, 0);
+ 	var vp = ns.viewport();
+ 	return new DOMRect(r[0] - vp[0], r[1] - vp[1], r[2], r[3]);

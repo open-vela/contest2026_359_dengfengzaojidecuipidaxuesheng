@@ -171,16 +171,16 @@ static int glass_ble_list_submit(const struct ble_list_job *job)
 static const char *ble_list_error(int error)
 {
   switch(error){
-  case -ECANCELED:return "操作已取消";
-  case -ESTALE:return "设备列表已更新，请重新选择设备";
-  case -EBUSY:return "蓝牙正在被其他操作使用，请稍后重试";
-  case -ENOSPC:return "蓝牙连接名额已满，请先断开一个连接";
-  case -ETIMEDOUT:return "操作超时，请靠近设备并重试";
-  case -ENOMEM:return "内存不足，请稍后重试";
-  case -ENOTCONN:return "设备已断开，可重新搜索连接";
-  case -EACCES:return "配对未完成，请确认对方允许配对后重试";
-  case -ENOTSUP:return "设备不支持此配对方式";
-  default:return "蓝牙操作失败，请检查设备后重试";
+  case -ECANCELED:return glass_tr("操作已取消");
+  case -ESTALE:return glass_tr("设备列表已更新，请重新选择设备");
+  case -EBUSY:return glass_tr("蓝牙正在被其他操作使用，请稍后重试");
+  case -ENOSPC:return glass_tr("蓝牙连接名额已满，请先断开一个连接");
+  case -ETIMEDOUT:return glass_tr("操作超时，请靠近设备并重试");
+  case -ENOMEM:return glass_tr("内存不足，请稍后重试");
+  case -ENOTCONN:return glass_tr("设备已断开，可重新搜索连接");
+  case -EACCES:return glass_tr("配对未完成，请确认对方允许配对后重试");
+  case -ENOTSUP:return glass_tr("设备不支持此配对方式");
+  default:return glass_tr("蓝牙操作失败，请检查设备后重试");
   }
 }
 static void ble_list_text(lv_obj_t *label,const char *text)
@@ -188,27 +188,27 @@ static void ble_list_text(lv_obj_t *label,const char *text)
 static void ble_list_address(const struct glass_ble_device *peer,char *text,size_t size)
 {
   snprintf(text,size,"%02X:%02X:%02X:%02X:%02X:%02X · %s",peer->address[5],peer->address[4],
-    peer->address[3],peer->address[2],peer->address[1],peer->address[0],peer->type&1?"随机地址":"公共地址");
+    peer->address[3],peer->address[2],peer->address[1],peer->address[0],peer->type&1?glass_tr("随机地址"):glass_tr("公共地址"));
 }
 static const char *ble_list_type(const struct glass_ble_device *peer)
 {
   /* Appearance is more specific than a service. Both are untrusted broadcast
    * declarations; never derive a manufacturer/model from a random address. */
   if(peer->appearance==0x03c1)return "广播：键盘";
-  if(peer->appearance==0x03c2)return "广播：鼠标";
+  if(peer->appearance==0x03c2)return glass_tr("广播：鼠标");
   switch(peer->appearance>>6){
-  case 1:return "广播：手机";case 2:return "广播：电脑";
-  case 3:return "广播：手表";case 6:return "广播：遥控器";
-  case 12:return "广播：温度计";case 13:return "广播：心率设备";
-  case 15:return "广播：输入设备";
+  case 1:return glass_tr("广播：手机");case 2:return glass_tr("广播：电脑");
+  case 3:return glass_tr("广播：手表");case 6:return glass_tr("广播：遥控器");
+  case 12:return glass_tr("广播：温度计");case 13:return glass_tr("广播：心率设备");
+  case 15:return glass_tr("广播：输入设备");
   }
   switch(peer->service_hint){
-  case 0x1812:return "HID 输入服务";case 0x180d:return "心率服务";
-  case 0x1809:return "体温服务";case 0x181a:return "环境传感服务";
-  case 0x1810:return "血压服务";case 0x1816:case 0x1818:return "骑行服务";
-  case 0x1826:return "健身设备服务";
+  case 0x1812:return glass_tr("HID 输入服务");case 0x180d:return glass_tr("心率服务");
+  case 0x1809:return glass_tr("体温服务");case 0x181a:return glass_tr("环境传感服务");
+  case 0x1810:return glass_tr("血压服务");case 0x1816:case 0x1818:return glass_tr("骑行服务");
+  case 0x1826:return glass_tr("健身设备服务");
   }
-  return peer->service128?"其他 BLE 服务":"类型未知";
+  return peer->service128?glass_tr("其他 BLE 服务"):glass_tr("类型未知");
 }
 static const struct glass_ble_session *ble_list_peer_session(const struct glass_ble_state *state,
                                                               const struct glass_ble_device *peer)
@@ -247,7 +247,7 @@ static void glass_ble_list_action(lv_event_t *event)
   if(!operation)operation=view->action;
   if(operation==BLE_LIST_SCAN&&view->state.scanning)operation=BLE_LIST_SCAN_STOP;
   else if(operation==BLE_LIST_SCAN&&view->state.connected&&!view->state.encrypted)operation=BLE_LIST_PAIR;
-  if(operation==BLE_LIST_MOUSE){glass_mouse_open(NULL);return;}
+  if(!operation)return;
   struct ble_list_job job={.operation=operation,.generation=view->state.generation,
     .scan_generation=view->state.scan_generation,.peer_valid=view->state.peer_valid,.peer=view->state.peer};
   int result=glass_ble_list_submit(&job);if(result)show_toast(ble_list_error(result));
@@ -294,54 +294,54 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
   struct glass_ble_state *state=&view->state;
   bool pairing=busy&&operation==BLE_LIST_PAIR;
   bool pair_failed=!busy&&operation==BLE_LIST_PAIR&&result;
-  const char *status=state->restoring?"正在逐个恢复普通设备":state->mouse_paused?"普通设备已暂停，等待鼠标退出":
-    state->disconnecting?"正在断开连接":state->store_error?"配对保存失败":pairing?"正在配对设备":
-    pair_failed?(result==-ECANCELED?"配对已取消":"配对未完成"):
-    state->connected?(state->encrypted?(state->bonded?"配对成功":"安全连接成功"):"连接成功"):
-    state->connecting?"正在连接设备":
-    busy?(operation==BLE_LIST_SCAN?"正在准备搜索":operation==BLE_LIST_CONNECT?"正在准备连接":"正在处理操作"):
-    state->scanning?"正在搜索附近设备":hid?"触摸板已启用，尚未连接设备":
-    !result&&operation==BLE_LIST_DISCONNECT?"蓝牙已断开":
-    !result&&operation==BLE_LIST_CANCEL?"操作已取消":
-    state->scan_generation&&!state->count?"搜索结束，未发现设备":"尚未连接设备";
+  const char *status=state->restoring?glass_tr("正在逐个恢复普通设备"):state->mouse_paused?glass_tr("普通设备已暂停，等待鼠标退出"):
+    state->disconnecting?glass_tr("正在断开连接"):state->store_error?glass_tr("配对保存失败"):pairing?glass_tr("正在配对设备"):
+    pair_failed?(result==-ECANCELED?glass_tr("配对已取消"):glass_tr("配对未完成")):
+    state->connected?(state->encrypted?(state->bonded?glass_tr("配对成功"):glass_tr("安全连接成功")):glass_tr("连接成功")):
+    state->connecting?glass_tr("正在连接设备"):
+    busy?(operation==BLE_LIST_SCAN?glass_tr("正在准备搜索"):operation==BLE_LIST_CONNECT?glass_tr("正在准备连接"):glass_tr("正在处理操作")):
+    state->scanning?glass_tr("正在搜索附近设备"):hid?glass_tr("触摸板已启用，尚未连接设备"):
+    !result&&operation==BLE_LIST_DISCONNECT?glass_tr("蓝牙已断开"):
+    !result&&operation==BLE_LIST_CANCEL?glass_tr("操作已取消"):
+    state->scan_generation&&!state->count?glass_tr("搜索结束，未发现设备"):glass_tr("尚未连接设备");
   if(state->peer_valid&&(state->connected||state->connecting)){
-    char title[144];snprintf(title,sizeof(title),"%s · %s",status,state->peer.name[0]?state->peer.name:"未命名设备");
+    char title[144];snprintf(title,sizeof(title),"%s · %s",status,state->peer.name[0]?state->peer.name:glass_tr("未命名设备"));
     ble_list_text(view->status,title);
   }else ble_list_text(view->status,status);
   char detail[180];
-  if(state->store_error)snprintf(detail,sizeof(detail),"配对信息保存失败（%d），请检查存储并重启后重试",state->store_error);
+  if(state->store_error)snprintf(detail,sizeof(detail),glass_tr("配对信息保存失败（%d），请检查存储并重启后重试"),state->store_error);
   else if(!busy&&(result||state->error))snprintf(detail,sizeof(detail),"%s",ble_list_error(result?result:state->error));
-  else if(state->mouse_paused)snprintf(detail,sizeof(detail),"鼠标使用期间暂停普通 BLE，退出后自动重连；可取消设备恢复");
-  else if(pairing)snprintf(detail,sizeof(detail),"请在对方设备确认配对，完成后自动更新状态");
+  else if(state->mouse_paused)snprintf(detail,sizeof(detail),glass_tr("鼠标使用期间暂停普通 BLE，退出后自动重连；可取消设备恢复"));
+  else if(pairing)snprintf(detail,sizeof(detail),glass_tr("请在对方设备确认配对，完成后自动更新状态"));
   else if(state->peer_valid&&(state->connected||state->connecting)){
     char address[80];ble_list_address(&state->peer,address,sizeof(address));
-    snprintf(detail,sizeof(detail),"%s%s",address,state->connected?(state->encrypted&&state->bonded?" · 已配对":
-      state->encrypted?" · 已加密，未保存配对":" · 未配对，可点击“配对设备”"):"");
-  }else snprintf(detail,sizeof(detail),"%s",hid?"设备列表只显示外部设备，触摸板状态单独显示":
-    state->scanning?"点选设备即可停止搜索并连接":"搜索附近的低功耗蓝牙设备，设备需处于可连接状态");
+    snprintf(detail,sizeof(detail),"%s%s",address,state->connected?(state->encrypted&&state->bonded?glass_tr(" · 已配对"):
+      state->encrypted?glass_tr(" · 已加密，未保存配对"):glass_tr(" · 未配对，可点击“配对设备”")):"");
+  }else snprintf(detail,sizeof(detail),"%s",hid?glass_tr("设备列表只显示外部设备，触摸板状态单独显示"):
+    state->scanning?glass_tr("点选设备即可停止搜索并连接"):glass_tr("搜索附近的低功耗蓝牙设备，设备需处于可连接状态"));
   ble_list_text(view->detail,detail);
   bool can_scan=!hid&&!state->mouse_paused&&!busy&&!ble_list_connecting(state)&&!state->disconnecting&&(!state->connected||state->encrypted);
   bool can_pair=!hid&&!state->mouse_paused&&!busy&&state->connected&&state->peer_valid&&!state->encrypted&&!state->disconnecting;
   glass_mouse_button_enabled(view->scan,can_scan||can_pair);
-  ble_list_text(lv_obj_get_child(view->scan,0),pairing?"配对中…":state->scanning?"停止搜索":
-    state->connected&&!state->encrypted?"配对设备":"搜索设备");
-  view->action=state->mouse_paused&&state->peer_valid?BLE_LIST_DISCONNECT:pairing?BLE_LIST_CANCEL:state->connected?BLE_LIST_DISCONNECT:state->connecting||busy?BLE_LIST_CANCEL:state->scanning?BLE_LIST_SCAN_STOP:BLE_LIST_MOUSE;
-  const char *control=state->mouse_paused&&state->peer_valid?"取消恢复":pairing?"取消配对":view->action==BLE_LIST_DISCONNECT?"断开连接":state->connecting?"取消连接":
-    state->scanning?"停止搜索":busy?"取消操作":"无线触摸板";
+  ble_list_text(lv_obj_get_child(view->scan,0),pairing?glass_tr("配对中…"):state->scanning?glass_tr("停止搜索"):
+    state->connected&&!state->encrypted?glass_tr("配对设备"):glass_tr("搜索设备"));
+  view->action=state->mouse_paused&&state->peer_valid?BLE_LIST_DISCONNECT:pairing?BLE_LIST_CANCEL:state->connected?BLE_LIST_DISCONNECT:state->connecting||busy?BLE_LIST_CANCEL:state->scanning?BLE_LIST_SCAN_STOP:0;
+  const char *control=state->mouse_paused&&state->peer_valid?glass_tr("取消恢复"):pairing?glass_tr("取消配对"):view->action==BLE_LIST_DISCONNECT?glass_tr("断开连接"):state->connecting?glass_tr("取消连接"):
+    state->scanning?glass_tr("停止搜索"):busy?glass_tr("取消操作"):glass_tr("暂无连接");
   ble_list_text(lv_obj_get_child(view->control,0),control);
-  glass_mouse_button_enabled(view->control,!state->disconnecting&&(!busy||operation==BLE_LIST_SCAN||operation==BLE_LIST_CONNECT||pairing));
+  glass_mouse_button_enabled(view->control,view->action&&!state->disconnecting&&(!busy||operation==BLE_LIST_SCAN||operation==BLE_LIST_CONNECT||pairing));
   unsigned folded=0;
   for(unsigned i=0;i<state->count;i++)if(ble_list_folded(view,&state->devices[i]))folded++;
-  char count[160];snprintf(count,sizeof(count),"普通连接 %u/%u · 附近设备 %u 条%s · 未命名 %u 条%s",
+  char count[160];snprintf(count,sizeof(count),glass_tr("普通连接 %u/%u · 附近设备 %u 条%s · 未命名 %u 条%s"),
     ble_list_connections(state),state->central_capacity?state->central_capacity:1,state->count,
-    state->scan_truncated?"（已达保留上限）":"",folded,state->scanning?" · 搜索中":"");
+    state->scan_truncated?glass_tr("（已达保留上限）"):"",folded,state->scanning?glass_tr(" · 搜索中"):"");
   ble_list_text(view->count,count);
   if(state->count)lv_obj_add_flag(view->empty,LV_OBJ_FLAG_HIDDEN);
   else{
     lv_obj_remove_flag(view->empty,LV_OBJ_FLAG_HIDDEN);
-    ble_list_text(view->empty,state->scanning?"正在寻找设备…":
-      busy?"正在准备蓝牙，请稍候":state->scan_generation?
-      "未发现设备\n请确认设备已开启广播，再重新搜索":"还没有发现设备\n点击“搜索设备”开始查找");
+    ble_list_text(view->empty,state->scanning?glass_tr("正在寻找设备…"):
+      busy?glass_tr("正在准备蓝牙，请稍候"):state->scan_generation?
+      glass_tr("未发现设备\n请确认设备已开启广播，再重新搜索"):glass_tr("还没有发现设备\n点击“搜索设备”开始查找"));
   }
   /* Stable within each priority class: fluctuating RSSI never moves a row.
    * The original index/address/generation remain bound through sorting. */
@@ -360,7 +360,7 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
   if(folded){
     lv_obj_remove_flag(view->broadcasts,LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_y(view->broadcasts,main_count*80);
-    char label[96];snprintf(label,sizeof(label),"未命名广播（%u） · %s",folded,view->expanded?"收起":"展开");
+    char label[96];snprintf(label,sizeof(label),glass_tr("未命名广播（%u） · %s"),folded,view->expanded?glass_tr("收起"):glass_tr("展开"));
     ble_list_text(lv_obj_get_child(view->broadcasts,0),label);
   }else lv_obj_add_flag(view->broadcasts,LV_OBJ_FLAG_HIDDEN);
   for(unsigned slot=0;slot<GLASS_BLE_LIMIT;slot++){
@@ -373,20 +373,20 @@ static void glass_ble_list_refresh(lv_timer_t *timer)
     bool active=session||(state->peer_valid&&ble_list_same_peer(peer,&state->peer));
     if(session){row->binding.operation=BLE_LIST_SELECT;row->binding.generation=session->generation;}
     lv_obj_remove_flag(row->root,LV_OBJ_FLAG_HIDDEN);lv_obj_set_y(row->root,slot*80+(slot>=main_count?56:0));
-    ble_list_text(row->name,peer->name[0]?peer->name:"未命名设备");
+    ble_list_text(row->name,peer->name[0]?peer->name:glass_tr("未命名设备"));
     char address[80],hint[192];ble_list_address(peer,address,sizeof(address));
     snprintf(hint,sizeof(hint),"%s · %s · %s",ble_list_type(peer),
-      peer->bonded?"已配对":peer->connectable_known?(peer->connectable?"可连接":"仅广播"):"连接能力未知",address);
+      peer->bonded?glass_tr("已配对"):peer->connectable_known?(peer->connectable?glass_tr("可连接"):glass_tr("仅广播")):glass_tr("连接能力未知"),address);
     ble_list_text(row->address,hint);
     bool broadcast_only=peer->connectable_known&&!peer->connectable;
     char signal[48];
-    if(peer->rssi<-127||peer->rssi>20)snprintf(signal,sizeof(signal),"信号未知");
-    else snprintf(signal,sizeof(signal),"%d dBm · %s",peer->rssi,peer->rssi>=-55?"强":peer->rssi>=-75?"良好":"弱");
+    if(peer->rssi<-127||peer->rssi>20)snprintf(signal,sizeof(signal),glass_tr("信号未知"));
+    else snprintf(signal,sizeof(signal),"%d dBm · %s",peer->rssi,peer->rssi>=-55?glass_tr("强"):peer->rssi>=-75?glass_tr("良好"):glass_tr("弱"));
     ble_list_text(row->signal,signal);
-    ble_list_text(row->action,session?(session->mouse_paused?"等待恢复":session->disconnecting?"断开中…":session->connecting?"连接中…":
-      session->generation==state->generation?"当前设备":"管理连接"):active?(state->disconnecting?"断开中…":pairing?"配对中…":
-      state->connected?(state->encrypted&&state->bonded?"已配对":"已连接"):"连接中…"):
-      broadcast_only?"仅广播":peer->bonded?"重新连接":"连接");
+    ble_list_text(row->action,session?(session->mouse_paused?glass_tr("等待恢复"):session->disconnecting?glass_tr("断开中…"):session->connecting?glass_tr("连接中…"):
+      session->generation==state->generation?glass_tr("当前设备"):glass_tr("管理连接")):active?(state->disconnecting?glass_tr("断开中…"):pairing?glass_tr("配对中…"):
+      state->connected?(state->encrypted&&state->bonded?glass_tr("已配对"):glass_tr("已连接")):glass_tr("连接中…")):
+      broadcast_only?glass_tr("仅广播"):peer->bonded?glass_tr("重新连接"):glass_tr("连接"));
     lv_obj_set_width(row->action,active?116:96);
     if(active||broadcast_only)lv_obj_add_flag(row->arrow,LV_OBJ_FLAG_HIDDEN);
     else lv_obj_remove_flag(row->arrow,LV_OBJ_FLAG_HIDDEN);
@@ -407,24 +407,22 @@ static void glass_ble_list_deleted(lv_event_t *event)
 }
 static void glass_ble_devices_page(lv_obj_t *card)
 {
-  struct ble_list_ui *view=calloc(1,sizeof(*view));if(!view){show_toast("内存不足");return;}
+  struct ble_list_ui *view=calloc(1,sizeof(*view));if(!view){show_toast(glass_tr("内存不足"));return;}
   g_ble_list=view;view->root=card;
   lv_obj_add_event_cb(card,glass_ble_list_deleted,LV_EVENT_DELETE,view);
   pthread_mutex_lock(&g_ble_list_lock);if(!g_ble_list_jobs.busy)g_ble_list_jobs.result=0;
   pthread_mutex_unlock(&g_ble_list_lock);
-  detail_page(card);detail_sidebar(card,"蓝牙",LV_SYMBOL_BLUETOOTH,panel_hide);
-  lv_obj_t *selected=detail_nav(card,"设备连接",LV_SYMBOL_BLUETOOTH,104,140,NULL,NULL);glass_sidebar_item(selected,true);
-  lv_obj_t *mouse=detail_nav(card,"无线触摸板",LV_SYMBOL_GPS,156,140,glass_mouse_open,NULL);glass_sidebar_item(mouse,false);
-  detail_text(card,"蓝牙设备",216,26,500,28,detail_ink());
-  detail_text(card,"优先显示已配对和有名称的设备，类型根据广播声明提示",216,66,760,14,detail_muted());
+  detail_page(card);glass_settings_sidebar(card,SETTINGS_BLUETOOTH);
+  detail_text(card,glass_tr("蓝牙设备"),216,26,500,28,detail_ink());
+  detail_text(card,glass_tr("优先显示已配对和有名称的设备，类型根据广播声明提示"),216,66,760,14,detail_muted());
   lv_obj_t *summary=detail_tile(card,216,104,784,112);
   home_icon(summary,LV_SYMBOL_BLUETOOTH,20,24,24,detail_accent());
-  view->status=detail_text(summary,"尚未连接设备",60,22,414,20,detail_ink());
+  view->status=detail_text(summary,glass_tr("尚未连接设备"),60,22,414,20,detail_ink());
   lv_label_set_long_mode(view->status,LV_LABEL_LONG_DOT);
   view->detail=detail_text(summary,"",20,74,744,14,detail_muted());lv_label_set_long_mode(view->detail,LV_LABEL_LONG_DOT);
-  view->scan=detail_button(summary,"搜索设备",496,16,124,glass_ble_list_action,(void *)(uintptr_t)BLE_LIST_SCAN);
-  view->control=detail_button(summary,"无线触摸板",632,16,132,glass_ble_list_action,NULL);
-  view->count=detail_text(card,"附近设备 · 0",216,236,700,16,detail_muted());
+  view->scan=detail_button(summary,glass_tr("搜索设备"),496,16,124,glass_ble_list_action,(void *)(uintptr_t)BLE_LIST_SCAN);
+  view->control=detail_button(summary,glass_tr("暂无连接"),632,16,132,glass_ble_list_action,NULL);
+  view->count=detail_text(card,glass_tr("附近设备 · 0"),216,236,700,16,detail_muted());
   view->list=glass_box(card,216,272,784,278,detail_paper(),0);
   lv_obj_set_style_bg_opa(view->list,LV_OPA_TRANSP,0);
   lv_obj_add_flag(view->list,LV_OBJ_FLAG_SCROLLABLE);lv_obj_set_scroll_dir(view->list,LV_DIR_VER);
@@ -433,19 +431,20 @@ static void glass_ble_devices_page(lv_obj_t *card)
     struct ble_list_row *row=&view->rows[i];
     row->root=glass_box(view->list,0,i*80,768,72,detail_paper(),14);
     lv_obj_add_flag(row->root,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(row->root,LV_OBJ_FLAG_SCROLLABLE);
+    glass_input_guard_install(row->root);
     lv_obj_set_style_border_width(row->root,1,0);lv_obj_set_style_border_color(row->root,lv_color_hex(detail_line()),0);
     home_icon(row->root,LV_SYMBOL_BLUETOOTH,18,24,22,detail_accent());
     row->name=detail_text(row->root,"",60,12,366,18,detail_ink());lv_label_set_long_mode(row->name,LV_LABEL_LONG_DOT);
     row->address=detail_text(row->root,"",60,43,690,12,detail_muted());lv_label_set_long_mode(row->address,LV_LABEL_LONG_DOT);
     row->signal=detail_text(row->root,"",458,14,170,14,detail_muted());
-    row->action=detail_text(row->root,"连接",632,27,96,14,detail_accent());
+    row->action=detail_text(row->root,glass_tr("连接"),632,27,96,14,detail_accent());
     row->arrow=home_icon(row->root,LV_SYMBOL_RIGHT,742,28,14,detail_accent());
     lv_obj_set_style_text_align(row->action,LV_TEXT_ALIGN_RIGHT,0);
     lv_obj_add_event_cb(row->root,glass_ble_list_connect,LV_EVENT_PRESSED,row);
     lv_obj_add_event_cb(row->root,glass_ble_list_connect,LV_EVENT_CLICKED,row);
     lv_obj_add_flag(row->root,LV_OBJ_FLAG_HIDDEN);
   }
-  view->broadcasts=detail_button(view->list,"未命名广播",0,0,752,glass_ble_list_toggle,NULL);
+  view->broadcasts=detail_button(view->list,glass_tr("未命名广播"),0,0,752,glass_ble_list_toggle,NULL);
   lv_obj_add_flag(view->broadcasts,LV_OBJ_FLAG_HIDDEN);
   view->empty=detail_text(view->list,"",24,80,720,20,detail_muted());
   lv_obj_set_style_text_align(view->empty,LV_TEXT_ALIGN_CENTER,0);
@@ -455,7 +454,7 @@ static void glass_ble_devices_page(lv_obj_t *card)
   lv_obj_update_layout(card);
   view->timer=lv_timer_create(glass_ble_list_refresh,200,NULL);glass_ble_list_refresh(NULL);
   if(!view->timer){
-    ble_list_text(view->status,"状态刷新启动失败，请重新打开蓝牙");
+    ble_list_text(view->status,glass_tr("状态刷新启动失败，请重新打开蓝牙"));
     glass_mouse_button_enabled(view->scan,false);glass_mouse_button_enabled(view->control,false);
     for(unsigned i=0;i<GLASS_BLE_LIMIT;i++)glass_mouse_button_enabled(view->rows[i].root,false);
     return;
@@ -471,4 +470,4 @@ static void glass_ble_devices_page(lv_obj_t *card)
   }
 }
 static void glass_ble_devices_open(lv_event_t *event)
-{LV_UNUSED(event);lv_obj_t *card=panel_card("蓝牙设备");if(card)glass_ble_devices_page(card);}
+{LV_UNUSED(event);lv_obj_t *card=panel_card(glass_tr("蓝牙设备"));if(card)glass_ble_devices_page(card);}

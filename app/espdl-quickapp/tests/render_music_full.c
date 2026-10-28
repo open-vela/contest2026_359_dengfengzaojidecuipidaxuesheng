@@ -115,13 +115,14 @@ int main(int argc,char **argv)
     music_full_draw();music_full_draw();
     assert(lv_anim_get(full->rows[current_slot],music_full_lyric_offset)==moving&&moving->act_time==animation_time);
     review_capture(display,"full-lyrics-cascade","全屏歌词 · 半弧滑动与双语同步");
-    /* A rapid next line retains screen positions and does not replay the
-     * previous movement from its original start. */
+    /* A rapid next line drops the unfinished transition and catches up to
+     * the current audio line instead of accumulating visual delay. */
     previous_y=lyric_screen_y(full,50);
     previous_x=lyric_screen_x(full,50);
     review_lyrics_fixture(192,50);music_ui_refresh(NULL);
-    assert(lyric_screen_y(full,50)==previous_y&&full->labels[current_slot]==animated);
-    assert(lyric_screen_x(full,50)==previous_x);
+    assert(lyric_screen_y(full,50)==MUSIC_FULL_PAD&&full->labels[current_slot]==animated);
+    assert(lyric_screen_x(full,50)==22);
+    for(unsigned i=0;i<MUSIC_LYRICS_WINDOW;i++)assert(!lv_anim_get(full->rows[i],music_full_lyric_offset));
     now.state=MUSIC_PAUSED;review_music_now_fixture(&now);music_ui_refresh(NULL);
     for(unsigned i=0;i<MUSIC_LYRICS_WINDOW;i++){
       assert(!lv_anim_get(full->labels[i],music_full_lyric_opacity));

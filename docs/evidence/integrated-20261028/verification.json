@@ -1,0 +1,86 @@
+{
+  "firmware_sha256": "c5d012c0a3b69d102174b765dd26a7fec76128cefdce42e8aef9b4dc6467b9aa",
+  "cloud_source_revision": "5a7089e7038ebeb64df2753051748d1e7e977825",
+  "new_ui_icons_included": false,
+  "image_readback_verified": true,
+  "data_partition_unchanged_before_boot": true,
+  "partition": {
+    "app": "0x2000",
+    "data": "0xc00000",
+    "data_size": "0x400000"
+  },
+  "host_groups": {
+    "backlight": true,
+    "capabilities": true,
+    "i18n": true,
+    "music": true,
+    "pcm": true,
+    "album": true,
+    "h264": true,
+    "video-handoff": true,
+    "camera-sync": true,
+    "camera-boundary": true,
+    "recorder": true,
+    "grok": true,
+    "interaction": true,
+    "video-blit": true
+  },
+  "ui_groups": {
+    "global-fonts": true,
+    "i18n-ui": true,
+    "album-ui": true,
+    "album-cache": true,
+    "volume-ui": true,
+    "music-seek": true,
+    "navigation": true,
+    "camera-ui": true,
+    "grok-ui": true
+  },
+  "pcm_framing_cases": 1350,
+  "c6_tx_max_packets_per_pass": 8,
+  "font_and_gesture_host": true,
+  "global_font_ui": {
+    "restore": true,
+    "invalid-choice": true,
+    "out-of-range-choice": true,
+    "missing": true,
+    "truncated": true,
+    "checksum": true,
+    "read-failure": true,
+    "native_switches_and_render": true,
+    "screens": 68
+  },
+  "device": {
+    "font_gesture_user_confirmed": true,
+    "backlight_user_confirmed": true,
+    "audio_user_confirmed": "已经正常，没有电音",
+    "audio_rate": 44100,
+    "media_buffer_frames": 960,
+    "ha_devices": 4,
+    "ha_entities": 200,
+    "sd_h264_mjpeg_native_fullscreen": true,
+    "fullscreen_touch_exit": true,
+    "csi_preview_and_stop": true,
+    "native_browser_executed": true,
+    "browser_reading_restore": true,
+    "browser_entry_restored": true,
+    "browser_storage_unchanged": true,
+    "software_reboot_recovery": true
+  },
+  "not_physically_verified": [
+    "USB camera not connected",
+    "cold power cycle",
+    "new BLE identity first pairing and eight concurrent links",
+    "arbitrary Flash write/erase screen flicker"
+  ],
+  "earlier_disconnects": "manual action/root cause unconfirmed; retained in local incident evidence",
+  "private_backups_included": false,
+  "usb_host_regressions": {
+    "camera_pools": true,
+    "interfaces": true,
+    "protocols": true
+  },
+  "repro_input_tests": 16,
+  "staged_python_syntax_files": 115,
+  "sensitive_literal_scan_findings": 0
+}

@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
+#include "glass_i18n.h"
+#include "glass_heading.h"
 /* Real QuickJS + extracted production LVGL bindings; hardware fixtures only. */
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,9 +10,12 @@
 #include <errno.h>
 #include <quickjs.h>
 #include "qpk_runtime.h"
+#include "glass_input_guard.h"
+#include "glass_app_frame.h"
 #include "glass_app_controls.h"
 #include "qpk_app_theme.h"
 #include "glass_icons.h"
+#include "glass_heading.h"
 #include "glass_ime.h"
 #define QPK_EVENT_BUDGET 80
 #define QPK_HANG_BUDGET 5000
@@ -22,9 +27,9 @@ static struct {
   lv_obj_t **widgets;uint8_t *widget_types;void **widget_extra;uint64_t *widget_generations;
   uint64_t widget_serial;int widget_capacity,widget_hint;struct qpk_event_s *events;
   qpk_font_cb_t font_cb;qpk_message_cb_t toast_cb,dialog_cb;
-  lv_obj_t *input_shade,*input_textarea;JSValue input_callback;
+  lv_obj_t *input_shade,*input_textarea;JSValue input_callback;bool input_notify_cancel;
   uint32_t primary_color,secondary_color,surface_color,card_color,accent_color;
-  JSValue touch_event;bool touch_used,touch_test_active;struct qpk_event_s swipe_event;
+  JSValue touch_event;bool touch_used,touch_test_active;struct qpk_event_s swipe_event,back_event;
 } g_qpk;
 static char review_error[256];
 static bool review_hass_ready;
@@ -111,8 +116,11 @@ void qpk_runtime_stop(void)
     if(g_qpk.root)lv_obj_remove_event_cb(g_qpk.root,qpk_event_swiped);
     if(g_qpk.root)lv_obj_remove_event_cb(g_qpk.root,review_gesture_count);
     if(g_qpk.swipe_event.used)JS_FreeValue(g_qpk.context,g_qpk.swipe_event.function);
+    if(g_qpk.back_event.used)JS_FreeValue(g_qpk.context,g_qpk.back_event.function);
     if(g_qpk.touch_used)JS_FreeValue(g_qpk.context,g_qpk.touch_event);
     if(!JS_IsUndefined(g_qpk.input_callback)){JS_FreeValue(g_qpk.context,g_qpk.input_callback);g_qpk.input_callback=JS_UNDEFINED;}
+    lv_obj_t *rail=g_qpk.root?lv_obj_get_user_data(g_qpk.root):NULL;
+    if(rail)while(lv_obj_get_child_count(rail)>2)lv_obj_delete(lv_obj_get_child(rail,2));
     if(g_qpk.root)lv_obj_clean(g_qpk.root);
     for(int i=0;i<g_qpk.widget_capacity;i++)free(g_qpk.widget_extra[i]);
     struct qpk_event_s *b=g_qpk.events;while(b){struct qpk_event_s *next=b->next;if(b->used)JS_FreeValue(g_qpk.context,b->function);free(b);b=next;}
@@ -167,6 +175,7 @@ int qpk_runtime_launch(lv_obj_t *root,const char *name,const char *package,const
   JSContext *c=g_qpk.context;JSValue global=JS_GetGlobalObject(c),ui=JS_NewObject(c);
 #include "production_qpk_registration.inc"
   JS_SetPropertyStr(c,ui,"onTouch",JS_NewCFunctionMagic(c,review_pointer,"onTouch",1,JS_CFUNC_generic_magic,0));
+  JS_SetPropertyStr(c,ui,"onBack",JS_NewCFunction(c,js_ui_on_back,"onBack",1));
   JS_SetPropertyStr(c,ui,"onSwipe",JS_NewCFunctionMagic(c,review_pointer,"onSwipe",1,JS_CFUNC_generic_magic,1));
   JS_SetPropertyStr(c,ui,"primary",JS_NewUint32(c,g_qpk.primary_color));JS_SetPropertyStr(c,ui,"secondary",JS_NewUint32(c,g_qpk.secondary_color));
   JS_SetPropertyStr(c,ui,"surface",JS_NewUint32(c,g_qpk.surface_color));JS_SetPropertyStr(c,ui,"card",JS_NewUint32(c,g_qpk.card_color));JS_SetPropertyStr(c,ui,"accent",JS_NewUint32(c,g_qpk.accent_color));
@@ -184,6 +193,10 @@ int qpk_runtime_launch(lv_obj_t *root,const char *name,const char *package,const
   JS_FreeValue(c,global);
   FILE *f=fopen(REVIEW_PRELUDE,"rb");if(!f)return -ENOENT;fseek(f,0,SEEK_END);size_t size=ftell(f);rewind(f);char *prelude=calloc(1,size+1);fread(prelude,1,size,f);fclose(f);
   int ret=qpk_review_eval(prelude);free(prelude);if(ret)return ret;
+  global=JS_GetGlobalObject(c);JSValue system=JS_GetPropertyStr(c,global,"system");
+  JS_SetPropertyStr(c,system,"language",JS_NewString(c,glass_i18n_code()));
+  JS_SetPropertyStr(c,system,"translate",JS_NewCFunction(c,js_system_translate,"translate",1));
+  JS_FreeValue(c,system);JS_FreeValue(c,global);
   if(review_hass_ready)qpk_review_eval("__haConfigured=true");
   ret=qpk_review_eval(source);if(ret){fprintf(stderr,"Failed app: %s\n",name);exit(2);}return ret;
 }

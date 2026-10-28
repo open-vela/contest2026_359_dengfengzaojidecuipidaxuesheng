@@ -1,0 +1,339 @@
+--- a/libparserutils/src/charset/codec.c
++++ b/libparserutils/src/charset/codec.c
+@@ -15,10 +15,12 @@
+ extern parserutils_charset_handler charset_ext8_codec_handler;
+ extern parserutils_charset_handler charset_utf8_codec_handler;
+ extern parserutils_charset_handler charset_utf16_codec_handler;
++extern const parserutils_charset_handler charset_gbk_codec_handler;
+ 
+-static parserutils_charset_handler *handler_table[] = {
++static const parserutils_charset_handler *handler_table[] = {
+ 	&charset_utf8_codec_handler,
+ 	&charset_utf16_codec_handler,
++	&charset_gbk_codec_handler,
+ 	&charset_8859_codec_handler,
+ 	&charset_ext8_codec_handler,
+ 	&charset_ascii_codec_handler,
+@@ -39,7 +41,7 @@
+ 		parserutils_charset_codec **codec)
+ {
+ 	parserutils_charset_codec *c;
+-	parserutils_charset_handler **handler;
++	const parserutils_charset_handler **handler;
+ 	const parserutils_charset_aliases_canon * canon;
+ 	parserutils_error error;
+ 
+@@ -187,4 +189,3 @@
+ 
+ 	return codec->handler.reset(codec);
+ }
+-
+--- a/libparserutils/src/charset/codecs/Makefile
++++ b/libparserutils/src/charset/codecs/Makefile
+@@ -1,5 +1,5 @@
+ # Sources
+ DIR_SOURCES := codec_ascii.c codec_8859.c codec_ext8.c \
+-	codec_utf8.c codec_utf16.c
++	codec_utf8.c codec_utf16.c codec_gbk.c
+ 
+ include $(NSBUILD)/Makefile.subdir
+--- a/libparserutils/src/input/filter.c
++++ b/libparserutils/src/input/filter.c
+@@ -255,7 +255,7 @@
+ 		input->leftover = false;
+ 	}
+ 
+-	while (*len > 0) {
++	do {
+ 		parserutils_error read_error, write_error;
+ 		size_t pivot_len = sizeof(input->pivot_buf);
+ 		uint8_t *pivot = (uint8_t *) input->pivot_buf;
+@@ -286,7 +286,7 @@
+ 		if (read_error != PARSERUTILS_OK && 
+ 				read_error != PARSERUTILS_NOMEM)
+ 			return read_error;
+-	}
++	} while (*len > 0);
+ 
+ 	return PARSERUTILS_OK;
+ #endif
+--- a/libparserutils/src/input/inputstream.c
++++ b/libparserutils/src/input/inputstream.c
+@@ -26,6 +26,7 @@
+ 
+ 	bool done_first_chunk;		/**< Whether the first chunk has 
+ 					 * been processed */
++	bool flushed_eof;
+ 
+ 	uint16_t mibenum;		/**< MIB enum for charset, or 0 */
+ 	uint32_t encsrc;		/**< Charset source */
+@@ -86,6 +87,7 @@
+ 	s->public.cursor = 0;
+ 	s->public.had_eof = false;
+ 	s->done_first_chunk = false;
++	s->flushed_eof = false;
+ 
+ 	error = parserutils__filter_create("UTF-8", &s->input);
+ 	if (error != PARSERUTILS_OK) {
+@@ -242,7 +244,8 @@
+ 		return PARSERUTILS_BADPARM;
+ 
+ 	/* There's insufficient data in the buffer, so read some more */
+-	if (s->raw->length == 0) {
++	if (s->raw->length == 0 &&
++			(!s->public.had_eof || s->flushed_eof)) {
+ 		/* No more data to be had */
+ 		return s->public.had_eof ? PARSERUTILS_EOF
+ 					 : PARSERUTILS_NEEDDATA;
+@@ -252,10 +255,17 @@
+ 	error = parserutils_inputstream_refill_buffer(s);
+ 	if (error != PARSERUTILS_OK)
+ 		return error;
++	if (s->public.cursor + offset >= s->public.utf8->length &&
++			s->raw->length == 0 && s->public.had_eof && !s->flushed_eof) {
++		error = parserutils_inputstream_refill_buffer(s);
++		if (error != PARSERUTILS_OK)
++			return error;
++	}
+ 
+ 	/* Refill may have succeeded, but not actually produced any new data */
+-	if (s->public.cursor + offset == s->public.utf8->length)
+-		return PARSERUTILS_NEEDDATA;
++	if (s->public.cursor + offset >= s->public.utf8->length)
++		return s->public.had_eof && s->flushed_eof ?
++				PARSERUTILS_EOF : PARSERUTILS_NEEDDATA;
+ 
+ 	/* Now try the read */
+ 	if (IS_ASCII(s->public.utf8->data[s->public.cursor + offset])) {
+@@ -369,6 +379,7 @@
+ 	uint8_t *utf8;
+ 	size_t raw_length, utf8_space;
+ 	parserutils_error error;
++	bool flush;
+ 
+ 	/* If this is the first chunk of data, we must detect the charset and
+ 	 * strip the BOM, if one exists */
+@@ -462,6 +473,7 @@
+ 
+ 	raw = stream->raw->data;
+ 	raw_length = stream->raw->length;
++	flush = raw_length == 0 && stream->public.had_eof;
+ 
+ 	/* Try to fill utf8 buffer from the raw data */
+ 	error = parserutils__filter_process_chunk(stream->input, 
+@@ -470,12 +482,16 @@
+ 	 * in the utf8 buffer. That's fine, so we'll ignore that error. */
+ 	if (error != PARSERUTILS_OK && error != PARSERUTILS_NOMEM)
+ 		return error;
++	if (flush && error == PARSERUTILS_OK)
++		stream->flushed_eof = true;
+ 
+ 	/* Remove the raw data we've processed from the raw buffer */
+-	error = parserutils_buffer_discard(stream->raw, 0, 
+-			stream->raw->length - raw_length);
+-	if (error != PARSERUTILS_OK)
+-		return error;
++	if (stream->raw->length > raw_length) {
++		error = parserutils_buffer_discard(stream->raw, 0,
++				stream->raw->length - raw_length);
++		if (error != PARSERUTILS_OK)
++			return error;
++	}
+ 
+ 	/* Fix up the utf8 buffer information */
+ 	stream->public.utf8->length = 
+@@ -607,4 +623,3 @@
+ 
+ 	return PARSERUTILS_OK;
+ }
+-
+--- /dev/null
++++ b/libparserutils/src/charset/codecs/codec_gbk.c
+@@ -0,0 +1,186 @@
++#include <stdlib.h>
++#include <string.h>
++#include <iconv.h>
++
++#include <parserutils/charset/mibenum.h>
++
++#include "charset/codecs/codec_impl.h"
++
++typedef struct charset_gbk_codec {
++	parserutils_charset_codec base;
++	uint8_t lead;
++	uint8_t write_buf[4];
++	size_t write_len;
++} charset_gbk_codec;
++
++static bool charset_gbk_codec_handles_charset(const char *charset)
++{
++	uint16_t match = parserutils_charset_mibenum_from_name(charset,
++			strlen(charset));
++
++	return match != 0 &&
++			(match == parserutils_charset_mibenum_from_name("GBK", 3) ||
++			 match == parserutils_charset_mibenum_from_name("GB2312", 6) ||
++			 match == parserutils_charset_mibenum_from_name("GB_2312-80", 10));
++}
++
++static parserutils_error charset_gbk_codec_destroy(parserutils_charset_codec *codec)
++{
++	(void)codec;
++	return PARSERUTILS_OK;
++}
++
++static parserutils_error charset_gbk_codec_reset(parserutils_charset_codec *codec)
++{
++	charset_gbk_codec *gbk = (charset_gbk_codec *)codec;
++
++	gbk->lead = 0;
++	gbk->write_len = 0;
++	return PARSERUTILS_OK;
++}
++
++static parserutils_error charset_gbk_codec_encode(parserutils_charset_codec *codec,
++		const uint8_t **source, size_t *sourcelen,
++		uint8_t **dest, size_t *destlen)
++{
++	charset_gbk_codec *gbk = (charset_gbk_codec *)codec;
++	bool flush = *sourcelen == 0;
++
++	while (*sourcelen > 0 || gbk->write_len == 4 ||
++			(flush && gbk->write_len > 0)) {
++		uint32_t codepoint;
++		unsigned int encoded;
++		size_t length;
++		const uint8_t *initial_source = *source;
++		size_t initial_length = *sourcelen;
++		size_t initial_buffered = gbk->write_len;
++
++		while (gbk->write_len < 4 && *sourcelen > 0) {
++			gbk->write_buf[gbk->write_len++] = **source;
++			(*source)++;
++			(*sourcelen)--;
++		}
++		if (gbk->write_len < 4 && !flush)
++			break;
++		codepoint = gbk->write_len == 4 ?
++				((uint32_t)gbk->write_buf[0] << 24) |
++				((uint32_t)gbk->write_buf[1] << 16) |
++				((uint32_t)gbk->write_buf[2] << 8) |
++				gbk->write_buf[3] : 0xffffffffU;
++		if (codepoint < 0x80) {
++			encoded = codepoint;
++			length = 1;
++		} else if (codepoint == 0x20ac) {
++			encoded = 0x80;
++			length = 1;
++		} else {
++			encoded = buzzos_gbk_encode(codepoint);
++			if (encoded == 0) {
++				if (codec->errormode == PARSERUTILS_CHARSET_CODEC_ERROR_STRICT) {
++					*source = initial_source;
++					*sourcelen = initial_length;
++					gbk->write_len = initial_buffered;
++					return PARSERUTILS_INVALID;
++				}
++				encoded = '?';
++			}
++			length = encoded > 0xff ? 2 : 1;
++		}
++		if (*destlen < length)
++			return PARSERUTILS_NOMEM;
++		if (length == 2)
++			*(*dest)++ = (uint8_t)(encoded >> 8);
++		*(*dest)++ = (uint8_t)encoded;
++		*destlen -= length;
++		gbk->write_len = 0;
++	}
++	return PARSERUTILS_OK;
++}
++
++static parserutils_error charset_gbk_codec_decode(parserutils_charset_codec *codec,
++		const uint8_t **source, size_t *sourcelen,
++		uint8_t **dest, size_t *destlen)
++{
++	charset_gbk_codec *gbk = (charset_gbk_codec *)codec;
++	bool flush = *sourcelen == 0;
++
++	while (*sourcelen > 0 || (flush && gbk->lead != 0)) {
++		uint32_t codepoint;
++		bool consume = true;
++
++		if (gbk->lead != 0) {
++			codepoint = 0;
++			if (*sourcelen > 0) {
++				uint8_t trail = **source;
++				if (trail >= 0x40 && trail <= 0xfe && trail != 0x7f)
++					codepoint = buzzos_gbk_decode(gbk->lead, trail);
++				if (codepoint == 0 && trail < 0x80)
++					consume = false;
++			} else {
++				consume = false;
++			}
++			if (codepoint == 0) {
++				if (codec->errormode == PARSERUTILS_CHARSET_CODEC_ERROR_STRICT)
++					return PARSERUTILS_INVALID;
++				codepoint = 0xfffd;
++			}
++		} else {
++			uint8_t input = **source;
++			if (input >= 0x81 && input <= 0xfe) {
++				if (codec->errormode == PARSERUTILS_CHARSET_CODEC_ERROR_STRICT &&
++						*sourcelen >= 2 &&
++						buzzos_gbk_decode(input, (*source)[1]) == 0)
++					return PARSERUTILS_INVALID;
++				gbk->lead = input;
++				(*source)++;
++				(*sourcelen)--;
++				continue;
++			}
++			if (input < 0x80)
++				codepoint = input;
++			else if (input == 0x80)
++				codepoint = 0x20ac;
++			else {
++				if (codec->errormode == PARSERUTILS_CHARSET_CODEC_ERROR_STRICT)
++					return PARSERUTILS_INVALID;
++				codepoint = 0xfffd;
++			}
++		}
++		if (*destlen < 4)
++			return PARSERUTILS_NOMEM;
++		(*dest)[0] = (uint8_t)(codepoint >> 24);
++		(*dest)[1] = (uint8_t)(codepoint >> 16);
++		(*dest)[2] = (uint8_t)(codepoint >> 8);
++		(*dest)[3] = (uint8_t)codepoint;
++		*dest += 4;
++		*destlen -= 4;
++		gbk->lead = 0;
++		if (consume) {
++			(*source)++;
++			(*sourcelen)--;
++		}
++	}
++	return PARSERUTILS_OK;
++}
++
++static parserutils_error charset_gbk_codec_create(const char *charset,
++		parserutils_charset_codec **codec)
++{
++	charset_gbk_codec *gbk;
++
++	(void)charset;
++	gbk = calloc(1, sizeof(*gbk));
++	if (gbk == NULL)
++		return PARSERUTILS_NOMEM;
++	gbk->base.handler.destroy = charset_gbk_codec_destroy;
++	gbk->base.handler.encode = charset_gbk_codec_encode;
++	gbk->base.handler.decode = charset_gbk_codec_decode;
++	gbk->base.handler.reset = charset_gbk_codec_reset;
++	*codec = &gbk->base;
++	return PARSERUTILS_OK;
++}
++
++const parserutils_charset_handler charset_gbk_codec_handler = {
++	charset_gbk_codec_handles_charset,
++	charset_gbk_codec_create
++};
+

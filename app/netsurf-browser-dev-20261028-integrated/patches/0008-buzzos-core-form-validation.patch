@@ -1,0 +1,432 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -767,18 +767,133 @@
+ 	return NodeList(out);
+ });
+ accessor(ElementP, 'text', function () { return this.textContent; }, function (v) { this.textContent = v; });
++var customValidityMessages = new WeakMap();
++var liveValidityStates = new WeakMap();
++function controlDisabled(element) {
++	if (element.disabled) return true;
++	for (var ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
++		if (ancestor.tagName !== 'FIELDSET' || !ancestor.disabled) continue;
++		var legend = Array.prototype.find.call(ancestor.children, function (child) {
++			return child.tagName === 'LEGEND';
++		});
++		if (!legend || !legend.contains(element)) return true;
++	}
++	return false;
++}
++function validationCandidate(element) {
++	if (!/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(element.tagName) || controlDisabled(element) ||
++	    element.closest('datalist')) return false;
++	var type = element.type;
++	if (element.tagName === 'BUTTON') return type !== 'button' && type !== 'reset';
++	if (element.tagName === 'INPUT' && /^(hidden|button|reset|image)$/.test(type)) return false;
++	return !(element.readOnly && (element.tagName === 'TEXTAREA' ||
++		(element.tagName === 'INPUT' && !/^(checkbox|radio|file|range|color|submit)$/.test(type))));
++}
++function ownedFormControls(form) {
++	var root = form.getRootNode();
++	var controls = qsa(root, 'input,select,textarea,button');
++	return controls.filter(function (control) { return control.form === form; });
++}
++function validationState(element) {
++	var state = { valueMissing: false, typeMismatch: false, patternMismatch: false,
++		tooLong: false, tooShort: false, rangeUnderflow: false, rangeOverflow: false,
++		stepMismatch: false, badInput: false, customError: !!customValidityMessages.get(element) };
++	var type = element.type, value = toStr(element.value);
++	if (/^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName)) {
++		if (element.tagName === 'INPUT' && type === 'radio') {
++			var group = element.name ? qsa(element.getRootNode(), 'input').filter(function (other) {
++				return other.type === 'radio' && other.name === element.name && other.form === element.form;
++			}) : [element];
++			state.valueMissing = group.some(function (other) { return other.required; }) &&
++				!group.some(function (other) { return other.checked; });
++		} else if (element.required) {
++			if (element.tagName === 'INPUT' && type === 'checkbox') state.valueMissing = !element.checked;
++			else if (element.tagName === 'SELECT') {
++				var selected = element.selectedOptions;
++				var placeholder = !element.multiple && element.size <= 1 && element.options[0];
++				state.valueMissing = !selected.length || !!(selected.length === 1 && placeholder &&
++					selected[0] === placeholder && placeholder.parentElement === element && placeholder.value === '');
++			} else if (!controlDisabled(element) && !element.readOnly &&
++				(element.tagName === 'TEXTAREA' || (element.tagName === 'INPUT' &&
++				!/^(hidden|button|reset|image|submit|range|color)$/.test(type)))) state.valueMissing = value === '';
++		}
++		if (element.tagName === 'INPUT' && value !== '' && type === 'email') {
++			var addresses = element.multiple ? value.split(',') : [value];
++			var emailPattern = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
++			state.typeMismatch = addresses.some(function (address) {
++				return !emailPattern.test(address.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, ''));
++			});
++		} else if (element.tagName === 'INPUT' && value !== '' && type === 'url') {
++			try { new URL(value); } catch (error) { state.typeMismatch = true; }
++		}
++		if (element.tagName === 'INPUT' && value !== '' && /^(text|search|tel|url|email|password)$/.test(type)) {
++			var pattern = element.getAttribute('pattern');
++			if (pattern !== null) {
++				try {
++					var expression = new RegExp('^(?:' + pattern + ')$', 'v');
++					var values = type === 'email' && element.multiple ? value.split(',') : [value];
++					state.patternMismatch = values.some(function (item) { return !expression.test(item); });
++				} catch (error) {}
++			}
++		}
++	}
++	state.valid = !Object.keys(state).some(function (name) { return state[name]; });
++	return state;
++}
++function validationMessage(element) {
++	if (!validationCandidate(element)) return '';
++	var custom = customValidityMessages.get(element);
++	if (custom) return custom;
++	var state = validationState(element);
++	if (state.valueMissing) return 'Please complete this field.';
++	if (state.typeMismatch) return 'Please enter a valid ' + element.type + '.';
++	if (state.patternMismatch) return 'Please match the requested format.';
++	return '';
++}
++function checkControlValidity(element, interactive) {
++	if (!validationCandidate(element) || validationState(element).valid) return true;
++	var uncanceled = element.dispatchEvent(new Event('invalid', { cancelable: true }));
++	if (interactive && uncanceled && validationCandidate(element) && !validationState(element).valid)
++		element.focus();
++	return false;
++}
++function checkFormValidity(form, interactive) {
++	var controls = ownedFormControls(form), valid = true, firstInvalid = null;
++	controls.forEach(function (element) {
++		if (!validationCandidate(element) || validationState(element).valid) return;
++		valid = false;
++		var uncanceled = element.dispatchEvent(new Event('invalid', { cancelable: true }));
++		if (uncanceled && !firstInvalid) firstInvalid = element;
++	});
++	if (interactive && firstInvalid && firstInvalid.isConnected && validationCandidate(firstInvalid) &&
++	    !validationState(firstInvalid).valid) firstInvalid.focus();
++	return valid;
++}
+ accessor(ElementP, 'validity', function () {
+-	var el = this;
+-	var missing = el.required && !el.value;
+-	return { valid: !missing, valueMissing: missing, typeMismatch: false, patternMismatch: false,
+-		tooLong: false, tooShort: false, rangeUnderflow: false, rangeOverflow: false,
+-		stepMismatch: false, badInput: false, customError: !!el.__ns_custom_validity };
+-});
+-accessor(ElementP, 'validationMessage', function () { return this.__ns_custom_validity || ''; });
+-accessor(ElementP, 'willValidate', function () { return true; });
+-method(ElementP, 'checkValidity', function () { return this.validity.valid; });
+-method(ElementP, 'reportValidity', function () { return this.validity.valid; });
+-method(ElementP, 'setCustomValidity', function (m) { this.__ns_custom_validity = toStr(m); });
++	var element = this, state = liveValidityStates.get(element);
++	if (!state) {
++		state = {};
++		Object.keys(validationState(element)).forEach(function (name) {
++			Object.defineProperty(state, name, { enumerable: true,
++				get: function () { return validationState(element)[name]; } });
++		});
++		Object.freeze(state);
++		liveValidityStates.set(element, state);
++	}
++	return state;
++});
++accessor(ElementP, 'validationMessage', function () { return validationMessage(this); });
++accessor(ElementP, 'willValidate', function () { return validationCandidate(this); });
++method(ElementP, 'checkValidity', function () {
++	return this.tagName === 'FORM' ? checkFormValidity(this, false) : checkControlValidity(this, false);
++});
++method(ElementP, 'reportValidity', function () {
++	return this.tagName === 'FORM' ? checkFormValidity(this, true) : checkControlValidity(this, true);
++});
++method(ElementP, 'setCustomValidity', function (message) {
++	if (!arguments.length) throw new TypeError('A validation message is required');
++	customValidityMessages.set(this, String(message));
++});
+ method(ElementP, 'select', function () {});
+ method(ElementP, 'setSelectionRange', function () {});
+ accessor(ElementP, 'selectionStart', function () { return toStr(this.value).length; });
+@@ -1168,7 +1283,7 @@
+ 	this.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+ });
+ method(ElementP, 'click', function () {
+-	if (this.disabled) return;
++	if (controlDisabled(this)) return;
+ 	var ev = new MouseEvent('click', { bubbles: true, cancelable: true, view: global });
+ 	var ok = this.dispatchEvent(ev);
+ 	if (!ok) return;
+@@ -1207,6 +1322,8 @@
+ 	if (submittingForms.has(this) || !this.isConnected || this.ownerDocument !== document) return;
+ 	submittingForms.add(this);
+ 	try {
++		if (!this.noValidate && !(submitter && submitter.formNoValidate) && !checkFormValidity(this, true)) return;
++		if (!this.isConnected || this.ownerDocument !== document) return;
+ 		var ev = new Event('submit', { bubbles: true, cancelable: true });
+ 		ev.submitter = submitter || null;
+ 		if (this.dispatchEvent(ev)) submitForm(this, submitter || null);
+@@ -1214,6 +1331,23 @@
+ 		submittingForms.delete(this);
+ 	}
+ });
++var requestFormSubmit = ElementP.requestSubmit;
++ns.submitNativeForm = function (form, submitter, implicit) {
++	if (implicit) {
++		var controls = ownedFormControls(form);
++		submitter = controls.find(function (control) {
++			return (control.tagName === 'BUTTON' && control.type === 'submit') ||
++				(control.tagName === 'INPUT' && /^(submit|image)$/.test(control.type));
++		}) || null;
++		if (submitter && controlDisabled(submitter)) return;
++		if (submitter && !submitter.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: global }))) return;
++		if (submitter && submitter.form !== form) return;
++		if (!submitter && controls.filter(function (control) {
++			return control.tagName === 'INPUT' && /^(text|search|tel|url|email|password|number|date|month|week|time|datetime-local)$/.test(control.type);
++		}).length > 1) return;
++	}
++	requestFormSubmit.call(form, submitter);
++};
+ method(ElementP, 'reset', function () {
+ 	if (this.tagName !== 'FORM') return;
+ 	if (!this.dispatchEvent(new Event('reset', { bubbles: true, cancelable: true }))) return;
+@@ -1224,9 +1358,9 @@
+ });
+ function formEntries(form, submitter) {
+ 	var out = [];
+-	qsa(form, 'input,select,textarea,button').forEach(function (el) {
++	ownedFormControls(form).forEach(function (el) {
+ 		var name = el.getAttribute('name');
+-		if (!name || el.disabled) return;
++		if (!name || controlDisabled(el)) return;
+ 		var t = el.type;
+ 		if (el.tagName === 'BUTTON' || t === 'submit' || t === 'image' || t === 'button' || t === 'reset') {
+ 			if (el === submitter) out.push([name, el.value]);
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -3018,6 +3018,7 @@
+ 	JSValue setup;
+ 
+ 	JS_SetContextOpaque(ctx, t);
++	t->native_form_submit = JS_UNDEFINED;
+ 
+ 	if (!t->heap->classes_ready) {
+ 		static const JSClassDef node_def = {
+@@ -3256,6 +3257,14 @@
+ 			JS_FreeValue(ctx, setup);
+ 		}
+ 	}
++	{
++		JSValue primitives = JS_GetPropertyStr(ctx, global, "__ns");
++		t->native_form_submit = JS_GetPropertyStr(ctx, primitives, "submitNativeForm");
++		JSAtom atom = JS_NewAtom(ctx, "submitNativeForm");
++		JS_DeleteProperty(ctx, primitives, atom, 0);
++		JS_FreeAtom(ctx, atom);
++		JS_FreeValue(ctx, primitives);
++	}
+ 	qjs_run_jobs(ctx);
+ 
+ 	{
+@@ -3311,6 +3320,7 @@
+ 	JS_FreeValue(ctx, t->document_proto);
+ 	JS_FreeValue(ctx, t->text_proto);
+ 	JS_FreeValue(ctx, t->event_proto);
++	JS_FreeValue(ctx, t->native_form_submit);
+ }
+ 
+ /* ------------------------------------------------------------------ */
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -61,6 +61,7 @@
+ 	struct browser_window *bw;
+ 	struct html_content *htmlc;
+ 	bool closed;
++	JSValue native_form_submit;
+ 
+ 	/* dom_node* / dom_event* pointer-keyed wrapper caches */
+ 	JSValue node_map;
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -404,6 +404,31 @@
+ 	return qjs_dom_fire_event(thread, type, doc, target);
+ }
+ 
++bool js_request_submit(jsthread *thread, struct dom_node *form,
++		struct dom_node *submitter)
++{
++	if (thread == NULL)
++		return false;
++	if (!qjs_may_navigate(thread) || !JS_IsFunction(thread->ctx, thread->native_form_submit))
++		return true;
++	JSContext *ctx = thread->ctx;
++	qjs_deadline_start(thread);
++	JSValue arguments[3] = {
++		qjs_dom_wrap_node(thread, form),
++		submitter != NULL ? qjs_dom_wrap_node(thread, submitter) : JS_NULL,
++		JS_NewBool(ctx, submitter == NULL)
++	};
++	JSValue result = JS_Call(ctx, thread->native_form_submit, JS_UNDEFINED, 3, arguments);
++	if (JS_IsException(result))
++		qjs_dump_error(ctx);
++	JS_FreeValue(ctx, result);
++	for (int index = 0; index < 3; index++)
++		JS_FreeValue(ctx, arguments[index]);
++	qjs_deadline_stop(thread);
++	qjs_run_jobs(ctx);
++	return true;
++}
++
+ /* exported interface documented in js.h */
+ bool
+ js_dom_event_add_listener(jsthread *thread,
+--- a/netsurf/content/handlers/html/form.c
++++ b/netsurf/content/handlers/html/form.c
+@@ -1096,6 +1096,62 @@
+ 	return error == DOM_NO_ERR ? NSERROR_OK : NSERROR_DOM;
+ }
+ 
++static nserror form_script_fieldset_disabled(dom_node *node, bool *disabled)
++{
++	dom_node *branch = dom_node_ref(node);
++	dom_exception error = DOM_NO_ERR;
++	*disabled = false;
++	while (branch != NULL) {
++		dom_node *parent = NULL;
++		dom_node_type node_type;
++		dom_html_element_type type;
++		error = dom_node_get_parent_node(branch, &parent);
++		if (error != DOM_NO_ERR || parent == NULL)
++			break;
++		error = dom_node_get_node_type(parent, &node_type);
++		if (error == DOM_NO_ERR && node_type == DOM_ELEMENT_NODE)
++			error = dom_html_element_get_tag_type(parent, &type);
++		if (error == DOM_NO_ERR && node_type == DOM_ELEMENT_NODE &&
++		    type == DOM_HTML_ELEMENT_TYPE_FIELDSET) {
++			bool fieldset_disabled = false;
++			dom_string *attribute = NULL;
++			error = dom_string_create((const uint8_t *)"disabled", 8, &attribute);
++			if (error == DOM_NO_ERR)
++				error = dom_element_has_attribute(parent, attribute, &fieldset_disabled);
++			if (attribute != NULL)
++				dom_string_unref(attribute);
++			if (error == DOM_NO_ERR && fieldset_disabled) {
++				dom_node *legend = NULL;
++				error = dom_node_get_first_child(parent, &legend);
++				while (error == DOM_NO_ERR && legend != NULL) {
++					dom_node *next = NULL;
++					error = dom_node_get_node_type(legend, &node_type);
++					if (error != DOM_NO_ERR)
++						break;
++					if (node_type == DOM_ELEMENT_NODE) {
++						error = dom_html_element_get_tag_type(legend, &type);
++						if (error != DOM_NO_ERR || type == DOM_HTML_ELEMENT_TYPE_LEGEND)
++							break;
++					}
++					error = dom_node_get_next_sibling(legend, &next);
++					dom_node_unref(legend);
++					legend = next;
++				}
++				*disabled = legend != branch;
++				if (legend != NULL)
++					dom_node_unref(legend);
++			}
++		}
++		dom_node_unref(branch);
++		branch = parent;
++		if (error != DOM_NO_ERR || *disabled)
++			break;
++	}
++	if (branch != NULL)
++		dom_node_unref(branch);
++	return error == DOM_NO_ERR ? NSERROR_OK : NSERROR_DOM;
++}
++
+ static nserror form_script_collect(struct form *form, dom_node ***output,
+ 		uint32_t *count)
+ {
+@@ -1129,6 +1185,13 @@
+ 			if (result != NSERROR_OK)
+ 				goto failed;
+ 			if (matches) {
++				bool disabled = false;
++				result = form_script_fieldset_disabled(node, &disabled);
++				if (result != NSERROR_OK)
++					goto failed;
++				matches = !disabled;
++			}
++			if (matches) {
+ 				if (length == capacity) {
+ 					uint32_t expanded = capacity ? capacity * 2 : 16;
+ 					dom_node **allocated;
+--- a/netsurf/content/handlers/html/interaction.c
++++ b/netsurf/content/handlers/html/interaction.c
+@@ -1426,6 +1426,16 @@
+ 		content_broadcast(c, CONTENT_MSG_POINTER, &msg_data);
+ 	}
+ 
++#ifdef BUZZOS_QUICKJS_FETCH_BODY
++	dom_node *script_form = NULL, *script_submitter = NULL;
++	jsthread *submit_thread = html->jsthread;
++	bool script_submission = submit_thread != NULL && mas.result.action == ACTION_SUBMIT &&
++		mas.gadget.control != NULL && mas.gadget.control->form != NULL;
++	if (script_submission) {
++		script_form = dom_node_ref(mas.gadget.control->form->node);
++		script_submitter = dom_node_ref(mas.gadget.control->node);
++	}
++#endif
+ 	/* fire dom click event; a script calling preventDefault() cancels
+ 	 * the default action (following a link, submitting a form) */
+ 	if ((mouse & BROWSER_MOUSE_CLICK_1) && mas.node != NULL) {
+@@ -1439,6 +1449,16 @@
+ 			html_toggle_details(mas.node);
+ 		}
+ 	}
++
++#ifdef BUZZOS_QUICKJS_FETCH_BODY
++	if (script_submission) {
++		if (mas.result.action == ACTION_SUBMIT)
++			js_request_submit(submit_thread, script_form, script_submitter);
++		dom_node_unref(script_submitter);
++		dom_node_unref(script_form);
++		return NSERROR_OK;
++	}
++#endif
+ 
+ 	/* a form's submit event can cancel submission */
+ 	if (mas.result.action == ACTION_SUBMIT &&
+--- a/netsurf/content/handlers/html/box_textarea.c
++++ b/netsurf/content/handlers/html/box_textarea.c
+@@ -31,6 +31,7 @@
+ #include "netsurf/keypress.h"
+ #include "netsurf/misc.h"
+ #include "desktop/textarea.h"
++#include "javascript/js.h"
+ 
+ #include "html/private.h"
+ #include "html/interaction.h"
+@@ -64,6 +65,14 @@
+ 	case NS_KEY_NL:
+ 	case NS_KEY_CR:
+ 		if (form) {
++#ifdef BUZZOS_QUICKJS_FETCH_BODY
++			if (html->jsthread != NULL) {
++				dom_node *form_node = dom_node_ref(form->node);
++				js_request_submit(html->jsthread, form_node, NULL);
++				dom_node_unref(form_node);
++				return NSERROR_OK;
++			}
++#endif
+ 			res = form_submit(content_get_url(c),
+ 					  html->bw,
+ 					  form,
+--- a/netsurf/content/handlers/javascript/js.h
++++ b/netsurf/content/handlers/javascript/js.h
+@@ -51,6 +51,11 @@
+  * and should be for object lifetime safety reasons.
+  */
+ typedef struct jsthread jsthread;
++
++#ifdef BUZZOS_QUICKJS_FETCH_BODY
++bool js_request_submit(jsthread *thread, struct dom_node *form,
++		struct dom_node *submitter);
++#endif
+ 
+ /**
+  * Initialise javascript interpreter

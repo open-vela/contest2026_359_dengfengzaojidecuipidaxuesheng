@@ -28,7 +28,7 @@ struct p4_ppa_job_s
   uint16_t out_height;
   uint16_t out_x;
   uint16_t out_y;
-  uint16_t scale256; /* 16..256, multiple of 16 (hardware steps of 1/16). */
+  uint16_t scale256; /* 16..1024, multiple of 16 (1/16 through 4 times). */
 };
 
 int esp32p4_ppa_register(FAR const char *path);

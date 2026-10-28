@@ -1,0 +1,84 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -474,6 +474,61 @@
+ NodeList.prototype[Symbol.iterator] = Array.prototype[Symbol.iterator];
+ global.NodeList = NodeList;
+ global.HTMLCollection = NodeList;
++
++/* childNodes is a SameObject live collection. Code which moves list[0]
++ * until list.length reaches zero must observe each native DOM mutation. */
++var childNodeLists = new WeakMap();
++function childNodeIndex(key) {
++	return typeof key === 'string' && /^(0|[1-9][0-9]*)$/.test(key) &&
++		Number(key) < 4294967295 ? Number(key) : -1;
++}
++function liveChildNodes(node) {
++	var cached = childNodeLists.get(node);
++	if (cached) return cached;
++	function at(index) {
++		for (var c = node.firstChild; c; c = c.nextSibling)
++			if (index-- === 0) return c;
++	}
++	function size() {
++		var count = 0;
++		for (var c = node.firstChild; c; c = c.nextSibling) count++;
++		return count;
++	}
++	var target = Object.create(NodeList.prototype);
++	var collection = new Proxy(target, {
++		get: function (o, key, receiver) {
++			if (key === 'length') return size();
++			var index = childNodeIndex(key);
++			return index >= 0 ? at(index) : Reflect.get(o, key, receiver);
++		},
++		has: function (o, key) {
++			var index = childNodeIndex(key);
++			return key === 'length' || (index >= 0 ? at(index) !== undefined : Reflect.has(o, key));
++		},
++		ownKeys: function (o) {
++			var keys = [], count = size();
++			for (var i = 0; i < count; i++) keys.push(String(i));
++			return keys.concat('length', Reflect.ownKeys(o));
++		},
++		getOwnPropertyDescriptor: function (o, key) {
++			if (key === 'length') return { value: size(), writable: false, enumerable: false, configurable: true };
++			var index = childNodeIndex(key), value;
++			if (index < 0) return Reflect.getOwnPropertyDescriptor(o, key);
++			value = at(index);
++			return value === undefined ? undefined : { value: value, writable: false, enumerable: true, configurable: true };
++		},
++		set: function (o, key, value, receiver) {
++			return key !== 'length' && childNodeIndex(key) < 0 && Reflect.set(o, key, value, receiver);
++		},
++		defineProperty: function (o, key, descriptor) {
++			return key !== 'length' && childNodeIndex(key) < 0 && Reflect.defineProperty(o, key, descriptor);
++		},
++		preventExtensions: function () { return false; }
++	});
++	childNodeLists.set(node, collection);
++	return collection;
++}
++accessor(NodeP, 'childNodes', function () { return liveChildNodes(this); });
+ 
+ [ElementP, DocP].forEach(function (P) {
+ 	method(P, 'querySelector', function (s) { return qsa(this, s, true); });
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -1386,7 +1386,7 @@
+ 
+ 	/* hubbub wraps the fragment in html/body; migrate body's kids */
+ 	exc = dom_node_get_first_child(fragment, &html);
+-	if (exc != DOM_NO_ERR)
++	if (exc != DOM_NO_ERR || html == NULL)
+ 		goto out;
+ 	exc = dom_element_get_elements_by_tag_name(html,
+ 						   corestring_dom_BODY,
+@@ -1394,7 +1394,7 @@
+ 	if (exc != DOM_NO_ERR)
+ 		goto out;
+ 	exc = dom_nodelist_item(bodies, 0, &body);
+-	if (exc != DOM_NO_ERR)
++	if (exc != DOM_NO_ERR || body == NULL)
+ 		goto out;
+ 
+ 	exc = dom_node_get_first_child(body, &child);

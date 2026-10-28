@@ -42,6 +42,14 @@ with tempfile.TemporaryDirectory(prefix='local-album-') as tmp:
     (sd/'linked.jpg').symlink_to(sd/'wide.jpg')
     (sd/'empty.jpg').write_bytes(b'')
     for i in range(270):(sd/'many'/f'{i:03}.jpg').write_bytes(b'')
+    library=local/'library';(library/'a'/'deep').mkdir(parents=True);(library/'b').mkdir()
+    (library/'a'/'same.jpg').write_bytes((sd/'wide.jpg').read_bytes())
+    (library/'b'/'same.jpg').write_bytes((sd/'portrait.jpg').read_bytes())
+    (library/'a'/'deep'/'clip.MP4').write_bytes(b'fixture')
+    (library/'b'/'clip.MOV').write_bytes((sd/'clip.MOV').read_bytes())
+    (library/'a'/'hidden-link').symlink_to(library/'b',target_is_directory=True)
+    (library/'b'/'loop').symlink_to(library,target_is_directory=True)
+    (library/'.hidden.jpg').write_bytes(b'')
     subprocess.run(['cc','-D_GNU_SOURCE','-DALBUM_HOST_TEST','-DALBUM_ROOT="'+str(sd)+'"',
                     '-DALBUM_LOCAL_ROOT="'+str(local)+'"','-std=gnu11','-O1','-g','-pthread','-Wall','-Wextra','-Wno-misleading-indentation',
                     '-fsanitize=address,undefined','-fno-omit-frame-pointer',

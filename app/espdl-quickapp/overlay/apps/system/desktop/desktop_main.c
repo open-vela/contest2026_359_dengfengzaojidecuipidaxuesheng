@@ -26,6 +26,7 @@
 #include <nuttx/sched.h>
 #include <lvgl/lvgl.h>
 #include "glass_ui_visibility.h"
+#include "glass_backlight.h"
 #ifdef CONFIG_SYSTEM_C6PROBE
 #  include "../c6probe/c6_wifi_phy.h"
 #endif
@@ -34,6 +35,7 @@
 #endif
 
 #include "qpk_runtime.h"
+#include "glass_app_frame.h"
 #include "qpk_jpeg_hw.h"
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 #include "../bilibili_live/bili_live.h"
@@ -67,12 +69,13 @@
 #endif
 #include "glass_dashboard.h"
 #include "glass_icons.h"
+#include "glass_heading.h"
+#include "glass_i18n.h"
 #include "pet_engine.h"
 #include "pet_lvgl.h"
 
 #define QPK_DIR       CONFIG_SYSTEM_DESKTOP_QPK_DIR
 #define NAME_MAXLEN   48
-#define QAPP_HEADER_HEIGHT  64
 #include "glass_status.h"
 /* Long Chinese chat pages exceed 64 unique glyphs even within one viewport.
  * Keep glyph metrics and rasterized bitmaps across scrolling in PSRAM. */
@@ -190,14 +193,27 @@ struct desktop_env_s
   int nqpk;
   bool light_theme;
   bool settings_rebuild_pending;
+  bool settings_page;
   bool apps_page;
   bool chat_page;
   bool chat_return_apps;
   bool qapp_page;
   bool qapp_return_apps;
+  lv_event_cb_t page_back;
+  lv_event_cb_t app_open,pending_app_open;
+  intptr_t app_external,pending_app_external;
+  unsigned app_state;
+  bool app_from_apps,settings_context;
 };
 
 static struct desktop_env_s g_desktop;
+static void glass_navigation_clear(void);
+static void glass_navigation_capture_settings(void);
+static void glass_navigation_return_settings(void);
+static bool glass_navigation_has_origin(void);
+static unsigned glass_navigation_resume_state(void);
+static void glass_navigation_register(lv_event_cb_t open,bool from_apps,unsigned state)
+{g_desktop.app_open=open;g_desktop.app_from_apps=from_apps;g_desktop.app_state=state;}
 
 enum desktop_camera_command_e
 {
@@ -323,7 +339,7 @@ static lv_obj_t *make_label(lv_obj_t *parent, const char *text,
 
   lv_label_set_text(label, text);
   lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
-  lv_obj_set_style_text_font(label, zh_font(size), 0);
+  lv_obj_set_style_text_font(label,size>=28?glass_heading_font(size,zh_font(size)):zh_font(size),0);
   return label;
 }
 
@@ -551,6 +567,9 @@ static void desktop_navigation_cancel(void)
 
 static void desktop_transients_reset(void)
 {
+  g_desktop.page_back = NULL;
+  g_desktop.settings_page = false;
+  g_desktop.settings_context=false;
   camera_page_restore();
   /* Retire full-screen ownership before measuring any replacement page. */
   chat_display_restore();
@@ -565,6 +584,7 @@ static void glass_weather_home_resume(void);
 static void panel_hide(lv_event_t *e)
 {
   LV_UNUSED(e);
+  glass_navigation_clear();
   chat_qpk_preview_finish();
   g_camera_launch_pending = false;
   qpk_runtime_stop();
@@ -573,6 +593,9 @@ static void panel_hide(lv_event_t *e)
 #endif
   desktop_transients_reset();
   lv_obj_add_flag(g_desktop.panel, LV_OBJ_FLAG_HIDDEN);
+  g_desktop.app_open=g_desktop.pending_app_open=NULL;
+  g_desktop.app_external=g_desktop.pending_app_external=-1;
+  g_desktop.app_from_apps=false;g_desktop.app_state=0;
   g_desktop.current_card = NULL;
   lv_obj_clean(g_desktop.panel);
   g_desktop.apps_page = false;
@@ -583,11 +606,13 @@ static void panel_hide(lv_event_t *e)
   glass_weather_home_resume();
 }
 
+static void glass_settings(lv_event_t *e);
 static lv_obj_t *panel_card(const char *title)
 {
   lv_obj_t *card;
   lv_obj_t *close;
   lv_obj_t *label;
+  bool return_settings = g_desktop.settings_page;
 
   chat_qpk_preview_finish();
   g_camera_launch_pending = false;
@@ -597,6 +622,9 @@ static lv_obj_t *panel_card(const char *title)
 #endif
   desktop_transients_reset();
   g_desktop.apps_page = false;
+  g_desktop.app_open=g_desktop.pending_app_open=NULL;
+  g_desktop.app_external=g_desktop.pending_app_external=-1;
+  g_desktop.app_from_apps=false;g_desktop.app_state=0;
   g_desktop.chat_page = false;
   g_desktop.chat_return_apps = false;
   g_desktop.qapp_page = false;
@@ -614,6 +642,7 @@ static lv_obj_t *panel_card(const char *title)
     }
 
   g_desktop.current_card = card;
+  if (return_settings) g_desktop.page_back = glass_settings;
   lv_obj_set_size(card, 1024, GLASS_CONTENT_HEIGHT);
   lv_obj_set_pos(card, 0, 0);
   style_panel(card, g_desktop.light_theme ? 0xf4f5f8 : 0x15171e);
@@ -649,6 +678,7 @@ static lv_obj_t *panel_card(const char *title)
   lv_obj_set_size(close, 54, 42);
   lv_obj_align(close, LV_ALIGN_TOP_RIGHT, -20, 14);
   style_button(close, theme_surface());
+  glass_input_guard_install(close);
   lv_obj_add_event_cb(close, panel_hide, LV_EVENT_CLICKED, NULL);
   label = lv_label_create(close);
   if (label == NULL)
@@ -662,7 +692,8 @@ static lv_obj_t *panel_card(const char *title)
   lv_obj_set_style_text_font(label, glass_icon_font(24), 0);
   lv_obj_set_style_text_color(label, lv_color_hex(theme_primary()), 0);
   lv_obj_center(label);
-  /* Cards open at their final position; no deferred upward entrance. */
+  /* Retain the page's hit targets; reveal its decorative content next turn. */
+  glass_motion_panel(card);
   return card;
 }
 
@@ -910,7 +941,7 @@ static void qpk_show_dialog(const char *text)
   lv_obj_set_size(body, 508, 202);
   lv_obj_set_scroll_dir(body, LV_DIR_VER);
   lv_obj_add_flag(body, LV_OBJ_FLAG_SCROLLABLE);
-  label = make_label(body, text ? text : "快应用", theme_primary(), 20);
+  label = make_label(body, text ? text : glass_tr("快应用"), theme_primary(), 20);
   if (label == NULL)
     {
       dialog_cancel();
@@ -930,8 +961,9 @@ static void qpk_show_dialog(const char *text)
   lv_obj_set_size(button, 96, 42);
   lv_obj_align(button, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
   style_button(button, theme_accent());
+  glass_input_guard_install(button);
   lv_obj_add_event_cb(button, qpk_dialog_close, LV_EVENT_CLICKED, shade);
-  label = make_label(button, "确定", 0xffffff, 20);
+  label = make_label(button, glass_tr("确定"), 0xffffff, 20);
   if (label == NULL)
     {
       dialog_cancel();
@@ -961,7 +993,7 @@ static void qpk_unresponsive_terminate(lv_event_t *e)
 /* Shown only when the runtime reports a JavaScript entry that ran for
  * seconds without yielding. It does not stop the app: timers keep running,
  * and the prompt hides itself when the app recovers or stops. "等待"
- * dismisses it; "终止程序" stops the runtime and returns home. */
+ * dismisses it; glass_tr("终止程序") stops the runtime and returns home. */
 static void qpk_show_unresponsive(bool unresponsive)
 {
   lv_obj_t *shade;
@@ -1015,7 +1047,7 @@ static void qpk_show_unresponsive(bool unresponsive)
   style_panel(box, theme_card());
   lv_obj_set_style_pad_all(box, 24, 0);
   lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
-  label = make_label(box, "快应用长时间未响应。\n等待它继续运行，或终止程序？",
+  label = make_label(box, glass_tr("快应用长时间未响应。\n等待它继续运行，或终止程序？"),
                      theme_primary(), 20);
   if (label == NULL)
     {
@@ -1036,6 +1068,7 @@ static void qpk_show_unresponsive(bool unresponsive)
   lv_obj_set_size(button, 120, 42);
   lv_obj_align(button, LV_ALIGN_BOTTOM_RIGHT, -132, 0);
   style_button(button, theme_surface());
+  glass_input_guard_install(button);
   lv_obj_add_event_cb(button, qpk_unresponsive_wait, LV_EVENT_CLICKED, NULL);
   label = make_label(button, "等待", theme_primary(), 20);
   if (label == NULL)
@@ -1055,8 +1088,9 @@ static void qpk_show_unresponsive(bool unresponsive)
   lv_obj_set_size(button, 120, 42);
   lv_obj_align(button, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
   style_button(button, theme_accent());
+  glass_input_guard_install(button);
   lv_obj_add_event_cb(button, qpk_unresponsive_terminate, LV_EVENT_CLICKED, NULL);
-  label = make_label(button, "终止程序", 0xffffff, 20);
+  label = make_label(button, glass_tr("终止程序"), 0xffffff, 20);
   if (label == NULL)
     {
       qpk_show_unresponsive(false);
@@ -1129,9 +1163,13 @@ static void glass_chat_back(lv_event_t *e);
 static void qapp_back(lv_event_t *e)
 {
   LV_UNUSED(e);
+#ifdef CONFIG_SYSTEM_BILIBILI_LIVE
+  if(local_video_back(g_desktop.current_card)||local_album_back(g_desktop.current_card))return;
+#endif
   if(g_camera_album_page==g_desktop.current_card&&g_camera_album_page){launch_builtin_camera_qapp(NULL);return;}
   if (chat_qpk_preview_active) { chat_qpk_preview_back(); return; }
   if (g_desktop.chat_page) { glass_chat_back(NULL); return; }
+  if (g_desktop.qapp_page && qpk_runtime_back()) return;
   if (g_desktop.qapp_page && g_desktop.qapp_return_apps)
     qpk_clicked(NULL);
   else
@@ -1153,10 +1191,6 @@ static lv_obj_t *qapp_page_prepare(const char *title)
 {
   lv_obj_t *page;
   lv_obj_t *content;
-  lv_obj_t *back;
-  lv_obj_t *label;
-  int height;
-
   chat_qpk_preview_finish();
   g_camera_launch_pending = false;
   qpk_runtime_stop();
@@ -1165,6 +1199,7 @@ static lv_obj_t *qapp_page_prepare(const char *title)
 #endif
   desktop_transients_reset();
   lv_obj_remove_flag(g_desktop.panel, LV_OBJ_FLAG_HIDDEN);
+  g_desktop.pending_app_open=NULL;g_desktop.pending_app_external=-1;
 
   page = lv_obj_create(g_desktop.panel);
   if (page == NULL)
@@ -1181,84 +1216,32 @@ static lv_obj_t *qapp_page_prepare(const char *title)
   lv_obj_set_style_pad_all(page, 0, 0);
   lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
 
-  back = lv_button_create(page);
-  if (back == NULL)
-    {
-      qapp_page_discard(page);
-      return NULL;
-    }
-
-  lv_obj_set_size(back, 52, 42);
-  lv_obj_set_pos(back, 12, 10);
-  style_button(back, theme_surface());
-  lv_obj_add_event_cb(back, qapp_back, LV_EVENT_CLICKED, NULL);
-  label = lv_label_create(back);
-  if (label == NULL)
-    {
-      qapp_page_discard(page);
-      return NULL;
-    }
-
-  lv_label_set_text(label, LV_SYMBOL_LEFT);
-  lv_obj_set_style_text_font(label, glass_icon_font(24), 0);
-  lv_obj_set_style_text_color(label, lv_color_hex(theme_primary()), 0);
-  lv_obj_center(label);
-
-  label = make_label(page, title, theme_primary(), 28);
-  if (label == NULL)
-    {
-      qapp_page_discard(page);
-      return NULL;
-    }
-
-  lv_obj_set_pos(label, 78, 15);
-
-  content = lv_obj_create(page);
-  if (content == NULL)
-    {
-      qapp_page_discard(page);
-      return NULL;
-    }
-
-  lv_obj_update_layout(page);
-  height = lv_obj_get_height(page) - QAPP_HEADER_HEIGHT;
-  lv_obj_set_size(content, lv_pct(100), height);
-  lv_obj_align(content, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_set_style_bg_color(content, lv_color_hex(theme_card()), 0);
-  lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(content, 0, 0);
-  lv_obj_set_style_radius(content, 0, 0);
-  lv_obj_set_style_pad_all(content, 0, 0);
-  lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLLABLE);
+  struct glass_app_frame frame=glass_app_frame_create(page,title,zh_font(16),qapp_back,glass_tr("返回"));
+  if(!frame.body||!frame.back){qapp_page_discard(page);return NULL;}
+  content=frame.body;
 
   return content;
 }
 
-/* HA supplies its own toolbar. Keep native back navigation in the sidebar
- * instead of reserving a second header above the entire quick app. */
-static bool qapp_homeassistant_sidebar_header(lv_obj_t *content)
+static lv_obj_t *qapp_page_prepare_for(const char *title,lv_event_cb_t open)
 {
-  lv_obj_t *page = lv_obj_get_parent(content);
-  lv_obj_t *back = lv_obj_get_child(page, 0);
-  lv_obj_t *title = lv_obj_get_child(page, 1);
-  lv_obj_t *footer = lv_obj_create(page);
-  if (!footer) return false;
-  lv_obj_remove_style_all(footer);
-  lv_obj_set_size(footer, 164, 64);
-  lv_obj_align(footer, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-  lv_obj_set_style_bg_color(footer, lv_color_hex(g_desktop.light_theme ? 0xffffff : 0x22252f), 0);
-  lv_obj_set_style_bg_opa(footer, LV_OPA_COVER, 0);
-  lv_obj_remove_flag(footer, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_flag(title, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_size(content, lv_pct(100), lv_pct(100));
-  lv_obj_align(content, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_set_parent(back, footer);
-  lv_obj_set_pos(back, 12, 8);
-  lv_obj_set_size(back, 140, 44);
-  lv_obj_t *caption = lv_obj_get_child(back, 0);
-  lv_label_set_text(caption, "返回");
-  lv_obj_set_style_text_font(caption, zh_font(16), 0);
-  lv_obj_center(caption);
+  lv_obj_t *content=qapp_page_prepare(title);
+  if(content)g_desktop.pending_app_open=open;
+  return content;
+}
+
+/* Apps with their own rail use the same full-height safe area and footer.
+ * Camera keeps its existing framebuffer geometry and hides this shell. */
+static bool qapp_embedded_sidebar(lv_obj_t *content,bool footer)
+{
+  lv_obj_t *page=lv_obj_get_parent(content),*rail=lv_obj_get_user_data(content);
+  lv_obj_update_layout(page);int height=lv_obj_get_height(page);
+  lv_obj_set_pos(content,0,0);lv_obj_set_size(content,lv_pct(100),lv_pct(100));
+  if(!footer){lv_obj_add_flag(rail,LV_OBJ_FLAG_HIDDEN);return true;}
+  lv_obj_t *back=lv_obj_get_child(rail,1);if(!back)return false;
+  lv_obj_add_flag(lv_obj_get_child(rail,0),LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_pos(rail,0,height-64);lv_obj_set_size(rail,GLASS_APP_SIDEBAR_WIDTH,64);
+  glass_app_frame_place_back(back,64);lv_obj_move_to_index(rail,-1);
   return true;
 }
 
@@ -1276,6 +1259,8 @@ static void qapp_page_commit(lv_obj_t *content)
   g_desktop.chat_page = false;
   g_desktop.chat_return_apps = false;
   g_desktop.qapp_page = true;
+  glass_navigation_register(g_desktop.pending_app_open,g_desktop.qapp_return_apps,0);
+  g_desktop.app_external=g_desktop.pending_app_external;
 
   if (previous != NULL && previous != page)
     {
@@ -1299,10 +1284,10 @@ static void launch_builtin_qapp(lv_event_t *e)
   int ret;
 
   LV_UNUSED(e);
-  card = qapp_page_prepare(manifest->name);
+  card = qapp_page_prepare_for(manifest->name,launch_builtin_qapp);
   if (card == NULL)
     {
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
@@ -1327,10 +1312,10 @@ static void launch_builtin_2048_qapp(lv_event_t *e)
   int ret;
 
   LV_UNUSED(e);
-  card = qapp_page_prepare(manifest->name);
+  card = qapp_page_prepare_for(manifest->name,launch_builtin_2048_qapp);
   if (card == NULL)
     {
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
@@ -1359,8 +1344,8 @@ static void launch_builtin_espdl_qapp(lv_event_t *e)
   extern const char *espdl_get_app_js(unsigned int *len);
   unsigned int length;
   const char *source=espdl_get_app_js(&length);
-  lv_obj_t *card=qapp_page_prepare("ESP-DL 离线识别");
-  if (!card) {show_toast("页面内存不足");return;}
+  lv_obj_t *card=qapp_page_prepare_for("ESP-DL 离线识别",launch_builtin_espdl_qapp);
+  if (!card) {show_toast(glass_tr("页面内存不足"));return;}
   int ret=qpk_runtime_launch(card,"ESP-DL 离线识别","org.openvela.espdl","0.1.0",
                              "app.js",source,length,zh_font,show_toast,qpk_show_dialog, qpk_show_unresponsive);
   if (!ret) qapp_page_commit(card);
@@ -1398,13 +1383,13 @@ static void launch_builtin_camera_qapp(lv_event_t *e)
   source = camera_get_app_js(&source_size);
   if (source == NULL || source_size == 0)
     {
-      show_toast("应用资源不可用");
+      show_toast(glass_tr("应用资源不可用"));
       return;
     }
-  card = qapp_page_prepare(manifest->name);
+  card = qapp_page_prepare_for(manifest->name,launch_builtin_camera_qapp);
   if (card == NULL)
     {
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
@@ -1439,6 +1424,7 @@ static void launch_builtin_camera_qapp(lv_event_t *e)
       lv_obj_set_size(close,36,180);style_button(close,0x000000);
       lv_obj_set_style_bg_opa(close,LV_OPA_TRANSP,0);
       lv_obj_set_style_radius(close,32,0);lv_obj_set_style_border_width(close,0,0);
+      glass_input_guard_install(close);
       lv_obj_add_event_cb(close,qapp_back,LV_EVENT_CLICKED,NULL);
       lv_obj_t *icon=lv_label_create(close);if(icon){lv_label_set_text(icon,LV_SYMBOL_CLOSE);
       lv_obj_set_style_text_font(icon,glass_icon_font(24),0);
@@ -1459,8 +1445,8 @@ static void launch_builtin_recorder_qapp(lv_event_t *e)
   extern const char *recorder_get_app_js(unsigned int *len);
   unsigned int length;
   const char *source = recorder_get_app_js(&length);
-  lv_obj_t *card = qapp_page_prepare("录音机");
-  if (!card) { show_toast("页面内存不足"); return; }
+  lv_obj_t *card = qapp_page_prepare_for("录音机",launch_builtin_recorder_qapp);
+  if (!card) { show_toast(glass_tr("页面内存不足")); return; }
   int ret = qpk_runtime_launch(card, "录音机", "com.openvela.recorder", "1.0.0",
                                "builtin:/recorder/app.js", source, length,
                                zh_font, show_toast, qpk_show_dialog, qpk_show_unresponsive);
@@ -1474,14 +1460,15 @@ static void launch_builtin_dafeiyu_qapp(lv_event_t *e)
   extern const char *dafeiyu_get_app_js(unsigned int *len);
   unsigned int length;
   const char *source = dafeiyu_get_app_js(&length);
-  if (source == NULL || length == 0) { show_toast("应用资源不可用"); return; }
-  lv_obj_t *card = qapp_page_prepare("大肥鱼桌宠");
+  if (source == NULL || length == 0) { show_toast(glass_tr("应用资源不可用")); return; }
+  lv_obj_t *card = qapp_page_prepare_for("大肥鱼桌宠",launch_builtin_dafeiyu_qapp);
   if (!card)
     {
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
+  qapp_embedded_sidebar(card,true);
   int ret = qpk_runtime_launch(card, "大肥鱼桌宠", "org.flash.dafeiyu", "1.0.1",
                                "builtin:/dafeiyu/app.js", source, length,
                                zh_font, show_toast, qpk_show_dialog, qpk_show_unresponsive);
@@ -1505,20 +1492,20 @@ static void launch_builtin_homeassistant_qapp(lv_event_t *e)
   source = homeassistant_get_app_js(&source_size);
   if (source == NULL || source_size == 0)
     {
-      show_toast("应用资源不可用");
+      show_toast(glass_tr("应用资源不可用"));
       return;
     }
-  card = qapp_page_prepare(manifest->name);
+  card = qapp_page_prepare_for(manifest->name,launch_builtin_homeassistant_qapp);
   if (card == NULL)
     {
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
-  if (!qapp_homeassistant_sidebar_header(card))
+  if (!qapp_embedded_sidebar(card,true))
     {
       qapp_page_discard(lv_obj_get_parent(card));
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
@@ -1539,7 +1526,7 @@ static void launch_builtin_homeassistant_qapp(lv_event_t *e)
 static void launch_external_qapp(intptr_t index)
 {
   struct qpk_draft_info operation; glass_qpk_get(&operation);
-  if (operation.removing) { show_toast("正在删除应用，请稍候"); return; }
+  if (operation.removing) { show_toast(glass_tr("正在删除应用，请稍候")); return; }
   struct qpk_entry_s *qpk;
   lv_obj_t *card;
   lv_obj_t *label;
@@ -1555,9 +1542,10 @@ static void launch_external_qapp(intptr_t index)
 
   qpk = &g_desktop.qpk[index];
   card = qapp_page_prepare(qpk->name);
+  if(card)g_desktop.pending_app_external=index;
   if (card == NULL)
     {
-      show_toast("页面内存不足");
+      show_toast(glass_tr("页面内存不足"));
       return;
     }
 
@@ -1636,14 +1624,14 @@ static void settings_clicked(lv_event_t *e)
 static void launch_local_video(lv_event_t *e)
 {
   LV_UNUSED(e);
-  lv_obj_t *card = qapp_page_prepare("相册");
-  if (card) { local_album_show(card, zh_font(16)); qapp_page_commit(card); }
+  lv_obj_t *card = qapp_page_prepare_for("相册",launch_local_video);
+  if (card) { qapp_embedded_sidebar(card,false); local_album_show_app(card,zh_font(16),qapp_back,"返回",false); qapp_page_commit(card); }
 }
 static void launch_bilibili(lv_event_t *e)
 {
   LV_UNUSED(e);
-  lv_obj_t *card = qapp_page_prepare("网络直播");
-  if (card) { bili_live_show(card, zh_font(18)); qapp_page_commit(card); }
+  lv_obj_t *card = qapp_page_prepare_for("网络直播",launch_bilibili);
+  if (card) { qapp_embedded_sidebar(card,true); bili_live_show(card, zh_font(18)); qapp_page_commit(card); }
 }
 #endif
 static void about_clicked(lv_event_t *e);
@@ -1654,12 +1642,13 @@ static void desktop_camera_album_service(void)
 {
   if(!qpk_runtime_camera_take_album())return;
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
-  lv_obj_t *card=qapp_page_prepare("相册");if(!card)return;
-  local_album_show_camera(card,zh_font(16));
+  lv_obj_t *card=qapp_page_prepare_for("相册",launch_builtin_camera_qapp);if(!card)return;
+  qapp_embedded_sidebar(card,false);
+  local_album_show_app(card,zh_font(16),qapp_back,glass_tr("返回相机"),true);
   qapp_page_commit(card);g_camera_album_page=lv_obj_get_parent(card);
   lv_obj_add_event_cb(g_camera_album_page,camera_album_deleted,LV_EVENT_DELETE,NULL);
 #else
-  show_toast("当前配置未启用相册");
+  show_toast(glass_tr("当前配置未启用相册"));
 #endif
 }
 
@@ -1703,21 +1692,9 @@ static uint32_t desktop_loop_once(void)
     wake_mini_hide();glass_ai_config_ui_ack();
   }
 
-  int font_change=glass_sd_font_poll();
-  if(font_change) {
-    lv_font_t *primary[]={g_desktop.font16,g_desktop.font20,g_desktop.font28,
-                          g_glass.font48,g_glass.music_font72};
-    const unsigned pixels[]={16,20,28,48,72};
-    for(unsigned i=0;i<5;i++)if(primary[i]) {
-      lv_font_t *fallback=glass_sd_font_get(pixels[i]);
-      const lv_font_t *icons=i<3?glass_icon_font(i==2?24:pixels[i]):NULL;
-      if(fallback)fallback->fallback=icons;
-      primary[i]->fallback=fallback?fallback:icons;
-    }
-    lv_obj_report_style_change(NULL);
-    if(g_music_ui.full)g_music_ui.full->pv.valid=false;
-    lv_obj_invalidate(lv_screen_active());
-  }
+  glass_global_fonts_poll();
+  if(glass_i18n_poll())glass_language_refresh();
+  if(glass_i18n_save_status()<0)show_toast(glass_tr("语言已切换，选择未能保存到 SD 卡"));
   desktop_ui_probe_service();
   glass_board_ui_service();
   if(!glass_ai_config_active())wake_mini_service();
@@ -1786,6 +1763,13 @@ static uint32_t desktop_loop_once(void)
 
 int main(int argc, FAR char *argv[])
 {
+  if(argc==2&&!strcmp(argv[1],"backlight-status"))
+    {
+      struct glass_backlight_status state;glass_backlight_read(&state);
+      printf("BACKLIGHT available=%u applied=%u pin=26 frequency=5000 percent=%u duty=%u error=%d\n",
+             state.available,state.applied,state.percent,state.duty,state.error);
+      return state.applied&&state.error==0?0:1;
+    }
   glass_board_music_register();
   glass_board_assistant_register();
 #ifdef CONFIG_SYSTEM_C6PROBE

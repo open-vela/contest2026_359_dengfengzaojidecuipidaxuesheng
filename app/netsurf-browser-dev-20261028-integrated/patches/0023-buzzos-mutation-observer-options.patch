@@ -1,0 +1,67 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -2099,11 +2099,21 @@
+ }
+ MutationObserver.prototype.observe = function (target, opts) {
+ 	opts = opts || {};
+-	if (opts.attributeFilter || opts.attributeOldValue) opts.attributes = true;
+-	if (opts.characterDataOldValue) opts.characterData = true;
++	/* WebIDL dictionaries are snapshots, including sequence members. Do not
++	 * change the caller's options or override an explicit false flag. */
++	var o = { childList: !!opts.childList, subtree: !!opts.subtree,
++		attributes: opts.attributes === undefined ?
++			(opts.attributeFilter !== undefined || opts.attributeOldValue !== undefined) : !!opts.attributes,
++		characterData: opts.characterData === undefined ? opts.characterDataOldValue !== undefined : !!opts.characterData,
++		attributeOldValue: !!opts.attributeOldValue, characterDataOldValue: !!opts.characterDataOldValue };
++	if (opts.attributeFilter !== undefined) o.attributeFilter = Array.from(opts.attributeFilter, String);
++	if ((!o.attributes && !o.characterData && !o.childList) ||
++		(!o.attributes && (o.attributeOldValue || o.attributeFilter)) ||
++		(!o.characterData && o.characterDataOldValue))
++		throw new TypeError('Invalid MutationObserver options');
+ 	for (var i = 0; i < this._targets.length; i++)
+-		if (this._targets[i].node === target) { this._targets[i].opts = opts; return; }
+-	this._targets.push({ node: target, opts: opts });
++		if (this._targets[i].node === target) { this._targets[i].opts = o; return; }
++	this._targets.push({ node: target, opts: o });
+ 	if (observers.indexOf(this) < 0) observers.push(this);
+ };
+ MutationObserver.prototype.disconnect = function () {
+@@ -2117,24 +2127,33 @@
+ 
+ function queueMutation(type, target, extra) {
+ 	if (!observers.length) return;
++	var queued = false;
+ 	observers.forEach(function (mo) {
++		var interested = false, keepOldValue = false;
+ 		for (var i = 0; i < mo._targets.length; i++) {
+ 			var t = mo._targets[i], o = t.opts;
+-			var within = t.node === target || (o.subtree && t.node.contains && t.node.contains(target));
+-			if (!within) continue;
++			/* Exclude unrelated mutations before crossing into native DOM to
++			 * walk ancestors, which is common for attribute-filtered observers. */
+ 			if (type === 'childList' && !o.childList) continue;
+ 			if (type === 'attributes' && (!o.attributes || (o.attributeFilter && o.attributeFilter.indexOf(extra.attributeName) < 0))) continue;
+ 			if (type === 'characterData' && !o.characterData) continue;
++			var within = t.node === target || (o.subtree && t.node.contains && t.node.contains(target));
++			if (!within) continue;
++			interested = true;
++			if ((type === 'attributes' && o.attributeOldValue) ||
++				(type === 'characterData' && o.characterDataOldValue)) keepOldValue = true;
++		}
++		if (interested) {
+ 			var rec = { type: type, target: target, addedNodes: NodeList(extra.added || []),
+ 				removedNodes: NodeList(extra.removed || []), previousSibling: extra.prev || null,
+ 				nextSibling: extra.next || null, attributeName: extra.attributeName || null,
+ 				attributeNamespace: null,
+-				oldValue: (o.attributeOldValue || o.characterDataOldValue) ? (extra.oldValue === undefined ? null : extra.oldValue) : null };
++				oldValue: keepOldValue ? (extra.oldValue === undefined ? null : extra.oldValue) : null };
+ 			mo._records.push(rec);
+-			break;
++			queued = true;
+ 		}
+ 	});
+-	if (!pendingMO) {
++	if (queued && !pendingMO) {
+ 		pendingMO = true;
+ 		Promise.resolve().then(function () {
+ 			pendingMO = false;

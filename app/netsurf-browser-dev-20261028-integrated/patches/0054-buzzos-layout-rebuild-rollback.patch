@@ -1,0 +1,421 @@
+--- a/netsurf/content/handlers/html/rebuild.c
++++ b/netsurf/content/handlers/html/rebuild.c
+@@ -233,12 +233,101 @@
+ 	}
+ }
+ 
++/* A rebuild may transfer objects before a later box allocation fails. Keep
++ * their original identity and list order until the complete tree is ready. */
++struct rebuild_object_state {
++	struct content_html_object *object;
++	struct box *box;
++};
++
++static void html_rebuild_restore_boxes(struct box *box, bool allow_create)
++{
++	for (; box != NULL; box = box->next) {
++		if (!(box->flags & CLONE)) {
++			if (box->node != NULL) {
++				void *old = NULL, *mapped = NULL;
++				dom_node_get_user_data(box->node,
++					corestring_dom___ns_key_box_node_data,
++					&mapped);
++				/* Hidden candidates remove the key itself. Recreating it
++				 * can allocate, so defer that case until temporary layout
++				 * memory has been released. Existing keys need no memory. */
++				if (mapped != NULL || allow_create)
++					dom_node_set_user_data(box->node,
++						corestring_dom___ns_key_box_node_data,
++						box, NULL, &old);
++			}
++			if (box->gadget != NULL)
++				box->gadget->box = box;
++		}
++		if (box->list_marker != NULL)
++			html_rebuild_restore_boxes(box->list_marker, allow_create);
++		if (box->children != NULL)
++			html_rebuild_restore_boxes(box->children, allow_create);
++	}
++}
++
++/* Failed conversion can leave boxes outside the partial root tree. Visit the
++ * allocation context so their provisional form widgets are released too.
++ * Old widgets have already been rebound, and remain owned by the old tree. */
++static void html_rebuild_discard_box(const void *ptr, int depth, int max_depth,
++		int is_ref, void *private_data)
++{
++	struct box *box;
++	(void)depth;
++	(void)max_depth;
++	(void)private_data;
++	if (is_ref || (box = talloc_get_type(ptr, struct box)) == NULL)
++		return;
++	if (!(box->flags & CLONE) && box->gadget != NULL &&
++			box->gadget->box == box) {
++		if (box->gadget->form == NULL)
++			form_free_control(box->gadget);
++		else
++			box->gadget->box = NULL;
++	}
++	box->gadget = NULL;
++}
++
++static void html_rebuild_restore_objects(html_content *c,
++		struct rebuild_object_state *saved, size_t count,
++		unsigned int active, unsigned int num_objects)
++{
++	struct content_html_object **link = &c->object_list;
++	size_t i;
++	while (*link != NULL) {
++		struct content_html_object *object = *link;
++		for (i = 0; i < count; i++) {
++			if (saved[i].object == object)
++				break;
++		}
++		if (i < count)
++			*link = object->next;
++		else
++			link = &object->next;
++	}
++	/* Only requests started by the failed candidate remain on this list. */
++	html_object_free_objects(c);
++	for (i = 0; i < count; i++) {
++		saved[i].object->box = saved[i].box;
++		saved[i].object->next = i + 1 < count ? saved[i + 1].object : NULL;
++	}
++	c->object_list = count != 0 ? saved[0].object : NULL;
++	c->rebuild_old_objects = NULL;
++	c->base.active = active;
++	c->num_objects = num_objects;
++}
++
+ static nserror html_rebuild_tree(html_content *c, bool initial, bool measure)
+ {
+ 	int *old_bctx;
+ 	struct box *old_layout;
+ 	struct content_html_iframe *old_iframes;
+ 	struct box *old_contents;
++	struct rebuild_object_state *objects = NULL;
++	struct content_html_object *object;
++	size_t object_count = 0, i;
++	unsigned int old_active, old_num_objects;
+ 	dom_node *html = NULL;
+ 	dom_node *focus_node = NULL;
+ 	dom_node *selection_node = NULL;
+@@ -262,6 +351,23 @@
+ 	if (dom_document_get_document_element(c->document, (void *)&html) !=
+ 			DOM_NO_ERR || html == NULL)
+ 		return NSERROR_DOM;
++
++	for (object = c->object_list; object != NULL; object = object->next)
++		object_count++;
++	if (object_count != 0) {
++		objects = calloc(object_count, sizeof(*objects));
++		if (objects == NULL) {
++			dom_node_unref(html);
++			return NSERROR_NOMEM;
++		}
++		for (object = c->object_list, i = 0; object != NULL;
++				object = object->next, i++) {
++			objects[i].object = object;
++			objects[i].box = object->box;
++		}
++	}
++	old_active = c->base.active;
++	old_num_objects = c->num_objects;
+ 
+ 	nsu_getmonotonic_ms(&t0);
+ 
+@@ -308,7 +414,6 @@
+ 	c->rebuild_old_objects = c->object_list;
+ 	c->object_list = NULL;
+ 	c->num_objects = 0;
+-	imagemap_destroy(c);
+ 
+ 	c->script_layout = measure;
+ 	err = dom_to_box_sync(html, c);
+@@ -316,17 +421,32 @@
+ 	if (err != NSERROR_OK || c->layout == NULL ||
+ 			c->layout == old_layout) {
+ 		NSLOG(netsurf, ERROR, "box tree rebuild failed");
+-		/* restore the old tree */
+-		if (c->bctx != NULL)
++		/* Restore bindings before destroying provisional boxes. Their
++		 * destructors clear only pointers that still refer to themselves. */
++		html_rebuild_restore_boxes(old_layout, false);
++		html_rebuild_restore_boxes(old_contents, false);
++		html_rebuild_restore_objects(c, objects, object_count,
++				old_active, old_num_objects);
++		if (c->bctx != NULL) {
++			talloc_report_depth_cb(c->bctx, 0, -1,
++				html_rebuild_discard_box, NULL);
+ 			talloc_free(c->bctx);
+-		html_object_free_objects(c);
++		}
+ 		c->bctx = old_bctx;
+ 		c->layout = old_layout;
+ 		c->iframe = old_iframes;
+ 		c->contents_boxes = old_contents;
+-		c->object_list = c->rebuild_old_objects;
+-		c->rebuild_old_objects = NULL;
+-		imagemap_extract(c);
++		html_rebuild_restore_boxes(old_layout, true);
++		html_rebuild_restore_boxes(old_contents, true);
++		free(objects);
++		if (focus_node != NULL) {
++			c->focus_type = HTML_FOCUS_TEXTAREA;
++			c->focus_owner.textarea = box_for_node(focus_node);
++		}
++		if (selection_node != NULL) {
++			c->selection_type = HTML_SELECTION_TEXTAREA;
++			c->selection_owner.textarea = box_for_node(selection_node);
++		}
+ 		if (focus_node != NULL)
+ 			dom_node_unref(focus_node);
+ 		if (selection_node != NULL)
+@@ -335,6 +455,8 @@
+ 		return err != NSERROR_OK ? err : NSERROR_BOX_CONVERT;
+ 	}
+ 
++	free(objects);
++
+ 	/* hand iframe browser windows over to the new boxes */
+ 	if (c->bw != NULL && old_iframes != NULL)
+ 		browser_window_rebind_iframes(c->bw);
+@@ -345,6 +467,7 @@
+ 	if (old_bctx != NULL)
+ 		talloc_free(old_bctx);
+ 
++	imagemap_destroy(c);
+ 	imagemap_extract(c);
+ 
+ 	if (focus_node != NULL) {
+--- a/netsurf/content/handlers/html/box_manipulate.c
++++ b/netsurf/content/handlers/html/box_manipulate.c
+@@ -27,6 +27,7 @@
+ 
+ 
+ #include "utils/errors.h"
++#include "utils/corestrings.h"
+ #include "utils/talloc.h"
+ #include "utils/nsurl.h"
+ #include "netsurf/types.h"
+@@ -66,6 +67,17 @@
+ 	lwc_string_unref(b->id);
+ 
+ 	if (b->node != NULL) {
++		void *mapped = NULL;
++		/* A partial rebuild may have published this box before failing.
++		 * Do not erase a replacement (or restored old-tree) binding. */
++		dom_node_get_user_data(b->node,
++			corestring_dom___ns_key_box_node_data, &mapped);
++		if (mapped == b) {
++			void *old = NULL;
++			dom_node_set_user_data(b->node,
++				corestring_dom___ns_key_box_node_data,
++				NULL, NULL, &old);
++		}
+ 		dom_node_unref(b->node);
+ 	}
+ 
+--- a/netsurf/content/handlers/html/box_special.c
++++ b/netsurf/content/handlers/html/box_special.c
+@@ -635,7 +635,7 @@
+ 	if (value == NULL)
+ 		goto no_memory;
+ 
+-	if (dom_element_has_attribute(n, corestring_dom_selected, &selected) != DOM_NO_ERR) {
++	if (dom_html_option_element_get_selected((void *)n, &selected) != DOM_NO_ERR) {
+ 		/* Assume not selected if we can't read the attribute presence */
+ 		selected = false;
+ 	}
+@@ -1644,7 +1644,7 @@
+ {
+ 	struct box *inline_container;
+ 	struct box *inline_box;
+-	struct form_control *gadget;
++	struct form_control *gadget, *options;
+ 	dom_node *c, *c2;
+ 	dom_node *next, *next2;
+ 	dom_exception err;
+@@ -1653,10 +1653,20 @@
+ 	if (gadget == NULL)
+ 		return false;
+ 
++	/* Existing controls belong to the old tree/form until this rebuild
++	 * commits. Build option data separately: appending to the live list
++	 * duplicates options on every rebuild, and freeing it on OOM leaves
++	 * the old box with a dangling gadget. */
++	box->gadget = gadget;
++	gadget->box = box;
+ 	gadget->html = content;
++	options = form_new_control(n, GADGET_SELECT);
++	if (options == NULL)
++		return false;
++	options->data.select.multiple = gadget->data.select.multiple;
+ 	err = dom_node_get_first_child(n, &c);
+ 	if (err != DOM_NO_ERR) {
+-		form_free_control(gadget);
++		form_free_control(options);
+ 		return false;
+ 	}
+ 
+@@ -1666,7 +1676,7 @@
+ 		err = dom_node_get_node_name(c, &name);
+ 		if (err != DOM_NO_ERR) {
+ 			dom_node_unref(c);
+-			form_free_control(gadget);
++			form_free_control(options);
+ 			return false;
+ 		}
+ 
+@@ -1674,9 +1684,9 @@
+ 				corestring_lwc_option)) {
+ 			dom_string_unref(name);
+ 
+-			if (box_select_add_option(gadget, c) == false) {
++			if (box_select_add_option(options, c) == false) {
+ 				dom_node_unref(c);
+-				form_free_control(gadget);
++				form_free_control(options);
+ 				return false;
+ 			}
+ 		} else if (dom_string_caseless_lwc_isequal(name,
+@@ -1686,7 +1696,7 @@
+ 			err = dom_node_get_first_child(c, &c2);
+ 			if (err != DOM_NO_ERR) {
+ 				dom_node_unref(c);
+-				form_free_control(gadget);
++				form_free_control(options);
+ 				return false;
+ 			}
+ 
+@@ -1697,7 +1707,7 @@
+ 				if (err != DOM_NO_ERR) {
+ 					dom_node_unref(c2);
+ 					dom_node_unref(c);
+-					form_free_control(gadget);
++					form_free_control(options);
+ 					return false;
+ 				}
+ 
+@@ -1705,11 +1715,11 @@
+ 						corestring_lwc_option)) {
+ 					dom_string_unref(c2_name);
+ 
+-					if (box_select_add_option(gadget,
++					if (box_select_add_option(options,
+ 							c2) == false) {
+ 						dom_node_unref(c2);
+ 						dom_node_unref(c);
+-						form_free_control(gadget);
++						form_free_control(options);
+ 						return false;
+ 					}
+ 				} else {
+@@ -1720,7 +1730,7 @@
+ 				if (err != DOM_NO_ERR) {
+ 					dom_node_unref(c2);
+ 					dom_node_unref(c);
+-					form_free_control(gadget);
++					form_free_control(options);
+ 					return false;
+ 				}
+ 
+@@ -1734,7 +1744,7 @@
+ 		err = dom_node_get_next_sibling(c, &next);
+ 		if (err != DOM_NO_ERR) {
+ 			dom_node_unref(c);
+-			form_free_control(gadget);
++			form_free_control(options);
+ 			return false;
+ 		}
+ 
+@@ -1742,9 +1752,14 @@
+ 		c = next;
+ 	}
+ 
+-	if (gadget->data.select.num_items == 0) {
+-		/* no options: ignore entire select */
+-		form_free_control(gadget);
++	if (options->data.select.num_items == 0) {
++		/* No options: leave the existing control owned by its form/box. */
++		struct form_control previous = *gadget;
++		gadget->data.select = options->data.select;
++		options->data.select = previous.data.select;
++		form_free_control(options);
++		box->type = BOX_INLINE_BLOCK;
++		*convert_children = false;
+ 		return true;
+ 	}
+ 
+@@ -1765,22 +1780,22 @@
+ 	box_add_child(inline_container, inline_box);
+ 	box_add_child(box, inline_container);
+ 
+-	if (gadget->data.select.multiple == false &&
+-			gadget->data.select.num_selected == 0) {
+-		gadget->data.select.current = gadget->data.select.items;
+-		gadget->data.select.current->initial_selected =
+-			gadget->data.select.current->selected = true;
+-		gadget->data.select.num_selected = 1;
++	if (options->data.select.multiple == false &&
++			options->data.select.num_selected == 0) {
++		options->data.select.current = options->data.select.items;
++		options->data.select.current->initial_selected =
++			options->data.select.current->selected = true;
++		options->data.select.num_selected = 1;
+ 		dom_html_option_element_set_selected(
+-				gadget->data.select.current->node, true);
+-	}
+-
+-	if (gadget->data.select.num_selected == 0)
++				options->data.select.current->node, true);
++	}
++
++	if (options->data.select.num_selected == 0)
+ 		inline_box->text = talloc_strdup(content->bctx,
+ 				messages_get("Form_None"));
+-	else if (gadget->data.select.num_selected == 1)
++	else if (options->data.select.num_selected == 1)
+ 		inline_box->text = talloc_strdup(content->bctx,
+-				gadget->data.select.current->text);
++				options->data.select.current->text);
+ 	else
+ 		inline_box->text = talloc_strdup(content->bctx,
+ 				messages_get("Form_Many"));
+@@ -1789,10 +1804,19 @@
+ 
+ 	inline_box->length = strlen(inline_box->text);
+ 
++	/* Swap only complete option data, then dispose of the previous list
++	 * through the temporary control without unlinking the live control. */
++	{
++		struct form_control previous = *gadget;
++		gadget->data.select = options->data.select;
++		options->data.select = previous.data.select;
++		form_free_control(options);
++	}
+ 	*convert_children = false;
+ 	return true;
+ 
+ no_memory:
++	form_free_control(options);
+ 	return false;
+ }
+ 
+--- a/netsurf/content/handlers/html/box_construct.c
++++ b/netsurf/content/handlers/html/box_construct.c
+@@ -952,8 +952,11 @@
+ 	box = box_create(styles, styles->styles[CSS_PSEUDO_ELEMENT_NONE], false,
+ 			props.href, props.target, props.title, id,
+ 			ctx->bctx);
+-	if (box == NULL)
++	if (box == NULL) {
++		css_select_results_destroy(styles);
++		lwc_string_unref(id);
+ 		return false;
++	}
+ 
+ 	/* If this is the root box, add it to the context */
+ 	if (props.node_is_root)

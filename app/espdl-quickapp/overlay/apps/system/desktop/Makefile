@@ -38,6 +38,8 @@ CSRCS += glass_status_power.c
 CSRCS += glass_system_platform.c
 
 CSRCS += glass_settings_service.c glass_icons.c
+CSRCS += glass_backlight.c glass_backlight_compat.c
+CSRCS += glass_video_blit.c
 CSRCS += glass_weather.c glass_weather_parse.c glass_weather_https.c glass_weather_http.c glass_https.c
 # Dependency generation needs the same headers as compilation.
 CFLAGS += -I$(APPDIR)/netutils/cjson/cJSON $(ESPCLAW_TLS_CFLAGS)
@@ -67,6 +69,7 @@ CSRCS += glass_vision.c qpk_camera_clip.c glass_camera_observation.c
 CSRCS += glass_grok.c glass_grok_state.c
 CSRCS += glass_code_font.c
 CSRCS += glass_sd_font.c
+CSRCS += glass_i18n.c
 CSRCS += pet_engine.c pet_sprites.c qpk_pet.c pet_lvgl.c dafeiyu_resource.c
 CXXSRCS += glass_pinyin.cpp $(wildcard music_vendor/googlepinyin/src/*.cpp)
 CXXEXT = .cpp

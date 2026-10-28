@@ -66,7 +66,7 @@ static void wake_mini_create(void)
   g_wake_mini.caption=lv_label_create(bubble);
   lv_obj_remove_style_all(g_wake_mini.caption);
   lv_obj_set_style_text_font(g_wake_mini.caption,zh_font(12),0);
-  lv_label_set_text(g_wake_mini.caption,"语音唤醒 · 空闲 6 秒后收起");
+  lv_label_set_text(g_wake_mini.caption,glass_tr("语音唤醒 · 空闲 6 秒后收起"));
   g_wake_mini.text=lv_label_create(bubble);
   lv_obj_remove_style_all(g_wake_mini.text);
   lv_obj_set_pos(g_wake_mini.text,0,24);lv_obj_set_width(g_wake_mini.text,280);
@@ -101,7 +101,7 @@ static void wake_mini_present(uint32_t event,uint32_t now)
   lv_obj_set_style_border_color(g_wake_mini.bubble,lv_color_hex(light?0xdce5f0:0x43516a),0);
   lv_obj_set_style_text_color(g_wake_mini.text,lv_color_hex(light?0x202b3d:0xf1f5fb),0);
   lv_obj_set_style_text_color(g_wake_mini.caption,lv_color_hex(light?0x526985:0xaebed4),0);
-  lv_label_set_text(g_wake_mini.text,"我在，请说。 说完后自动发送");
+  lv_label_set_text(g_wake_mini.text,glass_tr("我在，请说。 说完后自动发送"));
   lv_obj_align(g_wake_mini.root,LV_ALIGN_BOTTOM_LEFT,16,-16);
   lv_obj_set_style_opa(g_wake_mini.root,LV_OPA_COVER,0);
   lv_obj_remove_flag(g_wake_mini.root,LV_OBJ_FLAG_HIDDEN);
@@ -129,7 +129,7 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
     g_wake_mini.speech_owned=g_wake_mini.result_pending=false;g_wake_mini.turn=0;
     if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
     if(g_wake_mini.visible){
-      lv_obj_remove_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);lv_label_set_text(g_wake_mini.text,"对话已更新");
+      lv_obj_remove_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);lv_label_set_text(g_wake_mini.text,glass_tr("对话已更新"));
       lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,44);g_wake_mini.idle_at=now;
     }
     return;
@@ -152,7 +152,7 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
   if(g_wake_mini.speech_owned){
     if(speech->request!=g_wake_mini.speech_request||(!speech->active&&speech->error)){
       g_wake_mini.speech_owned=g_wake_mini.result_pending=false;
-      show_toast("语音播报未完成，结果已保留");g_wake_mini.idle_at=now;return;
+      show_toast(glass_tr("语音播报未完成，结果已保留"));g_wake_mini.idle_at=now;return;
     }
     if(speech->active)return;
     g_wake_mini.speech_owned=false;
@@ -176,10 +176,10 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
   if(!ret){g_wake_mini.speech_owned=true;g_wake_mini.speech_cursor=next;g_wake_mini.speech_retry_at=g_wake_mini.speech_wait_at=0;}
   else if(ret==-EBUSY){
     if(!g_wake_mini.speech_wait_at)g_wake_mini.speech_wait_at=now;
-    if(now-g_wake_mini.speech_wait_at>=10000){g_wake_mini.result_pending=false;g_wake_mini.idle_at=now;show_toast("音频正忙，结果已保留");}
+    if(now-g_wake_mini.speech_wait_at>=10000){g_wake_mini.result_pending=false;g_wake_mini.idle_at=now;show_toast(glass_tr("音频正忙，结果已保留"));}
     else g_wake_mini.speech_retry_at=now+500;
   }
-  else {g_wake_mini.result_pending=false;g_wake_mini.idle_at=now;show_toast("语音暂不可用，结果已保留");}
+  else {g_wake_mini.result_pending=false;g_wake_mini.idle_at=now;show_toast(glass_tr("语音暂不可用，结果已保留"));}
 }
 static void wake_mini_service(void)
 {
@@ -218,21 +218,21 @@ static void wake_mini_service(void)
         glass_voice_get(&voice);
         printf("[wake-mini] capture event=%lu request=%lu owner=%s result=%d\n",
           (unsigned long)speech.wake_event,(unsigned long)voice.request,page_owned?"large":g_wake_mini.voice_owned?"mini":"none",ret);
-        if(ret&&g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,"我在。请先配置语音识别服务");
+        if(ret&&g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,glass_tr("我在。请先配置语音识别服务"));
       }
       if(g_wake_mini.visible){
       if(speech.active&&!speech.background_wake&&speech.phase==SPEECH_COMMAND)
-        lv_label_set_text(g_wake_mini.text,"我在，请说离线指令。");
+        lv_label_set_text(g_wake_mini.text,glass_tr("我在，请说离线指令。"));
       else if(voice.active&&!g_wake_mini.voice_owned)
-        lv_label_set_text(g_wake_mini.text,"我在，语音会话正在聆听。");
+        lv_label_set_text(g_wake_mini.text,glass_tr("我在，语音会话正在聆听。"));
       else if(g_chat_ui.voice_session&&!voice.active)
-        lv_label_set_text(g_wake_mini.text,"我在，正在处理你的请求。");
+        lv_label_set_text(g_wake_mini.text,glass_tr("我在，正在处理你的请求。"));
       }
     }
   }
   if(g_wake_mini.voice_owned&&voice.request!=g_wake_mini.voice_request){
     g_wake_mini.voice_owned=false;g_wake_mini.idle_at=now;
-    if(g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,"麦克风已交给新的语音请求");
+    if(g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,glass_tr("麦克风已交给新的语音请求"));
   }
   if(g_wake_mini.voice_owned){
     if(voice.active&&voice.phase==GLASS_VOICE_LISTENING){
@@ -244,7 +244,7 @@ static void wake_mini_service(void)
         lv_label_set_text(g_wake_mini.text,voice.text);
       if(g_wake_mini.heard&&now-g_wake_mini.heard_at>=2000){
         glass_voice_stop_request(g_wake_mini.voice_request);
-        if(g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,"正在识别…");
+        if(g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,glass_tr("正在识别…"));
       }
       /* Bound an empty capture from actual listening readiness, rather than
        * cutting a spoken command at six seconds after the wake event. */
@@ -257,7 +257,7 @@ static void wake_mini_service(void)
         glass_chat_copy_utf8(g_wake_mini.pending_prompt,sizeof(g_wake_mini.pending_prompt),voice.text);
         if(g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,voice.text);
       }else if(g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,voice.phase==GLASS_VOICE_ERROR?
-        glass_voice_error_text(voice.error):"没有听清，请再说一次唤醒词");
+        glass_voice_error_text(voice.error):glass_tr("没有听清，请再说一次唤醒词"));
       g_wake_mini.retry_at=now+1500;
     }
   }
@@ -273,7 +273,7 @@ static void wake_mini_service(void)
         }
       }
       if(ret!=-EBUSY){g_wake_mini.pending_prompt[0]=0;
-        if(ret&&g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,"AI 暂不可用，请检查配置");}
+        if(ret&&g_wake_mini.visible)lv_label_set_text(g_wake_mini.text,glass_tr("AI 暂不可用，请检查配置"));}
     }
   }
   wake_mini_result_service(&speech,&voice,now,ball_page);

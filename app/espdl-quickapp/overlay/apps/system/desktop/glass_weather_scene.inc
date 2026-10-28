@@ -276,12 +276,12 @@ static void weather_scene_update(struct weather_scene *s,
 
 static const char *weather_status(const struct glass_weather_snapshot *w,bool stale)
 {
-  if(w->state==WEATHER_WAIT_NET)return w->valid?"离线 · 保留上次天气":"连接网络后更新";
-  if(w->state==WEATHER_WAIT_TIME)return "等待系统校时";
-  if(w->state==WEATHER_FETCHING)return "正在更新天气";
-  if(w->state==WEATHER_FAILED)return w->valid?"更新失败 · 保留上次天气":"暂时无法获取天气";
-  if(stale)return "天气数据待更新";
-  return w->valid?"按网络位置定位":"暂无天气数据";
+  if(w->state==WEATHER_WAIT_NET)return w->valid?glass_tr("离线 · 保留上次天气"):glass_tr("连接网络后更新");
+  if(w->state==WEATHER_WAIT_TIME)return glass_tr("等待系统校时");
+  if(w->state==WEATHER_FETCHING)return glass_tr("正在更新天气");
+  if(w->state==WEATHER_FAILED)return w->valid?"更新失败 · 保留上次天气":glass_tr("暂时无法获取天气");
+  if(stale)return glass_tr("天气数据待更新");
+  return w->valid?glass_tr("按网络位置定位"):glass_tr("暂无天气数据");
 }
 
 static void weather_home_update(const struct glass_weather_snapshot *w,bool stale,bool night)
@@ -291,7 +291,7 @@ static void weather_home_update(const struct glass_weather_snapshot *w,bool stal
     g_weather_home.state!=w->state||g_weather_home.valid!=w->valid||
     g_weather_home.stale!=stale||g_weather_home.night!=night;
   if(changed){
-    weather_text(g_weather_home.city,w->valid&&w->data.location[0]?w->data.location:"当地天气");
+    weather_text(g_weather_home.city,w->valid&&w->data.location[0]?w->data.location:glass_tr("当地天气"));
     weather_text(g_weather_home.status,weather_status(w,stale));
     weather_scene_update(&g_weather_home.scene,w,night);
   }

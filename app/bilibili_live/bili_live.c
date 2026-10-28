@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "bili_live.h"
+#include "glass_input_guard.h"
 #include "glass_icons.h"
 #include "glass_app_controls.h"
 #include "bili_http.h"
@@ -402,7 +403,7 @@ static void button(lv_obj_t *parent, const char *text, int x,
   glass_app_control_style(b,primary?palette.accent:palette.soft,palette.line);
   label = lv_label_create(b); lv_label_set_text(label, text); lv_obj_center(label);
   lv_obj_set_style_text_color(label,lv_color_hex(primary?palette.on_accent:palette.ink),0);
-  lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, NULL);
+  glass_input_guard_install(b);lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, NULL);
 }
 void bili_live_show(lv_obj_t *parent, const lv_font_t *font)
 {

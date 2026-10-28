@@ -31,7 +31,7 @@ static void lock_music_page(lv_obj_t *root)
   lv_obj_t *ring=glass_box(disc,73,73,98,98,0x9b7b83,49);lv_obj_remove_flag(ring,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_t *note=glass_symbol(ring,LV_SYMBOL_AUDIO,0,0,0xf5f0f2);
   lv_obj_set_style_text_font(note,glass_icon_font(32),0);lv_obj_center(note);
-  lv_obj_t *caption=lock_label(art,"暂无专辑封面",32,322,304,16,0xd6c3c8);
+  lv_obj_t *caption=lock_label(art,glass_tr("暂无专辑封面"),32,322,304,16,0xd6c3c8);
   lv_obj_set_style_text_align(caption,LV_TEXT_ALIGN_CENTER,0);
   g_lock_ui.status=lock_label(root,"",504,78,456,16,0xbba7a0);
   g_lock_ui.title=lock_label(root,"",504,129,456,28,0xfff8f4);
@@ -74,36 +74,36 @@ static void lock_weather_update(void)
      weather.state==g_lock_ui.weather.state && weather.valid==g_lock_ui.weather.valid)return;
   g_lock_ui.weather=weather;g_lock_ui.weather_valid=true;
   const struct glass_weather_data *d=&weather.data;
-  lv_label_set_text(g_lock_ui.weather_location,weather.valid&&d->location[0]?d->location:"当地天气");
-  lv_label_set_text(g_lock_ui.weather_condition,weather.valid?d->condition:"联网后自动获取天气");
+  lv_label_set_text(g_lock_ui.weather_location,weather.valid&&d->location[0]?d->location:glass_tr("当地天气"));
+  lv_label_set_text(g_lock_ui.weather_condition,weather.valid?d->condition:glass_tr("联网后自动获取天气"));
   lv_label_set_text(g_lock_ui.weather_icon,weather_detail_icon(weather.valid?d->condition:""));
   if(weather.valid && d->temperature!=-999)lv_label_set_text_fmt(g_lock_ui.weather_temp,"%d°",d->temperature);
   else lv_label_set_text(g_lock_ui.weather_temp,"--°");
   char humidity[24],air[24];
   if(weather.valid && d->humidity>=0)snprintf(humidity,sizeof(humidity),"%d%%",d->humidity);else strcpy(humidity,"--");
   if(weather.valid && d->aqi>=0)snprintf(air,sizeof(air),"%d",d->aqi);else strcpy(air,"--");
-  lv_label_set_text_fmt(g_lock_ui.weather_meta,"湿度 %s   ·   空气质量 %s",humidity,air);
-  lv_label_set_text(g_lock_ui.weather_report,weather.valid?d->report_time:"天气数据尚未获取");
-  lv_label_set_text(g_lock_ui.status,weather.state==WEATHER_FETCHING?"正在更新天气":weather.state==WEATHER_WAIT_NET?
-    "等待网络连接":weather.state==WEATHER_WAIT_TIME?"等待系统校时":weather.state==WEATHER_FAILED?
-    (weather.valid?"更新失败 · 保留上次数据":"暂时无法获取天气"):"按网络位置定位 · 每小时自动更新");
+  lv_label_set_text_fmt(g_lock_ui.weather_meta,glass_tr("湿度 %s   ·   空气质量 %s"),humidity,air);
+  lv_label_set_text(g_lock_ui.weather_report,weather.valid?d->report_time:glass_tr("天气数据尚未获取"));
+  lv_label_set_text(g_lock_ui.status,weather.state==WEATHER_FETCHING?glass_tr("正在更新天气"):weather.state==WEATHER_WAIT_NET?
+    glass_tr("等待网络连接"):weather.state==WEATHER_WAIT_TIME?glass_tr("等待系统校时"):weather.state==WEATHER_FAILED?
+    (weather.valid?glass_tr("更新失败 · 保留上次数据"):glass_tr("暂时无法获取天气")):glass_tr("按网络位置定位 · 每小时自动更新"));
 }
 static void lock_weather_refresh(lv_event_t *e)
 {LV_UNUSED(e);glass_weather_refresh();lock_weather_update();}
 static void lock_weather_page(lv_obj_t *root)
 {
   g_lock_ui.weather_icon=home_icon(root,GLASS_ICON_CLOUD_SUN,102,202,64,0xffd60a);
-  g_lock_ui.weather_location=lock_label(root,"当地天气",238,173,448,28,0xf5f5f7);
+  g_lock_ui.weather_location=lock_label(root,glass_tr("当地天气"),238,173,448,28,0xf5f5f7);
   if(g_home_font34)lv_obj_set_style_text_font(g_lock_ui.weather_location,g_home_font34,0);
   g_lock_ui.weather_condition=lock_label(root,"",238,235,448,28,0x9b9ba2);
   g_lock_ui.weather_meta=lock_label(root,"",238,296,448,20,0x8a8a91);
   g_lock_ui.weather_report=lock_label(root,"",238,344,448,16,0x66666e);
   g_lock_ui.weather_temp=home_text(root,"--°",730,180,236,64,0xf5f5f7);
-  lock_label(root,"摄氏度",740,278,216,20,0x8a8a91);
+  lock_label(root,glass_tr("摄氏度"),740,278,216,20,0x8a8a91);
   g_lock_ui.status=lock_label(root,"",238,416,600,16,0x787880);
   lv_obj_t *refresh=glass_box(root,824,470,136,42,0x1c1c1e,21);
   glass_clickable(refresh,lock_weather_refresh,NULL);
-  lv_obj_t *label=lock_label(refresh,"刷新天气",0,0,128,16,0xd4d4da);lv_obj_center(label);
+  lv_obj_t *label=lock_label(refresh,glass_tr("刷新天气"),0,0,128,16,0xd4d4da);lv_obj_center(label);
 }
 
 static void lock_photo_canvas_deleted(lv_event_t *e)
@@ -119,21 +119,21 @@ static void lock_photo_update(void)
     if(gmtime_r(&shifted,&t) && t.tm_year>=120) {
       lv_label_set_text_fmt(g_lock_ui.clock,"%02d:%02d",t.tm_hour,t.tm_min);
       lv_label_set_text_fmt(g_lock_ui.photo_date,"%d.%02d.%02d",t.tm_year+1900,t.tm_mon+1,t.tm_mday);
-    } else {lv_label_set_text(g_lock_ui.clock,"--:--");lv_label_set_text(g_lock_ui.photo_date,"等待校时");}
+    } else {lv_label_set_text(g_lock_ui.clock,"--:--");lv_label_set_text(g_lock_ui.photo_date,glass_tr("等待校时"));}
     g_lock_ui.valid=true;
   }
   if(g_lock_ui.photo_done)return;
   if(!g_lock_ui.photo_requested) {
     int ret=glass_lock_photo_request();
     if(ret==-EBUSY)return;
-    if(ret){lv_label_set_text(g_lock_ui.photo_status,"无法加载照片，请检查 SD 卡");g_lock_ui.photo_done=true;return;}
+    if(ret){lv_label_set_text(g_lock_ui.photo_status,glass_tr("无法加载照片，请检查 SD 卡"));g_lock_ui.photo_done=true;return;}
     g_lock_ui.photo_requested=true;
   }
   struct glass_lock_photo photo;if(!glass_lock_photo_take(&photo))return;
   g_lock_ui.photo_done=true;
   if(photo.error || !photo.pixels) {
     free(photo.pixels);
-    lv_label_set_text(g_lock_ui.photo_status,photo.error==-ENOENT?"将照片放入 SD 卡\n/sdcard/lockscreen/photo.jpg":"照片无法显示\n请使用小于 512 KB 的普通 JPEG");return;
+    lv_label_set_text(g_lock_ui.photo_status,photo.error==-ENOENT?glass_tr("将照片放入 SD 卡\n/sdcard/lockscreen/photo.jpg"):glass_tr("照片无法显示\n请使用小于 512 KB 的普通 JPEG"));return;
   }
   lv_obj_t *canvas=lv_canvas_create(g_lock_ui.root);
   lv_canvas_set_buffer(canvas,photo.pixels,photo.width,photo.height,LV_COLOR_FORMAT_RGB565);
@@ -146,7 +146,7 @@ static void lock_photo_update(void)
 }
 static void lock_photo_page(lv_obj_t *root)
 {
-  g_lock_ui.photo_status=lock_label(root,"正在读取 SD 卡照片…",162,270,700,20,0x94949c);
+  g_lock_ui.photo_status=lock_label(root,glass_tr("正在读取 SD 卡照片…"),162,270,700,20,0x94949c);
   lv_label_set_long_mode(g_lock_ui.photo_status,LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_align(g_lock_ui.photo_status,LV_TEXT_ALIGN_CENTER,0);
   lv_obj_t *shade=glass_box(root,644,54,340,142,0x000000,24);lv_obj_set_style_bg_opa(shade,100,0);

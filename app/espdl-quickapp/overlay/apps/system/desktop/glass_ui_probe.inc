@@ -5,6 +5,10 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <nuttx/video/fb.h>
+#include "glass_device_controls.h"
+#ifdef GLASS_VIDEO_BLIT
+#include "glass_video_blit.h"
+#endif
 
 static pthread_mutex_t g_ui_probe_lock = PTHREAD_MUTEX_INITIALIZER;
 static char g_ui_probe_command[64];
@@ -92,7 +96,7 @@ static void desktop_ui_probe_tree(lv_obj_t *object, unsigned parent)
   const char *type = "container";
   const char *text = "";
   bool input = lv_obj_check_type(object, &lv_textarea_class);
-  if (lv_obj_check_type(object, &lv_label_class))
+  if (lv_obj_has_class(object,&lv_label_class))
     { type = "label"; text = object == portal_code ? "[pairing code hidden]" : lv_label_get_text(object); }
   else if (input)
     { type = "input"; text = lv_textarea_get_placeholder_text(object); }
@@ -129,7 +133,7 @@ static bool desktop_ui_probe_click(lv_obj_t *object, const char *text)
     {
       for (uint32_t i = 0; i < lv_obj_get_child_count(object); i++) {
         lv_obj_t *label = lv_obj_get_child(object, i);
-        if (label && lv_obj_check_type(label, &lv_label_class) &&
+        if (label && lv_obj_has_class(label,&lv_label_class) &&
           (text[0] == '*' ? strstr(lv_label_get_text(label), text + 1) != NULL :
                            !strcmp(lv_label_get_text(label), text)))
           { lv_obj_send_event(object, LV_EVENT_CLICKED, NULL); return true; }
@@ -150,6 +154,37 @@ static bool desktop_ui_probe_click_at(lv_obj_t *object,int x,int y)
   if(x<area.x1||x>area.x2||y<area.y1||y>area.y2)return false;
   lv_obj_send_event(object,LV_EVENT_CLICKED,NULL);return true;
 }
+
+static lv_point_t g_ui_probe_pointer_point;
+static lv_indev_state_t g_ui_probe_pointer_state;
+static void desktop_ui_probe_pointer_read(lv_indev_t *input,lv_indev_data_t *data)
+{
+  LV_UNUSED(input);
+  data->point=g_ui_probe_pointer_point;data->state=g_ui_probe_pointer_state;
+}
+/* GUI thread only. Unlike click:, this runs native LVGL hit testing and
+ * PRESSED/RELEASED/SHORT_CLICKED/CLICKED, including input guards and motion. */
+static bool desktop_ui_probe_pointer_stroke(int x,int y,int end_x,int end_y)
+{
+  lv_display_t *display=lv_display_get_default();
+  if(!display || x<0 || y<0 || x>=lv_display_get_horizontal_resolution(display) ||
+     y>=lv_display_get_vertical_resolution(display) || end_x<0 || end_y<0 ||
+     end_x>=lv_display_get_horizontal_resolution(display) || end_y>=lv_display_get_vertical_resolution(display))return false;
+  lv_indev_t *input=lv_indev_create();if(!input)return false;
+  lv_indev_set_type(input,LV_INDEV_TYPE_POINTER);
+  lv_indev_set_display(input,display);
+  lv_indev_set_mode(input,LV_INDEV_MODE_EVENT);
+  lv_indev_set_read_cb(input,desktop_ui_probe_pointer_read);
+  g_ui_probe_pointer_point.x=x;g_ui_probe_pointer_point.y=y;
+  g_ui_probe_pointer_state=LV_INDEV_STATE_PRESSED;lv_indev_read(input);
+  g_ui_probe_pointer_point.x=end_x;g_ui_probe_pointer_point.y=end_y;
+  g_ui_probe_pointer_state=LV_INDEV_STATE_RELEASED;lv_indev_read(input);
+  lv_indev_delete(input);
+  return true;
+}
+
+static bool desktop_ui_probe_pointer_tap(int x,int y)
+{return desktop_ui_probe_pointer_stroke(x,y,x,y);}
 
 #include "qpk_capacity_test.inc"
 #include "qpk_yield_test.inc"
@@ -198,6 +233,26 @@ static void desktop_ui_probe_service(void)
     launch_local_video(NULL); local_album_open_path(command + 11);
   }
   else if (!strcmp(command, "local-stop")) panel_hide(NULL);
+  else if (!strcmp(command, "local-scale-on")) local_video_set_upscale(true);
+  else if (!strcmp(command, "local-scale-off")) local_video_set_upscale(false);
+  else if (!strcmp(command,"video-layer-top")) local_video_set_screen_layer(false);
+  else if (!strcmp(command,"video-layer-screen")) local_video_set_screen_layer(true);
+  else if (!strcmp(command,"video-geometry")) local_video_draw_status(desktop_ui_probe_print);
+  else if (!strcmp(command,"audio-status")) music_pcm_status();
+  else if (!strncmp(command,"audio-volume:",13)) {
+    unsigned value;char extra;
+    if(sscanf(command+13,"%u%c",&value,&extra)==1 && value<=100){
+      local_video_set_volume(value);glass_music_volume(value);
+      int ret=glass_speaker_volume_set(value);
+      desktop_ui_probe_print("AUDIO_VOLUME requested=%u master=%u result=%d\n",value,glass_speaker_volume(),ret);
+    }else desktop_ui_probe_print("AUDIO_VOLUME invalid\n");
+  }
+#ifdef GLASS_VIDEO_BLIT
+  else if (!strcmp(command, "video-blit-on")) glass_video_blit_set_enabled(true);
+  else if (!strcmp(command, "video-blit-off")) glass_video_blit_set_enabled(false);
+  else if (!strcmp(command, "video-profile-reset")) glass_video_profile_reset();
+  else if (!strcmp(command, "video-profile")) glass_video_profile_report(desktop_ui_probe_print);
+#endif
   else if (!strncmp(command, "bilibili-play:", 14)) {
     launch_bilibili(NULL);
     bili_live_play_room(command + 14);
@@ -250,6 +305,11 @@ static void desktop_ui_probe_service(void)
     }
   else if (!strcmp(command,"font-status"))
     {
+      struct glass_font_cache_status cache;glass_lyric_font_cache_status(global_font_selected,&cache);
+      desktop_ui_probe_print("FONT_CACHE face=%u glyphs=%u cached=%u preloaded=%u reads=%llu misses=%llu sizes=%u\n",
+        cache.index,cache.glyph_capacity,cache.glyph_cached,cache.preloaded_bytes,
+        (unsigned long long)cache.reads,(unsigned long long)cache.page_misses,cache.ready_sizes);
+
       int state,error;glass_sd_font_status(&state,&error);
       unsigned missing=0;
       static const uint32_t traditional[]={0x524e,0x537b,0x5f9e,0x611b,0x61f7,
@@ -410,6 +470,27 @@ static void desktop_ui_probe_service(void)
         if(!ret)desktop_ui_probe_print("HA_STATUS %s\n",status);
         else desktop_ui_probe_print("HA_STATUS_ERROR %d\n",ret);
         free(status);
+      }
+      else if (!strcmp(command,"backlight-status")) {
+        int result=glass_screen_brightness_status();
+        desktop_ui_probe_print("BACKLIGHT_STATUS result=%d\n",result);
+      }
+      else if (!strncmp(command,"screen-brightness:",18)) {
+        char *end;unsigned long value=strtoul(command+18,&end,10);
+        int result=(*end || !command[18] || value<10 || value>100)?-EINVAL:
+          glass_screen_brightness_set((unsigned)value);
+        if(!result)g_screen_brightness=(int)value;
+        desktop_ui_probe_print("BACKLIGHT_SET requested=%lu result=%d\n",value,result);
+      }
+      else if (!strncmp(command,"pointer-stroke:",15)) {
+        int x,y,end_x,end_y;char extra;
+        bool valid=sscanf(command+15,"%d:%d:%d:%d%c",&x,&y,&end_x,&end_y,&extra)==4;
+        desktop_ui_probe_print("pointer-stroke -> %d\n",valid&&desktop_ui_probe_pointer_stroke(x,y,end_x,end_y));
+      }
+      else if (!strncmp(command,"pointer-tap:",12)) {
+        int x,y;char extra;
+        bool valid=sscanf(command+12,"%d:%d%c",&x,&y,&extra)==2;
+        desktop_ui_probe_print("pointer-tap -> %d\n",valid&&desktop_ui_probe_pointer_tap(x,y));
       }
       else if (!strncmp(command,"click-at:",9)) {
         int x,y;bool hit=false;
@@ -607,7 +688,7 @@ static int desktop_ui_probe_request(const char *command)
     "speech-esp-tts", "speech-esp-tts-play", "speech-esp-tts-export",
     "speech-p4tts-scalar", "speech-p4tts-pie", "speech-p4tts-dual",
     "speech-zh-q8", "speech-zh-q8-play", "speech-zh-q8-pie", "speech-zh-q8-dual",
-    "music", "music-status", "music-metadata-status", "music-pv-demo", "music-pv-status", "font-status", "music-language-demo", "music-lyrics-status", "music-play-result", "music-toggle", "music-stop", "current", "apps", "about", "environment", "hello", "2048", "ouo", "ha", "dropdown", "grok-status",
+    "audio-status", "music", "music-status", "music-metadata-status", "music-pv-demo", "music-pv-status", "font-status", "music-language-demo", "music-lyrics-status", "music-play-result", "music-toggle", "music-stop", "current", "apps", "about", "environment", "hello", "2048", "ouo", "ha", "dropdown", "grok-status",
     "files-new", "light", "dark", "audit", "frame", "frame-free", "wifi-scan", "ble-scan", "dialog",
     "recovery", "recovery-start", "recovery-stop", "recovery-status",
     "ha-settings", "ha-address", "ha-status", "render-metrics", "render-metrics-reset", "toast", "camera-start", "camera-photo", "camera-mode",
@@ -618,12 +699,18 @@ static int desktop_ui_probe_request(const char *command)
     "qpk-draft-status", "qpk-preview", "qpk-save", "qpk-capacity", "qpk-capacity-status", "chat-scroll-up", "chat-scroll-down", "recorder", "dafeiyu", "pet", "pet-status"};
   /* click:<label> presses one visible control by its label, which is how the
    * file manager's list rows are verified. */
-  bool found =
+  bool found = (!strcmp(command,"backlight-status")) ||
+               (!strncmp(command,"screen-brightness:",18)) ||
 #ifdef GLASS_LOCAL_SPEECH
                (!strncmp(command,"speech-say:",11)&&command[11]!='\0') ||
 #endif
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
                (!strcmp(command, "local-video")) || (!strcmp(command, "local-stop")) ||
+               (!strcmp(command, "local-scale-on")) || (!strcmp(command, "local-scale-off")) ||
+               (!strcmp(command,"video-layer-top")) || (!strcmp(command,"video-layer-screen")) || (!strcmp(command,"video-geometry")) ||
+               (!strncmp(command,"audio-volume:",13)) ||
+               (!strcmp(command, "video-blit-on")) || (!strcmp(command, "video-blit-off")) ||
+               (!strcmp(command, "video-profile-reset")) || (!strcmp(command, "video-profile")) ||
                (!strncmp(command, "local-play:", 11) && !strncmp(command + 11, "/sdcard/", 8)) ||
                (!strcmp(command, "bilibili")) || (!strcmp(command, "bilibili-stop")) ||
                (!strncmp(command, "bilibili-play:", 14) && bili_valid_room(command + 14)) ||
@@ -632,6 +719,8 @@ static int desktop_ui_probe_request(const char *command)
 #endif
                (!strncmp(command, "click:", 6) && command[6] != '\0') ||
                (!strncmp(command,"click-at:",9) && command[9]!='\0') ||
+               (!strncmp(command,"pointer-stroke:",15) && command[15]!='\0') ||
+               (!strncmp(command,"pointer-tap:",12) && command[12]!='\0') ||
                (!strncmp(command, "music-key:", 10) && command[10] != '\0') ||
                (!strncmp(command, "chat-key:", 9) && command[9] != '\0') ||
                (!strncmp(command, "chat-type:", 10) && command[10] != '\0') ||

@@ -3,18 +3,15 @@
 #define MUSIC_FULL_PITCH 76
 #define MUSIC_FULL_HEIGHT 372
 #define MUSIC_FULL_PAD ((MUSIC_FULL_HEIGHT-MUSIC_FULL_PITCH)/2)
-#define MUSIC_FULL_FADE_MS 360
-#define MUSIC_FULL_MOVE_MS 420
-#define MUSIC_FULL_STEP_MS 36
+#define MUSIC_FULL_FADE_MS 160
+#define MUSIC_FULL_MOVE_MS 220
+#define MUSIC_FULL_STEP_MS 18
 #define MUSIC_FULL_ARC_WIDTH 112
 #define MUSIC_FULL_LINE_WIDTH (538-MUSIC_FULL_ARC_WIDTH)
-static lv_timer_t *music_font_timer;
 static const lv_font_t *music_lyric_font(unsigned size)
 {
   const lv_font_t *base=size==72&&g_glass.music_font72?g_glass.music_font72:
     size==72&&g_glass.font72?g_glass.font72:size>=48&&g_glass.font48?g_glass.font48:zh_font(size);
-  lv_font_t *custom=glass_lyric_font_get(music_font_selected,size);
-  if(custom){custom->fallback=base;return custom;}
   return base;
 }
 #include "glass_music_pv.inc"
@@ -27,8 +24,10 @@ struct music_full_ui {
   lv_obj_t *mode;
   struct music_pv_ui pv;
   struct music_cover_view cover;
+  struct music_seek_ui seek;
   struct music_lyrics_window window;
   unsigned track,total;
+  unsigned move_ms;
   unsigned row_index[MUSIC_LYRICS_WINDOW];
   lv_opa_t row_opacity[MUSIC_LYRICS_WINDOW];
   bool row_active[MUSIC_LYRICS_WINDOW];
@@ -129,7 +128,7 @@ static void music_full_draw(void)
       int start=lv_obj_get_style_text_opa(f->labels[i],0);
       if(entering&&start>LV_OPA_70)start=LV_OPA_70;
       lv_anim_set_values(&fade,start,opacity);
-      lv_anim_set_duration(&fade,MUSIC_FULL_FADE_MS);
+      lv_anim_set_duration(&fade,f->move_ms<MUSIC_FULL_FADE_MS?f->move_ms:MUSIC_FULL_FADE_MS);
       lv_anim_set_path_cb(&fade,lv_anim_path_ease_out);
       lv_anim_set_var(&fade,f->labels[i]);
       lv_anim_start(&fade);
@@ -144,9 +143,11 @@ static void music_full_draw(void)
       lv_anim_set_var(&move,f->rows[i]);
       lv_anim_set_exec_cb(&move,music_full_lyric_offset);
       lv_anim_set_values(&move,lv_obj_get_style_translate_y(f->rows[i],0)+f->cascade_delta,0);
-      lv_anim_set_duration(&move,MUSIC_FULL_MOVE_MS);
       unsigned delay=distance<=0?0:distance>3?3:(unsigned)distance;
-      lv_anim_set_delay(&move,delay*MUSIC_FULL_STEP_MS);
+      delay*=MUSIC_FULL_STEP_MS;
+      if(delay>f->move_ms/2)delay=f->move_ms/2;
+      lv_anim_set_duration(&move,f->move_ms-delay);
+      lv_anim_set_delay(&move,delay);
       lv_anim_set_path_cb(&move,lv_anim_path_ease_out);
       lv_anim_start(&move);
     }else music_full_lyric_offset(f->rows[i],lv_obj_get_style_translate_y(f->rows[i],0));
@@ -163,7 +164,7 @@ static void music_full_scroll(lv_event_t *event)
     if(input&&lv_indev_get_state(input)==LV_INDEV_STATE_PRESSED){
       f->follow=false;f->cascade=false;
       for(unsigned i=0;i<MUSIC_LYRICS_WINDOW;i++)music_full_row_reset(f,i);
-      music_full_text(lv_obj_get_child(f->follow_button,0),"恢复跟随");
+      music_full_text(lv_obj_get_child(f->follow_button,0),glass_tr("恢复跟随"));
     }
   }
   if(lv_event_get_code(event)==LV_EVENT_SCROLL)music_full_draw();
@@ -229,6 +230,7 @@ static void music_full_palette(struct music_full_ui *f,const struct music_now_pl
   lv_obj_set_style_bg_color(f->progress,lv_color_hex(secondary),LV_PART_MAIN);
   lv_obj_set_style_bg_opa(f->progress,LV_OPA_20,LV_PART_MAIN);
   lv_obj_set_style_bg_color(f->progress,lv_color_hex(accent),LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(f->progress,lv_color_hex(accent),LV_PART_KNOB);
   lv_obj_set_style_bg_color(f->volume,lv_color_hex(secondary),LV_PART_MAIN);
   lv_obj_set_style_bg_opa(f->volume,LV_OPA_20,LV_PART_MAIN);
   lv_obj_set_style_bg_color(f->volume,lv_color_hex(accent),LV_PART_INDICATOR);
@@ -239,88 +241,30 @@ static void music_full_palette(struct music_full_ui *f,const struct music_now_pl
   lv_obj_set_style_text_color(f->duration,lv_color_hex(secondary),0);
 }
 
-static void music_full_fonts_poll(void)
+static void music_full_fonts_changed(void)
 {
-  bool changed=glass_lyric_font_poll();
-  if(music_font_requested!=music_font_selected){
-    int state=glass_lyric_font_state(music_font_requested);
-    if(state==3){music_font_selected=music_font_requested;changed=true;}
-    else if(state==4){
-      music_font_requested=music_font_selected;
-      show_toast("未找到可用字体，请先安装字体包");changed=true;
-    }
-  }
-  if(music_font_selected&&glass_lyric_font_state(music_font_selected)==4){
-    music_font_selected=0;music_font_requested=0;changed=true;
-    show_toast("字体读取失败，已恢复默认字体");
-  }
   struct music_full_ui *f=g_music_ui.full;
-  if(g_glass.lyric_font_dropdown){
-    lv_dropdown_set_selected(g_glass.lyric_font_dropdown,music_font_requested);
-    lv_dropdown_set_text(g_glass.lyric_font_dropdown,music_font_requested!=music_font_selected?
-      "字体加载中…":glass_lyric_font_name(music_font_selected));
-  }
-  if(f&&changed){
+  if(f){
     f->pv.valid=false;
     lv_obj_set_style_text_font(f->pv.translation,music_lyric_font(20),0);
     lv_obj_invalidate(f->root);
   }
   if(g_music_ui.lyric)lv_obj_set_style_text_font(g_music_ui.lyric,music_lyric_font(16),0);
-  if(music_font_requested==music_font_selected&&music_font_timer){
-    lv_timer_delete(music_font_timer);music_font_timer=NULL;
-  }
 }
 
-static void music_font_check(lv_timer_t *timer)
-{LV_UNUSED(timer);music_full_fonts_poll();}
+static void music_full_fonts_poll(void)
+{glass_global_fonts_poll();}
 
-static void music_full_font_selected(lv_event_t *event)
+static void music_full_sync(const struct music_now_playing *now,bool force)
 {
-  lv_obj_t *select=lv_event_get_target(event);unsigned index=lv_dropdown_get_selected(select);
-  if(index>=glass_lyric_font_count())return;
-  if(glass_lyric_font_request(index)<0){
-    lv_dropdown_set_selected(select,music_font_requested);show_toast("字体暂时不可用");return;
-  }
-  music_font_requested=index;
-  music_full_fonts_poll();
-  /* Settings can be open while the music page is closed. This short-lived
-   * UI timer completes the choice without depending on the player timer. */
-  if(music_font_requested!=music_font_selected&&!music_font_timer){
-    music_font_timer=lv_timer_create(music_font_check,100,NULL);
-    if(!music_font_timer){music_font_requested=music_font_selected;music_full_fonts_poll();show_toast("内存不足，暂时无法切换字体");}
-  }
-  struct music_now_playing now;glass_music_now_playing(&now);music_full_refresh(&now);
-}
-
-static void music_full_refresh(const struct music_now_playing *now)
-{
-  struct music_full_ui *f=g_music_ui.full;if(!f||!glass_ui_can_paint(f->root))return;
-  f->playing=now->state==MUSIC_PLAYING&&!now->pause_requested;
-  if(f->track!=now->track_id)for(unsigned i=0;i<MUSIC_LYRICS_WINDOW;i++){
-    music_full_row_reset(f,i);
-    lv_obj_add_flag(f->rows[i],LV_OBJ_FLAG_HIDDEN);
-  }
-  music_cover_tick(&f->cover,now);
-  music_full_text(f->title,now->name[0]?now->name:"还没有播放音乐");
-  music_full_text(f->artist,now->artist[0]?now->artist:"播放歌曲后，在这里跟随歌词");
-  const char *status=now->state==MUSIC_PLAYING?"正在播放":now->state==MUSIC_PAUSED?"已暂停":
-    now->state==MUSIC_LOADING?"正在加载音乐":now->state==MUSIC_ERROR?"播放失败":
-    now->state==MUSIC_STOPPED?"已停止":now->state==MUSIC_ENDED?"播放结束":"音乐 · 全屏歌词";
-  music_full_text(f->status,status);
-  music_full_text(f->play,(now->state==MUSIC_PLAYING||now->state==MUSIC_LOADING)&&!now->pause_requested?LV_SYMBOL_PAUSE:LV_SYMBOL_PLAY);
-  char time[24];snprintf(time,sizeof(time),"%02u:%02u",now->position_ms/60000,now->position_ms/1000%60);
-  music_full_text(f->elapsed,time);
-  if(now->duration_ms)snprintf(time,sizeof(time),"%02u:%02u",now->duration_ms/60000,now->duration_ms/1000%60);
-  else snprintf(time,sizeof(time),"--:--");
-  music_full_text(f->duration,time);
-  unsigned progress=now->duration_ms?(uint64_t)now->position_ms*1000/now->duration_ms:0;
-  lv_bar_set_value(f->progress,progress>1000?1000:progress,LV_ANIM_OFF);
-  if(!lv_obj_has_state(f->volume,LV_STATE_PRESSED))lv_slider_set_value(f->volume,now->volume,LV_ANIM_OFF);
-  if(f->pv.visible){music_pv_refresh(&f->pv);music_full_palette(f,now);return;}
-  music_full_palette(f,now);
+  struct music_full_ui *f=g_music_ui.full;
+  if(!f||f->pv.visible||!glass_ui_can_paint(f->root))return;
+  bool playing=now->state==MUSIC_PLAYING&&!now->pause_requested;
   glass_music_lyrics_read(f->window.first,&f->window);
   if(f->window.track_id!=now->track_id)return;
   bool changed=f->track!=now->track_id||f->total!=f->window.total;
+  if(!force&&!changed&&f->current==f->window.current&&f->playing==playing)return;
+  f->playing=playing;
   if(f->track!=now->track_id){f->follow=true;f->current=-2;}
   f->track=now->track_id;f->total=f->window.total;
   if(changed){
@@ -329,13 +273,27 @@ static void music_full_refresh(const struct music_now_playing *now)
     lv_obj_update_layout(f->viewport);
   }
   if(!f->total){
-    const char *hint=now->lyrics_state==MUSIC_LYRICS_LOADING?"正在获取歌词…":
-      now->name[0]?"暂无歌词 · 仍可继续听歌":"选择一首喜欢的歌开始播放";
+    const char *hint=now->lyrics_state==MUSIC_LYRICS_LOADING?glass_tr("正在获取歌词…"):
+      now->name[0]?glass_tr("暂无歌词 · 仍可继续听歌"):glass_tr("选择一首喜欢的歌开始播放");
     music_full_text(f->hint,hint);lv_obj_remove_flag(f->hint,LV_OBJ_FLAG_HIDDEN);
   }else lv_obj_add_flag(f->hint,LV_OBJ_FLAG_HIDDEN);
   if(f->follow&&(changed||f->current!=f->window.current)){
     int target=f->window.current<0?0:f->window.current*MUSIC_FULL_PITCH;
-    f->cascade=!changed&&f->playing&&!g_glass.reduced_motion&&f->current>=0&&f->window.current==f->current+1;
+    f->move_ms=MUSIC_FULL_MOVE_MS;
+    /* Finish by the audio timestamp deadline, including row stagger. Late
+     * ticks catch up immediately; rapid lines never queue old transitions. */
+    if(f->window.current>=0&&(unsigned)f->window.current>=f->window.first&&
+       (unsigned)f->window.current<f->window.first+f->window.count){
+      unsigned slot=(unsigned)f->window.current-f->window.first;
+      unsigned start=f->window.start_ms[slot],end=f->window.end_ms[slot];
+      unsigned age=now->position_ms>start?now->position_ms-start:0;
+      f->move_ms=age<MUSIC_FULL_MOVE_MS?MUSIC_FULL_MOVE_MS-age:0;
+      unsigned remaining=end>now->position_ms?end-now->position_ms:0;
+      unsigned budget=remaining>50?remaining-50:0;
+      if(f->move_ms>budget)f->move_ms=budget;
+    }
+    bool interrupted=f->current>=0&&lv_anim_get(f->rows[f->current%MUSIC_LYRICS_WINDOW],music_full_lyric_offset);
+    f->cascade=!changed&&!interrupted&&f->move_ms>=60&&f->playing&&!g_glass.reduced_motion&&f->current>=0&&f->window.current==f->current+1;
     f->cascade_delta=target-lv_obj_get_scroll_y(f->viewport);
     /* Seeks and restoring follow settle immediately; only normal playback
      * advances use the stagger, so old transitions cannot trail a jump. */
@@ -349,8 +307,35 @@ static void music_full_refresh(const struct music_now_playing *now)
     lv_obj_scroll_to_y(f->viewport,f->current<0?0:f->current*MUSIC_FULL_PITCH,LV_ANIM_OFF);
   }
   f->current=f->window.current;
-  music_full_text(lv_obj_get_child(f->follow_button,0),f->follow?"自动跟随":"恢复跟随");
+  music_full_text(lv_obj_get_child(f->follow_button,0),f->follow?glass_tr("自动跟随"):glass_tr("恢复跟随"));
   music_full_draw();
+}
+
+static void music_full_refresh(const struct music_now_playing *now)
+{
+  struct music_full_ui *f=g_music_ui.full;if(!f||!glass_ui_can_paint(f->root))return;
+  f->playing=now->state==MUSIC_PLAYING&&!now->pause_requested;
+  if(f->track!=now->track_id)for(unsigned i=0;i<MUSIC_LYRICS_WINDOW;i++){
+    music_full_row_reset(f,i);
+    lv_obj_add_flag(f->rows[i],LV_OBJ_FLAG_HIDDEN);
+  }
+  music_cover_tick(&f->cover,now);
+  music_full_text(f->title,now->name[0]?now->name:glass_tr("还没有播放音乐"));
+  music_full_text(f->artist,now->artist[0]?now->artist:glass_tr("播放歌曲后，在这里跟随歌词"));
+  const char *status=now->state==MUSIC_PLAYING?glass_tr("正在播放"):now->state==MUSIC_PAUSED?glass_tr("已暂停"):
+    now->state==MUSIC_LOADING?glass_tr("正在加载音乐"):now->state==MUSIC_ERROR?glass_tr("播放失败"):
+    now->state==MUSIC_STOPPED?glass_tr("已停止"):now->state==MUSIC_ENDED?glass_tr("播放结束"):glass_tr("音乐 · 全屏歌词");
+  music_full_text(f->status,status);
+  music_full_text(f->play,(now->state==MUSIC_PLAYING||now->state==MUSIC_LOADING)&&!now->pause_requested?LV_SYMBOL_PAUSE:LV_SYMBOL_PLAY);
+  music_ui_seek_refresh(f->progress, &f->seek, now);
+  char time[24];
+  if(now->duration_ms)snprintf(time,sizeof(time),"%02u:%02u",now->duration_ms/60000,now->duration_ms/1000%60);
+  else snprintf(time,sizeof(time),"--:--");
+  music_full_text(f->duration,time);
+  if(!lv_obj_has_state(f->volume,LV_STATE_PRESSED))lv_slider_set_value(f->volume,now->volume,LV_ANIM_OFF);
+  if(f->pv.visible){music_pv_refresh(&f->pv);music_full_palette(f,now);return;}
+  music_full_palette(f,now);
+  music_full_sync(now,true);
 }
 
 static void music_full_mode(lv_event_t *event)
@@ -374,7 +359,7 @@ static void music_full_mode(lv_event_t *event)
     lv_obj_add_flag(f->pv.root,LV_OBJ_FLAG_HIDDEN);lv_timer_pause(f->pv.timer);
     f->follow=true;f->current=-2;
   }
-  music_full_text(lv_obj_get_child(f->mode,0),f->pv.visible?"普通歌词":"文字 PV");
+  music_full_text(lv_obj_get_child(f->mode,0),f->pv.visible?glass_tr("普通歌词"):glass_tr("文字 PV"));
   struct music_now_playing now;glass_music_now_playing(&now);music_full_refresh(&now);
 }
 
@@ -382,14 +367,14 @@ static void music_full_bilingual(lv_event_t *event)
 {
   LV_UNUSED(event);struct music_full_ui *f=g_music_ui.full;if(!f)return;
   g_glass.music_original_only=!g_glass.music_original_only;f->pv.valid=false;f->palette_valid=false;
-  music_full_text(lv_obj_get_child(f->bilingual,0),g_glass.music_original_only?"原文":"双语");
+  music_full_text(lv_obj_get_child(f->bilingual,0),g_glass.music_original_only?glass_tr("原文"):glass_tr("双语"));
   struct music_now_playing now;glass_music_now_playing(&now);music_full_refresh(&now);
 }
 
 static void music_full_open(lv_event_t *event)
 {
   LV_UNUSED(event);if(!g_music_ui.root||g_music_ui.full)return;
-  struct music_full_ui *f=calloc(1,sizeof(*f));if(!f){show_toast("内存不足，稍后再试");return;}
+  struct music_full_ui *f=calloc(1,sizeof(*f));if(!f){show_toast(glass_tr("内存不足，稍后再试"));return;}
   g_music_ui.full=f;f->follow=true;f->track=UINT32_MAX;f->current=-2;
   f->status_hidden=g_desktop.statusbar&&lv_obj_has_flag(g_desktop.statusbar,LV_OBJ_FLAG_HIDDEN);
   f->root=glass_box(lv_layer_top(),0,0,1024,600,g_music_ui.background,0);
@@ -397,11 +382,11 @@ static void music_full_open(lv_event_t *event)
   lv_obj_add_flag(f->root,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(f->root,music_full_deleted,LV_EVENT_DELETE,f);
   glass_status_visibility(true);
-  music_ui_button(f->root,"返回音乐",24,16,136,44,g_music_ui.surface,music_full_close,NULL,false);
-  f->status=music_ui_text(f->root,"音乐 · 全屏歌词",194,27,274,16,g_music_ui.secondary);
-  f->bilingual=music_ui_button(f->root,g_glass.music_original_only?"原文":"双语",494,16,132,44,g_music_ui.surface,music_full_bilingual,NULL,false);
-  f->mode=music_ui_button(f->root,"文字 PV",650,16,162,44,g_music_ui.surface,music_full_mode,NULL,false);
-  f->follow_button=music_ui_button(f->root,"自动跟随",832,16,168,44,g_music_ui.surface,music_full_follow,NULL,false);
+  music_ui_button(f->root,glass_tr("返回音乐"),24,16,136,44,g_music_ui.surface,music_full_close,NULL,false);
+  f->status=music_ui_text(f->root,glass_tr("音乐 · 全屏歌词"),194,27,274,16,g_music_ui.secondary);
+  f->bilingual=music_ui_button(f->root,g_glass.music_original_only?glass_tr("原文"):glass_tr("双语"),494,16,132,44,g_music_ui.surface,music_full_bilingual,NULL,false);
+  f->mode=music_ui_button(f->root,glass_tr("文字 PV"),650,16,162,44,g_music_ui.surface,music_full_mode,NULL,false);
+  f->follow_button=music_ui_button(f->root,glass_tr("自动跟随"),832,16,168,44,g_music_ui.surface,music_full_follow,NULL,false);
   f->cover.host=music_ui_sleeve(f->root,48,100,288,20);f->cover.owner=GLASS_COVER_LOCK;
   f->title=music_ui_text(f->root,"",48,404,304,28,g_music_ui.primary);
   f->artist=music_ui_text(f->root,"",48,448,304,16,g_music_ui.secondary);
@@ -435,15 +420,14 @@ static void music_full_open(lv_event_t *event)
   lv_obj_remove_flag(f->controls,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
   f->elapsed=music_ui_text(f->root,"00:00",212,511,48,12,g_music_ui.secondary);
   f->duration=music_ui_text(f->root,"--:--",380,511,48,12,g_music_ui.secondary);
-  f->progress=lv_bar_create(f->root);lv_obj_set_pos(f->progress,264,519);lv_obj_set_size(f->progress,108,3);
-  lv_bar_set_range(f->progress,0,1000);
+  f->progress=lv_slider_create(f->root);lv_obj_set_pos(f->progress,264,519);lv_obj_set_size(f->progress,108,3);
+  music_ui_seek_setup(f->progress, &f->seek, f->elapsed);
   lv_obj_set_style_bg_color(f->progress,lv_color_hex(g_music_ui.surface),LV_PART_MAIN);
   lv_obj_set_style_bg_color(f->progress,lv_color_hex(g_music_ui.accent),LV_PART_INDICATOR);
   lv_obj_set_style_bg_opa(f->progress,LV_OPA_COVER,LV_PART_MAIN);
   lv_obj_set_style_bg_opa(f->progress,LV_OPA_COVER,LV_PART_INDICATOR);
   lv_obj_set_style_radius(f->progress,LV_RADIUS_CIRCLE,LV_PART_MAIN);
   lv_obj_set_style_radius(f->progress,LV_RADIUS_CIRCLE,LV_PART_INDICATOR);
-  lv_obj_remove_flag(f->progress,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_t *favorite=music_ui_button(f->root,GLASS_ICON_HEART,152,498,44,44,g_music_ui.surface,music_ui_favorite,NULL,true);
   f->favorite=lv_obj_get_child(favorite,0);
   f->previous=music_ui_button(f->root,LV_SYMBOL_PREV,432,498,44,44,g_music_ui.surface,music_ui_skip,(void *)-1,true);

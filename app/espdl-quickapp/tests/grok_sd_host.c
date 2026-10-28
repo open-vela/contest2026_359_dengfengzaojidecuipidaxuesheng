@@ -8,9 +8,42 @@ void glass_voice_get(struct glass_voice_snapshot *out){*out=voice;}
 static unsigned char framebuffer[300*180*2];
 static const lv_font_t *font(int size){(void)size;return LV_FONT_DEFAULT;}
 static void flush(lv_display_t *d,const lv_area_t *a,uint8_t *data){(void)a;(void)data;lv_display_flush_ready(d);}
-static void pump(unsigned n){while(n--){lv_tick_inc(20);glass_grok_test_step_visible();lv_timer_handler();usleep(1000);}}
+/* Advance virtual time only after outstanding reads complete. Real host disk
+ * latency must not turn a 3-second animation into a few displayed frames. */
+static void pump(unsigned n){while(n--){
+  lv_tick_inc(20);glass_grok_test_step_visible();lv_timer_handler();
+  for(unsigned j=0;j<8;j++)if(instances[j]){
+    bool busy=true;
+    for(unsigned tries=0;busy&&tries<10000;tries++){
+      pthread_mutex_lock(&instances[j]->lock);busy=instances[j]->busy;pthread_mutex_unlock(&instances[j]->lock);
+      if(busy)usleep(100);
+    }
+    assert(!busy);
+  }
+}}
 static void wait_frame(struct glass_grok *b,unsigned before){for(unsigned i=0;i<1000&&b->displayed==before;i++)pump(1);assert(b->displayed>before);assert(!b->error);}
 static void choose(struct glass_grok *b,unsigned id){unsigned before=b->displayed;glass_grok_select(b,id);wait_frame(b,before);assert(b->current==id);}
+static void mood_cases(lv_obj_t *root)
+{
+  const unsigned moods[]={3,10,19,14,4,16};
+  for(unsigned black=0;black<2;black++){
+    struct glass_grok *b=glass_grok_create_sprite(root,0,0,170,170,120,black,font);assert(b);wait_frame(b,0);
+    glass_grok_select(b,2);pump(500);assert(b->current==2); /* App selection stays explicit. */
+    glass_grok_set_ambient(b,true);unsigned seen=0;
+    for(unsigned i=0;i<3900;i++){
+      glass_grok_select(b,2);pump(1); /* Repeated UI hints do not postpone moods. */
+      for(unsigned j=0;j<6;j++)if(b->current==moods[j])seen|=1u<<j;
+    }
+    assert(seen==63);
+    for(unsigned i=0;i<3;i++){
+      unsigned work[]={35,30,39};choose(b,work[i]);pump(420);assert(b->current==work[i]);
+    }
+    glass_grok_select(b,2);glass_grok_set_reduced_motion(b,true);pump(600);assert(b->current==2);
+    glass_grok_set_reduced_motion(b,false);glass_grok_set_ambient(b,false);pump(600);assert(b->current==2);
+    lv_obj_delete(b->root);
+  }
+  puts("GROK_MOODS_OK: six idle moods in both palettes; repeated idle hints; immediate service priority; explicit app selection; reduced motion");
+}
 int main(int argc,char **argv)
 {
   assert(argc==2);lv_init();lv_display_t *d=lv_display_create(300,180);lv_display_set_color_format(d,LV_COLOR_FORMAT_RGB565);lv_display_set_buffers(d,framebuffer,NULL,sizeof(framebuffer),LV_DISPLAY_RENDER_MODE_FULL);lv_display_set_flush_cb(d,flush);
@@ -45,6 +78,7 @@ int main(int argc,char **argv)
   }
   struct glass_grok *b=glass_grok_create_pixel(root,285,false,font);assert(b);wait_frame(b,0);chat.turn_id=1;chat.phase=CHAT_REQUESTING;chat.state=CHAT_WAITING;chat.activity=CHAT_ACTIVITY_THINK;pump(20);assert(b->current==30);chat.activity=CHAT_ACTIVITY_REPLY;pump(20);assert(b->current==39);chat.phase=CHAT_IDLE;chat.state=CHAT_DONE;pump(20);assert(b->current==33);pump(140);assert(b->current==2);
   lv_obj_t *overlay=lv_obj_create(root);lv_obj_update_layout(root);assert(lv_obj_is_visible(overlay));glass_grok_set_obscured_by(b,overlay);unsigned before=b->displayed;pump(25);assert(b->displayed==before);lv_obj_add_flag(overlay,LV_OBJ_FLAG_HIDDEN);wait_frame(b,before);lv_obj_delete(b->root);lv_obj_delete(overlay);
+  mood_cases(root);
   for(unsigned i=0;i<24;i++){b=glass_grok_create_avatar(root,font);assert(b);if(i%2)pump(1);lv_obj_delete(b->root);}
   b=glass_grok_create_avatar(root,font);strcpy(b->path,"/nonexistent/grok.gbs");pump(30);assert(!b->initialized&&b->errors>0);lv_obj_delete(b->root);
   b=glass_grok_create_avatar(root,font);snprintf(b->path,sizeof(b->path),"%s/bad.gbs",argv[1]);FILE *f=fopen(b->path,"wb");assert(f);fwrite("bad",1,3,f);fclose(f);pump(30);assert(!b->initialized&&b->error==-EIO);lv_obj_delete(b->root);

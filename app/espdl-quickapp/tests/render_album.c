@@ -68,7 +68,7 @@ int main(int argc,char **argv)
     for(unsigned i=0;i<3;i++){lv_tick_inc(101);lv_timer_handler();}
     lv_obj_update_layout(g_desktop.screen);assert(review_label_find(g_desktop.panel,"落日.jpg"));
     review_click("全屏");lv_tick_inc(101);lv_timer_handler();review_capture(display,"album-fullscreen","照片 · 沉浸查看");
-    lv_obj_t *close=review_find(lv_layer_top(),"收起");assert(close);lv_obj_send_event(close,LV_EVENT_CLICKED,NULL);lv_tick_inc(101);lv_timer_handler();
+    lv_obj_t *close=review_find(lv_layer_top(),"退出全屏");assert(close);lv_obj_send_event(close,LV_EVENT_CLICKED,NULL);lv_tick_inc(101);lv_timer_handler();
     review_click("返回相册");for(unsigned i=0;i<18;i++){lv_tick_inc(101);lv_timer_handler();}
     review_click("视频");for(unsigned i=0;i<3;i++){lv_tick_inc(101);lv_timer_handler();}
     review_capture(display,"album-videos","相册 · 视频筛选");

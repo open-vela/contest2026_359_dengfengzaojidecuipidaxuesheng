@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_ble.h"
+static bool g_mouse_return_apps;
+static void glass_mouse_back(lv_event_t *e)
+{if(g_mouse_return_apps)glass_apps(e);else panel_hide(e);}
 
 enum glass_mouse_command
 {
@@ -189,7 +192,7 @@ static void glass_mouse_action(lv_event_t *event)
 {
   int command = (int)(intptr_t)lv_event_get_user_data(event);
   if (glass_mouse_submit(command, 0, 0, 0) == -EBUSY)
-    show_toast("正在处理上一项操作");
+    show_toast(glass_tr("正在处理上一项操作"));
 }
 
 static int glass_mouse_clamp(int value)
@@ -352,42 +355,42 @@ static void glass_mouse_refresh(lv_timer_t *timer)
                      state.mouse_notify && !state.suspended;
   if (busy)
     {
-      const char *operation = command == GLASS_MOUSE_START ? "正在启动蓝牙" :
-                              command == GLASS_MOUSE_STOP ? "正在停止并断开" :
-                              "正在发送操作";
+      const char *operation = command == GLASS_MOUSE_START ? glass_tr("正在启动蓝牙") :
+                              command == GLASS_MOUSE_STOP ? glass_tr("正在停止并断开") :
+                              glass_tr("正在发送操作");
       lv_label_set_text(g_mouse_status, operation);
     }
   else if (state.connected && input_ready)
-    lv_label_set_text(g_mouse_status, "已连接，可以控制");
+    lv_label_set_text(g_mouse_status, glass_tr("已连接，可以控制"));
   else if (state.connected)
-    lv_label_set_text(g_mouse_status, "正在完成安全连接");
+    lv_label_set_text(g_mouse_status, glass_tr("正在完成安全连接"));
   else if (state.advertising)
-    lv_label_set_text(g_mouse_status, "等待电脑配对");
+    lv_label_set_text(g_mouse_status, glass_tr("等待电脑配对"));
   else if (state.host_ready)
-    lv_label_set_text(g_mouse_status, "已就绪，等待开始");
+    lv_label_set_text(g_mouse_status, glass_tr("已就绪，等待开始"));
   else
-    lv_label_set_text(g_mouse_status, "未启动");
+    lv_label_set_text(g_mouse_status, glass_tr("未启动"));
 
-  glass_mouse_status_value(0, state.host_ready, "就绪", "未启动");
-  glass_mouse_status_value(1, state.connected, "已连接", "未连接");
-  glass_mouse_status_value(2, state.encrypted, "已加密", "等待加密");
-  glass_mouse_status_value(3, state.mouse_notify, "已订阅", "等待订阅");
+  glass_mouse_status_value(0, state.host_ready, glass_tr("就绪"), glass_tr("未启动"));
+  glass_mouse_status_value(1, state.connected, glass_tr("已连接"), glass_tr("未连接"));
+  glass_mouse_status_value(2, state.encrypted, glass_tr("已加密"), glass_tr("等待加密"));
+  glass_mouse_status_value(3, state.mouse_notify, glass_tr("已订阅"), glass_tr("等待订阅"));
 
   if (state.store_error)
-    snprintf(text, sizeof(text), "配对保存失败 (%d)，请检查存储并重启后重试", state.store_error);
+    snprintf(text, sizeof(text), glass_tr("配对保存失败 (%d)，请检查存储并重启后重试"), state.store_error);
   else if (!busy && result)
     snprintf(text, sizeof(text), result == -ENOSPC ?
-             "蓝牙连接名额已满 (%d)，请先断开一个连接" : "操作失败 (%d)", result);
+             glass_tr("蓝牙连接名额已满 (%d)，请先断开一个连接") : glass_tr("操作失败 (%d)"), result);
   else if (state.error)
-    snprintf(text, sizeof(text), "鼠标服务错误 (%d)，BLE %d", state.error,
+    snprintf(text, sizeof(text), glass_tr("鼠标服务错误 (%d)，BLE %d"), state.error,
              state.ble_error);
   else if (state.connected)
-    snprintf(text, sizeof(text), "%s模式%s", state.boot_mode ? "Boot " : "Report ",
-             state.suspended ? " · 已挂起" : "");
+    snprintf(text, sizeof(text), glass_tr("%s模式%s"), state.boot_mode ? "Boot " : "Report ",
+             state.suspended ? glass_tr(" · 已挂起") : "");
   else if (state.advertising)
-    snprintf(text, sizeof(text), "请在电脑蓝牙中选择 %s", glass_ble_identity_name());
+    snprintf(text, sizeof(text), glass_tr("请在电脑蓝牙中选择 %s"), glass_ble_identity_name());
   else
-    snprintf(text, sizeof(text), "开始后暂停普通设备连接，退出鼠标后自动恢复");
+    snprintf(text, sizeof(text), glass_tr("开始后暂停普通设备连接，退出鼠标后自动恢复"));
   lv_label_set_text(g_mouse_detail, text);
   LV_UNUSED(revision);
   g_mouse_input_ready = input_ready;
@@ -430,21 +433,19 @@ static void glass_mouse_page(lv_obj_t *card)
   lv_obj_add_event_cb(card, glass_mouse_deleted, LV_EVENT_DELETE, NULL);
 
   detail_page(card);
-  detail_sidebar(card, "蓝牙", LV_SYMBOL_BLUETOOTH, panel_hide);
-  lv_obj_t *devices = detail_nav(card,"设备连接",LV_SYMBOL_BLUETOOTH,104,140,glass_ble_devices_open,NULL);
-  glass_sidebar_item(devices,false);
-  lv_obj_t *selected = detail_nav(card, "无线触摸板", LV_SYMBOL_GPS,
-                                  156, 140, NULL, NULL);
-  glass_sidebar_item(selected, true);
-  detail_text(card, "蓝牙与鼠标", 216, 26, 500, 28, detail_ink());
-  detail_text(card, "与电脑配对，将屏幕用作无线触摸板", 216, 66, 720, 14, detail_muted());
+  lv_obj_t *back=detail_sidebar(card,glass_tr("触摸板"),LV_SYMBOL_GPS,glass_mouse_back);
+  lv_label_set_text(lv_obj_get_child(back,0),g_mouse_return_apps?glass_tr("返回应用"):glass_tr("返回桌面"));
+  lv_obj_t *selected=detail_nav(card,glass_tr("触摸操作"),LV_SYMBOL_GPS,104,140,NULL,NULL);
+  glass_sidebar_item(selected,true);g_desktop.page_back=glass_mouse_back;
+  detail_text(card, glass_tr("无线触摸板"), 216, 26, 500, 28, detail_ink());
+  detail_text(card, glass_tr("与电脑配对，将屏幕用作无线触摸板"), 216, 66, 720, 14, detail_muted());
 
   lv_obj_t *status = detail_tile(card, 216, 104, 268, 446);
   home_icon(status, LV_SYMBOL_BLUETOOTH, 20, 22, 24, detail_accent());
   detail_text(status, glass_ble_identity_name(), 52, 24, 200, 18, detail_ink());
-  g_mouse_status = detail_text(status, "未启动", 20, 68, 228, 18, detail_ink());
+  g_mouse_status = detail_text(status, glass_tr("未启动"), 20, 68, 228, 18, detail_ink());
   lv_label_set_long_mode(g_mouse_status, LV_LABEL_LONG_WRAP);
-  const char *labels[] = {"蓝牙主机", "设备连接", "安全加密", "输入通知"};
+  const char *labels[] = {glass_tr("蓝牙主机"), glass_tr("设备连接"), glass_tr("安全加密"), glass_tr("输入通知")};
   for (unsigned i = 0; i < 4; i++)
     {
       detail_text(status, labels[i], 20, 124 + i * 40, 104, 14, detail_muted());
@@ -452,19 +453,19 @@ static void glass_mouse_page(lv_obj_t *card)
                                       120, 14, detail_muted());
       lv_obj_set_style_text_align(g_mouse_values[i], LV_TEXT_ALIGN_RIGHT, 0);
     }
-  g_mouse_start = detail_button(status, "开始配对", 20, 300, 108,
+  g_mouse_start = detail_button(status, glass_tr("开始配对"), 20, 300, 108,
                                  glass_mouse_action,
                                  (void *)(intptr_t)GLASS_MOUSE_START);
-  g_mouse_stop = detail_button(status, "停止断开", 140, 300, 108,
+  g_mouse_stop = detail_button(status, glass_tr("停止断开"), 140, 300, 108,
                                 glass_mouse_action,
                                 (void *)(intptr_t)GLASS_MOUSE_STOP);
-  lv_obj_t *hint = detail_text(status, "配对后保存设备并保持连接；安全连接就绪后可使用触摸板。",
+  lv_obj_t *hint = detail_text(status, glass_tr("配对后保存设备并保持连接；安全连接就绪后可使用触摸板。"),
                                 20, 370, 228, 14, detail_muted());
   lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
 
   lv_obj_t *control = detail_tile(card, 500, 104, 500, 446);
-  detail_text(control, "鼠标控制", 20, 22, 440, 20, detail_ink());
-  g_mouse_detail = detail_text(control, "点击开始配对后开放 120 秒配对窗口",
+  detail_text(control, glass_tr("鼠标控制"), 20, 22, 440, 20, detail_ink());
+  g_mouse_detail = detail_text(control, glass_tr("点击开始配对后开放 120 秒配对窗口"),
                                 20, 60, 460, 14, detail_muted());
   lv_label_set_long_mode(g_mouse_detail, LV_LABEL_LONG_WRAP);
 
@@ -476,7 +477,7 @@ static void glass_mouse_page(lv_obj_t *card)
   lv_obj_set_style_border_color(touchpad, lv_color_hex(detail_line()), 0);
   lv_obj_set_style_bg_opa(touchpad, 220, LV_STATE_PRESSED);
   home_icon(touchpad, LV_SYMBOL_GPS, 174, 78, 24, detail_accent());
-  lv_obj_t *caption = detail_text(touchpad, "轻点左键 · 长按拖拽", 20, 132, 332, 14, detail_muted());
+  lv_obj_t *caption = detail_text(touchpad, glass_tr("轻点左键 · 长按拖拽"), 20, 132, 332, 14, detail_muted());
   lv_obj_set_style_text_align(caption, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_PRESSED, NULL);
   lv_obj_add_event_cb(touchpad, glass_mouse_touch, LV_EVENT_PRESSING, NULL);
@@ -493,7 +494,7 @@ static void glass_mouse_page(lv_obj_t *card)
   lv_obj_set_style_border_color(scroll, lv_color_hex(detail_line()), 0);
   lv_obj_set_style_bg_opa(scroll, 220, LV_STATE_PRESSED);
   home_icon(scroll, LV_SYMBOL_UP, 27, 30, 18, detail_muted());
-  detail_text(scroll, "滚轮", 20, 108, 48, 14, detail_muted());
+  detail_text(scroll, glass_tr("滚轮"), 20, 108, 48, 14, detail_muted());
   home_icon(scroll, LV_SYMBOL_DOWN, 27, 186, 18, detail_muted());
   lv_obj_add_event_cb(scroll, glass_mouse_touch, LV_EVENT_PRESSED, (void *)1);
   lv_obj_add_event_cb(scroll, glass_mouse_touch, LV_EVENT_PRESSING, (void *)1);
@@ -501,11 +502,11 @@ static void glass_mouse_page(lv_obj_t *card)
   lv_obj_add_event_cb(scroll, glass_mouse_touch, LV_EVENT_PRESS_LOST, (void *)1);
   g_mouse_controls[1] = scroll;
 
-  g_mouse_controls[2] = detail_button(control, "左键", 20, 374, 144,
+  g_mouse_controls[2] = detail_button(control, glass_tr("左键"), 20, 374, 144,
       glass_mouse_action, (void *)(intptr_t)GLASS_MOUSE_CLICK_LEFT);
-  g_mouse_controls[3] = detail_button(control, "中键", 178, 374, 144,
+  g_mouse_controls[3] = detail_button(control, glass_tr("中键"), 178, 374, 144,
       glass_mouse_action, (void *)(intptr_t)GLASS_MOUSE_CLICK_MIDDLE);
-  g_mouse_controls[4] = detail_button(control, "右键", 336, 374, 144,
+  g_mouse_controls[4] = detail_button(control, glass_tr("右键"), 336, 374, 144,
       glass_mouse_action, (void *)(intptr_t)GLASS_MOUSE_CLICK_RIGHT);
 
   g_mouse_timer = lv_timer_create(glass_mouse_refresh, 200, NULL);
@@ -522,6 +523,8 @@ static void glass_mouse_page(lv_obj_t *card)
 static void glass_mouse_open(lv_event_t *event)
 {
   LV_UNUSED(event);
-  lv_obj_t *card = panel_card("蓝牙鼠标");
+  g_mouse_return_apps=g_desktop.apps_page;
+  lv_obj_t *card = panel_card(glass_tr("无线触摸板"));
   if (card) glass_mouse_page(card);
+  if(card)glass_navigation_register(glass_mouse_open,g_mouse_return_apps,0);
 }

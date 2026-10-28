@@ -1,0 +1,42 @@
+--- a/netsurf/content/content.c
++++ b/netsurf/content/content.c
+@@ -42,6 +42,17 @@
+ #include "content/urldb.h"
+ 
+ #define URL_FMT_SPC "%.140s"
++
++/* Presentation only: retain fetching, decoding, intrinsic sizing and boxes.
++ * The owning frontend must change this only on the NetSurf core thread.
++ * Optional entry point declared by the frontend; no core layout ABI changes. */
++static bool content_images_visible = true;
++void nsw_content_set_images_visible(bool visible);
++
++void nsw_content_set_images_visible(bool visible)
++{
++	content_images_visible = visible;
++}
+ 
+ const char * const content_status_name[] = {
+ 	"LOADING",
+@@ -564,6 +575,10 @@
+ 
+ 	assert(c != NULL);
+ 
++	if (!content_images_visible && c->handler->type() == CONTENT_IMAGE) {
++		return true;
++	}
++
+ 	if (c->locked) {
+ 		/* not safe to attempt redraw */
+ 		return true;
+@@ -591,6 +606,10 @@
+ 	bool plot_ok = true;
+ 
+ 	assert(c != NULL);
++
++	if (!content_images_visible && c->handler->type() == CONTENT_IMAGE) {
++		return true;
++	}
+ 
+ 	/* ensure it is safe to attempt redraw */
+ 	if (c->locked) {

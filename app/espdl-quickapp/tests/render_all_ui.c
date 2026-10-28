@@ -46,7 +46,7 @@ static lv_obj_t *review_find(lv_obj_t *object,const char *text)
   if(lv_obj_has_flag(object,LV_OBJ_FLAG_CLICKABLE))
     for(unsigned i=0;i<lv_obj_get_child_count(object);i++){
       lv_obj_t *child=lv_obj_get_child(object,i);
-      if(lv_obj_check_type(child,&lv_label_class)&&!strcmp(lv_label_get_text(child),text))return object;
+      if(lv_obj_has_class(child,&lv_label_class)&&!strcmp(lv_label_get_text(child),text))return object;
     }
   for(unsigned i=0;i<lv_obj_get_child_count(object);i++){
     lv_obj_t *found=review_find(lv_obj_get_child(object,i),text);if(found)return found;
@@ -57,7 +57,7 @@ static void review_click(const char *text){lv_obj_update_layout(g_desktop.screen
 static lv_obj_t *review_label_find(lv_obj_t *object,const char *text)
 {
   if(!object||!lv_obj_is_visible(object))return NULL;
-  if(lv_obj_check_type(object,&lv_label_class)&&!strcmp(lv_label_get_text(object),text))return object;
+  if(lv_obj_has_class(object,&lv_label_class)&&!strcmp(lv_label_get_text(object),text))return object;
   for(unsigned i=0;i<lv_obj_get_child_count(object);i++){
     lv_obj_t *found=review_label_find(lv_obj_get_child(object,i),text);if(found)return found;
   }
@@ -87,22 +87,23 @@ static void review_open_settings_entry(void)
 static void review_navigation_entries(void)
 {
   /* Real button events plus the real deferred dispatcher, with offline services. */
-  const char *names[]={"Wi-Fi 网络","存储与文件","蓝牙设备","系统性能"};
-  const unsigned kinds[]={0,1,2,3};
-  for(unsigned i=0;i<4;i++){
+  const char *names[]={"Wi-Fi 网络","蓝牙设备","系统性能"};
+  const unsigned kinds[]={0,2,3};
+  for(unsigned i=0;i<3;i++){
     review_open_settings_entry();review_click(names[i]);
     assert(g_system_page_pending&&g_system_page_kind==kinds[i]);
     lv_async_call_cancel(glass_system_page_async,NULL);glass_system_page_async(NULL);
     assert(!g_system_page_pending&&g_desktop.current_card&&g_control_card==NULL);
     if(i==0)assert(g_wifi_ssid!=NULL);
-    if(i==1)assert(g_files_browser.list!=NULL);
-    if(i==3){
+    if(i==2){
       assert(g_resources.card==g_desktop.current_card);
       lv_obj_send_event(g_resources.tiles[1],LV_EVENT_CLICKED,NULL);assert(g_resources.selected==1);
       lv_obj_send_event(g_resources.tiles[0],LV_EVENT_CLICKED,NULL);assert(g_resources.selected==0);
     }
   }
-  review_open_settings_entry();review_click("扫码配置");assert(portal_page==g_desktop.current_card);
+  review_open_settings_entry();review_click("扫码配置");
+  lv_async_call_cancel(glass_system_page_async,NULL);glass_system_page_async(NULL);
+  assert(portal_page==g_desktop.current_card);
   review_open_settings_entry();review_click("返回桌面");assert(g_control_close_pending);
   lv_async_call_cancel(glass_control_close_async,NULL);glass_control_close_async(NULL);
   assert(lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN));
@@ -150,9 +151,10 @@ int main(int argc,char **argv)
   g_desktop.font16->fallback=glass_icon_font(16);g_desktop.font20->fallback=glass_icon_font(20);g_desktop.font28->fallback=glass_icon_font(24);
   g_glass.font48=lv_tiny_ttf_create_data(font,size,48);glass_home_fonts_init(font,size);
   g_glass.reduced_motion=true;g_glass.temperature_c=-999;g_glass.humidity_pct=-1;g_glass.pm25=-1;
-  g_desktop.screen=lv_screen_active();lv_obj_remove_flag(g_desktop.screen,LV_OBJ_FLAG_SCROLLABLE);
+  g_desktop.screen=glass_box(lv_screen_active(),0,GLASS_STATUS_HEIGHT,1024,GLASS_CONTENT_HEIGHT,0,0);
+  lv_obj_remove_flag(g_desktop.screen,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_text_font(g_desktop.screen,zh_font(20),0);
-  g_desktop.panel=glass_box(g_desktop.screen,0,0,1024,600,0x000000,0);lv_obj_add_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
+  g_desktop.panel=glass_box(g_desktop.screen,0,0,1024,GLASS_CONTENT_HEIGHT,0x000000,0);lv_obj_add_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
   char path[1024];snprintf(path,sizeof(path),"%s/screens.json",review_out);review_manifest=fopen(path,"w");assert(review_manifest);fputs("[\n",review_manifest);
   for(unsigned theme=0;theme<2;theme++){
     review_music_fixture(0);review_chat_fixture(0);review_weather_fixture(0);

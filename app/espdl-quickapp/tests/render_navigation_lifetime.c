@@ -47,8 +47,8 @@ int main(int argc,char **argv)
     assert(review_label_find(g_desktop.panel,"关于设备"));
     review_capture(display,"cancel-navigation","切换页面取消旧导航");
     panel_hide(NULL);
-    const char *names[]={"Wi-Fi 网络","存储与文件","蓝牙设备","系统性能"};
-    for(unsigned i=0;i<4;i++){
+    const char *names[]={"Wi-Fi 网络","蓝牙设备","系统性能"};
+    for(unsigned i=0;i<3;i++){
       review_open_settings_entry();review_click(names[i]);assert(g_system_page_pending);
       lv_tick_inc(1);lv_timer_handler();lv_obj_update_layout(g_desktop.screen);lv_obj_update_layout(lv_layer_top());
       assert(!g_system_page_pending && !g_control_card && g_desktop.current_card);
@@ -56,7 +56,7 @@ int main(int argc,char **argv)
       assert(!g_wifi_timer && !g_mouse_timer && !g_files_timer && !g_resources.timer);
     }
     for(unsigned i=0;i<30;i++){
-      review_open_settings_entry();review_click(names[i%4]);
+      review_open_settings_entry();review_click(names[i%3]);
       about_clicked(NULL);replacement=g_desktop.current_card;
       lv_tick_inc(1);lv_timer_handler();lv_obj_update_layout(g_desktop.screen);lv_obj_update_layout(lv_layer_top());
       assert(g_desktop.current_card==replacement && !g_system_page_pending);
@@ -65,7 +65,7 @@ int main(int argc,char **argv)
     }
     /* Pending navigation from the home footer also belongs to that view. */
     lv_obj_update_layout(g_desktop.screen);
-    lv_obj_t *files=review_callback_find(g_glass.home,glass_system_page_open);assert(files);
+    lv_obj_t *files=review_callback_find(g_glass.home,glass_files_open);assert(files);
     lv_obj_send_event(files,LV_EVENT_CLICKED,NULL);assert(g_system_page_pending);
     glass_chat_show(false);replacement=g_desktop.current_card;
     lv_tick_inc(1);lv_timer_handler();lv_obj_update_layout(g_desktop.screen);lv_obj_update_layout(lv_layer_top());

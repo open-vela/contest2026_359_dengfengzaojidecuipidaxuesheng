@@ -66,6 +66,8 @@ python3 tools/build_p4_repro.py \
 
 该入口明确传入 `--offline-inputs --usb-camera --factory-header --psram-xip --hardware-jpeg --ethernet-share --share-forward-slots 16 --share-net-stats --ble-eight-test`，保持与本轮参考配置一致。它不改变通用构建器的默认行为。特别是 `build_bilibili_v3.py` 默认不开启 PSRAM XIP，单纯拉取相同应用源码不保证得到同配置固件。
 
+2026-10-28 的 LCD 调光更新为此完整入口额外加入 `--lcd-backlight`，将 PWM0 从通用 GPIO2 改为屏幕专用 GPIO26。接线为 LCD 适配板 J6 PWM 到开发板 J1 GPIO26；应用可用 PWM 通道由 capabilities 排除屏幕通道。该改动相对上面的历史参考配置需要单独构建与实板调光验收，不能沿用旧镜像摘要或屏幕观察结果。详见 [P4_BACKLIGHT.md](P4_BACKLIGHT.md)。
+
 输出包括 `nuttx.bin`、`nuttx.elf`、`resolved.config` 和 `BUILD-METADATA.json`。应在配置中确认 `CONFIG_ESP32P4_PSRAM_XIP=y`，并核对元数据的 PSRAM XIP 状态、源码/依赖摘要和分区边界。
 
 每次构建会生成新的合法蓝牙测试身份，因此即使源代码与依赖相同，镜像 SHA256 也会改变；不应要求重编译后等于旧镜像 `32e718bf…`。

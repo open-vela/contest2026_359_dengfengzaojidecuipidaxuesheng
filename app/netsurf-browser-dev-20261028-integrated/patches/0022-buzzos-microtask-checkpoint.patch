@@ -1,0 +1,27 @@
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -190,7 +190,11 @@
+ static void qjs_drain_jobs(void *opaque)
+ {
+ 	struct jsheap *heap = opaque;
+-	if (heap->draining_jobs || heap->dying || heap->nthreads == 0)
++	/* A native DOM call can execute an inline script reentrantly. Its
++	 * return is not a microtask checkpoint while outer JavaScript remains
++	 * on the stack. The outer entry drains the queue when it returns. */
++	if (heap->draining_jobs || heap->deadline_depth != 0 ||
++			heap->dying || heap->nthreads == 0)
+ 		return;
+ 	uint64_t started, now, saved = heap->deadline_ms;
+ 	nsu_getmonotonic_ms(&started);
+@@ -208,7 +212,11 @@
+ 		if (now - started >= 10) break;
+ 		heap->deadline_ms = now + 1000;
+ 		if (saved && saved < heap->deadline_ms) heap->deadline_ms = saved;
++		/* Nested DOM/script entries belong to this bounded job and must
++		 * not run a checkpoint or reset its deadline. */
++		qjs_deadline_start(thread);
+ 		int result = JS_ExecutePendingJob(heap->rt, &jctx);
++		qjs_deadline_stop(thread);
+ 		if (result < 0 && jctx) qjs_dump_error(jctx);
+ 		if (result == 0) break;
+ 	}

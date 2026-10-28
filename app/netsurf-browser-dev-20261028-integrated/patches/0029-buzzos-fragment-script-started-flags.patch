@@ -1,0 +1,14 @@
+--- a/libdom/bindings/hubbub/parser.c
++++ b/libdom/bindings/hubbub/parser.c
+@@ -253,6 +253,11 @@
+ 			goto clean1;
+ 		}
+ 		flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_PARSER_INSERTED;
++		/* Fragment parsing must stay inert even when scripting is disabled
++		 * and the tree builder never calls complete_script(). */
++		if (dom_parser->fragment) {
++			flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED;
++		}
+ 		err = dom_html_script_element_set_flags(script, flags);
+ 		if (err != DOM_NO_ERR) {
+ 			dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,

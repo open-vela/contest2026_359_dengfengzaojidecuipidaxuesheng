@@ -1,0 +1,186 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -2185,8 +2185,9 @@
+ 
+ var observers = [];
+ var pendingMO = false;
++var pendingObservers = [];
+ function MutationObserver(cb) {
+-	this._cb = cb; this._targets = []; this._records = [];
++	this._cb = cb; this._targets = []; this._transients = []; this._records = [];
+ }
+ MutationObserver.prototype.observe = function (target, opts) {
+ 	opts = opts || {};
+@@ -2203,12 +2204,16 @@
+ 		(!o.characterData && o.characterDataOldValue))
+ 		throw new TypeError('Invalid MutationObserver options');
+ 	for (var i = 0; i < this._targets.length; i++)
+-		if (this._targets[i].node === target) { this._targets[i].opts = o; return; }
++		if (this._targets[i].node === target) {
++			var registration = this._targets[i];
++			this._transients = this._transients.filter(function (t) { return t.source !== registration; });
++			registration.opts = o; return;
++		}
+ 	this._targets.push({ node: target, opts: o });
+ 	if (observers.indexOf(this) < 0) observers.push(this);
+ };
+ MutationObserver.prototype.disconnect = function () {
+-	this._targets = []; this._records = [];
++	this._targets = []; this._transients = []; this._records = [];
+ 	var i = observers.indexOf(this);
+ 	if (i >= 0) observers.splice(i, 1);
+ };
+@@ -2216,19 +2221,40 @@
+ global.MutationObserver = MutationObserver;
+ global.WebKitMutationObserver = MutationObserver;
+ 
++function mutationWithin(registration, target) {
++	return registration.node === target || (registration.opts.subtree &&
++		registration.node.contains && registration.node.contains(target));
++}
++/* Removal steps preserve subtree registrations until this observer's next
++ * notification. takeRecords() drains records without ending that interval. */
++function trackRemovedSubtrees(target, removed) {
++	if (!removed || !removed.length) return;
++	observers.forEach(function (mo) {
++		mo._targets.concat(mo._transients).forEach(function (t) {
++			if (!t.opts.subtree || !mutationWithin(t, target)) return;
++			var source = t.source || t;
++			removed.forEach(function (node) {
++				if (!mo._transients.some(function (r) { return r.node === node && r.source === source; }))
++					mo._transients.push({ node: node, opts: t.opts, source: source });
++			});
++		});
++	});
++}
+ function queueMutation(type, target, extra) {
+ 	if (!observers.length) return;
++	if (type === 'childList') trackRemovedSubtrees(target, extra.removed);
+ 	var queued = false;
+ 	observers.forEach(function (mo) {
+ 		var interested = false, keepOldValue = false;
+-		for (var i = 0; i < mo._targets.length; i++) {
+-			var t = mo._targets[i], o = t.opts;
++		var registrations = mo._targets.concat(mo._transients);
++		for (var i = 0; i < registrations.length; i++) {
++			var t = registrations[i], o = t.opts;
+ 			/* Exclude unrelated mutations before crossing into native DOM to
+ 			 * walk ancestors, which is common for attribute-filtered observers. */
+ 			if (type === 'childList' && !o.childList) continue;
+ 			if (type === 'attributes' && (!o.attributes || (o.attributeFilter && o.attributeFilter.indexOf(extra.attributeName) < 0))) continue;
+ 			if (type === 'characterData' && !o.characterData) continue;
+-			var within = t.node === target || (o.subtree && t.node.contains && t.node.contains(target));
++			var within = mutationWithin(t, target);
+ 			if (!within) continue;
+ 			interested = true;
+ 			if ((type === 'attributes' && o.attributeOldValue) ||
+@@ -2241,6 +2267,7 @@
+ 				attributeNamespace: null,
+ 				oldValue: keepOldValue ? (extra.oldValue === undefined ? null : extra.oldValue) : null };
+ 			mo._records.push(rec);
++			if (pendingObservers.indexOf(mo) < 0) pendingObservers.push(mo);
+ 			queued = true;
+ 		}
+ 	});
+@@ -2248,9 +2275,11 @@
+ 		pendingMO = true;
+ 		Promise.resolve().then(function () {
+ 			pendingMO = false;
+-			observers.slice().forEach(function (mo) {
+-				if (!mo._records.length) return;
++			var notify = pendingObservers; pendingObservers = [];
++			notify.forEach(function (mo) {
+ 				var recs = mo.takeRecords();
++				mo._transients = [];
++				if (!recs.length) return;
+ 				try { mo._cb.call(mo, recs, mo); } catch (e) { reportError(e); }
+ 			});
+ 		});
+@@ -2282,7 +2311,7 @@
+ }
+ function queueTransferRemovals(removals) {
+ 	removals.forEach(function (r) {
+-		queueMutation('childList', r.target, { removed: r.removed, previous: r.previous, next: r.next });
++		queueMutation('childList', r.target, { removed: r.removed, prev: r.previous, next: r.next });
+ 	});
+ }
+ wrapMutator(DocP, 'adoptNode', function (orig, args) {
+@@ -2297,7 +2326,8 @@
+ 		var removals = transferRemovals(added);
+ 		var r = orig.apply(this, args);
+ 		queueTransferRemovals(removals);
+-		queueMutation('childList', this, { added: added });
++		if (added.length) queueMutation('childList', this, { added: added,
++			prev: added[0].previousSibling, next: added[added.length - 1].nextSibling });
+ 		return r;
+ 	});
+ 	wrapMutator(P, 'insertBefore', function (orig, args) {
+@@ -2305,20 +2335,25 @@
+ 		var removals = transferRemovals(added);
+ 		var r = orig.apply(this, args);
+ 		queueTransferRemovals(removals);
+-		queueMutation('childList', this, { added: added, next: args[1] || null });
++		if (added.length) queueMutation('childList', this, { added: added,
++			prev: added[0].previousSibling, next: added[added.length - 1].nextSibling });
+ 		return r;
+ 	});
+ 	wrapMutator(P, 'removeChild', function (orig, args) {
++		var prev = args[0] && args[0].previousSibling, next = args[0] && args[0].nextSibling;
+ 		var r = orig.apply(this, args);
+-		queueMutation('childList', this, { removed: [args[0]] });
++		queueMutation('childList', this, { removed: [args[0]], prev: prev, next: next });
+ 		return r;
+ 	});
+ 	wrapMutator(P, 'replaceChild', function (orig, args) {
+ 		var added = fragKids(args[0]);
+ 		var removals = transferRemovals(added);
++		var prev = args[1] && args[1].previousSibling, next = args[1] && args[1].nextSibling;
+ 		var r = orig.apply(this, args);
+ 		queueTransferRemovals(removals);
+-		queueMutation('childList', this, { added: added, removed: [args[1]] });
++		queueMutation('childList', this, { added: added, removed: [args[1]],
++			prev: added.length ? added[0].previousSibling : prev,
++			next: added.length ? added[added.length - 1].nextSibling : next });
+ 		return r;
+ 	});
+ });
+@@ -2347,15 +2382,25 @@
+ 			var target = htmlContents(this);
+ 			var removed = observers.length ? Array.prototype.slice.call(target.childNodes) : [];
+ 			d.set.call(this, v);
+-			if (observers.length) queueMutation('childList', target, {
+-				removed: removed, added: Array.prototype.slice.call(target.childNodes) });
++			if (observers.length) {
++				var added = Array.prototype.slice.call(target.childNodes);
++				if (removed.length || added.length) queueMutation('childList', target, { removed: removed, added: added });
++			}
+ 		});
+ 	}
+ 	var t = Object.getOwnPropertyDescriptor(NodeP, 'textContent');
+ 	if (t && t.set) {
+ 		accessor(NodeP, 'textContent', t.get, function (v) {
++			var character = this.nodeType === 3 || this.nodeType === 4 || this.nodeType === 7 || this.nodeType === 8;
++			var children = this.nodeType === 1 || this.nodeType === 11;
++			var old = character && observers.length ? t.get.call(this) : null;
++			var removed = children && observers.length ? Array.prototype.slice.call(this.childNodes) : [];
+ 			t.set.call(this, v);
+-			queueMutation(this.nodeType === 3 ? 'characterData' : 'childList', this, {});
++			if (character) queueMutation('characterData', this, { oldValue: old });
++			else if (children && observers.length) {
++				var added = Array.prototype.slice.call(this.childNodes);
++				if (removed.length || added.length) queueMutation('childList', this, { removed: removed, added: added });
++			}
+ 		});
+ 	}
+ 	var c = Object.getOwnPropertyDescriptor(ElementP, 'className');
+@@ -2369,8 +2414,9 @@
+ 	var idd = Object.getOwnPropertyDescriptor(ElementP, 'id');
+ 	if (idd && idd.set) {
+ 		accessor(ElementP, 'id', idd.get, function (v) {
++			var old = observers.length ? this.getAttribute('id') : null;
+ 			idd.set.call(this, v);
+-			queueMutation('attributes', this, { attributeName: 'id' });
++			queueMutation('attributes', this, { attributeName: 'id', oldValue: old });
+ 		});
+ 	}
+ })();

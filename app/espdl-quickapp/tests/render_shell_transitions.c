@@ -40,10 +40,10 @@ int main(int argc,char **argv)
     g_desktop.light_theme=theme!=0;glass_rebuild();
     glass_chat_show(false);assert(chat_display.active);
     launch_builtin_qapp(NULL);
-    lv_obj_t *page=g_desktop.current_card,*content=lv_obj_get_child(page,2);
+    lv_obj_t *page=g_desktop.current_card,*content=lv_obj_get_child(page,0);
     lv_obj_update_layout(g_desktop.screen);
-    assert(lv_obj_get_y(content)==QAPP_HEADER_HEIGHT);
-    assert(lv_obj_get_height(content)+QAPP_HEADER_HEIGHT==lv_obj_get_height(page));
+    assert(lv_obj_get_y(content)==0 && lv_obj_get_x(content)==0);
+    assert(lv_obj_get_height(content)==lv_obj_get_height(page)-56);
     assert(!chat_display.active);
     assert(!g_desktop.chat_page && g_desktop.qapp_page);
     assert(lv_obj_get_y(g_desktop.screen)==GLASS_STATUS_HEIGHT);
@@ -79,7 +79,7 @@ int main(int argc,char **argv)
     lv_obj_update_layout(g_desktop.screen);
     assert(lv_obj_get_height(g_desktop.current_card)==GLASS_CONTENT_HEIGHT);
     assert(!chat_display.active && !g_desktop.chat_page);
-    assert(lv_obj_get_height(lv_obj_get_child(g_desktop.current_card,1))==GLASS_CONTENT_HEIGHT);
+    assert(lv_obj_get_height(lv_obj_get_child(g_desktop.current_card,0))==GLASS_CONTENT_HEIGHT);
     review_capture(display,"chat-to-ha","ESPClaw 切换家居");panel_hide(NULL);
     glass_chat_show(false);launch_builtin_camera_qapp(NULL);
     lv_obj_update_layout(g_desktop.screen);

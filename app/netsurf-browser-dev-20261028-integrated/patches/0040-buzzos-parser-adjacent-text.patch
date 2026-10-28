@@ -1,0 +1,75 @@
+--- a/libdom/bindings/hubbub/parser.c
++++ b/libdom/bindings/hubbub/parser.c
+@@ -355,18 +355,50 @@
+ 	return err;
+ }
+ 
++/* Character-token insertion merges with preceding Text at the insertion
++ * point. Generic DOM append/insert must continue to preserve node identity. */
++static dom_exception merge_parser_text(dom_node *previous, dom_node *child,
++		bool *merged, void **result)
++{
++	dom_node_type a, b;
++	dom_string *data = NULL;
++	dom_exception err;
++	*merged = false;
++	if (previous == NULL || previous == child) return DOM_NO_ERR;
++	err = dom_node_get_node_type(previous, &a);
++	if (err != DOM_NO_ERR) return err;
++	err = dom_node_get_node_type(child, &b);
++	if (err != DOM_NO_ERR) return err;
++	if (a != DOM_TEXT_NODE || b != DOM_TEXT_NODE) return DOM_NO_ERR;
++	err = dom_characterdata_get_data(child, &data);
++	if (err == DOM_NO_ERR) err = dom_characterdata_append_data(previous, data);
++	dom_string_unref(data);
++	if (err == DOM_NO_ERR) {
++		*result = dom_node_ref(previous);
++		*merged = true;
++	}
++	return err;
++}
++
+ static hubbub_error append_child(void *parser, void *parent, void *child,
+ 		void **result)
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+ 	dom_node *target = NULL;
++	dom_node *previous = NULL;
++	bool merged = false;
+ 
+ 	err = parser_parent(parent, &target);
+ 	if (err == DOM_NO_ERR)
++		err = dom_node_get_last_child(target, &previous);
++	if (err == DOM_NO_ERR)
++		err = merge_parser_text(previous, child, &merged, result);
++	if (err == DOM_NO_ERR && !merged)
+ 		err = dom_node_append_child(target,
+ 				    (struct dom_node *) child,
+ 				    (struct dom_node **) result);
++	dom_node_unref(previous);
+ 	dom_node_unref(target);
+ 	if (err != DOM_NO_ERR) {
+ 		dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+@@ -384,13 +416,21 @@
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+ 	dom_node *target = NULL;
++	dom_node *previous = NULL;
++	bool merged = false;
+ 
+ 	err = parser_parent(parent, &target);
+ 	if (err == DOM_NO_ERR)
++		err = ref_child != NULL ? dom_node_get_previous_sibling(ref_child, &previous) :
++			dom_node_get_last_child(target, &previous);
++	if (err == DOM_NO_ERR)
++		err = merge_parser_text(previous, child, &merged, result);
++	if (err == DOM_NO_ERR && !merged)
+ 		err = dom_node_insert_before(target,
+ 			(struct dom_node *) child,
+ 			(struct dom_node *) ref_child,
+ 			(struct dom_node **) result);
++	dom_node_unref(previous);
+ 	dom_node_unref(target);
+ 	if (err != DOM_NO_ERR) {
+ 		dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,

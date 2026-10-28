@@ -22,7 +22,8 @@ private=text[text.index('struct p4_ppa_dev_s'):text.index('/********************
 block=function(ll.read_text(),'ppa_ll_srm_get_dma_dscr_port_mode_block_size')
 custom={'ppa_ll_srm_get_dma_dscr_port_mode_block_size','ppa_ll_srm_set_rx_color_mode',
  'dma2d_ll_tx_set_dscr_port_block_size','dma2d_ll_tx_start','dma2d_ll_rx_start',
- 'dma2d_ll_tx_stop','dma2d_ll_rx_stop','dma2d_ll_reset_register','ppa_ll_reset_register'}
+ 'dma2d_ll_tx_stop','dma2d_ll_rx_stop','dma2d_ll_reset_register','ppa_ll_reset_register',
+ 'ppa_ll_srm_set_scaling_x','ppa_ll_srm_set_scaling_y'}
 llcalls=set(re.findall(r'\b((?:ppa|dma2d)_ll_\w+)\(',body))
 macros='\n'.join('#define '+n+'(...) ((void)0)' for n in sorted(llcalls-custom))
 for name,value in {'nuttx/compiler.h':'#pragma once\n#define FAR\n','nuttx/fs/ioctl.h':'#pragma once\n#define _IOC(a,b) ((a)|(b))\n'}.items():
@@ -67,6 +68,7 @@ static ppa_dev_t ppa_hw;
 #define ESP_CACHE_MSYNC_FLAG_DIR_M2C 2
 static unsigned starts,resets,acquires,releases,cache_calls,fail_cache,test_block_h,test_block_v,posts;
 static unsigned interrupt_status=1,rx_mode;
+static unsigned scale_x_int,scale_x_frac,scale_y_int,scale_y_frac;
 static int wait_result;
 static bool ram_valid=true,leased,tx_running,rx_running;
 static void (*completion)(void *,uint32_t);
@@ -95,6 +97,8 @@ static void esp32p4_dma2d_release(void){assert(leased&&!tx_running&&!rx_running)
 #define dma2d_ll_tx_stop(...) do {tx_running=false;} while(0)
 #define dma2d_ll_rx_stop(...) do {rx_running=false;} while(0)
 #define ppa_ll_srm_set_rx_color_mode(p,m) do {(void)(p);rx_mode=(m);} while(0)
+#define ppa_ll_srm_set_scaling_x(p,i,f) do {(void)(p);scale_x_int=(i);scale_x_frac=(f);} while(0)
+#define ppa_ll_srm_set_scaling_y(p,i,f) do {(void)(p);scale_y_int=(i);scale_y_frac=(f);} while(0)
 #define dma2d_ll_tx_set_dscr_port_block_size(d,c,h,v) do {(void)(d);(void)(c);test_block_h=(h);test_block_v=(v);} while(0)
 #define syslog(...) ((void)0)
 '''
@@ -115,6 +119,19 @@ int main(void)
  assert(!ppa_ioctl(&file,P4_PPA_SRM_RGB565,(unsigned long)&job));
  assert(rx_mode==PPA_SRM_COLOR_MODE_RGB565&&test_block_h==18&&test_block_v==18);
  assert(dev.tx->pbyte==2&&dev.rx->pbyte==2&&dev.tx->hb_length==64);
+ for(unsigned scale=512;scale<=1024;scale+=16){
+  job=good;job.width=16;job.height=8;job.scale256=scale;
+  assert(!ppa_ioctl(&file,P4_PPA_SRM_RGB565,(unsigned long)&job));
+  assert(scale_x_int==scale/256&&scale_x_frac==(scale%256)/16);
+  assert(scale_x_int==scale_y_int&&scale_x_frac==scale_y_frac);
+  assert(dev.rx->ha_length==64&&dev.rx->va_size==32);
+ }
+ job=good;job.width=16;job.height=8;job.scale256=1040;
+ unsigned invalid_starts=starts;
+ assert(ppa_ioctl(&file,P4_PPA_SRM_RGB565,(unsigned long)&job)==-EINVAL&&starts==invalid_starts);
+ job=good;job.scale256=512;
+ assert(ppa_ioctl(&file,P4_PPA_SRM_RGB565,(unsigned long)&job)==-EINVAL&&starts==invalid_starts);
+ job=good;
  job.width=3;job.height=4;job.out_width=3;job.out_height=4;
  unsigned before=starts;
  assert(ppa_ioctl(&file,P4_PPA_SRM,(unsigned long)&job)==-EINVAL&&starts==before);

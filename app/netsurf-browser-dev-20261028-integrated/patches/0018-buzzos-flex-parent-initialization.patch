@@ -1,0 +1,11 @@
+--- a/netsurf/content/handlers/html/layout.c
++++ b/netsurf/content/handlers/html/layout.c
+@@ -1074,7 +1074,7 @@
+ 				/* computed from all items below */
+ 			} else if (lh__box_is_flex_container(block) &&
+ 			    lh__flex_main_is_horizontal(block)) {
+-                int item_min = item_min, item_max = child->max_width;
++                int item_min = child->min_width, item_max = child->max_width;
+                 layout_flex_width_contribution(child, &content->unit_len_ctx,
+                         &item_min, &item_max);
+ 				if (block->style != NULL &&

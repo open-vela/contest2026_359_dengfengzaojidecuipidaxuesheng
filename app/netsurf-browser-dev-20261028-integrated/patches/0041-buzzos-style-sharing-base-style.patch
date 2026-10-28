@@ -1,0 +1,52 @@
+--- a/libcss/src/select/select.c
++++ b/libcss/src/select/select.c
+@@ -769,6 +769,13 @@
+ 				lwc_string_data(state->element.name));
+ #endif
+ 		return error;
++	}
++
++	/* Parent bloom construction can install node data before any style
++	 * selection has taken place. Such data is useful for selector matching,
++	 * but cannot supply the guaranteed base style to another node. */
++	if (node_data->partial.styles[CSS_PSEUDO_ELEMENT_NONE] == NULL) {
++		return CSS_OK;
+ 	}
+ 
+ 	/* If one node has hints and other doesn't then can't share */
+@@ -3046,4 +3053,3 @@
+ 	} while (detail);
+ }
+ #endif
+-
+--- a/libcss/src/select/computed.c
++++ b/libcss/src/select/computed.c
+@@ -333,6 +333,9 @@
+ 	css_error error;
+ 	size_t i;
+ 
++	if (parent == NULL || child == NULL || unit_ctx == NULL || result == NULL)
++		return CSS_BADPARM;
++
+ 	/* TODO:
+ 	 *   Make this function take a composition context, to allow us
+ 	 *   to avoid the churn of unnecesaraly allocating and freeing
+@@ -347,13 +350,16 @@
+ 	for (i = 0; i < CSS_N_PROPERTIES; i++) {
+ 		/* Compose the property */
+ 		error = prop_dispatch[i].compose(parent, child, composed);
+-		if (error != CSS_OK)
+-			break;
++		if (error != CSS_OK) {
++			css_computed_style_destroy(composed);
++			return error;
++		}
+ 	}
+ 
+ 	/* Finally, compute absolute values for everything */
+ 	error = css__compute_absolute_values(parent, composed, unit_ctx);
+ 	if (error != CSS_OK) {
++		css_computed_style_destroy(composed);
+ 		return error;
+ 	}
+ 

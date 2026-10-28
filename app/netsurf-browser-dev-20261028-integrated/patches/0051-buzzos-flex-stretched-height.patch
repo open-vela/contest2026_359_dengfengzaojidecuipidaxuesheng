@@ -1,0 +1,100 @@
+--- a/netsurf/content/handlers/html/box.h
++++ b/netsurf/content/handlers/html/box.h
+@@ -94,7 +94,8 @@
+ 	IFRAME      = 1 << 10,	/* box contains an iframe */
+ 	CONVERT_CHILDREN = 1 << 11,  /* wanted children converting */
+ 	IS_REPLACED = 1 << 12,	/* box is a replaced element */
+-	CONTENTS_BOX = 1 << 13	/* display: contents; not in the tree */
++	CONTENTS_BOX = 1 << 13,	/* display: contents; not in the tree */
++	FLEX_HEIGHT_DEFINITE = 1 << 14 /* definite used height after flex stretch */
+ } box_flags;
+ 
+ 
+--- a/netsurf/content/handlers/html/layout_flex.c
++++ b/netsurf/content/handlers/html/layout_flex.c
+@@ -64,6 +64,7 @@
+ 	int base_size;
+ 	int main_size;
+ 	size_t line;
++	int stretched_height;
+ 
+ 	bool freeze;
+ 	bool min_violation;
+@@ -266,7 +267,8 @@
+ 		break;
+ 	case BOX_FLEX:
+ 		b->float_container = b->parent;
+-		success = layout_flex(b, available_width, ctx->content);
++		success = layout_flex_stretched(b, available_width, ctx->content,
++				item->stretched_height);
+ 		b->float_container = NULL;
+ 		break;
+ 	default:
+@@ -382,6 +384,8 @@
+ 
+ 	for (struct box *b = flex->children; b != NULL; b = b->next) {
+ 		struct flex_item_data *item = &ctx->item.data[i++];
++		item->stretched_height = AUTO;
++		b->flags &= ~FLEX_HEIGHT_DEFINITE;
+ 
+ 		b->float_container = b->parent;
+ 		layout_find_dimensions(ctx->unit_len_ctx, available_width, -1,
+@@ -1067,6 +1071,10 @@
+ 		case CSS_ALIGN_SELF_STRETCH:
+ 			if (lh__box_size_cross_is_auto(ctx->horizontal, b)) {
+ 				*box_size_cross += cross_free_space;
++				if (ctx->horizontal) {
++					item->stretched_height = b->height;
++					b->flags |= FLEX_HEIGHT_DEFINITE;
++				}
+ 
+ 				/* Relayout children for stretch. */
+ 				if (!layout_flex_item(ctx, item, b->width)) {
+@@ -1151,6 +1159,12 @@
+ bool layout_flex(struct box *flex, int available_width,
+ 		html_content *content)
+ {
++	return layout_flex_stretched(flex, available_width, content, AUTO);
++}
++
++bool layout_flex_stretched(struct box *flex, int available_width,
++		html_content *content, int used_height)
++{
+ 	int max_height, min_height;
+ 	struct flex_ctx *ctx;
+ 	bool success = false;
+@@ -1173,6 +1187,12 @@
+ 			flex, flex->style, NULL, &flex->height,
+ 			NULL, NULL, &max_height, &min_height,
+ 			flex->margin, flex->padding, flex->border);
++	if (used_height != AUTO) {
++		flex->height = used_height;
++		flex->flags |= FLEX_HEIGHT_DEFINITE;
++	} else {
++		flex->flags &= ~FLEX_HEIGHT_DEFINITE;
++	}
+ 
+ 	available_width = min(available_width, flex->width);
+ 
+--- a/netsurf/content/handlers/html/layout_internal.h
++++ b/netsurf/content/handlers/html/layout_internal.h
+@@ -67,6 +67,9 @@
+ 		struct box *flex,
+ 		int available_width,
+ 		html_content *content);
++
++bool layout_flex_stretched(struct box *flex, int available_width,
++		html_content *content, int used_height);
+ 
+ /**
+  * Is a (flex container type) box actually a grid container?
+@@ -528,7 +531,8 @@
+ 					containing_block->height != AUTO &&
+ 					(css_computed_position(box->style) ==
+ 							CSS_POSITION_ABSOLUTE ||
+-						cbhtype == CSS_HEIGHT_SET)) {
++						cbhtype == CSS_HEIGHT_SET ||
++						(containing_block->flags & FLEX_HEIGHT_DEFINITE))) {
+ 					/* Box is absolutely positioned or its
+ 					 * containing block has a valid
+ 					 * specified height.

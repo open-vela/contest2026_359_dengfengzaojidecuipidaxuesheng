@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include "glass_i18n.h"
 #include <cJSON.h>
 #include "hass_service.h"
 #include "qpk_storage.h"
@@ -107,7 +108,7 @@ static lv_obj_t *click_text(lv_obj_t *o,const char *text)
   if(lv_obj_has_flag(o,LV_OBJ_FLAG_CLICKABLE)){
     for(unsigned i=0;i<lv_obj_get_child_count(o);i++){
       lv_obj_t *c=lv_obj_get_child(o,i);
-      if(lv_obj_check_type(c,&lv_label_class)&&!strcmp(lv_label_get_text(c),text))return o;
+      if(lv_obj_has_class(c,&lv_label_class)&&!strcmp(lv_label_get_text(c),text))return o;
     }
   }
   for(unsigned i=0;i<lv_obj_get_child_count(o);i++){
@@ -119,7 +120,7 @@ static void validate(lv_obj_t *o,FILE *f)
 {
   if(!lv_obj_is_visible(o))return;
   lv_area_t a;lv_obj_get_coords(o,&a);
-  if(lv_obj_check_type(o,&lv_label_class)){
+  if(lv_obj_has_class(o,&lv_label_class)){
     const char *text=lv_label_get_text(o);
     fprintf(f,"%d,%d %dx%d %s\n",a.x1,a.y1,lv_area_get_width(&a),lv_area_get_height(&a),text);
     assert(a.x1>=0&&a.y1>=0&&a.x2<1024&&a.y2<600);

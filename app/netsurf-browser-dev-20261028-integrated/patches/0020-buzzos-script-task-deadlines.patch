@@ -1,0 +1,98 @@
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -59,18 +59,37 @@
+ 	return (now > heap->deadline_ms) ? 1 : 0;
+ }
+ 
+-void qjs_deadline_start(struct jsthread *thread)
++static void qjs_deadline_start_budget(struct jsthread *thread, uint64_t budget_ms)
+ {
+ 	uint64_t now;
+ 	struct jsheap *heap = thread->heap;
+-	if (heap->deadline_depth++ == 0) heap->deadline_saved = heap->deadline_ms;
+-
+-	if (thread->heap->timeout_s > 0 &&
++	/* A nested native/DOM call belongs to the same task. It must neither
++	 * restart the clock nor shorten the explicitly selected task budget. */
++	if (heap->deadline_depth++ != 0) return;
++	heap->deadline_saved = heap->deadline_ms;
++
++	if (budget_ms > 0 &&
+ 	    nsu_getmonotonic_ms(&now) == NSUERROR_OK) {
+-		uint64_t deadline = now + (uint64_t)heap->timeout_s * 1000;
++		uint64_t deadline = now + budget_ms;
+ 		if (!heap->deadline_ms || deadline < heap->deadline_ms)
+ 			heap->deadline_ms = deadline;
+ 	}
++}
++
++void qjs_deadline_start(struct jsthread *thread)
++{
++	int timeout = thread->heap->timeout_s;
++	qjs_deadline_start_budget(thread, timeout > 0 ? (uint64_t)timeout * 1000 : 0);
++}
++
++void qjs_deadline_start_script(struct jsthread *thread)
++{
++	/* Initial and dynamically loaded scripts, including their completion
++	 * handlers, share one finite task budget. Ordinary callbacks keep the
++	 * default two seconds; non-default timeout options remain respected. */
++	int timeout = thread->heap->timeout_s;
++	qjs_deadline_start_budget(thread, timeout == 2 ? 5000 :
++			(timeout > 0 ? (uint64_t)timeout * 1000 : 0));
+ }
+ 
+ void qjs_deadline_stop(struct jsthread *thread)
+@@ -380,18 +399,7 @@
+ 	if (buf == NULL)
+ 		return false;
+ 
+-	qjs_deadline_start(thread);
+-
+-	/* Large page frameworks may legitimately spend more than two seconds
+-	 * compiling their initial template in the interpreter. Only a top-level
+-	 * loading script gets this bounded budget; callbacks, nested execution
+-	 * and Promise jobs retain their existing, tighter deadlines. */
+-	if (thread->ready_state == 0 && thread->heap->deadline_depth == 1 &&
+-			thread->heap->deadline_saved == 0) {
+-		uint64_t now;
+-		if (nsu_getmonotonic_ms(&now) == NSUERROR_OK)
+-			thread->heap->deadline_ms = now + 5000;
+-	}
++	qjs_deadline_start_script(thread);
+ 
+ 	v = JS_Eval(thread->ctx, buf, buflen,
+ 		    name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -89,6 +89,7 @@
+ 
+ /* set a script-runtime deadline, run fn-ish work, then clear it */
+ void qjs_deadline_start(struct jsthread *thread);
++void qjs_deadline_start_script(struct jsthread *thread);
+ void qjs_deadline_stop(struct jsthread *thread);
+ 
+ /* log and consume the current exception */
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -3366,11 +3366,19 @@
+ 	dom_string_unref(tds);
+ 	if (target != NULL) {
+ 		bool success = false;
++		bool script_load = false;
++		dom_string *name = NULL;
+ 		JSValue node_js = qjs_dom_wrap_node(t, target);
+ 		/* A property handler alone has no libdom listener yet. Register the
+ 		 * same bridge used by addEventListener, without duplicating it. */
+ 		qjs_ensure_dom_listener(t, node_js, target, type);
+-		qjs_deadline_start(t);
++		if (strcmp(type, "load") == 0 &&
++				dom_node_get_node_name(target, &name) == DOM_NO_ERR &&
++				name != NULL)
++			script_load = dom_string_caseless_isequal(name, corestring_dom_SCRIPT);
++		if (name != NULL) dom_string_unref(name);
++		if (script_load) qjs_deadline_start_script(t);
++		else qjs_deadline_start(t);
+ 		dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
+ 		qjs_deadline_stop(t);
+ 		JS_FreeValue(ctx, node_js);

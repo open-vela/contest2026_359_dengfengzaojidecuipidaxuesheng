@@ -111,7 +111,7 @@ UART1：TX=GPIO4、RX=GPIO5，8 数据位、无校验、1 停止位。SPI2 与 U
 | `system.servo.write(options)` | `channel`；`frequency` 默认 50 Hz；`pulseUs` 默认 1500，允许 100～5000，但必须小于一个周期 | `{pin}` |
 | `system.servo.stop(options)` | `channel` | `{}` |
 
-通道 0／1／2／3 对应 GPIO2／3／4／6，以 capabilities 为准。底层使用硬件 LEDC，不用 JS 定时器模拟 PWM。PWM 频率参数范围 1～100000 Hz，实际能否实现还受硬件时钟和分辨率约束，失败以任务错误为准。端点占空比按驱动精度处理。舵机 API 输出的是脉宽，不能保证机械角度；电源、共同地线、型号允许的脉宽区间必须由真实接线和器件决定。
+通用配置通道 0／1／2／3 对应 GPIO2／3／4／6。完整 LCD 配置启用 `--lcd-backlight` 后，通道 0 改为屏幕专用 GPIO26，不向应用和 Agent 暴露；扩展 PWM 使用 capabilities 实际列出的通道 1／2／3。GPIO26 不在通用 GPIO 允许列表内。底层使用硬件 LEDC，不用 JS 定时器模拟 PWM。PWM 频率参数范围 1～100000 Hz，实际能否实现还受硬件时钟和分辨率约束，失败以任务错误为准。端点占空比按驱动精度处理。舵机 API 输出的是脉宽，不能保证机械角度；电源、共同地线、型号允许的脉宽区间必须由真实接线和器件决定。
 
 ```javascript
 // 仅在用户确实连接了适合该脉宽的舵机后调用。

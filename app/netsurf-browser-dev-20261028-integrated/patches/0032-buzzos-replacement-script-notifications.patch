@@ -1,0 +1,58 @@
+--- a/libdom/src/core/node.c
++++ b/libdom/src/core/node.c
+@@ -2273,6 +2273,8 @@
+ {
+ 	dom_node_internal *first, *last;
+ 	dom_node_internal *n;
++	dom_node_internal *parent = old->parent;
++	bool success = true;
+ 
+ 	if (replacement->type == DOM_DOCUMENT_FRAGMENT_NODE) {
+ 		first = replacement->first_child;
+@@ -2285,14 +2287,8 @@
+ 	}
+ 
+ 	if (first == NULL) {
+-		/* All we're doing is removing old */
+-		if (old->previous == NULL) {
+-			old->parent->first_child = old->next;
+-		}
+-		if (old->next == NULL) {
+-			old->parent->last_child = old->previous;
+-		}
+-		old->previous = old->next = old->parent = NULL;
++		/* Keep both neighbouring links and removal notifications intact. */
++		_dom_node_detach_range(old, old);
+ 		return;
+ 	}
+ 
+@@ -2314,7 +2310,17 @@
+ 		n->parent = old->parent;
+ 	}
+ 
++	if (parent->owner != NULL)
++		dom_node_dispatch_node_change_event(parent->owner, old, parent,
++				DOM_MUTATION_REMOVAL, &success);
+ 	old->previous = old->next = old->parent = NULL;
++	/* Replacement must notify the same consumers as ordinary insertion. */
++	if (parent->owner != NULL) {
++		for (n = first; n != last->next; n = n->next)
++			dom_node_dispatch_node_change_event(parent->owner, n, parent,
++					DOM_MUTATION_ADDITION, &success);
++		_dom_dispatch_subtree_modified_event(parent->owner, parent, &success);
++	}
+ }
+ 
+ /**
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -767,6 +767,9 @@
+ 							(dom_node *)node);
+ 				}
+ 				break;
++			case DOM_HTML_ELEMENT_TYPE_SCRIPT:
++				dom_SCRIPT_showed_up(htmlc, (dom_html_script_element *)node);
++				break;
+ 			case DOM_HTML_ELEMENT_TYPE_TEXTAREA:
+ 			case DOM_HTML_ELEMENT_TYPE_INPUT:
+ 				html_texty_element_update(htmlc, (dom_node *)node);

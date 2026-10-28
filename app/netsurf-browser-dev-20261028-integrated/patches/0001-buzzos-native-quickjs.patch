@@ -1,0 +1,3373 @@
+--- a/libcss/src/select/unit.c
++++ b/libcss/src/select/unit.c
+@@ -267,14 +267,35 @@
+ 				viewport_width);
+ 
+ 	case CSS_UNIT_VH:
++		return FDIV(viewport_height, F_100);
++
++	case CSS_UNIT_VW:
+ 		return FDIV(viewport_width, F_100);
+-
+-	case CSS_UNIT_VW:
+-		return FDIV(viewport_height, F_100);
+ 
+ 	default:
+ 		return 0;
+ 	}
++}
++
++/* Resolve the complete viewport length before rounding.  Rounding a single
++ * vw/vh to a whole pixel can make 100vw/vh differ by up to 50 pixels. */
++static bool css_unit__viewport_length(
++		const css_computed_style *style,
++		const css_unit_ctx *ctx,
++		css_fixed length, css_unit unit, css_fixed *result)
++{
++	css_fixed dimension;
++	unit = css_unit__map_viewport_units(style,
++			ctx->viewport_height, ctx->viewport_width, unit);
++	if (unit == CSS_UNIT_VH) {
++		dimension = ctx->viewport_height;
++	} else if (unit == CSS_UNIT_VW) {
++		dimension = ctx->viewport_width;
++	} else {
++		return false;
++	}
++	*result = (css_fixed)(((int64_t)length * dimension) / (100 * F_1));
++	return true;
+ }
+ 
+ /* Exported function, documented in unit.h. */
+@@ -283,6 +304,10 @@
+ 		const css_fixed length,
+ 		const css_unit unit)
+ {
++	css_fixed viewport_length;
++	if (css_unit__viewport_length(NULL, ctx, length, unit, &viewport_length)) {
++		return viewport_length;
++	}
+ 	/* In the media query context there is no reference or root element
+ 	 * style, so these are hard-coded to NULL. */
+ 	css_fixed px_per_unit = css_unit__px_per_unit(
+@@ -311,6 +336,10 @@
+ 		const css_fixed length,
+ 		const css_unit unit)
+ {
++	css_fixed viewport_length;
++	if (css_unit__viewport_length(style, ctx, length, unit, &viewport_length)) {
++		return viewport_length;
++	}
+ 	css_fixed px_per_unit = css_unit__px_per_unit(
+ 			ctx->measure,
+ 			style,
+@@ -337,6 +366,10 @@
+ 		const css_fixed length,
+ 		const css_unit unit)
+ {
++	css_fixed viewport_length;
++	if (css_unit__viewport_length(style, ctx, length, unit, &viewport_length)) {
++		return css_unit_css2device_px(viewport_length, ctx->device_dpi);
++	}
+ 	css_fixed px_per_unit = css_unit__px_per_unit(
+ 			ctx->measure,
+ 			style,
+--- a/libdom/include/dom/events/keyboard_event.h
++++ b/libdom/include/dom/events/keyboard_event.h
+@@ -15,6 +15,8 @@
+ struct dom_abstract_view;
+ 
+ typedef struct dom_keyboard_event dom_keyboard_event;
++struct dom_event;
++bool dom_event_is_keyboard_event(const struct dom_event *evt);
+ 
+ typedef enum {
+ 	DOM_KEY_LOCATION_STANDARD = 0,
+@@ -103,4 +105,3 @@
+ 		(bool) (r), (bool) (ic))
+ 
+ #endif
+-
+--- a/libdom/src/events/keyboard_event.c
++++ b/libdom/src/events/keyboard_event.c
+@@ -18,6 +18,11 @@
+ static const struct dom_event_private_vtable _event_vtable = {
+ 	_virtual_dom_keyboard_event_destroy
+ };
++
++bool dom_event_is_keyboard_event(const struct dom_event *evt)
++{
++	return evt != NULL && evt->vtable == &_event_vtable;
++}
+ 
+ /* Constructor */
+ dom_exception _dom_keyboard_event_create(struct dom_keyboard_event **evt)
+@@ -458,4 +463,3 @@
+ 
+ 	return DOM_NO_ERR;
+ }
+-
+--- a/netsurf/content/fetch.c
++++ b/netsurf/content/fetch.c
+@@ -445,13 +445,15 @@
+ }
+ 
+ /* exported interface documented in content/fetch.h */
+-nserror
+-fetch_start(nsurl *url,
++static nserror
++fetch_start_internal(nsurl *url,
+ 	    nsurl *referer,
+ 	    fetch_callback callback,
+ 	    void *p,
+ 	    bool only_2xx,
+ 	    const char *post_urlenc,
++	    size_t post_length,
++	    bool raw_post,
+ 	    const struct fetch_multipart_data *post_multipart,
+ 	    bool verifiable,
+ 	    bool downgrade_tls,
+@@ -494,7 +496,7 @@
+ 	/* try and set up the fetch */
+ 	fetch->fetcher_handle = fetchers[fetch->fetcherd].ops.setup(fetch, url,
+ 						only_2xx, downgrade_tls,
+-						post_urlenc, post_multipart,
++						post_urlenc, post_length, raw_post, post_multipart,
+ 						headers);
+ 	if (fetch->fetcher_handle == NULL) {
+ 		lwc_string_unref(fetch->host);
+@@ -529,6 +531,27 @@
+ 
+ 	*fetch_out = fetch;
+ 	return NSERROR_OK;
++}
++
++nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback,
++		void *p, bool only_2xx, const char *post_urlenc,
++		const struct fetch_multipart_data *post_multipart,
++		bool verifiable, bool downgrade_tls,
++		const char *headers[], struct fetch **fetch_out)
++{
++	return fetch_start_internal(url, referer, callback, p, only_2xx,
++			post_urlenc, post_urlenc ? strlen(post_urlenc) : 0,
++			false, post_multipart, verifiable, downgrade_tls, headers, fetch_out);
++}
++
++nserror fetch_start_bytes(nsurl *url, nsurl *referer, fetch_callback callback,
++		void *p, bool only_2xx, const uint8_t *post_data,
++		size_t post_length, bool verifiable, bool downgrade_tls,
++		const char *headers[], struct fetch **fetch_out)
++{
++	return fetch_start_internal(url, referer, callback, p, only_2xx,
++			(const char *)post_data, post_length, true, NULL,
++			verifiable, downgrade_tls, headers, fetch_out);
+ }
+ 
+ /* exported interface documented in content/fetch.h */
+--- a/netsurf/content/fetch.h
++++ b/netsurf/content/fetch.h
+@@ -24,6 +24,8 @@
+ #define _NETSURF_DESKTOP_FETCH_H_
+ 
+ #include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
+ 
+ #include "utils/config.h"
+ #include "utils/nsurl.h"
+@@ -171,6 +173,11 @@
+ 		    bool verifiable, bool downgrade_tls,
+ 		    const char *headers[], struct fetch **fetch_out);
+ 
++nserror fetch_start_bytes(nsurl *url, nsurl *referer, fetch_callback callback,
++		    void *p, bool only_2xx, const uint8_t *post_data,
++		    size_t post_length, bool verifiable, bool downgrade_tls,
++		    const char *headers[], struct fetch **fetch_out);
++
+ /**
+  * Abort a fetch.
+  */
+--- a/netsurf/content/fetchers.h
++++ b/netsurf/content/fetchers.h
+@@ -25,6 +25,7 @@
+ #ifndef _NETSURF_DESKTOP_FETCHERS_H_
+ #define _NETSURF_DESKTOP_FETCHERS_H_
+ 
++#include <stddef.h>
+ #include "utils/inet.h" /* this is necessary for the fd_set definition */
+ #include <libwapcaplet/libwapcaplet.h>
+ 
+@@ -67,6 +68,7 @@
+ 	 */
+ 	void *(*setup)(struct fetch *parent_fetch, struct nsurl *url,
+ 		bool only_2xx, bool downgrade_tls, const char *post_urlenc,
++		size_t post_length, bool raw_post,
+ 		const struct fetch_multipart_data *post_multipart,
+ 		const char **headers);
+ 
+--- a/netsurf/content/fetchers/about/about.c
++++ b/netsurf/content/fetchers/about/about.c
+@@ -621,10 +621,14 @@
+ 		  bool only_2xx,
+ 		  bool downgrade_tls,
+ 		  const char *post_urlenc,
++		  size_t post_length,
++		  bool raw_post,
+ 		  const struct fetch_multipart_data *post_multipart,
+ 		  const char **headers)
+ {
+ 	struct fetch_about_context *ctx;
++	(void)post_length;
++	(void)raw_post;
+ 	unsigned int handler_loop;
+ 	lwc_string *path;
+ 	bool match;
+--- a/netsurf/content/fetchers/curl.c
++++ b/netsurf/content/fetchers/curl.c
+@@ -476,6 +476,8 @@
+ 		 bool only_2xx,
+ 		 bool downgrade_tls,
+ 		 const char *post_urlenc,
++		 size_t post_length,
++		 bool raw_post,
+ 		 const struct fetch_multipart_data *post_multipart,
+ 		 const char **headers)
+ {
+@@ -483,6 +485,8 @@
+ 	struct curl_slist *slist;
+ 	int i;
+ 
++	if (raw_post || (post_urlenc != NULL && strlen(post_urlenc) != post_length))
++		return NULL;
+ 	fetch = fetch_alloc();
+ 	if (fetch == NULL)
+ 		return NULL;
+--- a/netsurf/content/fetchers/data.c
++++ b/netsurf/content/fetchers/data.c
+@@ -107,9 +107,13 @@
+ 
+ static void *fetch_data_setup(struct fetch *parent_fetch, nsurl *url,
+ 		 bool only_2xx, bool downgrade_tls, const char *post_urlenc,
++		 size_t post_length,
++		 bool raw_post,
+ 		 const struct fetch_multipart_data *post_multipart,
+ 		 const char **headers)
+ {
++	(void)post_length;
++	(void)raw_post;
+ 	struct fetch_data_context *ctx = calloc(1, sizeof(*ctx));
+ 	
+ 	if (ctx == NULL)
+--- a/netsurf/content/fetchers/file/file.c
++++ b/netsurf/content/fetchers/file/file.c
+@@ -139,10 +139,14 @@
+ 		 bool only_2xx,
+ 		 bool downgrade_tls,
+ 		 const char *post_urlenc,
++		 size_t post_length,
++		 bool raw_post,
+ 		 const struct fetch_multipart_data *post_multipart,
+ 		 const char **headers)
+ {
+ 	struct fetch_file_context *ctx;
++	(void)post_length;
++	(void)raw_post;
+ 	int i;
+ 	nserror ret;
+ 
+--- a/netsurf/content/fetchers/resource.c
++++ b/netsurf/content/fetchers/resource.c
+@@ -340,10 +340,14 @@
+ 		     bool only_2xx,
+ 		     bool downgrade_tls,
+ 		     const char *post_urlenc,
++		     size_t post_length,
++		     bool raw_post,
+ 		     const struct fetch_multipart_data *post_multipart,
+ 		     const char **headers)
+ {
+ 	struct fetch_resource_context *ctx;
++	(void)post_length;
++	(void)raw_post;
+ 	lwc_string *path;
+ 	nserror ret;
+ 	uint32_t i;
+--- a/netsurf/content/handlers/css/css.c
++++ b/netsurf/content/handlers/css/css.c
+@@ -436,7 +436,12 @@
+ {
+ 	nscss_content *c = (nscss_content *) hlcache_handle_get_content(h);
+ 
+-	assert(c != NULL);
++	/* A handle whose content is not ready (still loading, or failed) has no
++	 * sheet.  Callers already treat NULL as "skip this sheet"; the assert
++	 * alone was compiled out in release builds and the dereference crashed
++	 * the browser on pages with a failed stylesheet. */
++	if (c == NULL)
++		return NULL;
+ 
+ 	return c->data.sheet;
+ }
+@@ -446,10 +451,13 @@
+ {
+ 	nscss_content *c = (nscss_content *) hlcache_handle_get_content(h);
+ 
+-	assert(c != NULL);
+-	assert(n != NULL);
+-
+-	*n = c->data.import_count;
++	if (n != NULL)
++		*n = 0;
++	if (c == NULL)
++		return NULL;
++
++	if (n != NULL)
++		*n = c->data.import_count;
+ 
+ 	return c->data.imports;
+ }
+--- a/netsurf/content/handlers/html/box_construct.c
++++ b/netsurf/content/handlers/html/box_construct.c
+@@ -250,7 +250,7 @@
+  * \param  n               node in xml tree
+  * \return  the new style, or NULL on memory exhaustion
+  */
+-static css_select_results *
++css_select_results *
+ box_get_style(html_content *c,
+ 	      const css_computed_style *parent_style,
+ 	      const css_computed_style *root_style,
+@@ -1037,23 +1037,13 @@
+ 		/* Normal mapping */
+ 		box->type = box_map[ns_computed_display(box->style,
+ 				props.node_is_root)];
+-
+-		if (props.containing_block->type == BOX_FLEX ||
+-		    props.containing_block->type == BOX_INLINE_FLEX) {
+-			/* Blockification */
+-			switch (box->type) {
+-			case BOX_INLINE_FLEX:
+-				box->type = BOX_FLEX;
+-				break;
+-			case BOX_INLINE_BLOCK:
+-				box->type = BOX_BLOCK;
+-				break;
+-			default:
+-				break;
+-			}
+-		}
+-	}
+-
++	}
++
++	/* Image conversion fetches its content immediately. Give it the DOM
++	 * identity now so a style-driven rebuild can reuse the old image's
++	 * in-flight or decoded content instead of starting a new request. The
++	 * box destructor owns this reference, including error paths. */
++	box->node = dom_node_ref(ctx->n);
+ 	if (convert_special_elements(ctx->n,
+ 				     ctx->content,
+ 				     box,
+@@ -1084,15 +1074,32 @@
+ 		return true;
+ 	}
+ 
++	/* Special element conversion can replace an element's box type (for
++	 * example, text controls become inline blocks).  Blockify only after
++	 * that conversion, before an inline container can hide the item's
++	 * own flex/grid properties behind an anonymous box. */
++	if (!props.node_is_root && box__containing_block_is_flex(&props) &&
++			css_computed_position(box->style) != CSS_POSITION_ABSOLUTE &&
++			css_computed_position(box->style) != CSS_POSITION_FIXED) {
++		switch (box->type) {
++		case BOX_INLINE:
++		case BOX_INLINE_BLOCK:
++			box->type = BOX_BLOCK;
++			break;
++		case BOX_INLINE_FLEX:
++			box->type = BOX_FLEX;
++			break;
++		default:
++			break;
++		}
++	}
++
+ 	/* Attach DOM node to box */
+ 	err = dom_node_set_user_data(ctx->n,
+ 			corestring_dom___ns_key_box_node_data, box, NULL,
+ 			(void *) &old_box);
+ 	if (err != DOM_NO_ERR)
+ 		return false;
+-
+-	/* Attach box to DOM node */
+-	box->node = dom_node_ref(ctx->n);
+ 
+ 	if (props.inline_container == NULL &&
+ 			(box->type == BOX_INLINE ||
+--- a/netsurf/content/handlers/html/box_construct.h
++++ b/netsurf/content/handlers/html/box_construct.h
+@@ -72,6 +72,15 @@
+ #ifndef NETSURF_HTML_BOX_CONSTRUCT_H
+ #define NETSURF_HTML_BOX_CONSTRUCT_H
+ 
++struct css_select_results;
++struct css_computed_style;
++struct html_content;
++struct dom_node;
++struct css_select_results *box_get_style(struct html_content *content,
++		const struct css_computed_style *parent_style,
++		const struct css_computed_style *root_style, struct dom_node *node);
++void html_get_dimensions(struct html_content *content);
++
+ /**
+  * Construct a box tree from a dom and html content
+  *
+--- a/netsurf/content/handlers/html/box_textarea.c
++++ b/netsurf/content/handlers/html/box_textarea.c
+@@ -246,6 +246,8 @@
+ 		break;
+ 
+ 	case TEXTAREA_MSG_TEXT_MODIFIED:
++		if (gadget->syncing)
++			break;
+ 		form_gadget_update_value(gadget,
+ 					 strndup(msg->data.modified.text,
+ 						 msg->data.modified.len));
+@@ -374,7 +376,10 @@
+ 		return false;
+ 	}
+ 
+-	if (!textarea_set_text(gadget->data.text.ta, text))
++	gadget->syncing = true;
++	bool text_set = textarea_set_text(gadget->data.text.ta, text);
++	gadget->syncing = false;
++	if (!text_set)
+ 		return false;
+ 
+ 	return true;
+--- a/netsurf/content/handlers/html/css_fetcher.c
++++ b/netsurf/content/handlers/html/css_fetcher.c
+@@ -85,10 +85,14 @@
+ 
+ static void *html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url,
+ 		 bool only_2xx, bool downgrade_tls, const char *post_urlenc,
++		 size_t post_length,
++		 bool raw_post,
+ 		 const struct fetch_multipart_data *post_multipart,
+ 		 const char **headers)
+ {
+ 	html_css_fetcher_context *ctx;
++	(void)post_length;
++	(void)raw_post;
+ 	lwc_string *path;
+ 	uint32_t key;
+ 	html_css_fetcher_item *item, *found = NULL;
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -65,8 +65,10 @@
+ 		nsurl *url;
+ 		nserror error;
+ 
+-		/* get url from string */
+-		error = nsurl_create(dom_string_data(atr_string), &url);
++		/* A base href may itself be relative. Resolve it against this
++		 * document's URL, not a previous page or an earlier base element. */
++		error = nsurl_join(content_get_url(&htmlc->base),
++				dom_string_data(atr_string), &url);
+ 		dom_string_unref(atr_string);
+ 		if (error == NSERROR_OK) {
+ 			if (htmlc->base_url != NULL) {
+--- a/netsurf/content/handlers/html/form.c
++++ b/netsurf/content/handlers/html/form.c
+@@ -2148,6 +2148,7 @@
+ 			err = dom_string_create((uint8_t *)value,
+ 						strlen(value), &str);
+ 			if (err == DOM_NO_ERR) {
++				control->syncing = true;
+ 				if (control->type == GADGET_TEXTAREA)
+ 					err = dom_html_text_area_element_set_value(
+ 						(dom_html_text_area_element *)(control->node),
+@@ -2156,6 +2157,7 @@
+ 					err = dom_html_input_element_set_value(
+ 						(dom_html_input_element *)(control->node),
+ 						str);
++				control->syncing = false;
+ 				dom_string_unref(str);
+ 			}
+ 		}
+--- a/netsurf/content/handlers/html/forms.c
++++ b/netsurf/content/handlers/html/forms.c
+@@ -29,6 +29,8 @@
+ 
+ #include "html/form_internal.h"
+ #include "html/private.h"
++#include "html/box.h"
++#include "html/box_construct.h"
+ 
+ /**
+  * process form element from dom
+@@ -546,8 +548,15 @@
+ {
+ 	struct form *f;
+ 	struct form_control *ctl = NULL;
++	struct box *previous_box = box_for_node(node);
+ 	dom_exception err;
+ 	dom_string *ds_name = NULL;
++	if (previous_box != NULL && previous_box->gadget != NULL &&
++	    previous_box->gadget->node == node &&
++	    (previous_box->gadget->type == GADGET_TEXTAREA ||
++	     previous_box->gadget->type == GADGET_TEXTBOX ||
++	     previous_box->gadget->type == GADGET_PASSWORD))
++		return previous_box->gadget;
+ 
+ 	/* Step one, see if we already have a control */
+ 	for (f = forms; f != NULL; f = f->prev) {
+--- a/netsurf/content/handlers/html/html.c
++++ b/netsurf/content/handlers/html/html.c
+@@ -24,10 +24,13 @@
+ 
+ #include <assert.h>
+ #include <stdint.h>
++#include <stdio.h>
+ #include <string.h>
+ #include <strings.h>
+ #include <stdlib.h>
+ #include <nsutils/time.h>
++
++extern size_t heap_used_bytes(void);
+ 
+ #include "utils/utils.h"
+ #include "utils/config.h"
+@@ -155,7 +158,22 @@
+ 	bool result;
+ 
+ 	if (is_special) {
++		const char *name = NULL;
+ 		switch (key) {
++		case NS_KEY_CR:
++		case NS_KEY_NL:
++			name = "Enter";
++			break;
++		case NS_KEY_DELETE_LEFT:
++			name = "Backspace";
++			break;
++		case NS_KEY_DELETE_RIGHT:
++			name = "Delete";
++			break;
++		case NS_KEY_TAB:
++		case NS_KEY_SHIFT_TAB:
++			name = "Tab";
++			break;
+ 		case NS_KEY_ESCAPE:
+ 			dom_key = dom_string_ref(corestring_dom_Escape);
+ 			break;
+@@ -187,6 +205,9 @@
+ 			dom_key = NULL;
+ 			break;
+ 		}
++		if (name != NULL && dom_string_create((const uint8_t *)name,
++				strlen(name), &dom_key) != DOM_NO_ERR)
++			return false;
+ 	} else {
+ 		char utf8[6];
+ 		size_t length = utf8_from_ucs4(key, utf8);
+@@ -338,7 +359,7 @@
+ }
+ 
+ 
+-static void html_get_dimensions(html_content *htmlc)
++void html_get_dimensions(html_content *htmlc)
+ {
+ 	css_fixed device_dpi = nscss_screen_dpi;
+ 	unsigned f_size;
+@@ -1049,6 +1070,13 @@
+  * created during the fetch.
+  */
+ 
++void html_cancel_script_activity(hlcache_handle *handle)
++{
++	html_content *htmlc = (html_content *) hlcache_handle_get_content(handle);
++	if (htmlc != NULL && htmlc->jsthread != NULL)
++		js_closethread(htmlc->jsthread);
++}
++
+ static void html_stop(struct content *c)
+ {
+ 	html_content *htmlc = (html_content *) c;
+@@ -1352,6 +1380,8 @@
+ 
+ 	/* free layout */
+ 	html_free_layout(html);
++	fprintf(stderr, "[html] destroy done heap=%u\n",
++		(unsigned)heap_used_bytes());
+ }
+ 
+ 
+--- a/netsurf/content/handlers/html/html.h
++++ b/netsurf/content/handlers/html/html.h
+@@ -51,6 +51,8 @@
+ struct selection;
+ struct nsurl;
+ struct plot_font_style;
++
++void html_cancel_script_activity(struct hlcache_handle *handle);
+ 
+ /**
+  * Container for stylesheets used by an HTML document
+--- a/netsurf/content/handlers/html/imagemap.c
++++ b/netsurf/content/handlers/html/imagemap.c
+@@ -221,6 +221,10 @@
+ 	}
+ 
+ 	free(c->imagemaps);
++	/* Rebuild paths call destroy then re-extract; imagemap_create() only
++	 * allocates when this is NULL, so a dangling table here turns the next
++	 * extraction into a use-after-free write. */
++	c->imagemaps = NULL;
+ }
+ 
+ /**
+--- a/netsurf/content/handlers/html/interaction.c
++++ b/netsurf/content/handlers/html/interaction.c
+@@ -1673,8 +1673,14 @@
+ 	 * we're not supposed to.
+ 	 */
+ 	if (html->layout != NULL && html->layout->node != NULL) {
+-		fire_dom_keyboard_event(corestring_dom_keydown,
+-				html->layout->node, true, true, key);
++		dom_node *target = html->layout->node;
++		if (html->focus_type == HTML_FOCUS_TEXTAREA &&
++		    html->focus_owner.textarea != NULL &&
++		    html->focus_owner.textarea->node != NULL)
++			target = html->focus_owner.textarea->node;
++		if (!fire_dom_keyboard_event(corestring_dom_keydown,
++				target, true, true, key))
++			return true;
+ 	}
+ 
+ 	switch (html->focus_type) {
+--- a/netsurf/content/handlers/html/layout.c
++++ b/netsurf/content/handlers/html/layout.c
+@@ -1073,7 +1073,7 @@
+ 	}
+ 
+ 	/* fixed width takes priority */
+-	if (block->type != BOX_TABLE_CELL && !lh__box_is_flex_item(block)) {
++	if (block->type != BOX_TABLE_CELL) {
+ 		bool border_box = bs == CSS_BOX_SIZING_BORDER_BOX;
+ 		enum css_max_width_e max_type;
+ 		enum css_min_width_e min_type;
+@@ -1081,13 +1081,31 @@
+ 		css_fixed value = 0;
+ 		int width;
+ 
+-		if (css_computed_width_px(block->style, &content->unit_len_ctx,
++		if (!lh__box_is_flex_item(block) &&
++				css_computed_width_px(block->style, &content->unit_len_ctx,
+ 				-1, &width) == CSS_WIDTH_SET) {
+ 			min = max = width;
+ 			using_max_border_box = border_box;
+ 			using_min_border_box = border_box;
+ 		}
+ 
++		/* Apply the maximum first: a specified minimum wins when the
++		 * two constraints conflict. */
++		max_type = css_computed_max_width(block->style, &value, &unit);
++		if (max_type == CSS_MAX_WIDTH_SET && unit != CSS_UNIT_PCT) {
++			int val = FIXTOINT(css_unit_len2device_px(block->style,
++					&content->unit_len_ctx, value, unit));
++
++			if (val >= 0 && max > val) {
++				max = val;
++				using_max_border_box = border_box;
++			}
++			if (val >= 0 && min > val) {
++				min = val;
++				using_min_border_box = border_box;
++			}
++		}
++
+ 		min_type = css_computed_min_width(block->style, &value, &unit);
+ 		if (min_type == CSS_MIN_WIDTH_SET && unit != CSS_UNIT_PCT) {
+ 			int val = FIXTOINT(css_unit_len2device_px(block->style,
+@@ -1096,17 +1114,6 @@
+ 			if (min < val) {
+ 				min = val;
+ 				using_min_border_box = border_box;
+-			}
+-		}
+-
+-		max_type = css_computed_max_width(block->style, &value, &unit);
+-		if (max_type == CSS_MAX_WIDTH_SET && unit != CSS_UNIT_PCT) {
+-			int val = FIXTOINT(css_unit_len2device_px(block->style,
+-					&content->unit_len_ctx, value, unit));
+-
+-			if (val >= 0 && max > val) {
+-				max = val;
+-				using_max_border_box = border_box;
+ 			}
+ 		}
+ 	}
+@@ -1136,7 +1143,9 @@
+ 	}
+ 
+ 	if (max < min) {
+-		min = max;
++		/* A specified minimum also constrains max-content sizing;
++		 * empty contents must not erase a positive min-width. */
++		max = min;
+ 	}
+ 
+ 	calculate_mbp_width(&content->unit_len_ctx, block->style, LEFT,
+--- a/netsurf/content/handlers/html/layout_flex.c
++++ b/netsurf/content/handlers/html/layout_flex.c
+@@ -154,7 +154,10 @@
+ 	ctx->line.alloc = 1;
+ 
+ 	ctx->item.count = box_count_children(flex);
+-	ctx->item.data = calloc(ctx->item.count, sizeof(*ctx->item.data));
++	/* calloc(0, ...) may return NULL without indicating allocation failure.
++	 * Empty flex containers still need their own dimensions laid out. */
++	ctx->item.data = calloc(ctx->item.count ? ctx->item.count : 1,
++			sizeof(*ctx->item.data));
+ 	if (ctx->item.data == NULL) {
+ 		layout_flex_ctx__destroy(ctx);
+ 		return NULL;
+--- a/netsurf/content/handlers/html/layout_grid.c
++++ b/netsurf/content/handlers/html/layout_grid.c
+@@ -1213,6 +1213,14 @@
+ 			grid, grid->style, NULL, &grid->height,
+ 			NULL, NULL, &max_height, &min_height,
+ 			grid->margin, grid->padding, grid->border);
++	/* Definite heights must be constrained before allocating row space,
++	 * otherwise the final clamp leaves children aligned outside the box. */
++	if (grid->height != AUTO) {
++		if (max_height >= 0 && grid->height > max_height)
++			grid->height = max_height;
++		if (min_height > 0 && grid->height < min_height)
++			grid->height = min_height;
++	}
+ 
+ 	available_width = min(available_width, grid->width);
+ 	if (available_width < 0)
+@@ -1231,6 +1239,9 @@
+ 	/* item dimensions and column contributions */
+ 	for (i = 0; i < g.nitems; i++) {
+ 		struct box *b = g.items[i].box;
++		css_fixed width_length;
++		css_unit width_unit;
++		bool percentage_width;
+ 		int w;
+ 
+ 		s0[i] = -1;
+@@ -1245,7 +1256,12 @@
+ 
+ 		s0[i] = g.items[i].c0;
+ 		s1[i] = g.items[i].c1 > g.ncols ? g.ncols : g.items[i].c1;
+-		if (b->width != AUTO) {
++		percentage_width = css_computed_width(b->style,
++				&width_length, &width_unit) == CSS_WIDTH_SET &&
++				width_unit == CSS_UNIT_PCT;
++		/* A percentage depends on the grid area, which is not sized
++		 * yet.  Use intrinsic contributions to break that cycle. */
++		if (b->width != AUTO && !percentage_width) {
+ 			w = b->width + lh__delta_outer_width(b);
+ 			imin[i] = imax[i] = w;
+ 		} else {
+@@ -1297,6 +1313,25 @@
+ 		for (j = it->c0; j < c1; j++)
+ 			area_w += g.cols[j].size;
+ 		area_w += g.col_gap * (c1 - it->c0 - 1);
++
++		/* Resolve percentages against the allocated area, not against
++		 * the entire grid.  This also supplies the area's percentage
++		 * basis for padding, margins and min/max width. */
++		{
++			int min_width, max_width;
++			b->float_container = b->parent;
++			layout_find_dimensions(&content->unit_len_ctx, area_w, -1,
++					b, b->style, &b->width, &b->height,
++					&max_width, &min_width, NULL, NULL,
++					b->margin, b->padding, b->border);
++			b->float_container = NULL;
++			if (b->width != AUTO) {
++				if (max_width >= 0 && b->width > max_width)
++					b->width = max_width;
++				if (min_width > 0 && b->width < min_width)
++					b->width = min_width;
++			}
++		}
+ 
+ 		js = g_raw_align(b->style, CSS_PROP_JUSTIFY_SELF);
+ 		if (js < 0 || js == 3)
+--- a/netsurf/content/handlers/image/webp.c
++++ b/netsurf/content/handlers/image/webp.c
+@@ -106,7 +106,10 @@
+ 
+ 	webpres = WebPGetFeatures(source_data, source_size, &webpfeatures);
+ 
+-	if (webpres != VP8_STATUS_OK) {
++	if (webpres != VP8_STATUS_OK || webpfeatures.width <= 0 ||
++			webpfeatures.height <= 0 ||
++			(unsigned)webpfeatures.width > (8u * 1024u * 1024u) /
++				(unsigned)webpfeatures.height) {
+ 		return NULL;
+ 	}
+ 
+@@ -191,7 +194,8 @@
+ 	data = content__get_source_data(c, &data_size);
+ 
+ 	res = WebPGetInfo(data, data_size, &width, &height);
+-	if (res == 0) {
++	if (res == 0 || width <= 0 || height <= 0 ||
++			(unsigned)width > (8u * 1024u * 1024u) / (unsigned)height) {
+ 		NSLOG(netsurf, INFO, "WebPGetInfo failed:%p", c);
+ 		return false;
+ 	}
+--- a/netsurf/content/handlers/javascript/fetcher.c
++++ b/netsurf/content/handlers/javascript/fetcher.c
+@@ -105,10 +105,14 @@
+ 		 bool only_2xx,
+ 		 bool downgrade_tls,
+ 		 const char *post_urlenc,
++		 size_t post_length,
++		 bool raw_post,
+ 		 const struct fetch_multipart_data *post_multipart,
+ 		 const char **headers)
+ {
+ 	struct fetch_javascript_context *ctx;
++	(void)post_length;
++	(void)raw_post;
+ 
+ 	ctx = calloc(1, sizeof(*ctx));
+ 	if (ctx == NULL)
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_canvas.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_canvas.c
+@@ -29,6 +29,7 @@
+ #include <strings.h>
+ 
+ #include <dom/dom.h>
++#include <lodepng.h>
+ 
+ #include "utils/config.h"
+ #include "utils/log.h"
+@@ -870,6 +871,82 @@
+ 	return JS_UNDEFINED;
+ }
+ 
++static JSValue n_canvas_png(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	static const char prefix[] = "data:image/png;base64,";
++	static const char base64[] =
++		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
++	struct jsthread *thread = JS_GetContextOpaque(ctx);
++	dom_node *node = argc > 0 ? qjs_dom_node_of(ctx, argv[0]) : NULL;
++	struct html_canvas *canvas;
++	uint8_t *pixels;
++	unsigned char *png = NULL;
++	size_t png_size = 0;
++	JSValue result;
++	unsigned error;
++	int width, height;
++	size_t index, offset;
++
++	if (thread == NULL || node == NULL || thread->htmlc == NULL ||
++	    (canvas = html_canvas_for_node(thread->htmlc, node, true)) == NULL)
++		return JS_ThrowTypeError(ctx, "invalid canvas");
++	html_canvas_get_size(canvas, &width, &height);
++	if (width <= 0 || height <= 0)
++		return JS_NULL;
++	if ((uint64_t)width * height > 4 * 1024 * 1024)
++		return JS_ThrowRangeError(ctx, "canvas is too large to export");
++	pixels = malloc((size_t)width * height * 4);
++	if (pixels == NULL)
++		return JS_ThrowOutOfMemory(ctx);
++	html_canvas_get_image_data(canvas, 0, 0, width, height, pixels);
++	error = lodepng_encode32(&png, &png_size, pixels, width, height);
++	free(pixels);
++	if (error != 0) {
++		free(png);
++		return JS_ThrowInternalError(ctx, "canvas PNG encoding failed: %s",
++				lodepng_error_text(error));
++	}
++	if (argc > 1 && JS_ToBool(ctx, argv[1])) {
++		char *url;
++		size_t prefix_size = sizeof(prefix) - 1;
++		size_t url_size;
++
++		if (png_size > 32 * 1024 * 1024) {
++			free(png);
++			return JS_ThrowRangeError(ctx, "canvas PNG is too large");
++		}
++		url_size = prefix_size + ((png_size + 2) / 3) * 4;
++		url = malloc(url_size);
++		if (url == NULL) {
++			free(png);
++			return JS_ThrowOutOfMemory(ctx);
++		}
++		memcpy(url, prefix, prefix_size);
++		offset = prefix_size;
++		for (index = 0; index < png_size; index += 3) {
++			uint32_t chunk = (uint32_t)png[index] << 16;
++
++			if (index + 1 < png_size)
++				chunk |= (uint32_t)png[index + 1] << 8;
++			if (index + 2 < png_size)
++				chunk |= png[index + 2];
++			url[offset++] = base64[(chunk >> 18) & 63];
++			url[offset++] = base64[(chunk >> 12) & 63];
++			url[offset++] = index + 1 < png_size ?
++				base64[(chunk >> 6) & 63] : '=';
++			url[offset++] = index + 2 < png_size ?
++				base64[chunk & 63] : '=';
++		}
++		result = JS_NewStringLen(ctx, url, url_size);
++		free(url);
++	} else {
++		result = JS_NewArrayBufferCopy(ctx, png, png_size);
++	}
++	free(png);
++	return result;
++}
++
+ /* exported interface documented in qjs_private.h */
+ void qjs_canvas_install(struct jsthread *t, JSValue ns)
+ {
+@@ -909,4 +986,6 @@
+ 	JS_SetPropertyStr(ctx, ns, "canvasResize",
+ 			JS_NewCFunction(ctx, n_canvas_resize,
+ 					"canvasResize", 3));
+-}
++	JS_SetPropertyStr(ctx, ns, "canvasPng",
++			JS_NewCFunction(ctx, n_canvas_png, "canvasPng", 2));
++}
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -44,6 +44,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <math.h>
++#include <nsutils/time.h>
+ 
+ #include <dom/dom.h>
+ 
+@@ -54,7 +55,10 @@
+ #include "utils/useragent.h"
+ #include "netsurf/browser_window.h"
+ #include "netsurf/misc.h"
++#include "netsurf/types.h"
+ #include "desktop/gui_internal.h"
++#include "desktop/browser_private.h"
++#include "content/hlcache.h"
+ #include "html/private.h"
+ #include "html/media.h"
+ 
+@@ -102,9 +106,9 @@
+ static JSValue qjs_ds_to_js(JSContext *ctx, dom_string *ds)
+ {
+ 	if (ds == NULL)
+-		return JS_NewStringLen(ctx, "", 0);
++	return JS_NewStringLen(ctx, "", 0);
+ 	return JS_NewStringLen(ctx, dom_string_data(ds),
+-			       dom_string_length(ds));
++			       dom_string_byte_length(ds));
+ }
+ 
+ /* JS value to new dom_string; caller unrefs. NULL on failure */
+@@ -160,9 +164,19 @@
+ 			stack = JS_ToCString(ctx, sv);
+ 	}
+ 
+-	NSLOG(jserrors, WARNING, "Uncaught error in JS: %s%s%.300s",
+-	      msg ? msg : "(unprintable)", stack ? " at " : "",
+-	      stack ? stack : "");
++	NSLOG(jserrors, WARNING, "Uncaught error in JS: %s",
++	      msg ? msg : "(unprintable)");
++	if (stack != NULL) {
++		const char *frame = stack;
++		for (unsigned int count = 0; *frame && count < 40; count++) {
++			const char *end = strchr(frame, '\n');
++			size_t length = end ? (size_t)(end - frame) : strlen(frame);
++			NSLOG(jserrors, WARNING, "JS stack: %.*s",
++			      (int)(length > 300 ? 300 : length), frame);
++			if (end == NULL) break;
++			frame = end + 1;
++		}
++	}
+ 
+ 	if (stack != NULL)
+ 		JS_FreeCString(ctx, stack);
+@@ -172,12 +186,45 @@
+ 	JS_FreeValue(ctx, exc);
+ }
+ 
++static void qjs_drain_jobs(void *opaque)
++{
++	struct jsheap *heap = opaque;
++	if (heap->draining_jobs || heap->dying || heap->nthreads == 0)
++		return;
++	uint64_t started, now, saved = heap->deadline_ms;
++	nsu_getmonotonic_ms(&started);
++	heap->draining_jobs = true;
++	for (int budget = 128; budget > 0 && JS_IsJobPending(heap->rt); budget--) {
++		JSContext *jctx = NULL;
++		JSContext *pending = JS_GetPendingJobContext(heap->rt);
++		struct jsthread *thread = pending ? JS_GetContextOpaque(pending) : NULL;
++		if (!thread || thread->closed) {
++			if (pending) JS_CancelPendingJobs(pending);
++			else break;
++			continue;
++		}
++		nsu_getmonotonic_ms(&now);
++		if (now - started >= 10) break;
++		heap->deadline_ms = now + 1000;
++		if (saved && saved < heap->deadline_ms) heap->deadline_ms = saved;
++		int result = JS_ExecutePendingJob(heap->rt, &jctx);
++		if (result < 0 && jctx) qjs_dump_error(jctx);
++		if (result == 0) break;
++	}
++	heap->deadline_ms = saved;
++	heap->draining_jobs = false;
++	if (JS_IsJobPending(heap->rt))
++		guit->misc->schedule(1, qjs_drain_jobs, heap);
++}
++
++void qjs_cancel_jobs(struct jsheap *heap)
++{
++	guit->misc->schedule(-1, qjs_drain_jobs, heap);
++}
++
+ void qjs_run_jobs(JSContext *ctx)
+ {
+-	JSContext *jctx;
+-
+-	while (JS_ExecutePendingJob(JS_GetRuntime(ctx), &jctx) > 0)
+-		;
++	qjs_drain_jobs(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+ }
+ 
+ /* call a helper function defined by the setup script */
+@@ -273,6 +320,43 @@
+ 
+ 	dom_event_ref(evt);
+ 	JS_SetOpaque(obj, evt);
++	if (dom_event_is_keyboard_event(evt)) {
++		dom_string *event_key = NULL;
++		uint32_t key_code = 0;
++		JSValue global = JS_GetGlobalObject(ctx);
++		JSValue constructor = JS_GetPropertyStr(ctx, global, "KeyboardEvent");
++		JSValue prototype = JS_IsObject(constructor) ?
++			JS_GetPropertyStr(ctx, constructor, "prototype") : JS_UNDEFINED;
++		if (JS_IsObject(prototype))
++			JS_SetPrototype(ctx, obj, prototype);
++		JS_FreeValue(ctx, prototype);
++		JS_FreeValue(ctx, constructor);
++		JS_FreeValue(ctx, global);
++		if (dom_keyboard_event_get_key(evt, &event_key) == DOM_NO_ERR &&
++		    event_key != NULL) {
++			const char *name = dom_string_data(event_key);
++			size_t length = dom_string_byte_length(event_key);
++			if (length == 1 && (uint8_t)name[0] < 128) {
++				key_code = name[0];
++				if (key_code >= 'a' && key_code <= 'z')
++					key_code -= 'a' - 'A';
++			} else if (!strcmp(name, "Enter")) key_code = 13;
++			else if (!strcmp(name, "Backspace")) key_code = 8;
++			else if (!strcmp(name, "Tab")) key_code = 9;
++			else if (!strcmp(name, "Escape")) key_code = 27;
++			else if (!strcmp(name, "Delete")) key_code = 46;
++			else if (!strcmp(name, "ArrowLeft")) key_code = 37;
++			else if (!strcmp(name, "ArrowUp")) key_code = 38;
++			else if (!strcmp(name, "ArrowRight")) key_code = 39;
++			else if (!strcmp(name, "ArrowDown")) key_code = 40;
++			JS_DefinePropertyValueStr(ctx, obj, "key",
++				JS_NewStringLen(ctx, name, length), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
++			dom_string_unref(event_key);
++		}
++		JS_DefinePropertyValueStr(ctx, obj, "keyCode", JS_NewUint32(ctx, key_code), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
++		JS_DefinePropertyValueStr(ctx, obj, "which", JS_NewUint32(ctx, key_code), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
++		JS_DefinePropertyValueStr(ctx, obj, "charCode", JS_NewInt32(ctx, 0), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
++	}
+ 	JS_SetPropertyStr(ctx, t->event_map, key, JS_DupValue(ctx, obj));
+ 	return obj;
+ }
+@@ -845,26 +929,41 @@
+ };
+ 
+ /* does class attribute value contain token (space separated) */
++static bool qjs_class_space(char value)
++{
++	return value == ' ' || value == '\t' || value == '\n' ||
++	       value == '\r' || value == '\f';
++}
++
+ static bool qjs_class_contains(dom_string *cls, const char *token)
+ {
+ 	const char *data;
+-	size_t len, tlen, i;
++	size_t len, offset = 0;
++	bool matched = false;
+ 
+ 	if (cls == NULL)
+ 		return false;
+ 	data = dom_string_data(cls);
+-	len = dom_string_length(cls);
+-	tlen = strlen(token);
+-
+-	for (i = 0; i + tlen <= len; i++) {
+-		if ((i == 0 || data[i - 1] == ' ' || data[i - 1] == '\t' ||
+-		     data[i - 1] == '\n') &&
+-		    strncasecmp(data + i, token, tlen) == 0 &&
+-		    (i + tlen == len || data[i + tlen] == ' ' ||
+-		     data[i + tlen] == '\t' || data[i + tlen] == '\n'))
+-			return true;
+-	}
+-	return false;
++	len = dom_string_byte_length(cls);
++	while (token[offset]) {
++		while (token[offset] && qjs_class_space(token[offset])) offset++;
++		if (!token[offset]) break;
++		size_t start = offset;
++		while (token[offset] && !qjs_class_space(token[offset])) offset++;
++		size_t length = offset - start;
++		bool found = false;
++		for (size_t position = 0; position + length <= len; position++) {
++			if ((position == 0 || qjs_class_space(data[position - 1])) &&
++			    memcmp(data + position, token + start, length) == 0 &&
++			    (position + length == len || qjs_class_space(data[position + length]))) {
++				found = true;
++				break;
++			}
++		}
++		if (!found) return false;
++		matched = true;
++	}
++	return matched;
+ }
+ 
+ static bool
+@@ -880,7 +979,7 @@
+ 		if (dom_node_get_node_name(el, &val) != DOM_NO_ERR ||
+ 		    val == NULL)
+ 			return false;
+-		match = (dom_string_length(val) == strlen(arg)) &&
++		match = (dom_string_byte_length(val) == strlen(arg)) &&
+ 			(strncasecmp(dom_string_data(val), arg,
+ 				     strlen(arg)) == 0);
+ 		dom_string_unref(val);
+@@ -902,7 +1001,7 @@
+ 					      &val) != DOM_NO_ERR ||
+ 		    val == NULL)
+ 			return false;
+-		match = (dom_string_length(val) == strlen(arg)) &&
++		match = (dom_string_byte_length(val) == strlen(arg)) &&
+ 			(strncmp(dom_string_data(val), arg,
+ 				 strlen(arg)) == 0);
+ 		dom_string_unref(val);
+@@ -1443,7 +1542,7 @@
+ 	if (dom_node_get_node_name(node, &name) != DOM_NO_ERR ||
+ 	    name == NULL)
+ 		return false;
+-	if (dom_string_length(name) == 5)
++	if (dom_string_byte_length(name) == 5)
+ 		media = (strncasecmp(dom_string_data(name), "AUDIO",
+ 				     5) == 0) ||
+ 			(strncasecmp(dom_string_data(name), "VIDEO",
+@@ -1888,7 +1987,7 @@
+ 			if (dom_node_get_node_name(child, &name) ==
+ 				    DOM_NO_ERR && name != NULL) {
+ 				bool is_head =
+-					(dom_string_length(name) == 4) &&
++					(dom_string_byte_length(name) == 4) &&
+ 					(strncasecmp(dom_string_data(name),
+ 						     "HEAD", 4) == 0);
+ 				dom_string_unref(name);
+@@ -1943,15 +2042,19 @@
+ 	return JS_UNDEFINED;
+ }
+ 
++/* The visible browser window may still display the previous document
++ * while this realm executes a newly loading document. Never use its
++ * current URL as this realm's document identity, nor use <base href>. */
++static nsurl *qjs_realm_url(struct jsthread *t)
++{
++	return t && t->htmlc ? content_get_url(&t->htmlc->base) : NULL;
++}
++
+ static JSValue
+ doc_get_URL(JSContext *ctx, JSValueConst this_val)
+ {
+ 	struct jsthread *t = qjs_thread(ctx);
+-	struct nsurl *url;
+-
+-	if (t == NULL || t->bw == NULL)
+-		return JS_NewStringLen(ctx, "", 0);
+-	url = browser_window_access_url(t->bw);
++	struct nsurl *url = qjs_realm_url(t);
+ 	return JS_NewString(ctx, url ? nsurl_access(url) : "");
+ }
+ 
+@@ -2137,10 +2240,44 @@
+ doc_write(JSContext *ctx, JSValueConst this_val,
+ 	  int argc, JSValueConst *argv)
+ {
+-	/* parse-time document.write needs parser interleaving that this
+-	 * backend does not support yet; log and drop */
+-	NSLOG(netsurf, DEBUG, "document.write ignored (quickjs backend)");
++	/* Parser insertion follows NetSurf's official Document.bnd (MIT,
++	 * Copyright 2015 Vincent Sanders), adapting argument conversion to QuickJS. */
++	struct jsthread *thread = qjs_thread(ctx);
++	if (thread == NULL || thread->closed || thread->htmlc == NULL ||
++	    thread->htmlc->parser == NULL) return JS_UNDEFINED;
++	char *text = NULL;
++	size_t length = 0;
++	for (int i = 0; i < argc; i++) {
++		size_t part_length;
++		const char *part = JS_ToCStringLen(ctx, &part_length, argv[i]);
++		if (part == NULL) { free(text); return JS_EXCEPTION; }
++		if (part_length > 4 * 1024 * 1024 - length) {
++			JS_FreeCString(ctx, part); free(text);
++			return JS_ThrowRangeError(ctx, "document.write exceeds document limit");
++		}
++		char *next = realloc(text, length + part_length + 1);
++		if (next == NULL) {
++			JS_FreeCString(ctx, part); free(text); return JS_ThrowOutOfMemory(ctx);
++		}
++		text = next;
++		memcpy(text + length, part, part_length); length += part_length;
++		JS_FreeCString(ctx, part);
++	}
++	if (length != 0)
++		dom_hubbub_parser_insert_chunk(thread->htmlc->parser, (uint8_t *)text, length);
++	free(text);
+ 	return JS_UNDEFINED;
++}
++
++static JSValue doc_writeln(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	JSValue result = doc_write(ctx, this_val, argc, argv);
++	struct jsthread *thread = qjs_thread(ctx);
++	if (!JS_IsException(result) && thread != NULL && !thread->closed &&
++	    thread->htmlc != NULL && thread->htmlc->parser != NULL)
++		dom_hubbub_parser_insert_chunk(thread->htmlc->parser, (const uint8_t *)"\n", 1);
++	return result;
+ }
+ 
+ static const JSCFunctionListEntry qjs_document_funcs[] = {
+@@ -2162,7 +2299,7 @@
+ 		     doc_createDocumentFragment),
+ 	JS_CFUNC_DEF("createEvent", 1, doc_createEvent),
+ 	JS_CFUNC_DEF("write", 1, doc_write),
+-	JS_CFUNC_DEF("writeln", 1, doc_write),
++	JS_CFUNC_DEF("writeln", 1, doc_writeln),
+ 	JS_CFUNC_DEF("querySelector", 1, el_querySelector),
+ 	JS_CFUNC_DEF("querySelectorAll", 1, el_querySelectorAll),
+ 	JS_CFUNC_DEF("getElementsByTagName", 1, el_getElementsByTagName),
+@@ -2346,9 +2483,7 @@
+ 	char *buf;
+ 	size_t plen;
+ 
+-	if (t == NULL || t->bw == NULL)
+-		return JS_NewStringLen(ctx, "", 0);
+-	url = browser_window_access_url(t->bw);
++	url = qjs_realm_url(t);
+ 	if (url == NULL)
+ 		return JS_NewStringLen(ctx, "", 0);
+ 	comp = nsurl_get_component(url, part);
+@@ -2377,13 +2512,33 @@
+ 	return doc_get_URL(ctx, this_val);
+ }
+ 
++static bool qjs_may_navigate(struct jsthread *t)
++{
++	if (t == NULL || t->closed || t->bw == NULL || t->htmlc == NULL)
++		return false;
++	struct content *owner = &t->htmlc->base;
++	if (t->bw->loading_content != NULL) {
++		/* Keep the old DOM visible until commit, but do not let an old
++		 * timer cancel a newer navigation by navigating the window again.
++		 * The new loading realm may still perform its own redirects. */
++		return hlcache_handle_get_content(t->bw->loading_content) == owner;
++	}
++	return t->bw->current_content != NULL &&
++		hlcache_handle_get_content(t->bw->current_content) == owner;
++}
++
+ static void qjs_navigate(struct jsthread *t, const char *url_s)
+ {
+ 	nsurl *url;
+ 
+-	if (t->closed || t->bw == NULL)
++	if (!qjs_may_navigate(t)) {
++		NSLOG(netsurf, DEBUG, "Ignoring navigation from inactive JS realm %p", t);
+ 		return;
+-	if (nsurl_create(url_s, &url) != NSERROR_OK)
++	}
++	/* Relative navigation uses the initiating document's base URL. Its
++	 * href/URL getters above deliberately use the actual document URL. */
++	nsurl *base = t->htmlc->base_url ? t->htmlc->base_url : qjs_realm_url(t);
++	if ((base ? nsurl_join(base, url_s, &url) : nsurl_create(url_s, &url)) != NSERROR_OK)
+ 		return;
+ 	browser_window_navigate(t->bw, url, NULL, BW_NAVIGATE_HISTORY,
+ 				NULL, NULL, NULL);
+@@ -2411,9 +2566,7 @@
+ 	lwc_string *comp;
+ 	char buf[32];
+ 
+-	if (t == NULL || t->bw == NULL)
+-		return JS_NewStringLen(ctx, "", 0);
+-	url = browser_window_access_url(t->bw);
++	url = qjs_realm_url(t);
+ 	if (url == NULL)
+ 		return JS_NewStringLen(ctx, "", 0);
+ 	comp = nsurl_get_component(url, NSURL_SCHEME);
+@@ -2429,10 +2582,30 @@
+ static JSValue
+ loc_get_host(JSContext *ctx, JSValueConst this_val)
+ {
++	nsurl *url = qjs_realm_url(qjs_thread(ctx));
++	char *host = NULL;
++	size_t length = 0;
++	if (url == NULL || nsurl_get(url, NSURL_HOST | NSURL_PORT,
++			&host, &length) != NSERROR_OK)
++		return JS_NewStringLen(ctx, "", 0);
++	JSValue result = JS_NewStringLen(ctx, host, length);
++	free(host);
++	return result;
++}
++
++static JSValue
++loc_get_hostname(JSContext *ctx, JSValueConst this_val)
++{
+ 	return qjs_url_component(ctx, NSURL_HOST, "");
+ }
+ 
+ static JSValue
++loc_get_port(JSContext *ctx, JSValueConst this_val)
++{
++	return qjs_url_component(ctx, NSURL_PORT, "");
++}
++
++static JSValue
+ loc_get_pathname(JSContext *ctx, JSValueConst this_val)
+ {
+ 	return qjs_url_component(ctx, NSURL_PATH, "");
+@@ -2441,7 +2614,7 @@
+ static JSValue
+ loc_get_search(JSContext *ctx, JSValueConst this_val)
+ {
+-	JSValue v = qjs_url_component(ctx, NSURL_QUERY, "");
++	JSValue v = qjs_url_component(ctx, NSURL_QUERY, "?");
+ 	return v;
+ }
+ 
+@@ -2474,7 +2647,7 @@
+ {
+ 	struct jsthread *t = qjs_thread(ctx);
+ 
+-	if (t != NULL && !t->closed && t->bw != NULL)
++	if (qjs_may_navigate(t))
+ 		browser_window_reload(t->bw, false);
+ 	return JS_UNDEFINED;
+ }
+@@ -2483,7 +2656,8 @@
+ 	JS_CGETSET_DEF("href", loc_get_href, loc_set_href),
+ 	JS_CGETSET_DEF("protocol", loc_get_protocol, NULL),
+ 	JS_CGETSET_DEF("host", loc_get_host, NULL),
+-	JS_CGETSET_DEF("hostname", loc_get_host, NULL),
++	JS_CGETSET_DEF("hostname", loc_get_hostname, NULL),
++	JS_CGETSET_DEF("port", loc_get_port, NULL),
+ 	JS_CGETSET_DEF("pathname", loc_get_pathname, NULL),
+ 	JS_CGETSET_DEF("search", loc_get_search, NULL),
+ 	JS_CGETSET_DEF("hash", loc_get_hash, NULL),
+@@ -2811,7 +2985,23 @@
+ 		return;
+ 	JS_DefinePropertyValueStr(ctx, ctor, "prototype",
+ 				  JS_DupValue(ctx, proto), 0);
++	JSAtom constructor = JS_NewAtom(ctx, "constructor");
++	if (JS_GetOwnProperty(ctx, NULL, proto, constructor) == 0)
++		JS_DefinePropertyValue(ctx, proto, constructor, JS_DupValue(ctx, ctor),
++				       JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
++	JS_FreeAtom(ctx, constructor);
+ 	JS_SetPropertyStr(ctx, global, name, ctor);
++}
++
++static void qjs_brand_object(JSContext *ctx, JSValue global,
++		const char *name, JSValueConst object)
++{
++	JSValue proto = JS_NewObject(ctx);
++	if (JS_IsException(proto))
++		return;
++	qjs_expose_ctor(ctx, global, name, proto);
++	JS_SetPrototype(ctx, object, proto);
++	JS_FreeValue(ctx, proto);
+ }
+ 
+ /* ------------------------------------------------------------------ */
+@@ -2882,12 +3072,46 @@
+ 				   sizeof(qjs_event_funcs[0]));
+ 
+ 	global = JS_GetGlobalObject(ctx);
++	qjs_brand_object(ctx, global, "Window", global);
+ 
+ 	/* window identity aliases */
+ 	JS_SetPropertyStr(ctx, global, "window", JS_DupValue(ctx, global));
+ 	JS_SetPropertyStr(ctx, global, "self", JS_DupValue(ctx, global));
+ 	JS_SetPropertyStr(ctx, global, "top", JS_DupValue(ctx, global));
+ 	JS_SetPropertyStr(ctx, global, "parent", JS_DupValue(ctx, global));
++
++	/* Event handler IDL attributes, null by default like the HTML spec.
++	 * Libraries probe "onsubmit" in window (jQuery's support tests); when the
++	 * property is missing the probe falls through to div.attributes[name],
++	 * which this binding does not expose as a named getter, and library init
++	 * throws — which is why pages using jQuery reported "$ is not defined". */
++	{
++		static const char *const event_handlers[] = {
++			"onabort", "onafterprint", "onauxclick", "onbeforeinput",
++			"onbeforeprint", "onbeforeunload", "onblur", "oncancel",
++			"oncanplay", "oncanplaythrough", "onchange", "onclick",
++			"onclose", "oncontextmenu", "oncopy", "oncuechange", "oncut",
++			"ondblclick", "ondrag", "ondragend", "ondragenter",
++			"ondragleave", "ondragover", "ondragstart", "ondrop",
++			"ondurationchange", "onemptied", "onended", "onerror",
++			"onfocus", "onfocusin", "onfocusout", "onformdata",
++			"onhashchange", "oninput", "oninvalid", "onkeydown",
++			"onkeypress", "onkeyup", "onlanguagechange", "onload",
++			"onloadeddata", "onloadedmetadata", "onloadstart", "onmessage",
++			"onmousedown", "onmouseenter", "onmouseleave", "onmousemove",
++			"onmouseout", "onmouseover", "onmouseup", "onmousewheel",
++			"onoffline", "ononline", "onpagehide", "onpageshow", "onpaste",
++			"onpause", "onplay", "onplaying", "onpopstate", "onprogress",
++			"onratechange", "onreset", "onresize", "onscroll",
++			"onsecuritypolicyviolation", "onseeked", "onseeking", "onselect",
++			"onslotchange", "onstalled", "onstorage", "onsubmit",
++			"onsuspend", "ontimeupdate", "ontoggle",
++			"onunhandledrejection", "onunload", "onvolumechange",
++			"onwaiting", "onwheel", NULL
++		};
++		for (int i = 0; event_handlers[i] != NULL; i++)
++			JS_SetPropertyStr(ctx, global, event_handlers[i], JS_NULL);
++	}
+ 
+ 	/* document */
+ 	if (t->htmlc != NULL && t->htmlc->document != NULL) {
+@@ -2901,6 +3125,7 @@
+ 	 * is an accessor so "window.location = url" navigates instead of
+ 	 * clobbering the property */
+ 	location = JS_NewObject(ctx);
++	qjs_brand_object(ctx, global, "Location", location);
+ 	JS_SetPropertyFunctionList(ctx, location, qjs_location_funcs,
+ 				   sizeof(qjs_location_funcs) /
+ 				   sizeof(qjs_location_funcs[0]));
+@@ -2922,6 +3147,7 @@
+ 
+ 	/* navigator */
+ 	navigator = JS_NewObject(ctx);
++	qjs_brand_object(ctx, global, "Navigator", navigator);
+ 	JS_SetPropertyStr(ctx, navigator, "userAgent",
+ 			  JS_NewString(ctx, user_agent_string()));
+ 	JS_SetPropertyStr(ctx, navigator, "appName",
+@@ -3204,12 +3430,12 @@
+ 		}
+ 
+ 		kdata = dom_string_data(key);
+-		klen = dom_string_length(key);
++		klen = dom_string_byte_length(key);
+ 		if (klen > 2 && kdata[0] == 'o' && kdata[1] == 'n' &&
+ 		    dom_attr_get_value(attr, &val) == DOM_NO_ERR &&
+ 		    val != NULL) {
+ 			/* compile "(function(event){ <attr> })" */
+-			size_t vlen = dom_string_length(val);
++			size_t vlen = dom_string_byte_length(val);
+ 			size_t slen = vlen + klen + 64;
+ 			char *src = malloc(slen);
+ 
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_module.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_module.c
+@@ -646,7 +646,11 @@
+ 	struct qjs_modules *m = mods(t);
+ 	struct qjs_mod_src *mod;
+ 	struct qjs_mod_fetch *f;
+-	nsurl *nu;
++	/* Must start NULL: nsurl_create() short-circuits the || below, and the
++	 * cleanup would otherwise unref a stale stack value.  A page whose module
++	 * specifier fails nsurl_create() then wrote a refcount into a code page
++	 * (protection fault) and killed the browser. */
++	nsurl *nu = NULL;
+ 
+ 	if (m == NULL || mod_find(m, url) != NULL)
+ 		return;
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -45,6 +45,10 @@
+ #include "netsurf/misc.h"
+ #include "netsurf/browser_window.h"
+ #include "content/fetch.h"
++#include "content/hlcache.h"
++#ifdef WITH_NS_SVG
++#include <svgtiny.h>
++#endif
+ #include "content/urldb.h"
+ #include "desktop/gui_internal.h"
+ #include "desktop/browser_private.h"
+@@ -55,6 +59,8 @@
+ #include "html/box_inspect.h"
+ #include "html/box_construct.h"
+ #include "html/rebuild.h"
++#include "html/css.h"
++#include "css/select.h"
+ #include "html/layout.h"
+ #include <limits.h>
+ #include "html/layout_internal.h"
+@@ -295,6 +301,7 @@
+ 	dom_node *node;
+ 	struct box *box;
+ 	const css_computed_style *s;
++	css_select_results *selected = NULL;
+ 	JSValue o;
+ 	css_color col;
+ 	css_fixed len = 0;
+@@ -310,9 +317,63 @@
+ 		return JS_NULL;
+ 	nat_flush_layout(t);
+ 	box = box_for_node(node);
+-	if (box == NULL || box->style == NULL)
+-		return JS_NULL;
+-	s = box->style;
++	if (box != NULL && box->style != NULL) {
++		s = box->style;
++	} else {
++		dom_node *chain[128], *current = dom_node_ref(node), *parent;
++		css_select_results *styles[128] = {0};
++		css_select_ctx *saved_ctx;
++		size_t count = 0, index;
++		if (t->htmlc == NULL) {
++			dom_node_unref(current);
++			return JS_NULL;
++		}
++		while (current != NULL && count < 128) {
++			dom_node_type type;
++			if (dom_node_get_node_type(current, &type) != DOM_NO_ERR ||
++			    type != DOM_ELEMENT_NODE)
++				break;
++			chain[count++] = current;
++			if (dom_node_get_parent_node(current, &parent) != DOM_NO_ERR) {
++				current = NULL;
++				break;
++			}
++			current = parent;
++		}
++		dom_node_unref(current);
++		saved_ctx = t->htmlc->select_ctx;
++		if (saved_ctx == NULL) {
++			html_get_dimensions(t->htmlc);
++			html_css_new_selection_context(t->htmlc, &t->htmlc->select_ctx);
++		}
++		if (count != 0 && count < 128 && t->htmlc->select_ctx != NULL) {
++			nscss_invalidate_node_data(chain[count - 1]);
++			for (index = count; index-- > 0;) {
++				const css_computed_style *parent_style = index + 1 < count ?
++					styles[index + 1]->styles[CSS_PSEUDO_ELEMENT_NONE] : NULL;
++				const css_computed_style *root_style = index + 1 < count ?
++					styles[count - 1]->styles[CSS_PSEUDO_ELEMENT_NONE] : NULL;
++				styles[index] = box_get_style(t->htmlc, parent_style,
++						root_style, chain[index]);
++				if (styles[index] == NULL)
++					break;
++			}
++			selected = styles[0];
++			styles[0] = NULL;
++		}
++		for (index = 0; index < count; index++) {
++			if (styles[index] != NULL)
++				css_select_results_destroy(styles[index]);
++			dom_node_unref(chain[index]);
++		}
++		if (saved_ctx == NULL && t->htmlc->select_ctx != NULL) {
++			css_select_ctx_destroy(t->htmlc->select_ctx);
++			t->htmlc->select_ctx = NULL;
++		}
++		if (selected == NULL)
++			return JS_NULL;
++		s = selected->styles[CSS_PSEUDO_ELEMENT_NONE];
++	}
+ 
+ 	o = JS_NewObject(ctx);
+ 	nat_set_str(ctx, o, "display",
+@@ -347,16 +408,16 @@
+ 		    css_computed_font_style(s) == CSS_FONT_STYLE_ITALIC ?
+ 		    "italic" : "normal");
+ 
+-	nat_set_px(ctx, o, "width", box->width == AUTO ? 0 : box->width);
+-	nat_set_px(ctx, o, "height", box->height == AUTO ? 0 : box->height);
++	nat_set_px(ctx, o, "width", box == NULL || box->width == AUTO ? 0 : box->width);
++	nat_set_px(ctx, o, "height", box == NULL || box->height == AUTO ? 0 : box->height);
+ 	for (i = 0; i < 4; i++) {
+ 		snprintf(key, sizeof(key), "margin-%s", sides[i]);
+ 		nat_set_px(ctx, o, key,
+-			   box->margin[i] == AUTO ? 0 : box->margin[i]);
++			   box == NULL || box->margin[i] == AUTO ? 0 : box->margin[i]);
+ 		snprintf(key, sizeof(key), "padding-%s", sides[i]);
+-		nat_set_px(ctx, o, key, box->padding[i]);
++		nat_set_px(ctx, o, key, box == NULL ? 0 : box->padding[i]);
+ 		snprintf(key, sizeof(key), "border-%s-width", sides[i]);
+-		nat_set_px(ctx, o, key, box->border[i].width);
++		nat_set_px(ctx, o, key, box == NULL ? 0 : box->border[i].width);
+ 	}
+ 
+ 	if (css_computed_opacity(s, &len) == CSS_OPACITY_SET) {
+@@ -401,6 +462,8 @@
+ 		else
+ 			nat_set_str(ctx, o, "pointerEvents", "auto");
+ 	}
++	if (selected != NULL)
++		css_select_results_destroy(selected);
+ 	return o;
+ }
+ 
+@@ -438,6 +501,7 @@
+ 	int32_t id;
+ 	nsurl *url;
+ 	char *body;
++	size_t body_len;
+ 	char **headers; /* NULL terminated "Name: value" */
+ 	struct nat_buf hdrs;
+ 	struct nat_buf data;
+@@ -451,10 +515,9 @@
+ 
+ static void nat_fetch_callback(const fetch_msg *msg, void *p);
+ 
+-static void nat_fetch_free(struct nat_fetch *f)
++static void nat_fetch_unlink(struct nat_fetch *f)
+ {
+ 	struct nat_fetch **pp;
+-	int i;
+ 
+ 	for (pp = &nat_fetches; *pp != NULL; pp = &(*pp)->next) {
+ 		if (*pp == f) {
+@@ -462,6 +525,13 @@
+ 			break;
+ 		}
+ 	}
++	f->next = NULL;
++}
++
++static void nat_fetch_free(struct nat_fetch *f)
++{
++	int i;
++	nat_fetch_unlink(f);
+ 	if (f->url != NULL)
+ 		nsurl_unref(f->url);
+ 	free(f->body);
+@@ -483,6 +553,7 @@
+ 	struct jsthread *t = f->t;
+ 	JSContext *ctx;
+ 	JSValue global, fn, args[6], ret;
++	nat_fetch_unlink(f);
+ 
+ 	if (t == NULL || t->closed) {
+ 		nat_fetch_free(f);
+@@ -530,9 +601,14 @@
+ 	memset(&f->data, 0, sizeof(f->data));
+ 	f->status = 0;
+ 
+-	err = fetch_start(f->url, referer, nat_fetch_callback, f, false,
+-			f->body, NULL, false, false,
+-			(const char **)f->headers, &f->fetch);
++	if (f->body != NULL)
++		err = fetch_start_bytes(f->url, referer, nat_fetch_callback, f,
++				false, (const uint8_t *)f->body, f->body_len,
++				false, false, (const char **)f->headers, &f->fetch);
++	else
++		err = fetch_start(f->url, referer, nat_fetch_callback, f, false,
++				NULL, NULL, false, false,
++				(const char **)f->headers, &f->fetch);
+ 	return err == NSERROR_OK;
+ }
+ 
+@@ -591,15 +667,18 @@
+ 
+ 	case FETCH_REDIRECT: {
+ 		nsurl *next = NULL;
++		long redirect_status = f->fetch != NULL ? fetch_http_code(f->fetch) : f->status;
+ 		f->fetch = NULL;
+ 		if (f->redirects++ < 20 && msg->data.redirect != NULL &&
+ 		    nsurl_join(f->url, msg->data.redirect, &next) ==
+ 				NSERROR_OK) {
+ 			nsurl_unref(f->url);
+ 			f->url = next;
+-			/* 301/302/303 after POST become GET */
+-			free(f->body);
+-			f->body = NULL;
++			if (redirect_status == 301 || redirect_status == 302 || redirect_status == 303) {
++				free(f->body);
++				f->body = NULL;
++				f->body_len = 0;
++			}
+ 			guit->misc->schedule(0, nat_fetch_restart, f);
+ 		} else {
+ 			f->error = strdup("too many redirects");
+@@ -685,11 +764,26 @@
+ 
+ 	if (!JS_IsNull(argv[4]) && !JS_IsUndefined(argv[4])) {
+ 		size_t blen;
+-		s = JS_ToCStringLen(ctx, &blen, argv[4]);
+-		if (s != NULL) {
+-			f->body = strndup(s, blen);
+-			JS_FreeCString(ctx, s);
+-		}
++		bool is_buffer = JS_IsArrayBuffer(argv[4]);
++		const uint8_t *bytes = is_buffer ?
++			JS_GetArrayBuffer(ctx, &blen, argv[4]) :
++			(const uint8_t *)JS_ToCStringLen(ctx, &blen, argv[4]);
++		if (bytes == NULL || blen > 65535) {
++			if (bytes != NULL && !is_buffer)
++				JS_FreeCString(ctx, (const char *)bytes);
++			nat_fetch_free(f);
++			return JS_FALSE;
++		}
++		f->body = malloc(blen + 1);
++		if (f->body == NULL) {
++			if (!is_buffer) JS_FreeCString(ctx, (const char *)bytes);
++			nat_fetch_free(f);
++			return JS_FALSE;
++		}
++		memcpy(f->body, bytes, blen);
++		f->body[blen] = 0;
++		f->body_len = blen;
++		if (!is_buffer) JS_FreeCString(ctx, (const char *)bytes);
+ 	}
+ 
+ 	f->next = nat_fetches;
+@@ -727,10 +821,186 @@
+ 	return JS_UNDEFINED;
+ }
+ 
++/* Image requests are content-cache users, not layout boxes. This lets
++ * detached new Image() preload and decode exactly the same resources that
++ * a subsequently inserted <img> will consume. */
++struct nat_image {
++	struct nat_image *next;
++	struct jsthread *t;
++	hlcache_handle *handle;
++	int32_t id;
++	bool done;
++	bool success;
++};
++
++static struct nat_image *nat_images;
++static void nat_image_deliver(void *p);
++
++static void nat_image_free(struct nat_image *image)
++{
++	struct nat_image **link;
++	for (link = &nat_images; *link; link = &(*link)->next) {
++		if (*link == image) {
++			*link = image->next;
++			break;
++		}
++	}
++	guit->misc->schedule(-1, nat_image_deliver, image);
++	if (image->handle) {
++		/* Detach before abort, which may synchronously notify users. */
++		hlcache_handle_replace_callback(image->handle, NULL, NULL);
++		if (!image->done) hlcache_handle_abort(image->handle);
++		hlcache_handle_release(image->handle);
++	}
++	free(image);
++}
++
++static bool nat_image_decode(hlcache_handle *handle, int *width, int *height)
++{
++	if (handle == NULL || content_get_type(handle) != CONTENT_IMAGE)
++		return false;
++	/* Raster handlers may defer their real decode until bitmap access. */
++	if (content_get_bitmap(handle) != NULL) {
++		*width = content_get_width(handle);
++		*height = content_get_height(handle);
++		return *width > 0 && *height > 0;
++	}
++#ifdef WITH_NS_SVG
++	/* SVG's content handler has no bitmap. Validate its vector data using
++	 * the same parser, without fabricating a raster decode success. */
++	lwc_string *mime = content_get_mime_type(handle);
++	bool vector = mime && (!strcasecmp(lwc_string_data(mime), "image/svg+xml") ||
++			!strcasecmp(lwc_string_data(mime), "image/svg"));
++	if (mime) lwc_string_unref(mime);
++	if (vector) {
++		size_t length = 0;
++		const uint8_t *data = content_get_source_data(handle, &length);
++		struct svgtiny_diagram *diagram = svgtiny_create();
++		bool ok = false;
++		if (diagram && data && svgtiny_parse(diagram, (const char *)data,
++				length, nsurl_access(hlcache_handle_get_url(handle)),
++				300, 150) == svgtiny_OK) {
++			*width = diagram->width;
++			*height = diagram->height;
++			ok = *width >= 0 && *height >= 0;
++		}
++		if (diagram) svgtiny_free(diagram);
++		return ok;
++	}
++#endif
++	return false;
++}
++
++static void nat_image_deliver(void *p)
++{
++	struct nat_image *image = p;
++	struct jsthread *t = image->t;
++	int32_t id = image->id;
++	int width = 0, height = 0;
++	bool success = false;
++	if (t && !t->closed && image->success)
++		success = nat_image_decode(image->handle, &width, &height);
++	/* Remove native state before JS runs: an onload callback can change
++	 * src, navigate, or close the context and cancel all its other images. */
++	nat_image_free(image);
++	if (!t || t->closed) return;
++	JSContext *ctx = t->ctx;
++	JSValue global = JS_GetGlobalObject(ctx);
++	JSValue fn = JS_GetPropertyStr(ctx, global, "__ns_image_done");
++	if (JS_IsFunction(ctx, fn)) {
++		JSValue args[4] = { JS_NewInt32(ctx, id), JS_NewBool(ctx, success),
++			JS_NewInt32(ctx, success ? width : 0),
++			JS_NewInt32(ctx, success ? height : 0) };
++		qjs_deadline_start(t);
++		JSValue result = JS_Call(ctx, fn, global, 4, args);
++		qjs_deadline_stop(t);
++		if (JS_IsException(result)) qjs_dump_error(ctx);
++		JS_FreeValue(ctx, result);
++		for (int i = 0; i < 4; i++) JS_FreeValue(ctx, args[i]);
++		qjs_run_jobs(ctx);
++	}
++	JS_FreeValue(ctx, fn);
++	JS_FreeValue(ctx, global);
++}
++
++static nserror nat_image_callback(hlcache_handle *handle,
++		const hlcache_event *event, void *pw)
++{
++	struct nat_image *image = pw;
++	(void)handle;
++	if (image->done) return NSERROR_OK;
++	if (event->type == CONTENT_MSG_DONE || event->type == CONTENT_MSG_ERROR) {
++		image->done = true;
++		image->success = event->type == CONTENT_MSG_DONE;
++		/* Even cached resources notify on a later turn, after src=...;
++		 * onload=... has finished and outside the cache's callback stack. */
++		guit->misc->schedule(0, nat_image_deliver, image);
++	}
++	return NSERROR_OK;
++}
++
++/** __ns.imageLoad(id, absoluteURL) -> bool; completes asynchronously. */
++static JSValue nat_image_load(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	struct jsthread *t = nat_thread(ctx);
++	nsurl *url = NULL;
++	if (!t || t->closed || argc < 2) return JS_FALSE;
++	const char *text = JS_ToCString(ctx, argv[1]);
++	if (!text) return JS_EXCEPTION;
++	nserror error = nsurl_create(text, &url);
++	JS_FreeCString(ctx, text);
++	if (error != NSERROR_OK) return JS_FALSE;
++	struct nat_image *image = calloc(1, sizeof(*image));
++	if (!image) { nsurl_unref(url); return JS_FALSE; }
++	image->t = t;
++	if (JS_ToInt32(ctx, &image->id, argv[0]) < 0) {
++		free(image); nsurl_unref(url); return JS_EXCEPTION;
++	}
++	image->next = nat_images;
++	nat_images = image;
++	hlcache_child_context child = { NULL, false };
++	nsurl *referer = NULL;
++	if (t->htmlc) {
++		child.charset = t->htmlc->encoding;
++		child.quirks = t->htmlc->base.quirks;
++		referer = t->htmlc->base_url;
++	}
++	error = hlcache_handle_retrieve(url, HLCACHE_RETRIEVE_SNIFF_TYPE,
++			referer, NULL, nat_image_callback, image, &child,
++			CONTENT_IMAGE, &image->handle);
++	nsurl_unref(url);
++	if (error != NSERROR_OK) {
++		image->done = true;
++		guit->misc->schedule(0, nat_image_deliver, image);
++	}
++	return JS_TRUE;
++}
++
++static JSValue nat_image_abort(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	struct jsthread *t = nat_thread(ctx);
++	int32_t id;
++	if (argc < 1 || JS_ToInt32(ctx, &id, argv[0]) < 0) return JS_UNDEFINED;
++	for (struct nat_image *image = nat_images; image; image = image->next) {
++		if (image->t == t && image->id == id) {
++			nat_image_free(image);
++			break;
++		}
++	}
++	return JS_UNDEFINED;
++}
++
+ /* exported interface documented in qjs_private.h */
+ void qjs_native_closethread(struct jsthread *t)
+ {
+ 	struct nat_fetch *f, *next;
++	struct nat_image *image, *next_image;
++	for (image = nat_images; image; image = next_image) {
++		next_image = image->next;
++		if (image->t == t) nat_image_free(image);
++	}
+ 
+ 	for (f = nat_fetches; f != NULL; f = next) {
+ 		next = f->next;
+@@ -1187,7 +1457,32 @@
+ 	return JS_UNDEFINED;
+ }
+ 
++extern int buzzos_secure_random(void *output, size_t length);
++static JSValue nat_random_fill(JSContext *ctx, JSValueConst this_val,
++                             int argc, JSValueConst *argv)
++{
++    (void)this_val;
++    int type = argc ? JS_GetTypedArrayType(argv[0]) : -1;
++    if (type < JS_TYPED_ARRAY_UINT8C || type > JS_TYPED_ARRAY_BIG_UINT64)
++        return JS_ThrowTypeError(ctx, "Expected an integer TypedArray");
++    size_t offset, length, element_size, size;
++    JSValue buffer = JS_GetTypedArrayBuffer(ctx, argv[0], &offset, &length, &element_size);
++    if (JS_IsException(buffer)) return buffer;
++    unsigned char *data = JS_GetArrayBuffer(ctx, &size, buffer);
++    if (length > 65536 || offset > size || length > size - offset || (!data && length)) {
++        JS_FreeValue(ctx, buffer);
++        return JS_ThrowRangeError(ctx, "Invalid random buffer or quota exceeded");
++    }
++    int result = buzzos_secure_random(length ? data + offset : NULL, length);
++    JS_FreeValue(ctx, buffer);
++    if (result < 0) return JS_ThrowInternalError(ctx, "Secure entropy unavailable");
++    return JS_DupValue(ctx, argv[0]);
++}
++
+ static const JSCFunctionListEntry nat_funcs[] = {
++    JS_CFUNC_DEF("imageLoad", 2, nat_image_load),
++    JS_CFUNC_DEF("imageAbort", 1, nat_image_abort),
++    JS_CFUNC_DEF("randomFill", 1, nat_random_fill),
+ 	JS_CFUNC_DEF("elements", 1, nat_elements),
+ 	JS_CFUNC_DEF("attributes", 1, nat_attributes),
+ 	JS_CFUNC_DEF("inputValue", 1, nat_input_value),
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -42,6 +42,8 @@
+ 	JSRuntime *rt;
+ 	int timeout_s;        /* script timeout in seconds */
+ 	uint64_t deadline_ms; /* monotonic deadline while executing */
++	uint64_t deadline_saved;
++	unsigned deadline_depth;
+ 
+ 	/* JSClass ids are runtime scoped in quickjs-ng */
+ 	JSClassID node_class;
+@@ -50,6 +52,7 @@
+ 
+ 	int nthreads;  /* live contexts */
+ 	bool dying;    /* destroy requested while contexts were live */
++	bool draining_jobs;
+ };
+ 
+ struct jsthread {
+@@ -91,6 +94,7 @@
+ 
+ /* run queued promise jobs (microtasks) */
+ void qjs_run_jobs(JSContext *ctx);
++void qjs_cancel_jobs(struct jsheap *heap);
+ 
+ /* native primitives for runtime.js (qjs_native.c) */
+ void qjs_native_setup(struct jsthread *thread);
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -59,17 +59,22 @@
+ void qjs_deadline_start(struct jsthread *thread)
+ {
+ 	uint64_t now;
++	struct jsheap *heap = thread->heap;
++	if (heap->deadline_depth++ == 0) heap->deadline_saved = heap->deadline_ms;
+ 
+ 	if (thread->heap->timeout_s > 0 &&
+ 	    nsu_getmonotonic_ms(&now) == NSUERROR_OK) {
+-		thread->heap->deadline_ms =
+-			now + (uint64_t)thread->heap->timeout_s * 1000;
++		uint64_t deadline = now + (uint64_t)heap->timeout_s * 1000;
++		if (!heap->deadline_ms || deadline < heap->deadline_ms)
++			heap->deadline_ms = deadline;
+ 	}
+ }
+ 
+ void qjs_deadline_stop(struct jsthread *thread)
+ {
+-	thread->heap->deadline_ms = 0;
++	struct jsheap *heap = thread->heap;
++	if (heap->deadline_depth && --heap->deadline_depth == 0)
++		heap->deadline_ms = heap->deadline_saved;
+ }
+ 
+ /* minimal console for script diagnostics */
+@@ -140,12 +145,13 @@
+ 	}
+ 
+ 	JS_SetMemoryLimit(heap->rt, QJS_MEMORY_LIMIT);
++	JS_SetMaxStackSize(heap->rt, 512 * 1024);
+ 	if (getenv("NS_JS_LEAKS") != NULL)
+ 		JS_SetDumpFlags(heap->rt, JS_DUMP_LEAKS);
+ 	JS_SetInterruptHandler(heap->rt, qjs_interrupt_handler, heap);
+ 	JS_SetRuntimeOpaque(heap->rt, heap);
+ 	qjs_modules_setup(heap->rt);
+-	heap->timeout_s = timeout;
++	heap->timeout_s = timeout <= 0 || timeout > 2 ? 2 : timeout;
+ 
+ 	*heap_out = heap;
+ 	return NSERROR_OK;
+@@ -163,6 +169,7 @@
+ 		return;
+ 	}
+ 	JS_RunGC(heap->rt);
++	qjs_cancel_jobs(heap);
+ 	JS_FreeRuntime(heap->rt);
+ 	free(heap);
+ }
+@@ -193,6 +200,7 @@
+ 
+ 	qjs_setup_console(thread->ctx);
+ 	qjs_dom_setup(thread);
++	JS_ClearRegExpLegacyState(thread->ctx);
+ 
+ 	*out = thread;
+ 	return NSERROR_OK;
+@@ -204,6 +212,7 @@
+ 	if (thread == NULL)
+ 		return NSERROR_OK;
+ 	thread->closed = true;
++	JS_CancelPendingJobs(thread->ctx);
+ 	qjs_modules_closethread(thread);
+ 	qjs_dom_closethread(thread);
+ 	return NSERROR_OK;
+@@ -218,10 +227,19 @@
+ 
+ 	thread->closed = true;
+ 	heap = thread->heap;
++	JS_CancelPendingJobs(thread->ctx);
+ 	qjs_modules_closethread(thread);
+ 	qjs_dom_teardown(thread);
++	JS_SetContextOpaque(thread->ctx, NULL);
+ 	JS_FreeContext(thread->ctx);
+ 	free(thread);
++
++	/* The runtime lives for the whole browser window, so a page's objects
++	 * would otherwise stay allocated until the window closes.  Collect the
++	 * dead realm now; the accumulated JS objects were the dominant memory
++	 * growth across navigations. */
++	if (heap != NULL)
++		JS_RunGC(heap->rt);
+ 
+ 	if (--heap->nthreads == 0 && heap->dying) {
+ 		heap->nthreads = 0;
+@@ -317,6 +335,17 @@
+ 
+ 	qjs_deadline_start(thread);
+ 
++	/* Large page frameworks may legitimately spend more than two seconds
++	 * compiling their initial template in the interpreter. Only a top-level
++	 * loading script gets this bounded budget; callbacks, nested execution
++	 * and Promise jobs retain their existing, tighter deadlines. */
++	if (thread->ready_state == 0 && thread->heap->deadline_depth == 1 &&
++			thread->heap->deadline_saved == 0) {
++		uint64_t now;
++		if (nsu_getmonotonic_ms(&now) == NSUERROR_OK)
++			thread->heap->deadline_ms = now + 5000;
++	}
++
+ 	v = JS_Eval(thread->ctx, buf, buflen,
+ 		    name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
+ 
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -15,6 +15,8 @@
+ var TextP = global.__ns_Text_proto;
+ var EventP = global.__ns_Event_proto;
+ var MediaP = global.__ns_Media_proto;
++var nativeElementsByClass = DocP.getElementsByClassName;
++var nativeElementsByTag = DocP.getElementsByTagName;
+ 
+ function def(obj, name, desc) {
+ 	desc.configurable = true;
+@@ -348,7 +350,7 @@
+ 	if (c.tag && c.tag !== '*' && e.tagName.toLowerCase() !== c.tag) return false;
+ 	if (c.id !== null && e.id !== c.id) return false;
+ 	if (c.classes.length) {
+-		var cls = ' ' + (e.getAttribute('class') || '').replace(/\s+/g, ' ') + ' ';
++		var cls = ' ' + (e.getAttribute('class') || '').replace(/[ \t\n\r\f]+/g, ' ') + ' ';
+ 		for (var i = 0; i < c.classes.length; i++)
+ 			if (cls.indexOf(' ' + c.classes[i] + ' ') < 0) return false;
+ 	}
+@@ -434,7 +436,20 @@
+ 			return first ? byId : (byId ? [byId] : []);
+ 		}
+ 	}
+-	var all = descendants(root);
++	var all;
++	if (list.length === 1) {
++		var right = list[0][list[0].length - 1].c;
++		if (right.classes.length && nativeElementsByClass)
++			all = /[ \t\n\r\f]/.test(right.classes[0]) ? [] :
++				nativeElementsByClass.call(root, right.classes[0]);
++		else if (right.tag && nativeElementsByTag)
++			all = nativeElementsByTag.call(root, right.tag);
++		if (all && list[0].length === 1 && !list[0].relative && right.id === null &&
++		    !right.attrs.length && !right.pseudos.length &&
++		    ((!right.tag && right.classes.length === 1) || !right.classes.length))
++			return first ? (all[0] || null) : all;
++	}
++	if (!all) all = descendants(root);
+ 	var out = [];
+ 	for (var i = 0; i < all.length; i++) {
+ 		if (matchesList(all[i], list, scope)) {
+@@ -1259,12 +1274,96 @@
+ 	return frag;
+ }, function (v) { this.setAttribute('content', v); });
+ 
+-/* images */
+-accessor(ElementP, 'complete', function () { return true; });
+-accessor(ElementP, 'naturalWidth', function () { var r = docRect(this); return r ? r[6] : 0; });
+-accessor(ElementP, 'naturalHeight', function () { var r = docRect(this); return r ? r[7] : 0; });
+-accessor(ElementP, 'currentSrc', function () { return this.src; });
+-method(ElementP, 'decode', function () { return Promise.resolve(); });
++/* Image fetching is independent of attachment and layout. A preload's
++ * completion uses the content decoder, not a successful HTTP status alone. */
++var imageStates = new WeakMap(), imagePending = Object.create(null), imageSequence = 0;
++function imageEventListener() {}
++function imageDecodeError() { return new DOMException('The image could not be decoded', 'EncodingError'); }
++function imageRejectWaiters(state) {
++	var waiters = state.waiters;
++	state.waiters = [];
++	for (var i = 0; i < waiters.length; i++) waiters[i].reject(imageDecodeError());
++}
++function imageDone(id, success, width, height) {
++	var pending = imagePending[id];
++	if (!pending) return;
++	delete imagePending[id];
++	var state = pending.state, el = pending.el;
++	if (state.id !== id) return;
++	state.id = 0;
++	state.complete = true;
++	state.status = success ? 'loaded' : 'error';
++	state.width = success ? width : 0;
++	state.height = success ? height : 0;
++	var waiters = state.waiters;
++	state.waiters = [];
++	for (var i = 0; i < waiters.length; i++) {
++		if (success) waiters[i].resolve();
++		else waiters[i].reject(imageDecodeError());
++	}
++	el.dispatchEvent(new Event(success ? 'load' : 'error'));
++}
++global.__ns_image_done = imageDone;
++function imageState(el) {
++	if (!el || el.tagName !== 'IMG') return null;
++	var state = imageStates.get(el);
++	if (!state) {
++		state = { raw: undefined, url: '', id: 0, complete: true,
++			status: 'empty', width: 0, height: 0, waiters: [] };
++		imageStates.set(el, state);
++		/* Register native DOM listeners so an onload/onerror property
++		 * assigned after src is included by the DOM dispatch bridge. */
++		el.addEventListener('load', imageEventListener);
++		el.addEventListener('error', imageEventListener);
++	}
++	var raw = el.getAttribute('src');
++	var url = raw ? (ns.resolveURL(raw) || '') : '';
++	if (state.raw === raw && state.url === url) return state;
++	if (state.id) {
++		ns.imageAbort(state.id);
++		delete imagePending[state.id];
++		state.id = 0;
++	}
++	imageRejectWaiters(state);
++	state.raw = raw;
++	state.url = url;
++	state.width = state.height = 0;
++	state.complete = !raw;
++	state.status = raw === null ? 'empty' : 'loading';
++	if (raw === null) return state;
++	do {
++		imageSequence = imageSequence >= 2147483647 ? 1 : imageSequence + 1;
++	} while (imagePending[imageSequence]);
++	var id = state.id = imageSequence;
++	imagePending[id] = { el: el, state: state };
++	var started = false;
++	try { started = !!url && ns.imageLoad(id, url); } catch (e) {}
++	if (!started) setTimeout(function () { imageDone(id, false, 0, 0); }, 0);
++	return state;
++}
++var imageSetAttribute = ElementP.setAttribute;
++method(ElementP, 'setAttribute', function (name, value) {
++	var result = imageSetAttribute.call(this, name, value);
++	if (String(name).toLowerCase() === 'src' && this.tagName === 'IMG') imageState(this);
++	return result;
++});
++var imageRemoveAttribute = ElementP.removeAttribute;
++method(ElementP, 'removeAttribute', function (name) {
++	var result = imageRemoveAttribute.call(this, name);
++	if (String(name).toLowerCase() === 'src' && this.tagName === 'IMG') imageState(this);
++	return result;
++});
++accessor(ElementP, 'complete', function () { var s = imageState(this); return s ? s.complete : false; });
++accessor(ElementP, 'naturalWidth', function () { var s = imageState(this); return s ? s.width : 0; });
++accessor(ElementP, 'naturalHeight', function () { var s = imageState(this); return s ? s.height : 0; });
++accessor(ElementP, 'currentSrc', function () { var s = imageState(this); return s ? s.url : ''; });
++method(ElementP, 'decode', function () {
++	var state = imageState(this);
++	if (!state || state.status === 'empty' || state.status === 'error')
++		return Promise.reject(imageDecodeError());
++	if (state.status === 'loaded') return Promise.resolve();
++	return new Promise(function (resolve, reject) { state.waiters.push({ resolve: resolve, reject: reject }); });
++});
+ 
+ /* <canvas>: CanvasRenderingContext2D is native (qjs_canvas.c) */
+ function CanvasGradient(type, a) { this._t = type; this._a = a; this._s = []; }
+@@ -1376,9 +1475,20 @@
+ 		}, enumerable: true });
+ })();
+ method(ElementP, 'toDataURL', function () {
+-	return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+-});
+-method(ElementP, 'toBlob', function (cb) { setTimeout(function () { cb(new Blob([])); }, 0); });
++	if (this.tagName !== 'CANVAS') throw new TypeError('Expected a canvas');
++	return ns.canvasPng(this, true) || 'data:,';
++});
++method(ElementP, 'toBlob', function (callback) {
++	if (this.tagName !== 'CANVAS') throw new TypeError('Expected a canvas');
++	if (typeof callback !== 'function') throw new TypeError('Expected a callback');
++	var canvas = this;
++	setTimeout(function () {
++		var bytes;
++		try { bytes = ns.canvasPng(canvas, false); }
++		catch (error) { reportError(error); callback(null); return; }
++		callback(bytes === null ? null : new Blob([bytes], { type: 'image/png' }));
++	}, 0);
++});
+ 
+ /* ------------------------------------------------------------------ */
+ /* Events */
+@@ -1388,19 +1498,29 @@
+ }
+ EventTarget.prototype.addEventListener = function (type, fn, opts) {
+ 	if (!fn) return;
++	var signal = opts && opts.signal;
++	if (signal && signal.aborted) return;
++	var capture = opts === true || !!(opts && opts.capture);
+ 	var m = this.__ns_listeners || def(this, '__ns_listeners', { value: {}, enumerable: false }) || this.__ns_listeners;
+ 	var a = m[type] || (m[type] = []);
+-	for (var i = 0; i < a.length; i++) if (a[i].fn === fn) return;
+-	a.push({ fn: fn, once: !!(opts && opts.once) });
+-	if (opts && opts.signal) {
++	for (var i = 0; i < a.length; i++) if (a[i].fn === fn && a[i].capture === capture) return;
++	var listener = { fn: fn, once: !!(opts && opts.once), capture: capture, signal: signal };
++	a.push(listener);
++	if (signal) {
+ 		var self = this;
+-		opts.signal.addEventListener('abort', function () { self.removeEventListener(type, fn); });
+-	}
+-};
+-EventTarget.prototype.removeEventListener = function (type, fn) {
++		listener.abortHandler = function () { self.removeEventListener(type, fn, capture); };
++		signal.addEventListener('abort', listener.abortHandler, { once: true });
++	}
++};
++EventTarget.prototype.removeEventListener = function (type, fn, opts) {
+ 	var m = this.__ns_listeners, a = m && m[type];
+ 	if (!a) return;
+-	for (var i = 0; i < a.length; i++) if (a[i].fn === fn) { a.splice(i, 1); return; }
++	var capture = opts === true || !!(opts && opts.capture);
++	for (var i = 0; i < a.length; i++) if (a[i].fn === fn && a[i].capture === capture) {
++		var listener = a.splice(i, 1)[0];
++		if (listener.signal) listener.signal.removeEventListener('abort', listener.abortHandler);
++		return;
++	}
+ };
+ EventTarget.prototype.dispatchEvent = function (ev) {
+ 	var self = this;
+@@ -1410,7 +1530,8 @@
+ 	var m = this.__ns_listeners, a = m && m[ev.type];
+ 	if (a) {
+ 		a.slice().forEach(function (l) {
+-			if (l.once) self.removeEventListener(ev.type, l.fn);
++			if (a.indexOf(l) < 0) return;
++			if (l.once) self.removeEventListener(ev.type, l.fn, l.capture);
+ 			try {
+ 				if (typeof l.fn === 'function') l.fn.call(self, ev);
+ 				else if (l.fn && typeof l.fn.handleEvent === 'function') l.fn.handleEvent(ev);
+@@ -1716,10 +1837,12 @@
+ 	var out = [];
+ 	for (var i = 0; i < str.length; i++) {
+ 		var c = str.charCodeAt(i);
+-		if (c >= 0xd800 && c < 0xdc00 && i + 1 < str.length) {
+-			var d = str.charCodeAt(i + 1);
++		if (c >= 0xd800 && c < 0xdc00) {
++			var d = i + 1 < str.length ? str.charCodeAt(i + 1) : 0;
+ 			if (d >= 0xdc00 && d < 0xe000) { c = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00); i++; }
++			else c = 0xfffd;
+ 		}
++		else if (c >= 0xdc00 && c < 0xe000) c = 0xfffd;
+ 		if (c < 0x80) out.push(c);
+ 		else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+ 		else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+@@ -1750,9 +1873,37 @@
+ TextEncoder.prototype.encoding = 'utf-8';
+ TextEncoder.prototype.encode = function (s) { return utf8Encode(toStr(s)); };
+ TextEncoder.prototype.encodeInto = function (s, dest) {
+-	var b = utf8Encode(toStr(s)), n = Math.min(b.length, dest.length);
+-	dest.set(b.subarray(0, n));
+-	return { read: s.length, written: n };
++	if (!(dest instanceof Uint8Array)) throw new TypeError('Expected a Uint8Array');
++	s = toStr(s);
++	var read = 0, written = 0;
++	while (read < s.length) {
++		var c = s.charCodeAt(read), units = 1;
++		if (c >= 0xd800 && c < 0xdc00) {
++			var d = read + 1 < s.length ? s.charCodeAt(read + 1) : 0;
++			if (d >= 0xdc00 && d < 0xe000) { c = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00); units = 2; }
++			else c = 0xfffd;
++		}
++		else if (c >= 0xdc00 && c < 0xe000) c = 0xfffd;
++		var width = c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
++		if (written + width > dest.length) break;
++		if (width === 1) dest[written] = c;
++		else if (width === 2) {
++			dest[written] = 0xc0 | (c >> 6);
++			dest[written + 1] = 0x80 | (c & 63);
++		} else if (width === 3) {
++			dest[written] = 0xe0 | (c >> 12);
++			dest[written + 1] = 0x80 | ((c >> 6) & 63);
++			dest[written + 2] = 0x80 | (c & 63);
++		} else {
++			dest[written] = 0xf0 | (c >> 18);
++			dest[written + 1] = 0x80 | ((c >> 12) & 63);
++			dest[written + 2] = 0x80 | ((c >> 6) & 63);
++			dest[written + 3] = 0x80 | (c & 63);
++		}
++		read += units;
++		written += width;
++	}
++	return { read: read, written: written };
+ };
+ function TextDecoder(label) { this.encoding = (label || 'utf-8').toLowerCase(); }
+ TextDecoder.prototype.decode = function (buf) {
+@@ -1931,7 +2082,8 @@
+ 	chunks.forEach(function (c) { all.set(c, off); off += c.length; });
+ 	this._bytes = all;
+ 	this.size = size;
+-	this.type = (opts && opts.type) ? String(opts.type).toLowerCase() : '';
++	var type = opts && opts.type ? String(opts.type) : '';
++	this.type = /^[\x20-\x7e]*$/.test(type) ? type.toLowerCase() : '';
+ }
+ Blob.prototype.text = function () { return Promise.resolve(utf8Decode(this._bytes)); };
+ Blob.prototype.arrayBuffer = function () { return Promise.resolve(this._bytes.slice().buffer); };
+@@ -1946,40 +2098,101 @@
+ File.prototype = Object.create(Blob.prototype);
+ global.Blob = Blob;
+ global.File = File;
+-function FileReader() { EventTarget.call(this); this.readyState = 0; this.result = null; this.error = null; }
++function FileReader() {
++	EventTarget.call(this);
++	this.readyState = 0;
++	this.result = null;
++	this.error = null;
++	this._timer = null;
++	this._generation = 0;
++}
+ FileReader.prototype = Object.create(EventTarget.prototype);
++FileReader.EMPTY = FileReader.prototype.EMPTY = 0;
++FileReader.LOADING = FileReader.prototype.LOADING = 1;
++FileReader.DONE = FileReader.prototype.DONE = 2;
++function fileReaderBase64(bytes) {
++	var chunks = [];
++	for (var offset = 0; offset < bytes.length; offset += 12288)
++		chunks.push(btoa(String.fromCharCode.apply(null, bytes.subarray(offset, offset + 12288))));
++	return chunks.join('');
++}
+ ['readAsText', 'readAsArrayBuffer', 'readAsDataURL', 'readAsBinaryString'].forEach(function (m) {
+-	FileReader.prototype[m] = function (blob) {
++	FileReader.prototype[m] = function (blob, encoding) {
++		if (!(blob instanceof Blob)) throw new TypeError('Expected a Blob');
++		if (this.readyState === FileReader.LOADING)
++			throw new DOMException('A read is already in progress', 'InvalidStateError');
+ 		var self = this;
+-		self.readyState = 1;
+-		setTimeout(function () {
+-			var b = blob._bytes;
+-			if (m === 'readAsText') self.result = utf8Decode(b);
+-			else if (m === 'readAsArrayBuffer') self.result = b.slice().buffer;
+-			else {
+-				var s = '';
+-				for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+-				self.result = m === 'readAsBinaryString' ? s : 'data:' + (blob.type || 'application/octet-stream') + ';base64,' + btoa(s);
++		var generation = ++this._generation;
++		this.result = null;
++		this.error = null;
++		this.readyState = FileReader.LOADING;
++		this.dispatchEvent(new ProgressEvent('loadstart', { lengthComputable: true, loaded: 0, total: blob.size }));
++		if (this._generation !== generation) return;
++		this._timer = setTimeout(function () {
++			if (self._generation !== generation) return;
++			self._timer = null;
++			try {
++				var bytes = blob._bytes;
++				if (m === 'readAsText') self.result = new TextDecoder(encoding || 'utf-8').decode(bytes);
++				else if (m === 'readAsArrayBuffer') self.result = bytes.slice().buffer;
++				else if (m === 'readAsDataURL') self.result = 'data:' +
++					(blob.type || 'application/octet-stream') + ';base64,' + fileReaderBase64(bytes);
++				else {
++					var text = '';
++					for (var i = 0; i < bytes.length; i++) text += String.fromCharCode(bytes[i]);
++					self.result = text;
++				}
++			} catch (error) {
++				self.error = error;
++				self.result = null;
++				self.readyState = FileReader.DONE;
++				self.dispatchEvent(new ProgressEvent('error'));
++				if (self._generation === generation) self.dispatchEvent(new ProgressEvent('loadend'));
++				return;
+ 			}
+-			self.readyState = 2;
+-			self.dispatchEvent(new ProgressEvent('load'));
+-			self.dispatchEvent(new ProgressEvent('loadend'));
++			self.readyState = FileReader.DONE;
++			self.dispatchEvent(new ProgressEvent('load', { lengthComputable: true, loaded: blob.size, total: blob.size }));
++			if (self._generation === generation)
++				self.dispatchEvent(new ProgressEvent('loadend', { lengthComputable: true, loaded: blob.size, total: blob.size }));
+ 		}, 0);
+ 	};
+ });
+-FileReader.prototype.abort = function () {};
++FileReader.prototype.abort = function () {
++	if (this.readyState !== FileReader.LOADING) { this.result = null; return; }
++	var generation = ++this._generation;
++	if (this._timer !== null) clearTimeout(this._timer);
++	this._timer = null;
++	this.result = null;
++	this.error = null;
++	this.readyState = FileReader.DONE;
++	this.dispatchEvent(new ProgressEvent('abort'));
++	if (this._generation === generation) this.dispatchEvent(new ProgressEvent('loadend'));
++};
+ global.FileReader = FileReader;
+ 
+ function FormData(form) {
+ 	this._list = form && form.tagName === 'FORM' ? formEntries(form, null) : [];
+ }
++function formDataEntry(name, value, filename) {
++	if (value instanceof Blob && (!(value instanceof File) || filename !== undefined))
++		value = new File([value], filename === undefined ? 'blob' : filename, { type: value.type });
++	return [toStr(name), value instanceof Blob ? value : toStr(value)];
++}
+ FormData.prototype = {
+-	append: function (k, v) { this._list.push([toStr(k), v instanceof Blob ? v : toStr(v)]); },
++	append: function (k, v, filename) { this._list.push(formDataEntry(k, v, filename)); },
+ 	delete: function (k) { this._list = this._list.filter(function (p) { return p[0] !== k; }); },
+ 	get: function (k) { for (var i = 0; i < this._list.length; i++) if (this._list[i][0] === k) return this._list[i][1]; return null; },
+ 	getAll: function (k) { return this._list.filter(function (p) { return p[0] === k; }).map(function (p) { return p[1]; }); },
+ 	has: function (k) { return this.get(k) !== null; },
+-	set: function (k, v) { this.delete(k); this.append(k, v); },
++	set: function (k, v, filename) {
++		var entry = formDataEntry(k, v, filename);
++		var index = this._list.findIndex(function (part) { return part[0] === entry[0]; });
++		if (index < 0) this._list.push(entry);
++		else {
++			this._list[index] = entry;
++			this._list = this._list.filter(function (part, position) { return position <= index || part[0] !== entry[0]; });
++		}
++	},
+ 	forEach: function (f, t) { var self = this; this._list.forEach(function (p) { f.call(t, p[1], p[0], self); }); },
+ 	keys: function () { return this._list.map(function (p) { return p[0]; })[Symbol.iterator](); },
+ 	values: function () { return this._list.map(function (p) { return p[1]; })[Symbol.iterator](); },
+@@ -1988,33 +2201,130 @@
+ FormData.prototype[Symbol.iterator] = FormData.prototype.entries;
+ global.FormData = FormData;
+ 
++function formDataMultipart(form) {
++	var random = new Uint8Array(16);
++	global.crypto.getRandomValues(random);
++	var boundary = '----BuzzOSFormData';
++	for (var i = 0; i < random.length; i++) boundary += (random[i] + 256).toString(16).slice(1);
++	var chunks = [], size = 0;
++	function add(bytes) {
++		size += bytes.length;
++		if (size > 65535) throw new RangeError('Multipart body exceeds 65,535 bytes');
++		chunks.push(bytes);
++	}
++	function quote(value) {
++		return toStr(value).replace(/\\/g, '%5C').replace(/"/g, '%22')
++			.replace(/\r/g, '%0D').replace(/\n/g, '%0A');
++	}
++	form._list.forEach(function (entry) {
++		var value = entry[1];
++		var header = '--' + boundary + '\r\nContent-Disposition: form-data; name="' + quote(entry[0]) + '"';
++		if (value instanceof Blob) {
++			header += '; filename="' + quote(value.name || 'blob') + '"\r\nContent-Type: ' +
++				(value.type || 'application/octet-stream');
++		}
++		add(utf8Encode(header + '\r\n\r\n'));
++		add(value instanceof Blob ? value._bytes : utf8Encode(value.replace(/\r\n|\r|\n/g, '\r\n')));
++		add(utf8Encode('\r\n'));
++	});
++	add(utf8Encode('--' + boundary + '--\r\n'));
++	var bytes = new Uint8Array(size), offset = 0;
++	chunks.forEach(function (chunk) { bytes.set(chunk, offset); offset += chunk.length; });
++	return { buffer: bytes.buffer, type: 'multipart/form-data; boundary=' + boundary };
++}
++
+ /* ------------------------------------------------------------------ */
+ /* fetch and XMLHttpRequest */
+ 
++function headerByteString(value) {
++	if (typeof value === 'symbol') throw new TypeError('Invalid header string');
++	var text = String(value);
++	if (/[^\x00-\xff]/.test(text)) throw new TypeError('Invalid header string');
++	return text;
++}
++function headerName(value) {
++	var name = headerByteString(value);
++	if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name))
++		throw new TypeError('Invalid header name');
++	return name.toLowerCase();
++}
++function headerValue(value) {
++	var text = headerByteString(value).replace(/^[\t\n\r ]+|[\t\n\r ]+$/g, '');
++	if (/[\x00\r\n]/.test(text)) throw new TypeError('Invalid header value');
++	return text;
++}
++function headerEntries(headers) {
++	return headers._map.slice().sort(function (left, right) {
++		return left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0;
++	});
++}
++function headerIterator(headers, kind) {
++	var index = 0;
++	var iterator = { next: function () {
++		var entries = headerEntries(headers);
++		if (index >= entries.length) return { value: undefined, done: true };
++		var entry = entries[index++];
++		return { value: kind === 'keys' ? entry[0] : kind === 'values' ? entry[1] : entry.slice(), done: false };
++	} };
++	iterator[Symbol.iterator] = function () { return this; };
++	return iterator;
++}
+ function Headers(init) {
++	if (!(this instanceof Headers)) throw new TypeError('Headers requires new');
+ 	this._map = [];
+-	if (!init) return;
++	if (init === undefined || init === null) return;
++	if (typeof init !== 'object' && typeof init !== 'function') throw new TypeError('Invalid Headers initializer');
+ 	var self = this;
+-	if (init instanceof Headers) init.forEach(function (v, k) { self.append(k, v); });
+-	else if (Array.isArray(init)) init.forEach(function (p) { self.append(p[0], p[1]); });
+-	else for (var k in init) if (hasOwn(init, k)) this.append(k, init[k]);
++	if (init[Symbol.iterator] !== undefined && init[Symbol.iterator] !== null) {
++		for (var pair of init) {
++			if (pair === null || (typeof pair !== 'object' && typeof pair !== 'function'))
++				throw new TypeError('Invalid header pair');
++			var values = Array.from(pair);
++			if (values.length !== 2) throw new TypeError('Header pair requires two values');
++			self.append(values[0], values[1]);
++		}
++	} else Object.keys(init).forEach(function (name) { self.append(name, init[name]); });
+ }
+ Headers.prototype = {
+ 	append: function (k, v) {
+-		k = toStr(k).toLowerCase(); v = toStr(v).trim();
++		if (arguments.length < 2) throw new TypeError('append requires two arguments');
++		k = headerName(k); v = headerValue(v);
+ 		for (var i = 0; i < this._map.length; i++)
+-			if (this._map[i][0] === k) { this._map[i][1] += ', ' + v; return; }
++			if (this._map[i][0] === k && k !== 'set-cookie') { this._map[i][1] += ', ' + v; return; }
+ 		this._map.push([k, v]);
+ 	},
+-	set: function (k, v) { this.delete(k); this.append(k, v); },
+-	get: function (k) { k = toStr(k).toLowerCase(); for (var i = 0; i < this._map.length; i++) if (this._map[i][0] === k) return this._map[i][1]; return null; },
+-	has: function (k) { return this.get(k) !== null; },
+-	delete: function (k) { k = toStr(k).toLowerCase(); this._map = this._map.filter(function (p) { return p[0] !== k; }); },
+-	forEach: function (f, t) { var self = this; this._map.forEach(function (p) { f.call(t, p[1], p[0], self); }); },
+-	keys: function () { return this._map.map(function (p) { return p[0]; })[Symbol.iterator](); },
+-	values: function () { return this._map.map(function (p) { return p[1]; })[Symbol.iterator](); },
+-	entries: function () { return this._map.map(function (p) { return [p[0], p[1]]; })[Symbol.iterator](); },
+-	getSetCookie: function () { return []; }
++	set: function (name, value) {
++		if (arguments.length < 2) throw new TypeError('set requires two arguments');
++		name = headerName(name); value = headerValue(value);
++		this.delete(name); this._map.push([name, value]);
++	},
++	get: function (name) {
++		if (!arguments.length) throw new TypeError('get requires an argument');
++		name = headerName(name);
++		var values = this._map.filter(function (entry) { return entry[0] === name; });
++		return values.length ? values.map(function (entry) { return entry[1]; }).join(', ') : null;
++	},
++	has: function (name) {
++		if (!arguments.length) throw new TypeError('has requires an argument');
++		return this.get(name) !== null;
++	},
++	delete: function (name) {
++		if (!arguments.length) throw new TypeError('delete requires an argument');
++		name = headerName(name);
++		this._map = this._map.filter(function (entry) { return entry[0] !== name; });
++	},
++	forEach: function (callback, receiver) {
++		if (typeof callback !== 'function') throw new TypeError('forEach requires a callback');
++		var iterator = this.entries(), entry;
++		while (!(entry = iterator.next()).done) callback.call(receiver, entry.value[1], entry.value[0], this);
++	},
++	keys: function () { return headerIterator(this, 'keys'); },
++	values: function () { return headerIterator(this, 'values'); },
++	entries: function () { return headerIterator(this, 'entries'); },
++	getSetCookie: function () {
++		return this._map.filter(function (entry) { return entry[0] === 'set-cookie'; })
++			.map(function (entry) { return entry[1]; });
++	}
+ };
+ Headers.prototype[Symbol.iterator] = Headers.prototype.entries;
+ global.Headers = Headers;
+@@ -2042,6 +2352,13 @@
+ 	if (ArrayBuffer.isView(body)) return utf8Decode(new Uint8Array(body.buffer, body.byteOffset, body.byteLength));
+ 	return toStr(body);
+ }
++function bodyToBuffer(body) {
++	if (body instanceof Blob) return body._bytes.slice().buffer;
++	if (body instanceof ArrayBuffer) return body.slice(0);
++	if (ArrayBuffer.isView(body))
++		return new Uint8Array(body.buffer, body.byteOffset, body.byteLength).slice().buffer;
++	return null;
++}
+ function bodyContentType(body) {
+ 	if (typeof body === 'string') return 'text/plain;charset=UTF-8';
+ 	if (body instanceof URLSearchParams || body instanceof FormData) return 'application/x-www-form-urlencoded;charset=UTF-8';
+@@ -2064,8 +2381,11 @@
+ 	fetchPending[id] = cb;
+ 	var m = method.toUpperCase();
+ 	var b = (m === 'GET' || m === 'HEAD') ? null : (body === null ? '' : body);
+-	if (m !== 'GET' && m !== 'POST' && m !== 'HEAD')
+-		hdrs.push('X-HTTP-Method-Override: ' + m);
++	if (m !== 'GET' && m !== 'POST') {
++		delete fetchPending[id];
++		setTimeout(function () { cb(0, url, '', new ArrayBuffer(0), 'Unsupported HTTP method'); }, 0);
++		return id;
++	}
+ 	if (!ns.fetch(id, m, url, hdrs, b)) {
+ 		delete fetchPending[id];
+ 		setTimeout(function () { cb(0, url, '', new ArrayBuffer(0), 'Failed to fetch'); }, 0);
+@@ -2076,6 +2396,7 @@
+ function Body() {}
+ Body.prototype = {
+ 	_consume: function () {
++		if (this._buffer === null || this._buffer === undefined) return Promise.resolve(new ArrayBuffer(0));
+ 		if (this.bodyUsed) return Promise.reject(new TypeError('Body has already been consumed'));
+ 		this.bodyUsed = true;
+ 		return Promise.resolve(this._buffer || new ArrayBuffer(0));
+@@ -2090,32 +2411,53 @@
+ 
+ function Request(input, init) {
+ 	init = init || {};
+-	if (input instanceof Request) {
++	var source = input instanceof Request ? input : null;
++	var overrideBody = init.body !== undefined && init.body !== null;
++	if (source) {
+ 		this.url = input.url; this.method = input.method; this.headers = new Headers(input.headers);
+-		this._bodyText = input._bodyText; this.signal = input.signal;
++		this._bodyText = input._bodyText;
++		this._bodyBuffer = input._bodyBuffer ? input._bodyBuffer.slice(0) : null;
++		this.signal = input.signal;
+ 	} else {
+ 		this.url = new URL(toStr(input), ns.baseURL()).href;
+ 		this.method = 'GET'; this.headers = new Headers();
+-		this._bodyText = null;
+-	}
+-	if (init.method) this.method = String(init.method).toUpperCase();
++		this._bodyText = null; this._bodyBuffer = null;
++	}
++	if (init.method !== undefined) this.method = String(init.method);
++	if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(this.method)) throw new TypeError('Invalid HTTP method');
++	var upperMethod = this.method.toUpperCase();
++	if (/^(CONNECT|TRACE|TRACK)$/.test(upperMethod)) throw new TypeError('Forbidden HTTP method');
++	if (/^(DELETE|GET|HEAD|OPTIONS|POST|PUT)$/.test(upperMethod)) this.method = upperMethod;
+ 	if (init.headers) this.headers = new Headers(init.headers);
+-	if (init.body !== undefined && init.body !== null) {
+-		this._bodyText = bodyToText(init.body);
+-		var ct = bodyContentType(init.body);
++	if (overrideBody) {
++		var multipart = init.body instanceof FormData ? formDataMultipart(init.body) : null;
++		this._bodyBuffer = multipart ? multipart.buffer : bodyToBuffer(init.body);
++		this._bodyText = this._bodyBuffer === null ? bodyToText(init.body) : null;
++		var ct = multipart ? multipart.type : bodyContentType(init.body);
+ 		if (ct && !this.headers.has('content-type')) this.headers.set('content-type', ct);
+ 	}
++	if ((this.method === 'GET' || this.method === 'HEAD') &&
++	    (this._bodyBuffer !== null || this._bodyText !== null))
++		throw new TypeError('GET and HEAD requests cannot have bodies');
++	if (source && !overrideBody && source._buffer !== null && source._buffer !== undefined && source.bodyUsed)
++		throw new TypeError('Body has already been consumed');
+ 	if (init.signal) this.signal = init.signal;
+-	this.credentials = init.credentials || 'same-origin';
+-	this.mode = init.mode || 'cors';
+-	this.cache = init.cache || 'default';
+-	this.redirect = init.redirect || 'follow';
++	this.credentials = init.credentials === undefined ? (source ? source.credentials : 'same-origin') : init.credentials;
++	this.mode = init.mode === undefined ? (source ? source.mode : 'cors') : init.mode;
++	this.cache = init.cache === undefined ? (source ? source.cache : 'default') : init.cache;
++	this.redirect = init.redirect === undefined ? (source ? source.redirect : 'follow') : init.redirect;
+ 	this.referrer = 'about:client';
+ 	this.bodyUsed = false;
+-	this._buffer = this._bodyText !== null ? utf8Encode(this._bodyText).buffer : null;
++	this._buffer = this._bodyBuffer !== null ? this._bodyBuffer.slice(0) :
++		(this._bodyText !== null ? utf8Encode(this._bodyText).buffer : null);
++	this.body = this._buffer === null ? null : {};
++	if (source && !overrideBody && this._buffer !== null) source.bodyUsed = true;
+ }
+ Request.prototype = Object.create(Body.prototype);
+-Request.prototype.clone = function () { return new Request(this); };
++Request.prototype.clone = function () {
++	if (this.bodyUsed) throw new TypeError('Body has already been consumed');
++	return new Request(this, { body: this._bodyBuffer !== null ? this._bodyBuffer : this._bodyText });
++};
+ global.Request = Request;
+ 
+ var STATUS_TEXT = { 200: 'OK', 201: 'Created', 204: 'No Content', 301: 'Moved Permanently', 302: 'Found',
+@@ -2123,15 +2465,21 @@
+ 	500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable' };
+ function Response(body, init) {
+ 	init = init || {};
+-	this.status = init.status === undefined ? 200 : init.status;
+-	this.statusText = init.statusText !== undefined ? init.statusText : (STATUS_TEXT[this.status] || '');
++	this.status = init.status === undefined ? 200 : ((+init.status >>> 0) & 65535);
++	if (this.status < 200 || this.status > 599) throw new RangeError('Invalid response status');
++	if (body !== undefined && body !== null && (this.status === 204 || this.status === 205 || this.status === 304))
++		throw new TypeError('Response status cannot have a body');
++	this.statusText = init.statusText === undefined ? '' : headerByteString(init.statusText);
++	if (/[\r\n]/.test(this.statusText)) throw new TypeError('Invalid response status text');
+ 	this.ok = this.status >= 200 && this.status < 300;
+-	this.headers = init.headers instanceof Headers ? init.headers : new Headers(init.headers);
++	this.headers = new Headers(init.headers);
+ 	this.url = init.url || '';
+ 	this.type = init.type || 'default';
+ 	this.redirected = false;
+ 	this.bodyUsed = false;
+-	if (body instanceof ArrayBuffer) this._buffer = body;
++	if (body instanceof ArrayBuffer) this._buffer = body.slice(0);
++	else if (ArrayBuffer.isView(body))
++		this._buffer = new Uint8Array(body.buffer, body.byteOffset, body.byteLength).slice().buffer;
+ 	else if (body !== undefined && body !== null) {
+ 		this._buffer = body instanceof Blob ? body._bytes.slice().buffer : utf8Encode(bodyToText(body)).buffer;
+ 		var ct = bodyContentType(body);
+@@ -2141,18 +2489,47 @@
+ }
+ Response.prototype = Object.create(Body.prototype);
+ Response.prototype.clone = function () {
+-	return new Response(this._buffer ? this._buffer.slice(0) : null,
+-		{ status: this.status, statusText: this.statusText, headers: new Headers(this.headers), url: this.url });
+-};
+-Response.error = function () { var r = new Response(null, { status: 0 }); r.type = 'error'; return r; };
++	if (this.bodyUsed) throw new TypeError('Body has already been consumed');
++	if (this.type === 'error') return Response.error();
++	var clone = new Response(this._buffer,
++		{ status: this.status, statusText: this.statusText, headers: new Headers(this.headers),
++			url: this.url, type: this.type });
++	clone.redirected = this.redirected;
++	return clone;
++};
++Response.error = function () {
++	var response = new Response(null);
++	response.status = 0; response.ok = false; response.type = 'error';
++	return response;
++};
+ Response.json = function (data, init) {
+ 	init = init || {};
+ 	var h = new Headers(init.headers);
+ 	if (!h.has('content-type')) h.set('content-type', 'application/json');
+-	return new Response(JSON.stringify(data), { status: init.status, headers: h });
+-};
+-Response.redirect = function (url, status) { return new Response(null, { status: status || 302, headers: { location: url } }); };
++	var body = JSON.stringify(data);
++	if (body === undefined) throw new TypeError('JSON value cannot be serialized');
++	return new Response(body, Object.assign({}, init, { headers: h }));
++};
++Response.redirect = function (url, status) {
++	status = status === undefined ? 302 : ((+status >>> 0) & 65535);
++	if ([301, 302, 303, 307, 308].indexOf(status) < 0) throw new RangeError('Invalid redirect status');
++	return new Response(null, { status: status, headers: { location: new URL(String(url), ns.baseURL()).href } });
++};
+ global.Response = Response;
++
++function dataURLBytes(text) {
++	var encoded = utf8Encode(text), bytes = new Uint8Array(encoded.length), length = 0;
++	for (var index = 0; index < encoded.length; index++) {
++		if (encoded[index] === 37 && index + 2 < encoded.length) {
++			var hex = String.fromCharCode(encoded[index + 1], encoded[index + 2]);
++			if (/^[0-9a-f]{2}$/i.test(hex)) {
++				bytes[length++] = parseInt(hex, 16); index += 2; continue;
++			}
++		}
++		bytes[length++] = encoded[index];
++	}
++	return bytes.slice(0, length);
++}
+ 
+ global.fetch = function (input, init) {
+ 	return new Promise(function (resolve, reject) {
+@@ -2167,25 +2544,39 @@
+ 		if (/^data:/.test(req.url)) {
+ 			var m = /^data:([^,]*?)(;base64)?,(.*)$/.exec(req.url);
+ 			if (!m) { reject(new TypeError('Failed to fetch')); return; }
+-			var data = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+-			var bytes = new Uint8Array(data.length);
+-			for (var i = 0; i < data.length; i++) bytes[i] = data.charCodeAt(i) & 255;
++			var bytes = dataURLBytes(m[3]);
++			if (m[2]) {
++				var data = atob(utf8Decode(bytes));
++				bytes = new Uint8Array(data.length);
++				for (var i = 0; i < data.length; i++) bytes[i] = data.charCodeAt(i);
++			}
+ 			resolve(new Response(bytes.buffer, { status: 200, url: req.url, headers: { 'content-type': m[1] || 'text/plain' } }));
+ 			return;
+ 		}
+-		var id = nativeRequest(req.method, req.url, req.headers, req._bodyText, function (status, url, raw, buf, error) {
++		var settled = false;
++		var id;
++		function onAbort() {
++			if (settled) return;
++			settled = true;
++			if (ns.fetchAbort) ns.fetchAbort(id);
++			delete fetchPending[id];
++			reject(req.signal.reason);
++		}
++		id = nativeRequest(req.method, req.url, req.headers,
++			req._bodyBuffer !== null ? req._bodyBuffer : req._bodyText,
++			function (status, url, raw, buf, error) {
++			if (settled) return;
++			settled = true;
++			if (req.signal) req.signal.removeEventListener('abort', onAbort);
+ 			if (error || !status) { reject(new TypeError('Failed to fetch')); return; }
+ 			var ph = parseRawHeaders(raw);
+-			var resp = new Response(buf, { status: status, statusText: ph.statusText || STATUS_TEXT[status] || '', headers: ph.headers, url: url });
++			var responseBody = status === 204 || status === 205 || status === 304 ? null : buf;
++			var resp = new Response(responseBody, { status: status, statusText: ph.statusText || STATUS_TEXT[status] || '', headers: ph.headers, url: url });
+ 			resp.redirected = url !== req.url;
+ 			resp.type = 'basic';
+ 			resolve(resp);
+ 		});
+-		if (req.signal) req.signal.addEventListener('abort', function () {
+-			if (ns.fetchAbort) ns.fetchAbort(id);
+-			delete fetchPending[id];
+-			reject(req.signal.reason);
+-		});
++		if (req.signal && !settled) req.signal.addEventListener('abort', onAbort, { once: true });
+ 	});
+ };
+ 
+@@ -2204,6 +2595,9 @@
+ 	this.upload = new EventTarget();
+ 	this._headers = new Headers();
+ 	this._respHeaders = new Headers();
++	this._id = 0;
++	this._timeoutHandle = null;
++	this._generation = 0;
+ 	this.onreadystatechange = null;
+ }
+ XMLHttpRequest.prototype = Object.create(EventTarget.prototype);
+@@ -2216,11 +2610,31 @@
+ 	this.readyState = s;
+ 	this.dispatchEvent(new Event('readystatechange'));
+ };
++XMLHttpRequest.prototype._cancel = function () {
++	if (this._timeoutHandle !== null) {
++		clearTimeout(this._timeoutHandle);
++		this._timeoutHandle = null;
++	}
++	if (this._id) {
++		if (ns.fetchAbort) ns.fetchAbort(this._id);
++		delete fetchPending[this._id];
++		this._id = 0;
++	}
++};
+ XMLHttpRequest.prototype.open = function (method, url) {
++	this._generation++;
++	this._cancel();
+ 	this._method = toStr(method).toUpperCase();
+ 	this._url = new URL(toStr(url), ns.baseURL()).href;
+ 	this._headers = new Headers();
++	this._respHeaders = new Headers();
+ 	this._aborted = false;
++	this.status = 0;
++	this.statusText = '';
++	this.response = null;
++	this.responseText = '';
++	this.responseXML = null;
++	this.responseURL = '';
+ 	this._state(1);
+ };
+ XMLHttpRequest.prototype.setRequestHeader = function (k, v) { this._headers.append(k, v); };
+@@ -2232,30 +2646,46 @@
+ 	return s;
+ };
+ XMLHttpRequest.prototype.abort = function () {
+-	if (this._id && ns.fetchAbort) ns.fetchAbort(this._id);
+-	delete fetchPending[this._id];
++	var active = this._id !== 0;
++	this._generation++;
++	this._cancel();
+ 	this._aborted = true;
+-	if (this.readyState > 0 && this.readyState < 4) {
++	var generation = this._generation;
++	if (active && this.readyState > 0 && this.readyState < 4) {
++		this.status = 0;
+ 		this._state(4);
++		if (this._generation !== generation) return;
+ 		this.dispatchEvent(new ProgressEvent('abort'));
+-		this.dispatchEvent(new ProgressEvent('loadend'));
+-	}
+-	this.readyState = 0;
++		if (this._generation === generation) this.dispatchEvent(new ProgressEvent('loadend'));
++	}
++	if (this._generation === generation) this.readyState = 0;
+ };
+ XMLHttpRequest.prototype.send = function (body) {
++	if (this.readyState !== 1 || this._id)
++		throw new DOMException('Request is not open or is already sent', 'InvalidStateError');
+ 	var self = this;
+-	var text = (this._method === 'GET' || this._method === 'HEAD') ? null : bodyToText(body);
+-	var ct = body !== undefined && body !== null ? bodyContentType(body) : null;
++	var generation = ++this._generation;
++	var hasBody = this._method !== 'GET' && this._method !== 'HEAD' && body !== undefined && body !== null;
++	var multipart = hasBody && body instanceof FormData ? formDataMultipart(body) : null;
++	var text = multipart ? multipart.buffer : (hasBody ? (bodyToBuffer(body) || bodyToText(body)) : null);
++	var ct = multipart ? multipart.type : (hasBody ? bodyContentType(body) : null);
+ 	if (ct && !this._headers.has('content-type')) this._headers.set('content-type', ct);
+ 	if (!this._headers.has('x-requested-with') && false) this._headers.set('x-requested-with', 'XMLHttpRequest');
+ 	this.dispatchEvent(new ProgressEvent('loadstart'));
++	if (this._generation !== generation) return;
+ 	var finish = function (status, url, raw, buf, error) {
+-		if (self._aborted) return;
++		if (self._aborted || self._generation !== generation) return;
++		if (self._timeoutHandle !== null) {
++			clearTimeout(self._timeoutHandle);
++			self._timeoutHandle = null;
++		}
++		self._id = 0;
+ 		if (error || !status) {
+ 			self.status = 0;
+ 			self._state(4);
++			if (self._generation !== generation) return;
+ 			self.dispatchEvent(new ProgressEvent('error'));
+-			self.dispatchEvent(new ProgressEvent('loadend'));
++			if (self._generation === generation) self.dispatchEvent(new ProgressEvent('loadend'));
+ 			return;
+ 		}
+ 		var ph = parseRawHeaders(raw);
+@@ -2264,7 +2694,9 @@
+ 		self.statusText = ph.statusText || STATUS_TEXT[status] || '';
+ 		self.responseURL = url;
+ 		self._state(2);
++		if (self._generation !== generation) return;
+ 		self._state(3);
++		if (self._generation !== generation) return;
+ 		var t = self.responseType;
+ 		if (t === 'arraybuffer') self.response = buf;
+ 		else if (t === 'blob') self.response = new Blob([buf], { type: ph.headers.get('content-type') || '' });
+@@ -2275,16 +2707,25 @@
+ 			else if (t === 'document') { self.response = self.responseXML = ns.parseDocument(str); }
+ 		}
+ 		self._state(4);
++		if (self._generation !== generation) return;
+ 		self.dispatchEvent(new ProgressEvent('load', { lengthComputable: true, loaded: buf.byteLength, total: buf.byteLength }));
++		if (self._generation !== generation) return;
+ 		self.dispatchEvent(new ProgressEvent('loadend'));
+ 	};
+ 	this._id = nativeRequest(this._method, this._url, this._headers, text, finish);
+ 	if (this.timeout > 0) {
+-		setTimeout(function () {
+-			if (self.readyState !== 4 && !self._aborted) {
+-				self.abort();
+-				self.dispatchEvent(new ProgressEvent('timeout'));
+-			}
++		var id = this._id;
++		this._timeoutHandle = setTimeout(function () {
++			if (self._generation !== generation || self._id !== id) return;
++			self._generation++;
++			self._cancel();
++			var timeoutGeneration = self._generation;
++			self._aborted = true;
++			self.status = 0;
++			self._state(4);
++			if (self._generation !== timeoutGeneration) return;
++			self.dispatchEvent(new ProgressEvent('timeout'));
++			if (self._generation === timeoutGeneration) self.dispatchEvent(new ProgressEvent('loadend'));
+ 		}, this.timeout);
+ 	}
+ };
+@@ -2412,7 +2853,6 @@
+ global.crossOriginIsolated = false;
+ global.origin = (function () { try { return new URL(ns.baseURL()).origin; } catch (e) { return 'null'; } })();
+ 
+-global.queueMicrotask = function (f) { Promise.resolve().then(function () { try { f(); } catch (e) { reportError(e); } }); };
+ global.requestIdleCallback = function (f) {
+ 	var start = Date.now();
+ 	return setTimeout(function () { f({ didTimeout: false, timeRemaining: function () { return Math.max(0, 50 - (Date.now() - start)); } }); }, 1);
+@@ -2566,8 +3006,7 @@
+ 
+ global.crypto = {
+ 	getRandomValues: function (arr) {
+-		for (var i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 4294967296);
+-		return arr;
++		return ns.randomFill(arr);
+ 	},
+ 	randomUUID: function () {
+ 		var b = crypto.getRandomValues(new Uint8Array(16));
+--- a/netsurf/content/hlcache.c
++++ b/netsurf/content/hlcache.c
+@@ -23,6 +23,7 @@
+ 
+ #include <assert.h>
+ #include <stdlib.h>
++#include <stdio.h>
+ #include <string.h>
+ 
+ #include "utils/http.h"
+@@ -112,6 +113,7 @@
+ {
+ 	hlcache_entry *entry, *next;
+ 	bool force_clean = (force_clean_flag != NULL);
++	int traced = 0, destroyed = 0, retained = 0;
+ 
+ 	for (entry = hlcache->content_list; entry != NULL; entry = next) {
+ 		next = entry->next;
+@@ -119,8 +121,11 @@
+ 		if (entry->content == NULL)
+ 			continue;
+ 
+-		if (content_count_users(entry->content) != 0)
++		traced++;
++		if (content_count_users(entry->content) != 0) {
++			retained++;
+ 			continue;
++		}
+ 
+ 		if (content__get_status(entry->content) == CONTENT_STATUS_LOADING) {
+ 			if (force_clean == false)
+@@ -148,10 +153,14 @@
+ 
+ 		/* Destroy content */
+ 		content_destroy(entry->content);
++		destroyed++;
+ 
+ 		/* Destroy entry */
+ 		free(entry);
+ 	}
++
++	fprintf(stderr, "[hlcache] clean total=%d destroyed=%d retained=%d\n",
++		traced, destroyed, retained);
+ 
+ 	/* Attempt to clean the llcache */
+ 	llcache_clean(false);
+--- a/netsurf/desktop/browser_window.c
++++ b/netsurf/desktop/browser_window.c
+@@ -3466,6 +3466,9 @@
+ 		}
+ 	}
+ 
++	if (bw->current_content != NULL &&
++	    content_get_type(bw->current_content) == CONTENT_HTML)
++		html_cancel_script_activity(bw->current_content);
+ 	browser_window_stop(bw);
+ 	browser_window_remove_caret(bw, false);
+ 	browser_window_destroy_children(bw);
+--- a/quickjs/cutils.h
++++ b/quickjs/cutils.h
+@@ -61,7 +61,7 @@
+ #include <windows.h>
+ #include <process.h> // _beginthread
+ #endif
+-#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(__wasi__) && !defined(__DJGPP)
++#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(__wasi__) && !defined(__DJGPP) && !defined(__BUZZOS__)
+ #include <errno.h>
+ #include <pthread.h>
+ #endif
+@@ -638,7 +638,7 @@
+ 
+ /* Cross-platform threading APIs. */
+ 
+-#if defined(EMSCRIPTEN) || defined(__wasi__) || defined(__DJGPP)
++#if defined(EMSCRIPTEN) || defined(__wasi__) || defined(__DJGPP) || defined(__BUZZOS__)
+ 
+ #define JS_HAVE_THREADS 0
+ 
+--- a/quickjs/libregexp.c
++++ b/quickjs/libregexp.c
+@@ -3390,6 +3390,7 @@
+     REExecContext s_s, *s = &s_s;
+     int re_flags, i, ret;
+     const uint8_t *cptr;
++    const uint8_t *pc = bc_buf + RE_HEADER_LEN;
+ 
+     re_flags = lre_get_flags(bc_buf);
+     s->is_unicode = (re_flags & (LRE_FLAG_UNICODE | LRE_FLAG_UNICODE_SETS)) != 0;
+@@ -3416,7 +3417,24 @@
+         }
+     }
+ 
+-    ret = lre_exec_backtrack(s, capture, bc_buf + RE_HEADER_LEN, cptr);
++    /* The compiler prepends a search loop to every non-sticky pattern.
++       If the first real instruction is an unconditional, non-multiline
++       start assertion, later candidate positions cannot match. Skip just
++       that search loop, not the assertion (a nonzero lastIndex must fail).
++
++       Inspect bytecode rather than the source's first character: /^a|b/
++       starts with a branch after save_start and must retain its search.
++       Capturing groups and other prefixes are conservatively left alone. */
++    if (!(re_flags & (LRE_FLAG_STICKY | LRE_FLAG_MULTILINE)) &&
++        get_u32(bc_buf + RE_HEADER_BYTECODE_LEN) >= 14 &&
++        pc[0] == REOP_split_goto_first && get_u32(pc + 1) == 6 &&
++        pc[5] == REOP_any && pc[6] == REOP_goto &&
++        (int32_t)get_u32(pc + 7) == -11 &&
++        pc[11] == REOP_save_start && pc[12] == 0 &&
++        pc[13] == REOP_line_start) {
++        pc += 11;
++    }
++    ret = lre_exec_backtrack(s, capture, pc, cptr);
+ 
+     if (s->stack_buf != s->static_stack_buf)
+         lre_realloc(s->opaque, s->stack_buf, 0);
+--- a/quickjs/quickjs.c
++++ b/quickjs/quickjs.c
+@@ -582,6 +582,9 @@
+     JSValue function_ctor;
+     JSValue array_ctor;
+     JSValue regexp_ctor;
++    JSValue regexp_last_input;
++    JSValue regexp_input;
++    int regexp_captures[22];
+     JSValue promise_ctor;
+     JSValue native_error_proto[JS_NATIVE_ERROR_COUNT];
+     JSValue error_ctor;
+@@ -2636,6 +2639,20 @@
+         rt->rt_info = s;
+ }
+ 
++void JS_CancelPendingJobs(JSContext *ctx)
++{
++    JSRuntime *rt = JS_GetRuntime(ctx);
++    struct list_head *el, *next;
++    list_for_each_safe(el, next, &rt->job_list) {
++        JSJobEntry *e = list_entry(el, JSJobEntry, link);
++        if (e->ctx != ctx) continue;
++        list_del(el);
++        for (int i = 0; i < e->argc; i++)
++            JS_FreeValueRT(rt, e->argv[i]);
++        js_free_rt(rt, e);
++    }
++}
++
+ void JS_FreeRuntime(JSRuntime *rt)
+ {
+     struct list_head *el, *el1;
+@@ -2869,6 +2886,10 @@
+     ctx->iterator_ctor = JS_NULL;
+     ctx->iterator_ctor_getset = JS_NULL;
+     ctx->regexp_ctor = JS_NULL;
++    ctx->regexp_last_input = JS_UNDEFINED;
++    ctx->regexp_input = JS_UNDEFINED;
++    for (i = 0; i < countof(ctx->regexp_captures); i++)
++        ctx->regexp_captures[i] = -1;
+     ctx->promise_ctor = JS_NULL;
+     ctx->error_ctor = JS_NULL;
+     ctx->error_back_trace = JS_UNDEFINED;
+@@ -3013,6 +3034,8 @@
+     JS_MarkValue(rt, ctx->promise_ctor, mark_func);
+     JS_MarkValue(rt, ctx->array_ctor, mark_func);
+     JS_MarkValue(rt, ctx->regexp_ctor, mark_func);
++    JS_MarkValue(rt, ctx->regexp_last_input, mark_func);
++    JS_MarkValue(rt, ctx->regexp_input, mark_func);
+     JS_MarkValue(rt, ctx->function_ctor, mark_func);
+     JS_MarkValue(rt, ctx->function_proto, mark_func);
+ 
+@@ -3096,6 +3119,8 @@
+     JS_FreeValue(ctx, ctx->promise_ctor);
+     JS_FreeValue(ctx, ctx->array_ctor);
+     JS_FreeValue(ctx, ctx->regexp_ctor);
++    JS_FreeValue(ctx, ctx->regexp_last_input);
++    JS_FreeValue(ctx, ctx->regexp_input);
+     JS_FreeValue(ctx, ctx->function_ctor);
+     JS_FreeValue(ctx, ctx->function_proto);
+ 
+@@ -49137,6 +49162,10 @@
+     if (r == TIME_ZONE_ID_DAYLIGHT)
+          return (int)(t.Bias + t.DaylightBias);
+     return (int)t.Bias;
++#elif defined(__BUZZOS__)
++    /* BuzzOS currently exposes UTC rather than a per-user time zone. */
++    (void)time;
++    return 0;
+ #else
+     time_t ti;
+     struct tm tm;
+@@ -49711,6 +49740,87 @@
+     return ret;
+ }
+ 
++void JS_ClearRegExpLegacyState(JSContext *ctx)
++{
++    int slot;
++
++    JS_FreeValue(ctx, ctx->regexp_last_input);
++    JS_FreeValue(ctx, ctx->regexp_input);
++    ctx->regexp_last_input = JS_UNDEFINED;
++    ctx->regexp_input = JS_UNDEFINED;
++    for (slot = 0; slot < countof(ctx->regexp_captures); slot++)
++        ctx->regexp_captures[slot] = -1;
++}
++
++static void js_regexp_save_legacy(JSContext *ctx, JSValueConst input,
++                                 uint8_t **captures, int capture_count)
++{
++    JSString *string = JS_VALUE_GET_STRING(input);
++    uint8_t *buffer = str8(string);
++    int capture_index, slot, shift = string->is_wide_char;
++
++    JS_FreeValue(ctx, ctx->regexp_last_input);
++    JS_FreeValue(ctx, ctx->regexp_input);
++    ctx->regexp_last_input = js_dup(input);
++    ctx->regexp_input = js_dup(input);
++    for (slot = 0; slot < 11; slot++) {
++        capture_index = slot == 10 ? capture_count - 1 : slot;
++        if (capture_index < capture_count &&
++            (slot != 10 || capture_index > 0) &&
++            captures[2 * capture_index] && captures[2 * capture_index + 1]) {
++            ctx->regexp_captures[2 * slot] =
++                (captures[2 * capture_index] - buffer) >> shift;
++            ctx->regexp_captures[2 * slot + 1] =
++                (captures[2 * capture_index + 1] - buffer) >> shift;
++        } else {
++            ctx->regexp_captures[2 * slot] = -1;
++            ctx->regexp_captures[2 * slot + 1] = -1;
++        }
++    }
++}
++
++static JSValue js_regexp_legacy_get(JSContext *ctx, JSValueConst this_val,
++                                  int magic)
++{
++    JSString *string;
++    int start, end, slot;
++
++    if (magic == 10)
++        return JS_IsUndefined(ctx->regexp_input) ? JS_NewString(ctx, "") :
++            js_dup(ctx->regexp_input);
++    if (JS_IsUndefined(ctx->regexp_last_input))
++        return JS_NewString(ctx, "");
++    string = JS_VALUE_GET_STRING(ctx->regexp_last_input);
++    slot = magic == 11 ? 10 : magic < 10 ? magic : 0;
++    start = ctx->regexp_captures[2 * slot];
++    end = ctx->regexp_captures[2 * slot + 1];
++    if (start < 0)
++        return JS_NewString(ctx, "");
++    if (magic == 12) {
++        end = start;
++        start = 0;
++    } else if (magic == 13) {
++        start = end;
++        end = string->len;
++    }
++    return js_sub_string(ctx, string, start, end);
++}
++
++static JSValue js_regexp_legacy_set(JSContext *ctx, JSValueConst this_val,
++                                  JSValueConst value, int magic)
++{
++    JSValue input;
++
++    if (magic == 10) {
++        input = JS_ToString(ctx, value);
++        if (JS_IsException(input))
++            return input;
++        JS_FreeValue(ctx, ctx->regexp_input);
++        ctx->regexp_input = input;
++    }
++    return JS_UNDEFINED;
++}
++
+ static JSValue js_regexp_exec(JSContext *ctx, JSValueConst this_val,
+                               int argc, JSValueConst *argv)
+ {
+@@ -49796,6 +49906,7 @@
+             goto fail;
+         }
+     } else {
++        js_regexp_save_legacy(ctx, str_val, capture, capture_count);
+         if (re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) {
+             if (JS_SetProperty(ctx, this_val, JS_ATOM_lastIndex,
+                                js_int32((capture[1] - str_buf) >> shift)) < 0)
+@@ -50015,6 +50126,8 @@
+             }
+             break;
+         }
++        js_regexp_save_legacy(ctx, str_val, capture,
++                              lre_get_capture_count(re_bytecode));
+         start = (capture[0] - str_buf) >> shift;
+         end = (capture[1] - str_buf) >> shift;
+         last_index = end;
+@@ -50782,6 +50895,25 @@
+ }
+ 
+ static const JSCFunctionListEntry js_regexp_funcs[] = {
++    JS_CGETSET_MAGIC_DEF("$1", js_regexp_legacy_get, js_regexp_legacy_set, 1),
++    JS_CGETSET_MAGIC_DEF("$2", js_regexp_legacy_get, js_regexp_legacy_set, 2),
++    JS_CGETSET_MAGIC_DEF("$3", js_regexp_legacy_get, js_regexp_legacy_set, 3),
++    JS_CGETSET_MAGIC_DEF("$4", js_regexp_legacy_get, js_regexp_legacy_set, 4),
++    JS_CGETSET_MAGIC_DEF("$5", js_regexp_legacy_get, js_regexp_legacy_set, 5),
++    JS_CGETSET_MAGIC_DEF("$6", js_regexp_legacy_get, js_regexp_legacy_set, 6),
++    JS_CGETSET_MAGIC_DEF("$7", js_regexp_legacy_get, js_regexp_legacy_set, 7),
++    JS_CGETSET_MAGIC_DEF("$8", js_regexp_legacy_get, js_regexp_legacy_set, 8),
++    JS_CGETSET_MAGIC_DEF("$9", js_regexp_legacy_get, js_regexp_legacy_set, 9),
++    JS_CGETSET_MAGIC_DEF("input", js_regexp_legacy_get, js_regexp_legacy_set, 10),
++    JS_CGETSET_MAGIC_DEF("$_", js_regexp_legacy_get, js_regexp_legacy_set, 10),
++    JS_CGETSET_MAGIC_DEF("lastMatch", js_regexp_legacy_get, js_regexp_legacy_set, 0),
++    JS_CGETSET_MAGIC_DEF("$&", js_regexp_legacy_get, js_regexp_legacy_set, 0),
++    JS_CGETSET_MAGIC_DEF("lastParen", js_regexp_legacy_get, js_regexp_legacy_set, 11),
++    JS_CGETSET_MAGIC_DEF("$+", js_regexp_legacy_get, js_regexp_legacy_set, 11),
++    JS_CGETSET_MAGIC_DEF("leftContext", js_regexp_legacy_get, js_regexp_legacy_set, 12),
++    JS_CGETSET_MAGIC_DEF("$`", js_regexp_legacy_get, js_regexp_legacy_set, 12),
++    JS_CGETSET_MAGIC_DEF("rightContext", js_regexp_legacy_get, js_regexp_legacy_set, 13),
++    JS_CGETSET_MAGIC_DEF("$'", js_regexp_legacy_get, js_regexp_legacy_set, 13),
+     JS_CFUNC_DEF("escape", 1, js_regexp_escape ),
+     JS_CGETSET_DEF("[Symbol.species]", js_get_this, NULL ),
+ };
+--- a/quickjs/quickjs.h
++++ b/quickjs/quickjs.h
+@@ -549,6 +549,7 @@
+ JS_EXTERN int JS_AddIntrinsicEval(JSContext *ctx);
+ JS_EXTERN void JS_AddIntrinsicRegExpCompiler(JSContext *ctx);
+ JS_EXTERN int JS_AddIntrinsicRegExp(JSContext *ctx);
++JS_EXTERN void JS_ClearRegExpLegacyState(JSContext *ctx);
+ JS_EXTERN int JS_AddIntrinsicJSON(JSContext *ctx);
+ JS_EXTERN int JS_AddIntrinsicProxy(JSContext *ctx);
+ JS_EXTERN int JS_AddIntrinsicMapSet(JSContext *ctx);
+@@ -1250,6 +1251,8 @@
+ JS_EXTERN bool JS_IsJobPending(JSRuntime *rt);
+ JS_EXTERN JSContext *JS_GetPendingJobContext(JSRuntime *rt);
+ JS_EXTERN int JS_ExecutePendingJob(JSRuntime *rt, JSContext **pctx);
++/* BuzzOS port: cancel a closing page's queued microtasks before freeing it. */
++JS_EXTERN void JS_CancelPendingJobs(JSContext *ctx);
+ 
+ /* Structure to retrieve (de)serialized SharedArrayBuffer objects. */
+ typedef struct JSSABTab {

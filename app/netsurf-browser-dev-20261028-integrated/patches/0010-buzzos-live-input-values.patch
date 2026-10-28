@@ -1,0 +1,107 @@
+--- a/libdom/src/html/html_input_element.c
++++ b/libdom/src/html/html_input_element.c
+@@ -7,6 +7,8 @@
+ 
+ #include <assert.h>
+ #include <stdlib.h>
++#include <string.h>
++#include <strings.h>
+ 
+ #include <dom/html/html_input_element.h>
+ 
+@@ -65,6 +67,8 @@
+ 	ele->default_checked_set = false;
+ 	ele->default_value = NULL;
+ 	ele->default_value_set = false;
++	ele->current_value = NULL;
++	ele->current_value_set = false;
+ 	ele->checked = false;
+ 	ele->checked_set = false;
+ 
+@@ -344,6 +348,8 @@
+ 	new->default_value = old->default_value == NULL ?
+ 			NULL : dom_string_ref(old->default_value);
+ 	new->default_value_set = old->default_value_set;
++	new->current_value = old->current_value == NULL ? NULL : dom_string_ref(old->current_value);
++	new->current_value_set = old->current_value_set;
+ 	new->checked = old->checked;
+ 	new->checked_set = old->checked_set;
+ 
+@@ -398,7 +404,51 @@
+ SIMPLE_GET_SET(src);
+ SIMPLE_GET(type);
+ SIMPLE_GET_SET(use_map);
+-SIMPLE_GET_SET(value);
++/* Attribute-backed modes retain their existing setter semantics. Text and
++ * typed controls need a dirty live value: changing .value must not change the
++ * default value attribute used by reset and numeric step-base calculation. */
++static bool input_live_value_mode(dom_html_input_element *element)
++{
++	dom_string *type = NULL;
++	bool live = true;
++	if (dom_html_input_element_get_type(element, &type) == DOM_NO_ERR && type != NULL) {
++		const char *data = dom_string_data(type);
++		size_t length = dom_string_byte_length(type);
++		const char *attribute_modes[] = {"hidden", "submit", "image", "reset", "button", "checkbox", "radio"};
++		for (size_t i = 0; i < sizeof(attribute_modes) / sizeof(attribute_modes[0]); i++) {
++			if (length == strlen(attribute_modes[i]) && strncasecmp(data, attribute_modes[i], length) == 0) {
++				live = false;
++				break;
++			}
++		}
++		dom_string_unref(type);
++	}
++	return live;
++}
++
++dom_exception dom_html_input_element_get_value(dom_html_input_element *element, dom_string **value)
++{
++	if (input_live_value_mode(element) && element->current_value_set) {
++		*value = element->current_value == NULL ? NULL : dom_string_ref(element->current_value);
++		return DOM_NO_ERR;
++	}
++	return dom_element_get_attribute(element,
++		((dom_html_document *)((dom_node_internal *)element)->owner)->memoised[hds_value], value);
++}
++
++dom_exception dom_html_input_element_set_value(dom_html_input_element *element, dom_string *value)
++{
++	if (!input_live_value_mode(element)) {
++		return dom_element_set_attribute(element,
++			((dom_html_document *)((dom_node_internal *)element)->owner)->memoised[hds_value], value);
++	}
++	/* Take the incoming reference first: callers may pass the current value. */
++	if (value != NULL) dom_string_ref(value);
++	if (element->current_value != NULL) dom_string_unref(element->current_value);
++	element->current_value = value;
++	element->current_value_set = true;
++	return DOM_NO_ERR;
++}
+ 
+ dom_exception dom_html_input_element_get_size(
+ 	dom_html_input_element *input, dom_ulong *size)
+--- a/libdom/src/html/html_input_element.h
++++ b/libdom/src/html/html_input_element.h
+@@ -21,6 +21,8 @@
+ 	bool default_checked_set; /**< Whether default_checked has been set */
+ 	dom_string *default_value; /**< Initial value */
+ 	bool default_value_set; /**< Whether default_value has been set */
++	dom_string *current_value; /**< Dirty live value, separate from the attribute */
++	bool current_value_set;
+ 	bool checked; /**< Whether the element has been checked by a click */
+ 	bool checked_set;
+ };
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -1525,6 +1525,11 @@
+ 				(dom_html_input_element *)node, v);
+ 		html_rebuild_suppress(false);
+ 		dom_string_unref(v);
++		/* Live values no longer emit attribute mutations. Update the widget
++		 * under its existing syncing guard, so script assignment emits no input. */
++		struct box *box = box_for_node(node);
++		if (box != NULL && box->gadget != NULL)
++			form_gadget_sync_with_dom(box->gadget);
+ 	}
+ 	JS_FreeCString(ctx, s);
+ 	return JS_UNDEFINED;

@@ -277,7 +277,7 @@ static int save_clip(const char *path, const cJSON *a, cJSON *out, struct qpk_hw
   cJSON_AddNumberToObject(out, "bytes", length); return ret;
 }
 
-int qpk_hw_audio_execute_at(const char *media_root,const char *package, const char *op, const cJSON *a, cJSON *out, struct qpk_hw_progress *progress)
+static int audio_execute_storage(const char *media_root,const char *package, const char *op, const cJSON *a, cJSON *out, struct qpk_hw_progress *progress)
 {
   if (!strcmp(op, "tone")) return play_clip(NULL, a, out, progress, true);
   enum qpk_volume volume=!strcmp(media_root,qpk_volume_data_root(QPK_VOLUME_SD))?QPK_VOLUME_SD:QPK_VOLUME_INTERNAL;
@@ -291,6 +291,75 @@ int qpk_hw_audio_execute_at(const char *media_root,const char *package, const ch
   if (!strcmp(op, "remove")) return unlink(path) ? -errno : 0;
   if (!strcmp(op, "info")) return qpk_audio_info(path, out);
   return -ENOSYS;
+}
+
+/* Built-in recordings are media, independent of the embedded app's install
+ * volume. Never begin a new Flash WAV or fall back to Flash after SD failure.
+ * Existing Flash clips remain addressable read-only; no migration/deletion.
+ */
+static int recorder_clip_name(cJSON *entry,const char *name)
+{
+  cJSON *clip=cJSON_GetObjectItemCaseSensitive(entry,"clip");
+  if(!cJSON_IsString(clip) || (clip->type&cJSON_IsReference))return -EINVAL;
+  cJSON *value=cJSON_CreateString(name);if(!value)return -ENOMEM;
+  char *old=clip->valuestring;clip->valuestring=value->valuestring;
+  value->valuestring=old;cJSON_Delete(value);return 0;
+}
+
+static int recorder_list(cJSON *out,struct qpk_hw_progress *progress)
+{
+  const char *package="com.openvela.recorder";
+  cJSON *clips=cJSON_AddArrayToObject(out,"clips");
+  if(!clips)return -ENOMEM;
+  for(unsigned medium=0;medium<2;medium++){
+    enum qpk_volume volume=medium?QPK_VOLUME_INTERNAL:QPK_VOLUME_SD;
+    int ready=qpk_volume_ready(volume,false);
+    if(ready==-ENOENT || ready==-ENODEV)continue;
+    if(ready)return ready;
+    cJSON *result=cJSON_CreateObject();if(!result)return -ENOMEM;
+    int ret=qpk_audio_list(qpk_volume_data_root(volume),package,result,&progress->cancel);
+    if(ret){cJSON_Delete(result);return ret;}
+    cJSON *entries=cJSON_GetObjectItemCaseSensitive(result,"clips");
+    while(cJSON_GetArraySize(entries)){
+      cJSON *entry=cJSON_DetachItemFromArray(entries,0);
+      if(medium){
+        const cJSON *clip=cJSON_GetObjectItemCaseSensitive(entry,"clip");
+        char alias[QPK_STORAGE_KEY_MAX+16];
+        int n=cJSON_IsString(clip)?snprintf(alias,sizeof(alias),"flash:%s",clip->valuestring):-1;
+        if(n<0 || (size_t)n>=sizeof(alias) ||
+           recorder_clip_name(entry,alias) ||
+           !cJSON_AddBoolToObject(entry,"readOnly",true)){
+          cJSON_Delete(entry);cJSON_Delete(result);return -ENOMEM;
+        }
+      }
+      cJSON_AddItemToArray(clips,entry);
+    }
+    cJSON_Delete(result);
+  }
+  return 0;
+}
+
+int qpk_hw_audio_execute_at(const char *media_root,const char *package,
+                           const char *op,const cJSON *a,cJSON *out,
+                           struct qpk_hw_progress *progress)
+{
+  if(!media_root || !package || !op || !out || !progress)return -EINVAL;
+  if(strcmp(package,"com.openvela.recorder"))
+    return audio_execute_storage(media_root,package,op,a,out,progress);
+  if(!strcmp(op,"list"))return recorder_list(out,progress);
+  const cJSON *clip=cJSON_GetObjectItemCaseSensitive(a,"clip");
+  if(cJSON_IsString(clip) && !strncmp(clip->valuestring,"flash:",6)){
+    if(strcmp(op,"play") && strcmp(op,"info"))return -EROFS;
+    int ready=qpk_volume_ready(QPK_VOLUME_INTERNAL,false);if(ready)return ready;
+    cJSON *args=cJSON_Duplicate(a,true);if(!args)return -ENOMEM;
+    int renamed=recorder_clip_name(args,clip->valuestring+6);
+    if(renamed){cJSON_Delete(args);return renamed;}
+    int ret=audio_execute_storage(qpk_volume_data_root(QPK_VOLUME_INTERNAL),package,op,args,out,progress);
+    cJSON_Delete(args);return ret;
+  }
+  if(!strcmp(op,"record") || !strcmp(op,"save"))
+    printf("[recorder-route] storage=sd fallback=disabled\n");
+  return audio_execute_storage(qpk_volume_data_root(QPK_VOLUME_SD),package,op,a,out,progress);
 }
 
 int qpk_hw_audio_execute(const char *package,const char *op,const cJSON *a,cJSON *out,struct qpk_hw_progress *progress)

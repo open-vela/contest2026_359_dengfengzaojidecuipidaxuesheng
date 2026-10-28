@@ -16,7 +16,7 @@ features=['ESPRESSIF_MIPI_DSI','INPUT_GT9XX','ESPRESSIF_MIPI_CSI','AUDIO_ES8311'
           'ESP32P4_SDMMC','FS_SMARTFS','ESPRESSIF_EMAC','ESPRESSIF_I2C1',
           'ESPRESSIF_SPI2','ESPRESSIF_UART1','ESPRESSIF_LEDC','ESP32P4_CAMERA_USB',
           'ESPRESSIF_USBSERIAL_CONSOLE','SYSTEM_C6_DESKTOP']
-for name in ['enabled','legacy','disabled']:
+for name in ['enabled','legacy','disabled','backlight']:
     out=a.output/name;(out/'nuttx').mkdir(parents=True,exist_ok=True)
     config='#pragma once\n'
     if name!='disabled':config+=''.join('#define CONFIG_'+f+' 1\n' for f in features)
@@ -32,6 +32,7 @@ for name in ['enabled','legacy','disabled']:
         '-DCONFIG_ESPRESSIF_LEDC_CHANNEL1_PIN=3','-DCONFIG_ESPRESSIF_LEDC_CHANNEL2_PIN=4',
         '-DCONFIG_ESPRESSIF_LEDC_CHANNEL3_PIN=6']
     if name=='disabled':flags+=['-DFEATURES_OFF']
+    if name=='backlight':flags+=['-DBACKLIGHT_PINS','-DCONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN=26','-DCONFIG_ESPRESSIF_LEDC_CHANNEL1_PIN=3','-DCONFIG_ESPRESSIF_LEDC_CHANNEL2_PIN=4','-DCONFIG_ESPRESSIF_LEDC_CHANNEL3_PIN=6']
     command=['gcc',*flags,'-I'+str(out),'-I'+str(desktop),'-I'+str(cjson),
         str(root/'app/espdl-quickapp/tests/board_interfaces_host.c'),
         str(desktop/'qpk_board_interfaces.c'),str(cjson/'cJSON.c'),'-o',str(out/'test')]

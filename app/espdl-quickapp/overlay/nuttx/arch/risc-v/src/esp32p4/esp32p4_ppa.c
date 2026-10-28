@@ -108,7 +108,7 @@ static int ppa_run(FAR struct p4_ppa_dev_s *dev,
       (input_format == PPA_SRM_COLOR_MODE_YUV422_UYVY && (j->width & 1)) ||
       j->height < 2 || j->height > 720 || j->out_width < 2 ||
       j->out_width > 1280 || j->out_height < 2 ||
-      j->out_height > 720 || j->scale256 < 16 || j->scale256 > 256 ||
+      j->out_height > 720 || j->scale256 < 16 || j->scale256 > 1024 ||
       (j->scale256 & 15) ||
       !ppa_ram(j->input, j->input_size) ||
       !ppa_ram(j->output, j->output_size) ||

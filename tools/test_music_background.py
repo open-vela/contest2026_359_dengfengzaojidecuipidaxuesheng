@@ -11,6 +11,8 @@ with tempfile.TemporaryDirectory(prefix='music-background-') as tmp:
  source=(desktop/'glass_music_service.c').read_text()
  source=re.sub(r'#if __has_include\("music_credentials.h"\).*?#endif','#define GLASS_MUSIC_API_KEY ""',source,count=1,flags=re.S)
  (root/'music_service_under_test.c').write_text(source)
+ pcm=(desktop/'glass_music_pcm.c').read_text()
+ (root/'speaker_under_test.c').write_text(pcm[pcm.index('static atomic_uint g_speaker_volume'):pcm.index('int music_pcm_session_lock')])
  flags=['cc','-D_GNU_SOURCE','-std=gnu11','-O1','-g','-pthread','-fsanitize=address,undefined','-fno-omit-frame-pointer',
   '-I'+str(root),'-I'+str(desktop),'-I'+str(a.apps/'netutils/cjson/cJSON'),'-DMUSIC_SD_ROOT="'+str(root)+'/"','-DMUSIC_CACHE_ROOT="'+str(root)+'/cache"']
  flags+=['-DMUSIC_LYRICS_ROOT="'+str(root)+'/lyrics"']

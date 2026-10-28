@@ -53,8 +53,8 @@ int main(int argc,char **argv)
     review_click("返回桌面");assert(g_control_close_pending);
     lv_async_call_cancel(glass_control_close_async,NULL);glass_control_close_async(NULL);
     assert(!g_control_card && lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN));
-    const char *entries[]={"Wi-Fi 网络","存储与文件","蓝牙设备","系统性能"};
-    for(unsigned i=0;i<4;i++){
+    const char *entries[]={"Wi-Fi 网络","蓝牙设备","系统性能"};
+    for(unsigned i=0;i<3;i++){
       review_open_settings_entry();review_click(entries[i]);assert(g_system_page_pending);
       lv_async_call_cancel(glass_system_page_async,NULL);glass_system_page_async(NULL);
       check_full_page();assert(!g_control_card);panel_hide(NULL);

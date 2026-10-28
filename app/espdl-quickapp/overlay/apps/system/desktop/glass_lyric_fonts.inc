@@ -5,11 +5,14 @@
 #ifndef GLASS_LYRIC_FONT_ROOT
 #define GLASS_LYRIC_FONT_ROOT "/sdcard/fonts/lyrics"
 #endif
-#define LYRIC_PAGE_COUNT 32
+#define LYRIC_PAGE_COUNT 64
+#define LYRIC_PRELOAD_LIMIT (2u * 1024u * 1024u)
 struct lyric_font_face {
   lv_font_t *fonts[SD_FONT_SIZES];
   FILE *file;
-  unsigned opens;
+  unsigned char *data;
+  uint64_t reads,page_misses;
+  unsigned opens,created;
   int state;
   bool io_failed;
 };
@@ -30,11 +33,50 @@ struct lyric_font_pool {
 };
 struct lyric_font_file { unsigned face;uint32_t position; };
 static struct lyric_font_pool *lyric_fonts;
-static const unsigned lyric_counts[SD_FONT_SIZES]={48,64,64,16,12};
+static const unsigned lyric_counts[SD_FONT_SIZES]={32,48,48,64,64,16,16,16,16,8,12,4};
+/* Only the active global face gets the text-page budget. Others retain the
+ * bounded lyric budget; descriptor addresses remain stable for live labels. */
+static const unsigned lyric_global_counts[SD_FONT_SIZES]={128,192,384,512,384,96,96,96,64,24,32,4};
+static unsigned lyric_global_face;
+void glass_lyric_font_set_global(unsigned index)
+{
+  lyric_global_face=index;
+  if(!lyric_fonts)return;
+  for(unsigned face=0;face<GLASS_LYRIC_FACE_COUNT;face++)
+    for(unsigned size=0;size<SD_FONT_SIZES;size++){
+      lv_font_t *font=lyric_fonts->faces[face].fonts[size];if(!font)continue;
+      ttf_font_desc_t *dsc=(ttf_font_desc_t *)font->dsc;
+      unsigned count=face+1==index?lyric_global_counts[size]:lyric_counts[size];
+      if(dsc->cache_size==(int)count)continue;
+      dsc->cache_size=(int)count;
+      lv_cache_set_max_size(dsc->glyph_cache,count,dsc);
+      lv_cache_set_max_size(dsc->draw_data_cache,count,dsc);
+      /* LVGL changes the limit lazily. Reclaim inactive entries now, while
+       * on the GUI owner and outside a draw, without evicting pinned data. */
+      while(lv_cache_get_size(dsc->glyph_cache,dsc)>count&&
+            lv_cache_evict_one(dsc->glyph_cache,dsc)){}
+      while(lv_cache_get_size(dsc->draw_data_cache,dsc)>count&&
+            lv_cache_evict_one(dsc->draw_data_cache,dsc)){}
+
+    }
+}
+void glass_lyric_font_cache_status(unsigned index,struct glass_font_cache_status *status)
+{
+  memset(status,0,sizeof(*status));status->index=index;
+  if(!lyric_fonts||!index||index>GLASS_LYRIC_FACE_COUNT)return;
+  struct lyric_font_face *face=&lyric_fonts->faces[index-1];
+  status->reads=face->reads;status->page_misses=face->page_misses;status->ready_sizes=face->created;
+  status->preloaded_bytes=face->data?lyric_font_assets[index-1].bytes:0;
+  if(face->fonts[3]){
+    ttf_font_desc_t *dsc=(ttf_font_desc_t *)face->fonts[3]->dsc;
+    status->glyph_capacity=dsc->cache_size;
+    status->glyph_cached=lv_cache_get_size(dsc->draw_data_cache,dsc);
+  }
+}
 
 unsigned glass_lyric_font_count(void){return GLASS_LYRIC_FACE_COUNT+1;}
 const char *glass_lyric_font_name(unsigned index)
-{return index&&index<=GLASS_LYRIC_FACE_COUNT?lyric_font_assets[index-1].name:"默认普惠";}
+{return glass_tr(index&&index<=GLASS_LYRIC_FACE_COUNT?lyric_font_assets[index-1].name:"默认普惠");}
 
 static bool lyric_font_path(unsigned i,char *path,size_t size)
 {
@@ -60,17 +102,24 @@ static void *lyric_font_verify(void *arg)
       st.st_size==lyric_font_assets[i].bytes;
     unsigned char *buffer=valid?malloc(16384):NULL;
     if(!buffer)valid=false;
+    /* Cache a small verified font on the checksum worker, never on GUI.
+     * At most 2 MiB per eligible pack entry; only the 1.4 MiB Happy face
+     * currently qualifies. Allocation failure preserves streaming fallback. */
+    unsigned char *preload=valid&&lyric_font_assets[i].bytes<=LYRIC_PRELOAD_LIMIT?
+      malloc(lyric_font_assets[i].bytes):NULL;
     uint32_t hash=UINT32_C(2166136261);size_t total=0;
     while(valid&&total<lyric_font_assets[i].bytes){
       size_t wanted=lyric_font_assets[i].bytes-total;if(wanted>16384)wanted=16384;
       size_t n=fread(buffer,1,wanted,file);
       if(n!=wanted){valid=false;break;}
+      if(preload)memcpy(preload+total,buffer,n);
       for(size_t j=0;j<n;j++)hash=(hash^buffer[j])*UINT32_C(16777619);
       total+=n;
     }
     valid=valid&&hash==lyric_font_assets[i].fnv;
     free(buffer);if(file)fclose(file);
-    pthread_mutex_lock(&pool->lock);pool->faces[i].state=valid?2:4;pthread_mutex_unlock(&pool->lock);
+    if(!valid){free(preload);preload=NULL;}
+    pthread_mutex_lock(&pool->lock);free(pool->faces[i].data);pool->faces[i].data=preload;pool->faces[i].state=valid?2:4;pthread_mutex_unlock(&pool->lock);
   }
 }
 
@@ -141,6 +190,7 @@ static lv_fs_res_t lyric_font_read(lv_fs_drv_t *drv,void *file,void *buf,uint32_
 {
   (void)drv;struct lyric_font_file *handle=file;unsigned i=handle->face;
   struct lyric_font_face *face=&lyric_fonts->faces[i];
+  face->reads++;
   memset(buf,0,n);*read=0;
   if(face->io_failed)return LV_FS_RES_FS_ERR;
   while(*read<n&&handle->position<lyric_font_assets[i].bytes){
@@ -152,6 +202,7 @@ static lv_fs_res_t lyric_font_read(lv_fs_drv_t *drv,void *file,void *buf,uint32_
       if(!candidate->valid||(victim->valid&&candidate->stamp<victim->stamp))victim=candidate;
     }
     if(!page){
+      face->page_misses++;
       page=victim;page->valid=false;
       uint32_t wanted=lyric_font_assets[i].bytes-offset;if(wanted>SD_FONT_PAGE_BYTES)wanted=SD_FONT_PAGE_BYTES;
       if(fseek(face->file,offset,SEEK_SET)||fread(page->data,1,wanted,face->file)!=wanted){
@@ -197,21 +248,32 @@ bool glass_lyric_font_poll(void)
         lv_fs_drv_register(&pool->driver);pool->registered=true;
       }
     }
-    /* A failed initial check can be retried after inserting the SD card. */
-    face->io_failed=false;
-    if(pool->pages)for(unsigned p=0;p<LYRIC_PAGE_COUNT;p++)
-      if(pool->pages[p].face==i)pool->pages[p].valid=false;
-    for(unsigned size=0;valid&&size<SD_FONT_SIZES;size++){
-      char path[96];snprintf(path,sizeof(path),"L:/%s",lyric_font_assets[i].file);
-      face->fonts[size]=sd_ttf_create_file_ex(path,sd_sizes[size],LV_FONT_KERNING_NONE,lyric_counts[size]);
-      if(!face->fonts[size]||face->io_failed)valid=false;
+    if(face->created==0){
+      /* Retry a failed check after insertion; keep shared pages hot while
+       * building the remaining sizes across later GUI-loop iterations. */
+      face->io_failed=false;
+      if(pool->pages)for(unsigned page=0;page<LYRIC_PAGE_COUNT;page++)
+        if(pool->pages[page].face==i)pool->pages[page].valid=false;
     }
-    if(!valid)for(unsigned size=0;size<SD_FONT_SIZES;size++)if(face->fonts[size]){
-      sd_ttf_destroy(face->fonts[size]);face->fonts[size]=NULL;
+    if(valid){
+      unsigned size=face->created;
+      char path[96];snprintf(path,sizeof(path),"L:/%s",lyric_font_assets[i].file);
+      unsigned count=i+1==lyric_global_face?lyric_global_counts[size]:lyric_counts[size];
+      face->fonts[size]=face->data?
+        sd_ttf_create_data_ex(face->data,lyric_font_assets[i].bytes,sd_sizes[size],LV_FONT_KERNING_NONE,count):
+        sd_ttf_create_file_ex(path,sd_sizes[size],LV_FONT_KERNING_NONE,count);
+      valid=face->fonts[size]&&!face->io_failed;
+      if(valid&&++face->created<SD_FONT_SIZES)break;
+    }
+    if(!valid){
+      for(unsigned size=0;size<SD_FONT_SIZES;size++)if(face->fonts[size]){
+        sd_ttf_destroy(face->fonts[size]);face->fonts[size]=NULL;
+      }
+      face->created=0;
     }
     pthread_mutex_lock(&pool->lock);face->state=valid?3:4;pthread_mutex_unlock(&pool->lock);
     changed=true;
-    break; /* Bound new TinyTTF construction to one family per UI poll. */
+    break; /* Parse at most one TinyTTF size per GUI poll, keeping touch live. */
   }
   return changed;
 }

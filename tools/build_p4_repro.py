@@ -6,7 +6,7 @@ from prepare_p4_repro_inputs import LOCK,verify,digest,read_lock
 from esp_tts_inputs import verify_prepared
 
 FLAGS=['--offline-inputs','--usb-camera','--factory-header','--psram-xip','--hardware-jpeg',
-       '--ethernet-share','--share-forward-slots','16','--share-net-stats','--ble-eight-test']
+       '--ethernet-share','--share-forward-slots','16','--share-net-stats','--ble-eight-test','--lcd-backlight']
 OPENH264_SHA='558544ad358283a7ab2930d69a9ceddf913f4a51ee9bf1bfb9e377322af81a69'
 
 def command(repo,inputs,workspace,toolchain,archive,output,jobs,revision=None):

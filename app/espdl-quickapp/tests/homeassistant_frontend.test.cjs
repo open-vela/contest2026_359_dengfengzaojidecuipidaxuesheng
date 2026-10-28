@@ -7,6 +7,7 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname,
   '../overlay/apps/system/desktop/homeassistant/app.js'), 'utf8');
+const englishCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../i18n/en.json'),'utf8'));
 
 assert.equal(source.includes('\\u2212'), false,
   'frontend text must not use the unsupported Unicode minus sign');
@@ -19,6 +20,7 @@ function boot(width = 1024, height = 600, options = {}) {
   let timer;
   let touch;
   let swipe;
+  let back;
   let nextTimeout = 2;
   const deferred = [];
   const pending = [];
@@ -152,6 +154,7 @@ function boot(width = 1024, height = 600, options = {}) {
     },
     setOpacity: id => requireHandle(id, 'setOpacity'),
     onSwipe: handler => { swipe = handler; },
+    onBack: handler => { back = handler; },
     onTouch: handler => { touch = handler; },
     setPos(id, x, y, smooth=false) {
       requireHandle(id, 'setPos');
@@ -177,6 +180,8 @@ function boot(width = 1024, height = 600, options = {}) {
   if(options.measureMetrics)ui.measureText=options.measureMetrics;
   const context = vm.createContext({
     system: { homeAssistantService: service, homeAssistant: {},
+      language:options.language||'zh-CN',
+      translate:text=>options.language==='en'?(englishCatalog[text]||text):text,
       desktop:{devices:json=>{desktopSnapshots.push(JSON.parse(json));return 0;}},
       yield: () => ({ then: resolve => { deferred.push(resolve); } }),
       storage: { get: key => key==='eh_favs'?JSON.stringify(options.favorites||[]):key==='eh_scope'?(options.savedScope||''):key==='eh_card_sizes'?(options.savedLayout||''):key==='eh_card_sizes_2'?(options.savedLayout2||''):key==='eh_card_usage'?(options.savedUsage||''):key==='eh_desktop_pins'?(options.savedPins||''):'', set: (key,value) => saves.set(key,value) } },
@@ -200,8 +205,28 @@ function boot(width = 1024, height = 600, options = {}) {
     if (callback) callback();
   },
     touch: (state, nx, ny) => touch(state, nx, ny),
-    swipe: direction => swipe(direction) };
+    swipe: direction => swipe(direction), back: () => back() };
 }
+
+test('system back dismisses the option picker, detail and section one at a time',()=>{
+  const r=lampFixture({effect_list:Array.from({length:9},(_,i)=>'effect-'+i),effect:'effect-0'});
+  const state=()=>r.context.ESPHomeHA.snapshot();
+  lampClickLabel(r,'灯光效果');assert(state().optionPicker);
+  assert.equal(r.back(),true);assert.equal(state().optionPicker,null);assert(state().detailOpen);
+  assert.equal(r.back(),true);assert.equal(state().detailOpen,false);
+  assert.equal(state().nav,'overview');
+  assert.equal(r.back(),false);assert.equal(r.controls.length,0);
+  r.context.ESPHomeHA.settings();assert(state().settingsOpen);
+  assert.equal(r.back(),true);assert.equal(state().settingsOpen,false);
+  assert.equal(r.back(),false);
+});
+
+test('system back closes discovery before leaving the waterfall board',()=>{
+  const r=boot(1024,600,{waterfall:true});r.context.ESPHomeHA.refresh();for(let i=0;i<60;i++)r.tick();
+  discoveryHeader(r,1024,136);assert(r.context.ESPHomeHA.snapshot().discovery.open);
+  assert.equal(r.back(),true);assert(!r.context.ESPHomeHA.snapshot().discovery.open);
+  assert.equal(r.back(),false);assert.equal(r.controls.length,0);
+});
 
 test('covered frontend completes requests without painting and catches up after reveal', () => {
   const options={states:[{entity_id:'light.desk',state:'on',attributes:{friendly_name:'Desk',supported_color_modes:['brightness']}}]};
@@ -2463,4 +2488,21 @@ test('device internal stateless buttons report acceptance rather than confirmed 
   r.internal.requestFunction(item,spec);for(let i=0;i<25;i++)r.tick();
   assert.equal(r.controls.at(-1).action,'press');assert.equal(r.context.ESPHomeHA.snapshot().phase,'ready');
   assert.equal(r.context.ESPHomeHA.snapshot().controlFeedback.find(f=>f.entity==='button.internal').kind,'accepted');
+});
+
+test('English UI preserves Chinese device names and exact service option values',()=>{
+  const states=[{entity_id:'light.locale',state:'on',attributes:{friendly_name:'设置',
+    supported_features:4,supported_color_modes:['brightness'],brightness:128,effect_list:['自动','睡眠'],effect:'睡眠'}}];
+  const services=[{domain:'light',services:{turn_on:{},turn_off:{}}}];
+  const instrumented=source.replace('  globalThis.ESPHomeHA = {',
+    '  globalThis.__locale={functionControls,requestFunction,indexedEntity};\n  globalThis.ESPHomeHA = {');
+  const r=boot(1024,536,{language:'en',nativeActions:true,acceptControls:true,states,services,source:instrumented});
+  r.context.ESPHomeHA.refresh();for(let i=0;i<40;i++)r.tick();
+  assert([...r.textValues.values()].some(t=>t==='Overview'));
+  const api=r.context.__locale,item=api.indexedEntity('light.locale');
+  assert.equal(item.name,'设置');
+  const spec=api.functionControls(item).find(s=>s.key==='effect');assert(spec);
+  api.requestFunction(item,spec,'自动');for(let i=0;i<25;i++)r.tick();
+  assert.equal(r.controls.at(-1).entity,'light.locale');
+  assert.equal(r.controls.at(-1).body.effect,'自动');
 });

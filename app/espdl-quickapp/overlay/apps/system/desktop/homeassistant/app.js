@@ -2,6 +2,8 @@
 'use strict';
 
 (function () {
+  const tr = value => typeof system.translate === 'function' ? system.translate(value) : value;
+
   const nativeService = system.homeAssistantService;
   const sharedReady = nativeService && nativeService.apiVersion === 1 &&
     ['configure', 'get', 'getState', 'control', 'poll', 'close', 'status']
@@ -120,7 +122,7 @@
   let quickGroupBuilding = false, quickGroupTarget = 0, layoutSaveError = false;
   let connected = false;
   let phase = 'disconnected';
-  let message = '未连接';
+  let message = tr('未连接');
   let generation = 0;
   let pending = null;
   let queued = null;
@@ -256,7 +258,7 @@
       url = endpoint;
       connect();
     } else {
-      message = '家庭连接配置已清除';
+      message = tr('家庭连接配置已清除');
       render();
     }
     return true;
@@ -302,7 +304,7 @@
       if (storage && typeof storage.set === 'function') storage.set(key, value);
       return true;
     } catch (_) {
-      message = '本地保存失败，本次会话仍可使用';
+      message = tr('本地保存失败，本次会话仍可使用');
       return false;
     }
   }
@@ -322,7 +324,7 @@
         'favorites' : 'all';
     }
   } catch (_) {
-    message = '本地设置无法读取';
+    message = tr('本地设置无法读取');
   }
 
   if (sharedReady) {
@@ -333,9 +335,9 @@
       if (endpoint) {
         url = endpoint;
         nativeManaged = true;
-        message = '本地 HA 服务已配置，尚未同步';
+        message = tr('本地 HA 服务已配置，尚未同步');
       }
-    } catch (_) { message = '本地 HA 服务暂不可用'; }
+    } catch (_) { message = tr('本地 HA 服务暂不可用'); }
   }
   // A remembered native connection should open directly to the home view and
   // begin its first bounded sync. New connections start with the setup view.
@@ -398,21 +400,21 @@
     invalidate();
     token = '';
     httpAllowed = false;
-    message = '已断开，令牌已从会话移除';
+    message = tr('已断开，令牌已从会话移除');
     if (sharedReady) {
       try { bridge.close(); } catch (_) { /* UI still invalidates its session. */ }
       nativeManaged = false;
-      message = '界面已断开，本地服务配置保留';
+      message = tr('界面已断开，本地服务配置保留');
     }
     render();
   }
 
   function credentialsReady() {
-    if (!bridgeReady) message = '固件未提供 Home Assistant 接口';
+    if (!bridgeReady) message = tr('固件未提供 Home Assistant 接口');
     else if (sharedConnection()) return true;
-    else if (!parseUrl(url)) message = '需要局域网 HTTP 地址';
-    else if (!token) message = '尚未输入访问令牌';
-    else if (!httpAllowed) message = 'HTTP 未加密，尚未授权连接';
+    else if (!parseUrl(url)) message = tr('需要局域网 HTTP 地址');
+    else if (!token) message = tr('尚未输入访问令牌');
+    else if (!httpAllowed) message = tr('HTTP 未加密，尚未授权连接');
     else return true;
     render();
     return false;
@@ -445,9 +447,9 @@
       if(bridge.submitError&&bridge.submitError()===-16){
         // The native API explicitly declined admission, so this request has
         // not been sent. Keep it until the shared worker becomes available.
-        queued=request;nativeBusy=true;message='等待接口空闲';render();return;
+        queued=request;nativeBusy=true;message=tr('等待接口空闲');render();return;
       }
-      fail(request, '接口忙或参数被拒绝', false);
+      fail(request, tr('接口忙或参数被拒绝'), false);
       return;
     }
     if(request.kind==='service'){
@@ -465,7 +467,7 @@
   function connect() {
     if (!credentialsReady()) return;
     if (pending || nativeBusy || queued) {
-      message = '仍有请求未结束';
+      message = tr('仍有请求未结束');
       render();
       return;
     }
@@ -480,7 +482,7 @@
     services = Object.create(null);
     serviceDiscoveryLimited = false;
     staleAll();
-    message = '正在连接 Home Assistant';
+    message = tr('正在连接 Home Assistant');
     schedule('config');
     startQueued();
   }
@@ -490,9 +492,9 @@
     if (!connected) { connect(); return; }
     if (!credentialsReady()) return;
     if(nav==='scenes'&&supportsSceneSync()){
-      sceneSyncError='';message='正在同步 HA 场景';schedule('scenes');startQueued();render();return;
+      sceneSyncError='';message=tr('正在同步 HA 场景');schedule('scenes');startQueued();render();return;
     }
-    message = '正在同步状态';
+    message = tr('正在同步状态');
     beginStates();
     startQueued();
   }
@@ -525,11 +527,11 @@
 
   function isSceneCommand(item){return !!item&&['scene','script'].includes(item.domain);}
   function sceneStatusText(count){
-    if(sceneSyncError)return '同步失败 · 点刷新重试';
-    if(lastSceneAcceptance&&steadyNow()-lastSceneAcceptance.at<5000)return 'HA 已接受：'+fit(lastSceneAcceptance.name,180,11);
-    if(pending&&pending.kind==='scenes')return '正在同步 HA 场景';
-    if(sceneSyncReady)return sceneTotal>MAX_SCENES?'显示前 128 / '+sceneTotal+' 个':count?'已同步 '+count+' 个 · HA 联动':'HA 中暂无场景或脚本';
-    return supportsSceneSync()?'等待同步 HA 场景':count?'功能按原生服务能力展示':'暂无已同步的场景或脚本';
+    if(sceneSyncError)return tr('同步失败 · 点刷新重试');
+    if(lastSceneAcceptance&&steadyNow()-lastSceneAcceptance.at<5000)return tr('HA 已接受：')+fit(lastSceneAcceptance.name,180,11);
+    if(pending&&pending.kind==='scenes')return tr('正在同步 HA 场景');
+    if(sceneSyncReady)return sceneTotal>MAX_SCENES?tr('显示前 128 / ')+sceneTotal+tr(' 个'):count?tr('已同步 ')+count+tr(' 个 · HA 联动'):tr('HA 中暂无场景或脚本');
+    return supportsSceneSync()?tr('等待同步 HA 场景'):count?tr('功能按原生服务能力展示'):tr('暂无已同步的场景或脚本');
   }
   // Rebuild at most once per committed revision; controls always resolve
   // the newest entity rather than retaining a row captured by an old card.
@@ -547,9 +549,9 @@
   function lookupEntity(id){return indexedEntity(id,sceneSyncReady&&/^(scene|script)\./.test(id));}
   function sceneTimestamp(item){
     const stamp=item.domain==='scene'?item.state:item.last_triggered;
-    if(!stamp||!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(stamp)||!Number.isFinite(Date.parse(stamp)))return '暂无触发记录';
+    if(!stamp||!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(stamp)||!Number.isFinite(Date.parse(stamp)))return tr('暂无触发记录');
     const zone=stamp.endsWith('Z')||stamp.endsWith('+00:00')?' UTC':/[+-]\d\d:\d\d$/.test(stamp)?' '+stamp.slice(-6):'';
-    return '上次触发 '+stamp.slice(5,10)+' '+stamp.slice(11,16)+zone;
+    return tr('上次触发 ')+stamp.slice(5,10)+' '+stamp.slice(11,16)+zone;
   }
   function activateScene(item){
     item=lookupEntity(item.entity_id)||item;
@@ -569,8 +571,8 @@
     if(changed){sceneEntities=next;entityRevision++;}
     sceneSyncReady=true;sceneTotal=value.total;sceneSyncError='';sceneSyncAt=Date.now();
     phase='ready';failures=0;nextRefresh=steadyNow()+REFRESH_INTERVAL;
-    message=sceneTotal>MAX_SCENES?'已同步前 128 个场景与脚本，共 '+sceneTotal+' 个':'已同步 '+next.length+' 个 HA 场景与脚本';
-    if(changed)appendActivity('场景同步',next.length+' 个场景与脚本');
+    message=sceneTotal>MAX_SCENES?tr('已同步前 128 个场景与脚本，共 ')+sceneTotal+tr(' 个'):tr('已同步 ')+next.length+tr(' 个 HA 场景与脚本');
+    if(changed)appendActivity(tr('场景同步'),next.length+tr(' 个场景与脚本'));
     if(nav==='scenes'&&selectedId&&!next.some(item=>item.entity_id===selectedId)){selectedId='';detailOpen=false;}
   }
 
@@ -692,11 +694,11 @@
     failures = 0;
     lastSync = Date.now();
     nextRefresh = steadyNow() + REFRESH_INTERVAL;
-    message = limited ? '部分设备未同步，可切换关注同步' :
-      '已同步 ' + groupedDeviceCards().length + ' 台设备';
-    if (serviceDiscoveryLimited) message = '只读 · 服务目录超过 256 KiB' +
-      (lastCached ? ' · 本地缓存' : '');
-    if(changed||!wasConnected)appendActivity('状态同步',entities.length+' 个实体 · '+groupedDeviceCards().length+' 台设备'+(lastCached?' · 本地缓存':'')+(limited?' · 已达实体上限':'')+(changed?' · 数据已更新':' · 连接已恢复'));
+    message = limited ? tr('部分设备未同步，可切换关注同步') :
+      tr('已同步 ') + groupedDeviceCards().length + tr(' 台设备');
+    if (serviceDiscoveryLimited) message = tr('只读 · 服务目录超过 256 KiB') +
+      (lastCached ? tr(' · 本地缓存') : '');
+    if(changed||!wasConnected)appendActivity(tr('状态同步'),entities.length+tr(' 个实体 · ')+groupedDeviceCards().length+tr(' 台设备')+(lastCached?tr(' · 本地缓存'):'')+(limited?tr(' · 已达实体上限'):'')+(changed?tr(' · 数据已更新'):tr(' · 连接已恢复')));
     ensureDesktopPins();
     if(scope==='all'&&!limited&&deviceRegistryReady){
       const keys=groupedDeviceCards().map(deviceCardKey),pins=desktopPins.filter(key=>keys.includes(key));
@@ -711,24 +713,24 @@
 
   function failureMessage(result, request) {
     if (result.error === -75 || result.error === -7) {
-      if (request.kind === 'states') return '响应超过 256 KiB，请切换关注同步';
+      if (request.kind === 'states') return tr('响应超过 256 KiB，请切换关注同步');
       if (request.kind === 'service' || request.kind === 'verify')
-        return '控制结果未确认，请刷新；不会重试';
-      return '该响应超过 256 KiB，当前固件无法读取';
+        return tr('控制结果未确认，请刷新；不会重试');
+      return tr('该响应超过 256 KiB，当前固件无法读取');
     }
     if (result.error) return request.kind === 'service' ?
-      '控制结果未确认，请刷新；不会重试' : '网络连接失败，状态已过期';
-    if (result.status === 401 || result.status === 403) return '认证失败，请重新输入令牌';
-    return request.kind === 'service' ? '控制被拒绝，HTTP ' + result.status :
-      '服务返回 HTTP ' + result.status;
+      tr('控制结果未确认，请刷新；不会重试') : tr('网络连接失败，状态已过期');
+    if (result.status === 401 || result.status === 403) return tr('认证失败，请重新输入令牌');
+    return request.kind === 'service' ? tr('控制被拒绝，HTTP ') + result.status :
+      tr('服务返回 HTTP ') + result.status;
   }
 
   function fail(request, text, auth) {
-    if(request.kind==='service'||request.kind==='verify')markControlFeedback(request.entityId,'error','结果未确认');
+    if(request.kind==='service'||request.kind==='verify')markControlFeedback(request.entityId,'error',tr('结果未确认'));
     if(request.kind==='scenes')sceneSyncError=text;
     if(request.kind==='scenes'&&!auth){
       sceneSyncError=text;sceneEntities.forEach(item=>item.stale=true);entityRevision++;
-      message=text;appendActivity('场景同步失败',text);nextRefresh=steadyNow()+30000;render();return;
+      message=text;appendActivity(tr('场景同步失败'),text);nextRefresh=steadyNow()+30000;render();return;
     }
     cancelInputs();
     brightnessIntent=null;
@@ -747,17 +749,17 @@
       autoRefresh = false;
     }
     const uncertain = request.kind === 'service' || request.kind === 'verify';
-    appendActivity(uncertain?'操作失败':'同步失败',text);
+    appendActivity(uncertain?tr('操作失败'):tr('同步失败'),text);
     nextRefresh = auth || uncertain ? Infinity :
       steadyNow() + Math.min(60000, REFRESH_INTERVAL * Math.pow(2, Math.min(failures - 1, 3)));
-    if (request.kind === 'verify') message = '控制结果未确认，请刷新；不会重试';
+    if (request.kind === 'verify') message = tr('控制结果未确认，请刷新；不会重试');
     render();
   }
 
   function complete(request, result) {
     if (request.generation !== generation || request.abandoned || disposed) return;
     if(request.kind==='devices'&&(result.error||result.status<200||result.status>=300)) {
-      if(result.status===401||result.status===403){fail(request,'设备关联读取未授权',true);return;}
+      if(result.status===401||result.status===403){fail(request,tr('设备关联读取未授权'),true);return;}
       deviceRegistryReady=true;deviceRegistryAt=steadyNow();beginStates();return;
     }
     if (request.kind === 'services' && (result.error === -75 || result.error === -7 ||
@@ -765,7 +767,7 @@
          typeof result.body === 'string' && result.body.length > RESPONSE_LIMIT))) {
       services = Object.create(null);
       serviceDiscoveryLimited = true;
-      message = '服务目录超限，正在只读同步';
+      message = tr('服务目录超限，正在只读同步');
       beginStates();
       return;
     }
@@ -785,17 +787,17 @@
     }
     if (request.kind === 'service') {
       if(['scene','script','button','input_button'].includes(request.data.domain)||['media_next_track','media_previous_track','stop_cover_tilt'].includes(request.data.service)){
-        markControlFeedback(request.entityId,'accepted','已受理');
+        markControlFeedback(request.entityId,'accepted',tr('已受理'));
         const item=lookupEntity(request.entityId),intent=controlTargets[request.entityId];
         if(intent&&intent.sequence===request.data.sequence){delete controlTargets[request.entityId];controlRevision++;}
-        phase='ready';message='HA 已接受执行：'+(item?item.name:request.entityId);
+        phase='ready';message=tr('HA 已接受执行：')+(item?item.name:request.entityId);
         lastSceneAcceptance={name:item?item.name:request.entityId,at:steadyNow()};
-        appendActivity('HA 已接受场景',item?item.name:request.entityId);
+        appendActivity(tr('HA 已接受场景'),item?item.name:request.entityId);
         failures=0;nextRefresh=0;
         if(nav==='scenes'&&supportsSceneSync())schedule('scenes');
         return;
       }
-      message = '控制已受理，正在核对状态';
+      message = tr('控制已受理，正在核对状态');
       phase = 'verifying';
       nextRefresh = Infinity;
       schedule('verify', request.entityId, {
@@ -879,10 +881,10 @@
              Math.abs(item.brightness - target.brightness) <= 1));
           if (!matched) {
             if (target.attempt >= VERIFY_ATTEMPTS || steadyNow() >= target.deadline) {
-              fail(request, '控制结果未确认，请刷新；不会重试', false);
+              fail(request, tr('控制结果未确认，请刷新；不会重试'), false);
               return;
             }
-            message = '等待设备达到目标状态';
+            message = tr('等待设备达到目标状态');
             schedule('verify', request.entityId, {
               state: target.state, service:target.service, brightness: target.brightness, expected:target.expected,
               sequence: target.sequence,
@@ -894,9 +896,9 @@
           }
           connected = true;
           phase = 'ready';
-          message = '状态已达到目标：' + item.name;
-          markControlFeedback(item.entity_id,'success','已确认');
-          appendActivity('操作已确认',item.name);
+          message = tr('状态已达到目标：') + item.name;
+          markControlFeedback(item.entity_id,'success',tr('已确认'));
+          appendActivity(tr('操作已确认'),item.name);
           const intent=controlTargets[item.entity_id];
           if(intent&&intent.sequence===target.sequence){delete controlTargets[item.entity_id];controlRevision++;}
           if(brightnessIntent&&brightnessIntent.entity===item.entity_id&&brightnessIntent.sequence===target.sequence)brightnessIntent=null;
@@ -907,7 +909,7 @@
       }
     } catch (_) {
       if(request.kind==='devices'){deviceRegistryReady=true;deviceRegistryAt=steadyNow();beginStates();return;}
-      fail(request, '响应格式错误，未应用数据', false);
+      fail(request, tr('响应格式错误，未应用数据'), false);
     }
   }
 
@@ -928,21 +930,21 @@
         steadyNow() - pending.started >= REQUEST_TIMEOUT) {
       pending.abandoned = true;
       fail(pending, pending.kind === 'service' ?
-        '控制结果未确认，请刷新；不会重试' : '请求超时，等待旧请求结束', false);
+        tr('控制结果未确认，请刷新；不会重试') : tr('请求超时，等待旧请求结束'), false);
     }
     // Enforce the whole confirmation window before consuming a late result.
     const verification = pending || queued;
     if (verification && verification.kind === 'verify' &&
         !verification.abandoned && steadyNow() >= verification.data.deadline) {
       verification.abandoned = true;
-      fail(verification, '控制结果未确认，请刷新；不会重试', false);
+      fail(verification, tr('控制结果未确认，请刷新；不会重试'), false);
     }
     let result;
     try { result = bridge.poll(); }
     catch (_) {
       if (pending && !pending.abandoned) {
         pending.abandoned = true;
-        fail(pending, '接口异常，等待旧请求结束', false);
+        fail(pending, tr('接口异常，等待旧请求结束'), false);
       }
       return;
     }
@@ -966,7 +968,7 @@
       if (connected) refresh();
       else {
         phase = 'connecting';
-        message = '正在重新读取连接状态';
+        message = tr('正在重新读取连接状态');
         schedule('config');
         startQueued();
       }
@@ -1025,9 +1027,9 @@
     if(previous&&previous.generation===generation&&previous.key===commandKey&&previous.service===service&&previous.brightness===brightness&&sameParams(previous.params,params)){
       render();return;
     }
-    if(index<0&&controlQueue.length>=16){message='待执行操作已达 16 项';render();return;}
+    if(index<0&&controlQueue.length>=16){message=tr('待执行操作已达 16 项');render();return;}
     const command={entity:item.entity_id,service,brightness,params,expected,key:commandKey,generation,sequence:++controlSequence,createdAt:steadyNow(),slow:false};
-    appendActivity('提交操作',item.name+' · '+service);
+    appendActivity(tr('提交操作'),item.name+' · '+service);
     recordUsage(item);
     if(queued&&queued.kind==='service'&&queued.entityId===item.entity_id&&queued.data.key===commandKey){
       const body=Object.assign({entity_id:item.entity_id},params||{});if(brightness>0)body.brightness_pct=brightness;
@@ -1037,7 +1039,7 @@
     delete controlFeedback[item.entity_id];
     if(brightness!==undefined)brightnessIntent={entity:item.entity_id,generation,percent:brightness,sent:false,sequence:command.sequence};
     else if(brightnessIntent&&brightnessIntent.entity===item.entity_id)brightnessIntent=null;
-    message=pending||queued||nativeBusy?'待执行：'+item.name:'正在发送控制请求';
+    message=pending||queued||nativeBusy?tr('待执行：')+item.name:tr('正在发送控制请求');
     drainControls();render();
   }
 
@@ -1062,10 +1064,10 @@
       });
       if(!valid){
         if(controlTargets[command.entity]===command)delete controlTargets[command.entity];
-        controlRevision++;markControlFeedback(command.entity,'failed','设备功能或范围已变化，请重新设置');continue;
+        controlRevision++;markControlFeedback(command.entity,'failed',tr('设备功能或范围已变化，请重新设置'));continue;
       }
       const body=Object.assign({entity_id:command.entity},command.params||{});if(command.brightness>0)body.brightness_pct=command.brightness;
-      controlRevision++;message='正在发送：'+item.name;
+      controlRevision++;message=tr('正在发送：')+item.name;
       schedule('service',command.entity,{domain:item.domain,service:command.service,body,expected:command.expected,key:command.key,sequence:command.sequence});
       startQueued();return;
     }
@@ -1124,60 +1126,60 @@
     const action=(title,service)=>add(title,'action',service);
     const feature=bit=>!item.has_supported_features||!!(item.supported_features&bit);
     if(item.domain==='light'){
-      if(item.dimmable)range('亮度','turn_on','brightness_pct',displayBrightness(item),0,100,1,'brightness');
-      if(item.color_temperature)range('色温','turn_on','color_temp_kelvin',item.color_temp_kelvin,item.min_color_temp_kelvin,item.max_color_temp_kelvin,1,'color_temp_kelvin');
-      if(feature(4))opts('灯光效果','turn_on','effect',item.effect,item.effects,'effect');
+      if(item.dimmable)range(tr('亮度'),'turn_on','brightness_pct',displayBrightness(item),0,100,1,'brightness');
+      if(item.color_temperature)range(tr('色温'),'turn_on','color_temp_kelvin',item.color_temp_kelvin,item.min_color_temp_kelvin,item.max_color_temp_kelvin,1,'color_temp_kelvin');
+      if(feature(4))opts(tr('灯光效果'),'turn_on','effect',item.effect,item.effects,'effect');
     }
     if(['number','input_number'].includes(item.domain))range('设定值','set_value','value',Number(item.state),item.minimum,item.maximum,item.step,'state');
     if(['select','input_select'].includes(item.domain))opts('选项','select_option','option',item.state,item.options,'state');
-    if(['button','input_button'].includes(item.domain))action('执行','press');
+    if(['button','input_button'].includes(item.domain))action(tr('执行'),'press');
     if(isSceneCommand(item))action(item.domain==='scene'?'执行场景':'运行脚本','turn_on');
-    if(['text','input_text'].includes(item.domain))add('编辑内容','text','set_value','value',item.state,0,0,1,'state');
+    if(['text','input_text'].includes(item.domain))add(tr('编辑内容'),'text','set_value','value',item.state,0,0,1,'state');
     if(item.domain==='fan'){
-      if(feature(1)&&(item.percentage!==null||(item.supported_features&1)))range('风速','set_percentage','percentage',item.percentage,0,100,item.percentage_step||1,'percentage');
-      if(feature(8))opts('模式','set_preset_mode','preset_mode',item.preset_mode,item.preset_modes,'preset_mode');
+      if(feature(1)&&(item.percentage!==null||(item.supported_features&1)))range(tr('风速'),'set_percentage','percentage',item.percentage,0,100,item.percentage_step||1,'percentage');
+      if(feature(8))opts(tr('模式'),'set_preset_mode','preset_mode',item.preset_mode,item.preset_modes,'preset_mode');
       if(item.supported_features&4)opts('风向','set_direction','direction',item.direction,['forward','reverse'],'direction');
-      if(item.supported_features&2)opts('摆风','oscillate','oscillating',item.oscillating,[false,true],'oscillating');
+      if(item.supported_features&2)opts(tr('摆风'),'oscillate','oscillating',item.oscillating,[false,true],'oscillating');
     }
     if(item.domain==='cover'){
       if(item.supported_features&4)range('开合位置','set_cover_position','position',item.current_position,0,100,1,'current_position');
       if(item.supported_features&128)range('叶片角度','set_cover_tilt_position','tilt_position',item.current_tilt_position,0,100,1,'current_tilt_position');
       if(item.supported_features&16)action('打开叶片','open_cover_tilt');if(item.supported_features&32)action('关闭叶片','close_cover_tilt');if(item.supported_features&64)action('停止叶片','stop_cover_tilt');
-      if(feature(1))action('打开','open_cover');if(feature(2))action('关闭','close_cover');if(feature(8))action('停止','stop_cover');
+      if(feature(1))action(tr('打开'),'open_cover');if(feature(2))action(tr('关闭'),'close_cover');if(feature(8))action(tr('停止'),'stop_cover');
     }
     if(['climate','water_heater'].includes(item.domain)){
-      if(feature(1)&&(item.temperature!==null||(item.supported_features&1)))range('目标温度','set_temperature','temperature',item.temperature,item.min_temp===null?5:item.min_temp,item.max_temp===null?35:item.max_temp,item.target_temp_step||0.5,'temperature');
+      if(feature(1)&&(item.temperature!==null||(item.supported_features&1)))range(tr('目标温度'),'set_temperature','temperature',item.temperature,item.min_temp===null?5:item.min_temp,item.max_temp===null?35:item.max_temp,item.target_temp_step||0.5,'temperature');
       if(item.domain==='climate'){
         if((item.supported_features&2)&&item.target_temp_low!==null&&item.target_temp_high!==null){
           range('温度下限','set_temperature','target_temp_low',item.target_temp_low,item.min_temp===null?7:item.min_temp,item.max_temp===null?35:item.max_temp,item.target_temp_step||0.5,'target_temp_low');
           range('温度上限','set_temperature','target_temp_high',item.target_temp_high,item.min_temp===null?7:item.min_temp,item.max_temp===null?35:item.max_temp,item.target_temp_step||0.5,'target_temp_high');
         }
-        if(item.supported_features&4)range('目标湿度','set_humidity','humidity',item.humidity,item.min_humidity===null?30:item.min_humidity,item.max_humidity===null?99:item.max_humidity,1,'humidity');
+        if(item.supported_features&4)range(tr('目标湿度'),'set_humidity','humidity',item.humidity,item.min_humidity===null?30:item.min_humidity,item.max_humidity===null?99:item.max_humidity,1,'humidity');
         if(item.supported_features&512)opts('水平摆风','set_swing_horizontal_mode','swing_horizontal_mode',item.swing_horizontal_mode,item.swing_horizontal_modes,'swing_horizontal_mode');
-        opts('运行模式','set_hvac_mode','hvac_mode',item.state,item.hvac_modes,'state');
+        opts(tr('运行模式'),'set_hvac_mode','hvac_mode',item.state,item.hvac_modes,'state');
         if(feature(8))opts('风速模式','set_fan_mode','fan_mode',item.fan_mode,item.fan_modes,'fan_mode');
         if(feature(16))opts('预设模式','set_preset_mode','preset_mode',item.preset_mode,item.preset_modes,'preset_mode');
         if(feature(32))opts('摆风模式','set_swing_mode','swing_mode',item.swing_mode,item.swing_modes,'swing_mode');
       }else{
-        if(feature(2))opts('运行模式','set_operation_mode','operation_mode',item.operation_mode,item.operation_modes,'operation_mode');
+        if(feature(2))opts(tr('运行模式'),'set_operation_mode','operation_mode',item.operation_mode,item.operation_modes,'operation_mode');
         if(item.supported_features&4)opts('外出模式','set_away_mode','away_mode',item.away_mode,[false,true],'away_mode');
       }
     }
     if(item.domain==='humidifier'){
-      range('目标湿度','set_humidity','humidity',item.humidity,item.min_humidity===null?0:item.min_humidity,item.max_humidity===null?100:item.max_humidity,1,'humidity');
-      if(feature(1))opts('运行模式','set_mode','mode',item.mode,item.modes,'mode');
+      range(tr('目标湿度'),'set_humidity','humidity',item.humidity,item.min_humidity===null?0:item.min_humidity,item.max_humidity===null?100:item.max_humidity,1,'humidity');
+      if(feature(1))opts(tr('运行模式'),'set_mode','mode',item.mode,item.modes,'mode');
     }
     if(item.domain==='media_player'){
-      if(item.supported_features&4)range('音量','volume_set','volume_level',item.volume_level,0,1,0.01,'volume_level');
+      if(item.supported_features&4)range(tr('音量'),'volume_set','volume_level',item.volume_level,0,1,0.01,'volume_level');
       if(feature(2048))opts('输入源','select_source','source',item.source,item.sources,'source');
-      if(item.supported_features&8)opts('静音','volume_mute','is_volume_muted',item.is_volume_muted,[false,true],'is_volume_muted');
-      if(feature(16384))action('播放','media_play');if(feature(1))action('暂停','media_pause');if(feature(32))action('下一首','media_next_track');if(feature(16))action('上一首','media_previous_track');if(feature(4096))action('停止','media_stop');
+      if(item.supported_features&8)opts(tr('静音'),'volume_mute','is_volume_muted',item.is_volume_muted,[false,true],'is_volume_muted');
+      if(feature(16384))action(tr('播放'),'media_play');if(feature(1))action(tr('暂停'),'media_pause');if(feature(32))action('下一首','media_next_track');if(feature(16))action('上一首','media_previous_track');if(feature(4096))action(tr('停止'),'media_stop');
     }
     if(item.domain==='vacuum'){
-      if(feature(8192))action('开始清扫','start');if(feature(4))action('暂停','pause');if(feature(8))action('停止','stop');if(feature(16))action('回充','return_to_base');
+      if(feature(8192))action('开始清扫','start');if(feature(4))action(tr('暂停'),'pause');if(feature(8))action(tr('停止'),'stop');if(feature(16))action(tr('回充'),'return_to_base');
       if(feature(32))opts('清扫强度','set_fan_speed','fan_speed',item.fan_speed,item.fan_speeds,'fan_speed');
     }
-    if(item.domain==='lock'){action('上锁','lock');action('解锁','unlock');}
+    if(item.domain==='lock'){action('上锁','lock');action(tr('解锁'),'unlock');}
     const toggle=powerIsOn(item)?'turn_off':'turn_on';
     if(!isSceneCommand(item)&&supports(item,toggle))out.push({title:powerIsOn(item)?'关闭电源':'开启电源',kind:'action',service:toggle});
     return out;
@@ -1675,18 +1677,18 @@
   }
 
   const STATE_WORDS = {
-    on: '已开启', off: '已关闭', unavailable: '不可用', unknown: '未知',
-    open: '已打开', opening: '正在打开', closing: '正在关闭', closed: '已关闭',
-    playing: '播放中', paused: '已暂停', idle: '空闲', standby: '待机',
-    home: '在家', not_home: '离家', away: '外出',
-    forward:'正转',reverse:'反转',
-    above_horizon: '日间', below_horizon: '夜间',
-    heat: '制热', cool: '制冷', heat_cool: '自动', auto: '自动',
-    dry: '除湿', fan_only: '送风', heating: '正在制热', cooling: '正在制冷',
-    locked: '已上锁', unlocked: '已解锁', detected: '已触发', clear: '正常',
-    sunny: '晴', cloudy: '多云', partlycloudy: '局部多云', rainy: '下雨',
-    pouring: '大雨', snowy: '下雪', fog: '雾', windy: '大风', lightning: '雷电',
-    charging: '充电中', discharging: '放电中', full: '已充满'
+    on: tr('已开启'), off: tr('已关闭'), unavailable: tr('不可用'), unknown: tr('未知'),
+    open: tr('已打开'), opening: tr('正在打开'), closing: tr('正在关闭'), closed: tr('已关闭'),
+    playing: tr('播放中'), paused: tr('已暂停'), idle: tr('空闲'), standby: tr('待机'),
+    home: tr('在家'), not_home: tr('离家'), away: tr('外出'),
+    forward:tr('正转'),reverse:tr('反转'),
+    above_horizon: tr('日间'), below_horizon: tr('夜间'),
+    heat: tr('制热'), cool: tr('制冷'), heat_cool: tr('自动'), auto: tr('自动'),
+    dry: tr('除湿'), fan_only: tr('送风'), heating: tr('正在制热'), cooling: tr('正在制冷'),
+    locked: tr('已上锁'), unlocked: tr('已解锁'), detected: tr('已触发'), clear: tr('正常'),
+    sunny: tr('晴'), cloudy: tr('多云'), partlycloudy: tr('局部多云'), rainy: tr('下雨'),
+    pouring: tr('大雨'), snowy: tr('下雪'), fog: tr('雾'), windy: tr('大风'), lightning: tr('雷电'),
+    charging: tr('充电中'), discharging: tr('放电中'), full: tr('已充满')
   };
 
   function stateLabel(item) {
@@ -1703,7 +1705,7 @@
   function metricText(item) {
     if (!item) return '';
     if (item.state === 'unknown' || item.state === 'unavailable') return '--';
-    const unit = item.unit === 'C' ? '°C' : item.unit || '';
+    const unit = (item.unit === 'C' ? '°C' : item.unit || '').replace(/℃/g,'°C').replace(/℉/g,'°F');
     if (!unit) return numberText(item.state);
     if (unit === '%') return numberText(item.state) + '%';
     return numberText(item.state) + ' ' + unit;
@@ -1711,17 +1713,17 @@
 
   function sensorLabel(item) {
     const text = item.name + ' ' + item.entity_id;
-    if (isTemperature(item)) return '温度';
-    if (isHumidity(item)) return '湿度';
-    if (/illuminance|lux|光照/i.test(text)) return '光照';
-    if (/voltage|电压/i.test(text)) return '电压';
-    if (/power|功率/i.test(text)) return '功率';
-    if (/current|电流/i.test(text)) return '电流';
-    if (/battery|电量/i.test(text)) return '电量';
-    if (/rain|降水|雨/i.test(text)) return '降水量';
-    if (/co2|carbon/i.test(text)) return '二氧化碳';
-    if (/pressure|气压/i.test(text)) return '气压';
-    return '传感器';
+    if (isTemperature(item)) return tr('温度');
+    if (isHumidity(item)) return tr('湿度');
+    if (/illuminance|lux|光照/i.test(text)) return tr('光照');
+    if (/voltage|电压/i.test(text)) return tr('电压');
+    if (/power|功率/i.test(text)) return tr('功率');
+    if (/current|电流/i.test(text)) return tr('电流');
+    if (/battery|电量/i.test(text)) return tr('电量');
+    if (/rain|降水|雨/i.test(text)) return tr('降水量');
+    if (/co2|carbon/i.test(text)) return tr('二氧化碳');
+    if (/pressure|气压/i.test(text)) return tr('气压');
+    return tr('传感器');
   }
 
   function cardValue(item) {
@@ -1734,10 +1736,10 @@
   }
 
   function cardSubtitle(item) {
-    if (!available(item)) return item.state === 'unavailable' ? '不可用' : '未知';
+    if (!available(item)) return item.state === 'unavailable' ? tr('不可用') : tr('未知');
     if (controllable(item)) {
-      if (item.state !== 'on') return '已关闭';
-      return item.brightness !== null ? '已开启 · ' + item.brightness + '%' : '已开启';
+      if (item.state !== 'on') return tr('已关闭');
+      return item.brightness !== null ? tr('已开启 · ') + item.brightness + '%' : tr('已开启');
     }
     if (isNumeric(item)) return sensorLabel(item);
     return stateLabel(item);
@@ -1776,25 +1778,25 @@
 
   function friendlyState(item) {
     if(item&&item.domain==='scene'&&!item.stale){
-      if(item.state==='unknown')return '尚未触发';
-      if(item.state!=='unavailable')return '已同步';
+      if(item.state==='unknown')return tr('尚未触发');
+      if(item.state!=='unavailable')return tr('已同步');
     }
-    if(item&&item.domain==='script'&&['on','off'].includes(item.state))return item.state==='on'?'运行中':'待命';
+    if(item&&item.domain==='script'&&['on','off'].includes(item.state))return item.state==='on'?tr('运行中'):tr('待命');
     const states = {
-      on: '\u5df2\u5f00\u542f', off: '\u5df2\u5173\u95ed', unavailable: '\u4e0d\u53ef\u7528',
-      unknown: '\u672a\u77e5', open: '\u5df2\u6253\u5f00', closed: '\u5df2\u5173\u95ed',
-      opening: '\u6b63\u5728\u6253\u5f00', closing: '\u6b63\u5728\u5173\u95ed', playing: '\u6b63\u5728\u64ad\u653e',
-      paused: '\u5df2\u6682\u505c', idle: '\u7a7a\u95f2', standby: '\u5f85\u673a', home: '\u5728\u5bb6',
-      not_home: '\u79bb\u5bb6', away: '\u79bb\u5bb6', above_horizon: '\u5730\u5e73\u7ebf\u4e0a',
-      below_horizon: '\u5730\u5e73\u7ebf\u4e0b', locked: '\u5df2\u4e0a\u9501', unlocked: '\u5df2\u89e3\u9501',
-      heat: '\u5236\u70ed', cool: '\u5236\u51b7', auto: '\u81ea\u52a8', dry: '\u9664\u6e7f',
-      fan_only: '\u9001\u98ce', heating: '\u6b63\u5728\u5236\u70ed', cooling: '\u6b63\u5728\u5236\u51b7',
-      sunny: '\u6674', cloudy: '\u591a\u4e91', partlycloudy: '\u5c40\u90e8\u591a\u4e91', rainy: '\u4e0b\u96e8',
-      charging: '\u5145\u7535\u4e2d', discharging: '\u653e\u7535\u4e2d', full: '\u5df2\u5145\u6ee1'
-      ,turbo:'强力',silent:'静音',sleep:'睡眠',low:'低速',medium:'中速',high:'高速',
-      cooking:'烹饪中',preheating:'预热中',washing:'洗涤中',rinsing:'漂洗中',
-      spinning:'脱水中',drying:'烘干中',printing:'打印中',completed:'已完成',
-      finished:'已完成',error:'设备异常',normal:'未触发报警',detected:'已触发',clear:'未触发报警'
+      on: tr('\u5df2\u5f00\u542f'), off: tr('\u5df2\u5173\u95ed'), unavailable: tr('\u4e0d\u53ef\u7528'),
+      unknown: tr('\u672a\u77e5'), open: tr('\u5df2\u6253\u5f00'), closed: tr('\u5df2\u5173\u95ed'),
+      opening: tr('\u6b63\u5728\u6253\u5f00'), closing: tr('\u6b63\u5728\u5173\u95ed'), playing: tr('\u6b63\u5728\u64ad\u653e'),
+      paused: tr('\u5df2\u6682\u505c'), idle: tr('\u7a7a\u95f2'), standby: tr('\u5f85\u673a'), home: tr('\u5728\u5bb6'),
+      not_home: tr('\u79bb\u5bb6'), away: tr('\u79bb\u5bb6'), above_horizon: tr('\u5730\u5e73\u7ebf\u4e0a'),
+      below_horizon: tr('\u5730\u5e73\u7ebf\u4e0b'), locked: tr('\u5df2\u4e0a\u9501'), unlocked: tr('\u5df2\u89e3\u9501'),
+      heat: tr('\u5236\u70ed'), cool: tr('\u5236\u51b7'), auto: tr('\u81ea\u52a8'), dry: tr('\u9664\u6e7f'),
+      fan_only: tr('\u9001\u98ce'), heating: tr('\u6b63\u5728\u5236\u70ed'), cooling: tr('\u6b63\u5728\u5236\u51b7'),
+      sunny: tr('\u6674'), cloudy: tr('\u591a\u4e91'), partlycloudy: tr('\u5c40\u90e8\u591a\u4e91'), rainy: tr('\u4e0b\u96e8'),
+      charging: tr('\u5145\u7535\u4e2d'), discharging: tr('\u653e\u7535\u4e2d'), full: tr('\u5df2\u5145\u6ee1')
+      ,turbo:tr('强力'),silent:tr('静音'),sleep:tr('睡眠'),low:tr('低速'),medium:tr('中速'),high:tr('高速'),
+      cooking:tr('烹饪中'),preheating:tr('预热中'),washing:tr('洗涤中'),rinsing:tr('漂洗中'),
+      spinning:tr('脱水中'),drying:tr('烘干中'),printing:tr('打印中'),completed:tr('已完成'),
+      finished:tr('已完成'),error:tr('设备异常'),normal:tr('未触发报警'),detected:tr('已触发'),clear:tr('未触发报警')
     };
     const value = String(item && item.state || '');
     return states[value.toLowerCase()] || value;
@@ -1803,14 +1805,14 @@
   function binaryState(item) {
     const active = item.state === 'on';
     const words = {
-      door: ['\u5df2\u5173\u95ed', '\u5df2\u6253\u5f00'], window: ['\u5df2\u5173\u95ed', '\u5df2\u6253\u5f00'],
-      garage_door: ['\u5df2\u5173\u95ed', '\u5df2\u6253\u5f00'], opening: ['\u5df2\u5173\u95ed', '\u5df2\u6253\u5f00'],
-      motion: ['\u65e0\u6d3b\u52a8', '\u68c0\u6d4b\u5230\u6d3b\u52a8'], occupancy: ['\u65e0\u4eba', '\u6709\u4eba'],
-      presence: ['\u65e0\u4eba', '\u6709\u4eba'], smoke: ['\u6b63\u5e38', '\u68c0\u6d4b\u5230\u70df\u96fe'],
-      gas: ['\u6b63\u5e38', '\u68c0\u6d4b\u5230\u71c3\u6c14'], moisture: ['\u5e72\u71e5', '\u68c0\u6d4b\u5230\u6f0f\u6c34'],
-      problem: ['\u6b63\u5e38', '\u9700\u8981\u6ce8\u610f'], connectivity: ['\u79bb\u7ebf', '\u5728\u7ebf']
+      door: [tr('\u5df2\u5173\u95ed'), tr('\u5df2\u6253\u5f00')], window: [tr('\u5df2\u5173\u95ed'), tr('\u5df2\u6253\u5f00')],
+      garage_door: [tr('\u5df2\u5173\u95ed'), tr('\u5df2\u6253\u5f00')], opening: [tr('\u5df2\u5173\u95ed'), tr('\u5df2\u6253\u5f00')],
+      motion: [tr('\u65e0\u6d3b\u52a8'), tr('\u68c0\u6d4b\u5230\u6d3b\u52a8')], occupancy: [tr('\u65e0\u4eba'), tr('\u6709\u4eba')],
+      presence: [tr('\u65e0\u4eba'), tr('\u6709\u4eba')], smoke: [tr('\u6b63\u5e38'), tr('\u68c0\u6d4b\u5230\u70df\u96fe')],
+      gas: [tr('\u6b63\u5e38'), tr('\u68c0\u6d4b\u5230\u71c3\u6c14')], moisture: [tr('\u5e72\u71e5'), tr('\u68c0\u6d4b\u5230\u6f0f\u6c34')],
+      problem: [tr('\u6b63\u5e38'), tr('\u9700\u8981\u6ce8\u610f')], connectivity: [tr('\u79bb\u7ebf'), tr('\u5728\u7ebf')]
     };
-    const pair = words[item.device_class] || ['\u6b63\u5e38', '\u5df2\u89e6\u53d1'];
+    const pair = words[item.device_class] || [tr('\u6b63\u5e38'), tr('\u5df2\u89e6\u53d1')];
     return pair[active ? 1 : 0];
   }
 
@@ -1831,26 +1833,26 @@
   }
 
   function dashboardSubtitle(item) {
-    if (!available(item)) return item.state === 'unavailable' ? '\u5b9e\u4f53\u79bb\u7ebf' : '\u72b6\u6001\u672a\u77e5';
+    if (!available(item)) return item.state === 'unavailable' ? tr('\u5b9e\u4f53\u79bb\u7ebf') : tr('\u72b6\u6001\u672a\u77e5');
     if (item.domain === 'climate') {
-      const target = item.temperature === null ? '' : '\u76ee\u6807 ' + numberText(item.temperature) + ' \u00b0C';
+      const target = item.temperature === null ? '' : tr('\u76ee\u6807 ') + numberText(item.temperature) + ' \u00b0C';
       const action = item.hvac_action ? friendlyState({ state: item.hvac_action }) : friendlyState(item);
       return target ? action + '  \u00b7  ' + target : action;
     }
     if (item.domain === 'media_player') {
-      if (item.volume_level !== null) return friendlyState(item) + '  \u00b7  \u97f3\u91cf ' +
+      if (item.volume_level !== null) return friendlyState(item) + tr('  \u00b7  \u97f3\u91cf ') +
         Math.round(item.volume_level * 100) + '%';
       return friendlyState(item);
     }
     if (item.domain === 'cover') return friendlyState(item) +
       (item.current_position === null ? '' : '  \u00b7  ' + item.current_position + '%');
     if (controllable(item)) return friendlyState(item) +
-      (item.brightness !== null && item.state === 'on' ? '  \u00b7  \u4eae\u5ea6' : '');
+      (item.brightness !== null && item.state === 'on' ? tr('  \u00b7  \u4eae\u5ea6') : '');
     if (item.domain === 'sensor') return ({
-      temperature: '\u6e29\u5ea6', humidity: '\u6e7f\u5ea6', battery: '\u7535\u91cf',
-      power: '\u529f\u7387', energy: '\u80fd\u8017', voltage: '\u7535\u538b', current: '\u7535\u6d41',
-      illuminance: '\u5149\u7167', pressure: '\u6c14\u538b', carbon_dioxide: 'CO2'
-    })[item.device_class] || '\u4f20\u611f\u5668';
+      temperature: tr('\u6e29\u5ea6'), humidity: tr('\u6e7f\u5ea6'), battery: tr('\u7535\u91cf'),
+      power: tr('\u529f\u7387'), energy: tr('\u80fd\u8017'), voltage: tr('\u7535\u538b'), current: tr('\u7535\u6d41'),
+      illuminance: tr('\u5149\u7167'), pressure: tr('\u6c14\u538b'), carbon_dioxide: 'CO2'
+    })[item.device_class] || tr('\u4f20\u611f\u5668');
     return friendlyState(item);
   }
 
@@ -1949,7 +1951,7 @@
         const status=property?values[property]:item.state;
         const active=status===true||['on','detected','alarm','triggered','open'].includes(String(status));
         const inactive=status===false||['off','clear','normal','closed'].includes(String(status));
-        raw=profile.states&&(active||inactive)?profile.states[active?1:0]:
+        raw=profile.states&&(active||inactive)?tr(profile.states[active?1:0]):
           item.domain==='binary_sensor'&&!profile.states?binaryState(item):friendlyState({state:String(status)});
         alert=online&&profile.layout==='alarm'&&active;
       }else if(key==='$value'){
@@ -1969,11 +1971,11 @@
       const numeric=typeof raw==='number'&&Number.isFinite(raw);
       // The embedded font omits micro/superscript glyphs. Keep the same units
       // in their plain-text spelling instead of rendering missing-glyph boxes.
-      unit=String(unit).replace(/[µμ]/g,'u').replace(/³/g,'3').replace(/²/g,'2');
-      let value=numeric?(Math.abs(raw)>0&&Math.abs(raw)<1?String(Number(raw.toPrecision(3))):numberText(raw)):typeof raw==='boolean'?(raw?'已开启':'已关闭'):
+      unit=String(unit).replace(/[µμ]/g,'u').replace(/³/g,'3').replace(/²/g,'2').replace(/℃/g,'°C').replace(/℉/g,'°F');
+      let value=numeric?(Math.abs(raw)>0&&Math.abs(raw)<1?String(Number(raw.toPrecision(3))):numberText(raw)):typeof raw==='boolean'?(raw?tr('已开启'):tr('已关闭')):
         friendlyState({state:String(raw)});
       if(!online)value='--';
-      return [{key,title,value,unit:numeric&&online?unit:'',numeric:numeric&&online,
+      return [{key,title:tr(title),value,unit:numeric&&online?unit:'',numeric:numeric&&online,
         display:value+(numeric&&online&&unit?(unit==='%'?'':' ')+unit:''),source,alert}];
     });
   }
@@ -2006,19 +2008,19 @@
     let progress = null, value = '', subtitle = dashboardSubtitle(item), variant = definition.kind + '-status';
     if (available(item)) {
       if (definition.kind === 'light' && item.domain === 'light' && item.dimmable && item.brightness !== null) {
-        progress = item.brightness; value = '亮度 ' + progress + '%'; subtitle = friendlyState(item); variant = 'light-brightness';
+        progress = item.brightness; value = tr('亮度 ') + progress + '%'; subtitle = friendlyState(item); variant = 'light-brightness';
         if (item.color_temp_kelvin !== null) { subtitle = friendlyState(item) + ' · ' + item.color_temp_kelvin + 'K'; variant = 'light-color-temperature'; }
       } else if (['fan','air'].includes(definition.kind) && item.percentage !== null) {
-        progress = item.percentage; value = '风速 ' + progress + '%'; variant = definition.kind + '-speed';
+        progress = item.percentage; value = tr('风速 ') + progress + '%'; variant = definition.kind + '-speed';
       } else if (definition.kind === 'position' && item.current_position !== null) {
-        progress = item.current_position; value = '开合 ' + progress + '%'; variant = 'curtain-position';
+        progress = item.current_position; value = tr('开合 ') + progress + '%'; variant = 'curtain-position';
       } else if (definition.kind === 'media' && item.volume_level !== null) {
-        progress = Math.round(item.volume_level * 100); value = '音量 ' + progress + '%';
+        progress = Math.round(item.volume_level * 100); value = tr('音量 ') + progress + '%';
         subtitle = item.media_title || friendlyState(item); variant = 'speaker-volume';
       } else if (definition.kind === 'battery' && item.battery_level !== null) {
-        value = item.battery_level + '%'; subtitle = friendlyState(item) + ' · 电量'; variant = 'vacuum-battery';
+        value = item.battery_level + '%'; subtitle = friendlyState(item) + tr(' · 电量'); variant = 'vacuum-battery';
       } else if (definition.kind === 'humidity' && item.current_humidity !== null) {
-        value = item.current_humidity + '%'; subtitle = friendlyState(item) + ' · 湿度'; variant = 'humidifier-humidity';
+        value = item.current_humidity + '%'; subtitle = friendlyState(item) + tr(' · 湿度'); variant = 'humidifier-humidity';
       } else if (['climate','temperature'].includes(definition.kind) && (item.current_temperature !== null || item.temperature !== null)) {
         value = numberText(item.current_temperature === null ? item.temperature : item.current_temperature) + ' °C'; variant = 'temperature-reading';
       } else if (['sensor','climate','position','media'].includes(definition.kind) || item.domain === 'weather') {
@@ -2026,12 +2028,12 @@
       }
       if (definition.kind === 'air' && item.pm25 !== null) { value = 'PM2.5 ' + numberText(item.pm25); progress = null; variant = 'air-quality'; }
       if (['fan','air'].includes(definition.kind)) {
-        subtitle = friendlyState(item) + (item.preset_mode ? ' · ' + item.preset_mode : item.oscillating ? ' · 摇头' : '');
+        subtitle = friendlyState(item) + (item.preset_mode ? ' · ' + item.preset_mode : item.oscillating ? tr(' · 摇头') : '');
       }
-      if(type==='lock') {value=friendlyState(item);subtitle=item.battery_level===null?'门锁状态':'电量 '+numberText(item.battery_level)+'%';}
+      if(type==='lock') {value=friendlyState(item);subtitle=item.battery_level===null?tr('门锁状态'):tr('电量 ')+numberText(item.battery_level)+'%';}
       if(item.device_id&&item.device_entities&&item.device_entities.length>1) {
-        if(isTemperature(item)&&item.current_humidity!==null)subtitle='湿度 '+numberText(item.current_humidity)+'%';
-        else if(isHumidity(item)&&item.current_temperature!==null)subtitle='温度 '+numberText(item.current_temperature)+' °C';
+        if(isTemperature(item)&&item.current_humidity!==null)subtitle=tr('湿度 ')+numberText(item.current_humidity)+'%';
+        else if(isHumidity(item)&&item.current_temperature!==null)subtitle=tr('温度 ')+numberText(item.current_temperature)+' °C';
       }
     }
     const profile=commonCardProfile(item),readings=profileReadings(item);
@@ -2039,9 +2041,9 @@
       const main=readings[0];progress=null;
       value=main?main.display:dashboardValue(item);
       variant=main&&main.numeric?'profile-metric':'profile-status';
-      subtitle=main?main.title:profile.name;
+      subtitle=main?main.title:tr(profile.name);
       if(readings[1])subtitle+=' · '+readings[1].title+' '+readings[1].display;
-      else if(profile.notice)subtitle=profile.notice;
+      else if(profile.notice)subtitle=tr(profile.notice);
     }
     return {type, family:definition.family, variant, progress, value, subtitle,
       alert:readings.some(reading=>reading.alert)};
@@ -2178,7 +2180,7 @@
     const nameFont=frame?22:Math.max(20,Math.round(36*s));
     const nameInset=frame?16:28*s,nameWidth=frame?cw-(hasHeaderPower?84:32):cw-(hasHeaderPower?110:56)*s;
     text(q.name,fit(item.name,nameWidth,nameFont),x+nameInset,y+(frame?10:22*s),nameWidth,frame?32:Math.max(45*s,nameFont+4),nameFont,c.ink,0,false);
-    text(q.moreLabel,target?(target.sent?'正在同步 · 更多操作':'待执行 · 更多操作'):'更多操作',x,y+ch-fh+(frame?9:21*s),cw,frame?26:30*s,frame?16:Math.max(14,Math.round(22*s)),c.ink);
+    text(q.moreLabel,target?(target.sent?tr('正在同步 · 更多操作'):tr('待执行 · 更多操作')):tr('更多操作'),x,y+ch-fh+(frame?9:21*s),cw,frame?26:30*s,frame?16:Math.max(14,Math.round(22*s)),c.ink);
     Object.assign(q.more,{x,y:y+ch-fh,w:cw,h:fh,hidden:false,style:{radius:Math.round(28*s),borderWidth:0}});
     const on=available(item)&&item.state!=='off'&&item.state!=='closed',writable=!layoutEditing&&connected&&available(item)&&controllable(item)&&supports(item,powerIsOn(item)?'turn_off':'turn_on');
     function power(px,py,d,header){
@@ -2196,8 +2198,8 @@
     if(hasHeaderPower)power(x+cw-67*s,y+21*s,40*s,true);
     const props=item.quick_values||{}, seen=Object.create(null);
     const records=ref.requires.map(key=>{const index=seen[key]||0;seen[key]=index+1;const raw=props[key],value=Array.isArray(raw)?raw[index]:index===0?raw:undefined;return {key,property:key.split('.').slice(1).join('.'),value};});
-    const names={temperature:'温度','target-temperature':'设定温度','relative-humidity':'湿度','atmospheric-pressure':'气压','pm2.5-density':'PM2.5','hcho-density':'甲醛','tvoc-density':'TVOC','illumination':'光照度','soil-ec':'土壤肥力','battery-level':'电量','working-time':'运动时长','current-distance':'距离','left-time':'剩余时间','tds-out':'出水 TDS','status':ref.type==='lock'?'门锁状态':'状态','submersion-state':'水浸状态'};
-    function display(record){if(!available(item)||record.value===undefined)return '--';const v=record.value,p=record.property;if(typeof v==='boolean')return v?'已开启':'已关闭';if(p==='status'||p.endsWith('-state'))return item.domain==='binary_sensor'?binaryState(item):friendlyState({state:String(v)});if(typeof v==='number'){const unit=['temperature','target-temperature'].includes(p)?' °C':p==='relative-humidity'||p==='battery-level'||p==='current-position'?'%':p==='pm2.5-density'?' ug/m3':p==='atmospheric-pressure'?' hPa':p==='illumination'?' lx':p==='current-distance'?' km':'';return numberText(v)+unit;}return String(v);}
+    const names={temperature:tr('温度'),'target-temperature':tr('设定温度'),'relative-humidity':tr('湿度'),'atmospheric-pressure':tr('气压'),'pm2.5-density':'PM2.5','hcho-density':tr('甲醛'),'tvoc-density':'TVOC','illumination':tr('光照度'),'soil-ec':tr('土壤肥力'),'battery-level':tr('电量'),'working-time':tr('运动时长'),'current-distance':tr('距离'),'left-time':tr('剩余时间'),'tds-out':tr('出水 TDS'),'status':ref.type==='lock'?tr('门锁状态'):tr('状态'),'submersion-state':tr('水浸状态')};
+    function display(record){if(!available(item)||record.value===undefined)return '--';const v=record.value,p=record.property;if(typeof v==='boolean')return v?tr('已开启'):tr('已关闭');if(p==='status'||p.endsWith('-state'))return item.domain==='binary_sensor'?binaryState(item):friendlyState({state:String(v)});if(typeof v==='number'){const unit=['temperature','target-temperature'].includes(p)?' °C':p==='relative-humidity'||p==='battery-level'||p==='current-position'?'%':p==='pm2.5-density'?' ug/m3':p==='atmospheric-pressure'?' hPa':p==='illumination'?' lx':p==='current-distance'?' km':'';return numberText(v)+unit;}return String(v);}
     let readings=records.filter(r=>!['on','mode','fan-level','horizontal-swing','motor-control','brightness','color-temperature','volume','mute'].includes(r.property)&&!r.property.startsWith('start-')&&!['play','pause','stop-sweeping','package'].includes(r.property));
     let metricIndex=0,actionIndex=0,rangeIndex=0;
     function metric(record,mx,my,mw,font){if(metricIndex>=3)return;const m=q.metrics[metricIndex++],mf=frame&&bodyH<160?Math.min(24,font||24):font||Math.max(24,Math.round(44*s));text(m.value,record?display(record):dashboardValue(item),mx,my,mw,Math.max(48*s,mf+4),mf,c.ink);text(m.caption,record?names[record.property]||domainTitle(item):item.domain==='sensor'?dashboardSubtitle(item):domainTitle(item),mx,my+Math.max(51*s,mf+8),mw,30*s,Math.max(13,Math.round(23*s)),c.muted);}
@@ -2225,7 +2227,7 @@
         const chosen=motor?String(motor.value):mode;
         const icons={auto:'AUTO',cool:'\ue014',heat:'\ue00f',turbo:'\uf0e7',sleep:'\uf04c',silent:'\uf04c',open:'\uf077',stop:'\uf04c',close:'\uf078'};
         active=choices.map(v=>v.toLowerCase()).indexOf(chosen.toLowerCase());
-        for(let i=0;i<count;i++){const value=choices[i];labels[i]=value?(motor?['打开','暂停','关闭'][i]:friendlyState({state:value})):'--';glyphs[i]=value?icons[value.toLowerCase()]||'--':'--';}
+        for(let i=0;i<count;i++){const value=choices[i];labels[i]=value?(motor?[tr('打开'),tr('暂停'),tr('关闭')][i]:friendlyState({state:value})):'--';glyphs[i]=value?icons[value.toLowerCase()]||'--':'--';}
       }
       for(let i=0;i<count;i++)action(glyphs[i],labels[i],x+24*s+i*gap+(gap-d)/2,ay,d,i===active,c.paleBlue,glyphs[i].charCodeAt(0)>=0xe000);}
     const middle=bodyY+Math.max(16*s,(bodyH-92*s)/2);
@@ -2242,10 +2244,10 @@
           box(q.camera,px,py,pw,ph,pal.track,12);
           text(q.cameraGlyph,thumbnail(item),px+(pw-68)/2,py+(ph-68)/2,68,68,40,pal.muted,2);
           const ty=bodyY+Math.max(2,(bodyH-80)/2);
-          text(q.metrics[0].caption,'设备状态',tx,ty,tw,24,14,pal.muted,0,false);
+          text(q.metrics[0].caption,tr('设备状态'),tx,ty,tw,24,14,pal.muted,0,false);
           text(q.metrics[0].value,primary?primary.display:dashboardValue(item),tx,ty+25,tw,30,22,available(item)?pal.ink:pal.muted,0,false);
           text(q.metrics[1].caption,commonProfile.notice,tx,ty+60,tw,24,14,pal.muted,0,false);
-          pushText(q.moreLabel,'查看设备详情');
+          pushText(q.moreLabel,tr('查看设备详情'));
         }else if(primary&&bodyH<170&&values.length>1){
           const visible=values.slice(0,3),mw=rw/visible.length,my=bodyY+Math.max(4,(bodyH-76)/2);
           visible.forEach((row,index)=>{
@@ -2268,7 +2270,7 @@
       else if(spec){
         const value=controlValue(main,spec),percent=available(main)&&Number.isFinite(value)?(value-spec.min)*100/(spec.max-spec.min):0;
         const rh=Math.min(52,Math.max(32,bodyH-16)),ry=bodyY+(bodyH-rh)/2;
-        const r=range(available(main)?spec.title+' '+formatControl(spec,value):'设备不可用',percent,x+inset,ry,rw,rh,false);
+        const r=range(available(main)?spec.title+' '+formatControl(spec,value):tr('设备不可用'),percent,x+inset,ry,rw,rh,false);
         Object.assign(r,{spec,item:main,labelColor:pal.ink});
         pushColor(r.label,pal.ink);
         if(!available(main)){hide(r.fill,true);hide(r.thumb,true);}
@@ -2277,7 +2279,7 @@
           pushPos(q.ranges[0].track,x+inset,bodyY+bodyH-rh-10);pushPos(q.ranges[0].fill,x+inset,bodyY+bodyH-rh-10);
           pushPos(q.ranges[0].label,x+inset+12,bodyY+bodyH-rh-10+(rh-30)/2);r.y=bodyY+bodyH-rh-10;
           if(r.thumb)pushPos(r.thumb,r.x+20+(r.w-20)*Math.max(0,Math.min(100,percent))/100-18,r.y+(rh-32)/2,!quickDrag&&!lampWheelDrag&&paint['p'+r.thumb]!==undefined);
-          const title=commonProfile.reading==='pm25'?'PM2.5':commonProfile.reading==='current_humidity'?'当前湿度':'当前温度';
+          const title=commonProfile.reading==='pm25'?'PM2.5':commonProfile.reading==='current_humidity'?tr('当前湿度'):tr('当前温度');
           text(q.metrics[0].value,numberText(item[commonProfile.reading]),x+inset,bodyY+10,rw,44,32,pal.ink,0,false);
           text(q.metrics[0].caption,title,x+inset,bodyY+54,rw,24,14,pal.muted,0,false);
         }
@@ -2286,7 +2288,7 @@
         actions.forEach((spec,index)=>{action(spec.service==='return_to_base'?'\uf015':spec.service==='pause'?'\uf04c':spec.service==='start'?'\uf04b':'\uf011',spec.title,x+inset+index*gap+(gap-d)/2,ay,d,true,c.blue,true);
           const button=q.actions[index];button.item=main;button.spec=spec;Object.assign(button.button,{x:Math.round(x+inset+index*gap),y:Math.round(ay),w:Math.round(gap),h:Math.round(d+24),hidden:!connected||!available(main)||layoutEditing});});
       }else{
-        const values=commonProfile.readonly?[['温度',item.current_temperature],['湿度',item.current_humidity]].filter(row=>row[1]!==null):[];
+        const values=commonProfile.readonly?[[tr('温度'),item.current_temperature],[tr('湿度'),item.current_humidity]].filter(row=>row[1]!==null):[];
         if(values.length)values.slice(0,2).forEach((row,index)=>{const width=rw/values.length; text(q.metrics[index].value,numberText(row[1])+(row[0]==='湿度'?'%':' °C'),x+inset+index*width,middle,width,46,28,pal.ink);text(q.metrics[index].caption,row[0],x+inset+index*width,middle+48,width,24,14,pal.muted);});
         else metric(null,x+inset,middle,rw,32);
       }
@@ -2295,27 +2297,27 @@
     if(layout===4){const d=frame?Math.min(96,bodyH-12):116*s;power(x+(cw-d)/2,bodyY+(bodyH-d)/2,d,false);}
     else if([5,8,22].includes(layout))metric(readings[0],x+20*s,middle,cw-40*s,Math.max(26,Math.round(56*s)));
     else if([6,7].includes(layout)){const n=layout===6?3:2;for(let i=0;i<n;i++)metric(readings[i],x+20*s+i*(cw-40*s)/n,middle,(cw-40*s)/n,Math.max(20,Math.round((n===3?31:42)*s)));}
-    else if(layout===18){const d=frame?Math.min(64,bodyH-16):66*s,rx=frame?x+40*s+d+20:x+132*s;power(x+40*s,bodyY+(bodyH-d)/2,d,false);const rect=range('亮度 '+(item.brightness===null?'--':item.brightness+'%'),item.brightness,rx,bodyY+(bodyH-d)/2,x+cw-40*s-rx,d,false);if(canAdjustBrightness(item))q.brightnessRect=rect;}
+    else if(layout===18){const d=frame?Math.min(64,bodyH-16):66*s,rx=frame?x+40*s+d+20:x+132*s;power(x+40*s,bodyY+(bodyH-d)/2,d,false);const rect=range(tr('亮度 ')+(item.brightness===null?'--':item.brightness+'%'),item.brightness,rx,bodyY+(bodyH-d)/2,x+cw-40*s-rx,d,false);if(canAdjustBrightness(item))q.brightnessRect=rect;}
     else if(layout===21){const rh=64*Math.min(1,s),row=rh+30+20*s;
       const ry=bodyY+Math.max(0,(bodyH-(2*row-20*s))/2)+30;
-      const rect=range('亮度 '+(item.brightness===null?'--':item.brightness+'%'),item.brightness,x+40*s,ry,cw-80*s,rh,false);
+      const rect=range(tr('亮度 ')+(item.brightness===null?'--':item.brightness+'%'),item.brightness,x+40*s,ry,cw-80*s,rh,false);
       const spec=functionControls(item).find(c=>c.key==='color_temp_kelvin');
       const value=spec?controlValue(item,spec):item.color_temp_kelvin;
-      const ct=range(value===null?'色温 --':'色温 '+value+'K',spec?(Number(value)-spec.min)*100/(spec.max-spec.min):50,x+40*s,ry+row,cw-80*s,rh,false,true);
+      const ct=range(value===null?tr('色温 --'):tr('色温 ')+value+'K',spec?(Number(value)-spec.min)*100/(spec.max-spec.min):50,x+40*s,ry+row,cw-80*s,rh,false,true);
       if(spec&&connected&&available(item)&&!layoutEditing){ct.spec=spec;q.controlRects.push(ct);}
       if(canAdjustBrightness(item))q.brightnessRect=rect;}
-    else if(layout===20){power(x+40*s,bodyY+62*s,66*s,false);const rect=range('亮度 '+(item.brightness===null?'--':item.brightness+'%'),item.brightness,x+128*s,bodyY+62*s,cw-168*s,66*s,false);range('风速 '+(item.percentage===null?'--':item.percentage+'%'),item.percentage,x+128*s,bodyY+178*s,cw-168*s,66*s,false);if(canAdjustBrightness(item))q.brightnessRect=rect;}
-    else if(layout===16){action('\uf2dc',item.oscillating?'摇头':'送风',x+40*s,bodyY+(bodyH-66*s)/2,66*s,item.oscillating,c.blue,true);range(item.percentage===null?'风速 --':'风速 '+item.percentage+'%',item.percentage,x+132*s,bodyY+(bodyH-66*s)/2,cw-172*s,66*s,false);}
-    else if(layout===2){range('设定温度 '+(item.temperature===null?'--':numberText(item.temperature)+'°C'),item.temperature===null?0:Math.min(100,item.temperature/40*100),x+112*s,bodyY+30*s,cw-224*s,64*s,true);modes(3,bodyY+122*s,['自动','制冷','制热'],['A','\ue014','\ue00f']);}
-    else if([3,19,11].includes(layout)){metric(readings[0],x+20*s,bodyY+36*s,cw-40*s);if(layout===3)modes(3,bodyY+164*s,['自动','强力','睡眠'],['AUTO','\uf0e7','\uf04c']);else range(layout===19?'风速 '+(item.percentage===null?'--':item.percentage+'%'):'温度 '+(item.temperature===null?'--':numberText(item.temperature)+'°C'),layout===19?item.percentage:50,x+(layout===11?112:40)*s,bodyY+186*s,cw-(layout===11?224:80)*s,68*s,layout===11);}
-    else if([12,13].includes(layout)){const count=layout===12?3:2;const toggles=records.filter(r=>r.property==='on');const d=100*s,gap=(cw-40*s)/count;for(let i=0;i<count;i++){const linked=indexedEntity((item.members||[])[i]);action('\uf011',linked?fit(linked.name,90*s,14):'开关 '+(i+1),x+20*s+i*gap+(gap-d)/2,bodyY+(bodyH-d-50*s)/2,d,linked?linked.state==='on':toggles[i]&&toggles[i].value===true,c.green,true,linked);}}
-    else if(layout===10){modes(3,bodyY+28*s,['照明','换气','加热'],['\uf011','\uf011','\uf011']);range('温度 '+(item.temperature===null?'--':numberText(item.temperature)+'°C'),50,x+112*s,bodyY+208*s,cw-224*s,64*s,true);}
-    else if(layout===9){modes(3,bodyY+(bodyH-130*s)/2,['打开','暂停','关闭'],['\uf077','\uf04c','\uf078']);}
+    else if(layout===20){power(x+40*s,bodyY+62*s,66*s,false);const rect=range(tr('亮度 ')+(item.brightness===null?'--':item.brightness+'%'),item.brightness,x+128*s,bodyY+62*s,cw-168*s,66*s,false);range(tr('风速 ')+(item.percentage===null?'--':item.percentage+'%'),item.percentage,x+128*s,bodyY+178*s,cw-168*s,66*s,false);if(canAdjustBrightness(item))q.brightnessRect=rect;}
+    else if(layout===16){action('\uf2dc',item.oscillating?tr('摇头'):tr('送风'),x+40*s,bodyY+(bodyH-66*s)/2,66*s,item.oscillating,c.blue,true);range(item.percentage===null?tr('风速 --'):tr('风速 ')+item.percentage+'%',item.percentage,x+132*s,bodyY+(bodyH-66*s)/2,cw-172*s,66*s,false);}
+    else if(layout===2){range(tr('设定温度 ')+(item.temperature===null?'--':numberText(item.temperature)+'°C'),item.temperature===null?0:Math.min(100,item.temperature/40*100),x+112*s,bodyY+30*s,cw-224*s,64*s,true);modes(3,bodyY+122*s,[tr('自动'),tr('制冷'),tr('制热')],['A','\ue014','\ue00f']);}
+    else if([3,19,11].includes(layout)){metric(readings[0],x+20*s,bodyY+36*s,cw-40*s);if(layout===3)modes(3,bodyY+164*s,[tr('自动'),tr('强力'),tr('睡眠')],['AUTO','\uf0e7','\uf04c']);else range(layout===19?tr('风速 ')+(item.percentage===null?'--':item.percentage+'%'):tr('温度 ')+(item.temperature===null?'--':numberText(item.temperature)+'°C'),layout===19?item.percentage:50,x+(layout===11?112:40)*s,bodyY+186*s,cw-(layout===11?224:80)*s,68*s,layout===11);}
+    else if([12,13].includes(layout)){const count=layout===12?3:2;const toggles=records.filter(r=>r.property==='on');const d=100*s,gap=(cw-40*s)/count;for(let i=0;i<count;i++){const linked=indexedEntity((item.members||[])[i]);action('\uf011',linked?fit(linked.name,90*s,14):tr('开关 ')+(i+1),x+20*s+i*gap+(gap-d)/2,bodyY+(bodyH-d-50*s)/2,d,linked?linked.state==='on':toggles[i]&&toggles[i].value===true,c.green,true,linked);}}
+    else if(layout===10){modes(3,bodyY+28*s,[tr('照明'),tr('换气'),tr('加热')],['\uf011','\uf011','\uf011']);range(tr('温度 ')+(item.temperature===null?'--':numberText(item.temperature)+'°C'),50,x+112*s,bodyY+208*s,cw-224*s,64*s,true);}
+    else if(layout===9){modes(3,bodyY+(bodyH-130*s)/2,[tr('打开'),tr('暂停'),tr('关闭')],['\uf077','\uf04c','\uf078']);}
     else if([14,15].includes(layout)){box(q.camera,x+44*s,bodyY+32*s,cw-88*s,bodyH-64*s,dark?0x343044:0x555063,15*s);text(q.cameraGlyph,layout===14?'\uf021':'\uf04b',x+44*s,bodyY+bodyH/2-16,cw-88*s,36,24,0xc8c5cc,1);}
-    else if([23,24].includes(layout)){modes(2,bodyY+40*s,['播放状态','麦克风'],[item.state==='playing'?'\uf04c':'\uf04b','\ue005']);range('音量 '+(item.volume_level===null?'--':Math.round(item.volume_level*100)+'%'),item.volume_level===null?0:item.volume_level*100,x+112*s,bodyY+224*s,cw-224*s,64*s,true);}
-    else if([17,25].includes(layout)){metric(readings[0],x+20*s,bodyY+38*s,cw-40*s);modes(2,bodyY+174*s,layout===25?['清扫状态','回充']:['打包','开盖'],layout===25?['\uf04c','\uf0e7']:['AUTO','AUTO']);}
-    else if(layout===1){action('\ue00f','氛围灯',x+(cw-106*s)/2,bodyY+36*s,106*s,props['light.on']===true,c.orange,true);modes(4,bodyY+230*s,['助眠','唤醒','阅读','运动'],['\uf04c','\uf0f3','\uf15b','\uf079']);}
-    if(!available(item))text(q.metrics[0].caption,item.state==='unavailable'?'设备离线':'状态未知',x+20*s,y+ch-fh-40*s,cw-40*s,28*s,14,pal.warn);
+    else if([23,24].includes(layout)){modes(2,bodyY+40*s,[tr('播放状态'),tr('麦克风')],[item.state==='playing'?'\uf04c':'\uf04b','\ue005']);range(tr('音量 ')+(item.volume_level===null?'--':Math.round(item.volume_level*100)+'%'),item.volume_level===null?0:item.volume_level*100,x+112*s,bodyY+224*s,cw-224*s,64*s,true);}
+    else if([17,25].includes(layout)){metric(readings[0],x+20*s,bodyY+38*s,cw-40*s);modes(2,bodyY+174*s,layout===25?[tr('清扫状态'),tr('回充')]:[tr('打包'),tr('开盖')],layout===25?['\uf04c','\uf0e7']:['AUTO','AUTO']);}
+    else if(layout===1){action('\ue00f',tr('氛围灯'),x+(cw-106*s)/2,bodyY+36*s,106*s,props['light.on']===true,c.orange,true);modes(4,bodyY+230*s,[tr('助眠'),tr('唤醒'),tr('阅读'),tr('运动')],['\uf04c','\uf0f3','\uf15b','\uf079']);}
+    if(!available(item))text(q.metrics[0].caption,item.state==='unavailable'?tr('设备离线'):tr('状态未知'),x+20*s,y+ch-fh-40*s,cw-40*s,28*s,14,pal.warn);
   }
 
   function progressValue(item) {
@@ -2331,11 +2333,11 @@
 
   function domainTitle(item) {
     return {
-      light: '\u706f\u5149', switch: '\u5f00\u5173', input_boolean: '\u6a21\u5f0f', fan: '\u98ce\u6247',
-      sensor: '\u4f20\u611f\u5668', binary_sensor: '\u72b6\u6001', cover: '\u906e\u9633', climate: '\u6e29\u63a7',
-      media_player: '\u5a92\u4f53', person: '\u6210\u5458', device_tracker: '\u4f4d\u7f6e', weather: '\u5929\u6c14',
-      sun: '\u65e5\u7167', update: '\u66f4\u65b0', lock: '\u95e8\u9501', vacuum: '\u6e05\u6d01', camera: '\u6444\u50cf\u5934',
-      alarm_control_panel: '\u5b89\u9632', automation: '\u81ea\u52a8\u5316', script: '\u811a\u672c', scene: '\u573a\u666f'
+      light: tr('\u706f\u5149'), switch: tr('\u5f00\u5173'), input_boolean: tr('\u6a21\u5f0f'), fan: tr('\u98ce\u6247'),
+      sensor: tr('\u4f20\u611f\u5668'), binary_sensor: tr('\u72b6\u6001'), cover: tr('\u906e\u9633'), climate: tr('\u6e29\u63a7'),
+      media_player: tr('\u5a92\u4f53'), person: tr('\u6210\u5458'), device_tracker: tr('\u4f4d\u7f6e'), weather: tr('\u5929\u6c14'),
+      sun: tr('\u65e5\u7167'), update: tr('\u66f4\u65b0'), lock: tr('\u95e8\u9501'), vacuum: tr('\u6e05\u6d01'), camera: tr('\u6444\u50cf\u5934'),
+      alarm_control_panel: tr('\u5b89\u9632'), automation: tr('\u81ea\u52a8\u5316'), script: tr('\u811a\u672c'), scene: tr('\u573a\u666f')
     }[item.domain] || item.domain.replace(/_/g, ' ');
   }
 
@@ -2396,7 +2398,7 @@
     const card=currentDeviceCard();if(!card)return;
     ensureDesktopPins();const key=deviceCardKey(card),index=desktopPins.indexOf(key);
     if(index>=0)desktopPins.splice(index,1);
-    else if(desktopPins.length>=2){message='桌面已固定两台设备，请先取消一个固定';render();return;}
+    else if(desktopPins.length>=2){message=tr('桌面已固定两台设备，请先取消一个固定');render();return;}
     else desktopPins.push(key);
     save('eh_desktop_pins',JSON.stringify({server:url,pins:desktopPins}));
     desktopRevision++;detailRenderKey='';publishDesktop();render();
@@ -2406,7 +2408,7 @@
     ensureDesktopPins();const key=[url,entityRevision,desktopRevision].join('|');
     if(key===desktopInputKey)return;
     const items=desktopCards().map(card=>({entity:card.entity_id,name:clean(card.name,30),
-      state:clean(card.device_online===false?'设备离线':friendlyState(card)+(card.domain==='light'&&card.state==='on'&&card.brightness!==null?' · '+card.brightness+'%':''),18)||'状态未知',
+      state:clean(card.device_online===false?tr('设备离线'):friendlyState(card)+(card.domain==='light'&&card.state==='on'&&card.brightness!==null?' · '+card.brightness+'%':''),18)||tr('状态未知'),
       pinned:desktopPins.includes(deviceCardKey(card))}));
     const json=JSON.stringify({server:url,items});
     if(json===desktopPublished){desktopInputKey=key;return;}
@@ -2418,7 +2420,7 @@
     const request=pendingDesktop;pendingDesktop=null;
     const card=groupedDeviceCards().find(card=>card.device_entities.includes(request.entity));
     if(card)openDetail(card);
-    else {message='该设备已移除或未在当前同步范围内';render();}
+    else {message=tr('该设备已移除或未在当前同步范围内');render();}
   }
   function openDesktopDevice(server,entity) {
     if(server!==url||!validEntity(entity)||disposed)return false;
@@ -2565,7 +2567,7 @@
       if(card.device_online)online++;
       if(card.device_entities.some(id=>running.has(id)))active++;
     });
-    dashboardStatsValue=['设备 '+cards.length,'在线 '+online,'运行 '+active];
+    dashboardStatsValue=[tr('设备 ')+cards.length,tr('在线 ')+online,tr('运行 ')+active];
     dashboardStatsKey=key;return dashboardStatsValue;
   }
 
@@ -2666,23 +2668,34 @@
       const make=(text,action)=>{const b=createButton(text,0,0,1,1,action,pal.page,{radius:10,borderWidth:0,fontSize:15});b.section='browse';u.buttons.push(b);return b;};
       u.favorite=make('',()=>{favoritesOnly=!favoritesOnly;applyDiscovery();});
       for(let i=0;i<3;i++)u.rooms.push(make('',()=>{const rooms=roomChoices(),index=browsePage*browsePageSize()+i;if(index<rooms.length){selectedArea=rooms[index];applyDiscovery();}}));
-      u.prev=make('上一页',()=>{browsePage=Math.max(0,browsePage-1);render();});u.next=make('下一页',()=>{browsePage++;render();});
-      u.clear=make('清除筛选',clearDiscovery);u.close=make('返回',()=>{browseOpen=false;render();});browseUi=u;
+      u.prev=make(tr('上一页'),()=>{browsePage=Math.max(0,browsePage-1);render();});u.next=make(tr('下一页'),()=>{browsePage++;render();});
+      u.clear=make(tr('清除筛选'),clearDiscovery);u.close=make(tr('返回'),()=>{browseOpen=false;render();});browseUi=u;
     }
     const rooms=roomChoices(),count=browsePageSize(),pages=Math.max(1,Math.ceil(rooms.length/count));browsePage=Math.min(browsePage,pages-1);
     const shown=Math.min(count,rooms.length-browsePage*count);
     const u=browseUi,x=GRID_X+18,y=HEADER_H+12,w=GRID_W-36,h=Math.min(H-HEADER_H-26,186+shown*44+(pages>1?44:0)),pad=16,inner=w-32;
     boardLock(true);u.locked=true;
     u.decor.forEach(id=>hide(id,false));pushPos(u.face,x,y);pushSize(u.face,w,h);
-    detailText(u.title,'筛选设备',x+pad,y+12,inner,28,20,pal.ink);
-    detailText(u.note,(search?'搜索：'+search+' · ':'')+(rooms.length>1?(rooms.length-1)+' 个房间'+(pages>1?' · 第 '+(browsePage+1)+' / '+pages+' 页':''):'家庭中枢尚未分配房间'),x+pad,y+43,inner,22,13,pal.muted);
+    detailText(u.title,tr('筛选设备'),x+pad,y+12,inner,28,20,pal.ink);
+    detailText(u.note,(search?tr('搜索：')+search+' · ':'')+(rooms.length>1?(rooms.length-1)+tr(' 个房间')+(pages>1?tr(' · 第 ')+(browsePage+1)+' / '+pages+tr(' 页'):''):tr('家庭中枢尚未分配房间')),x+pad,y+43,inner,22,13,pal.muted);
     const draw=(b,text,bx,by,bw,bh,active)=>{buttonText(b,text);Object.assign(b,{x:bx,y:by,w:bw,h:bh,color:active?pal.blueSoft:pal.page,style:{radius:10,borderWidth:0,fontSize:15}});hide(b,false);};
-    draw(u.favorite,favoritesOnly?'已选：关注设备':'仅看关注设备',x+pad,y+70,inner,40,favoritesOnly);
-    u.rooms.forEach((b,index)=>{const room=rooms[browsePage*count+index];if(index>=count||room===undefined){hide(b,true);return;}draw(b,(room===selectedArea?'已选 · ':'')+(room||'全部房间'),x+pad,y+118+index*44,inner,40,room===selectedArea);});
+    draw(u.favorite,favoritesOnly?tr('已选：关注设备'):tr('仅看关注设备'),x+pad,y+70,inner,40,favoritesOnly);
+    u.rooms.forEach((b,index)=>{const room=rooms[browsePage*count+index];if(index>=count||room===undefined){hide(b,true);return;}draw(b,(room===selectedArea?tr('已选 · '):'')+(room||tr('全部房间')),x+pad,y+118+index*44,inner,40,room===selectedArea);});
     const half=Math.floor((inner-8)/2),bottom=y+h-48;
-    draw(u.prev,'上一页',x+pad,bottom-44,half,40,false);draw(u.next,'下一页',x+pad+half+8,bottom-44,half,40,false);hide(u.prev,browsePage===0);hide(u.next,browsePage===pages-1);
-    draw(u.clear,'清除筛选',x+pad,bottom,half,40,false);draw(u.close,'返回',x+pad+half+8,bottom,half,40,false);
+    draw(u.prev,tr('上一页'),x+pad,bottom-44,half,40,false);draw(u.next,tr('下一页'),x+pad+half+8,bottom-44,half,40,false);hide(u.prev,browsePage===0);hide(u.next,browsePage===pages-1);
+    draw(u.clear,tr('清除筛选'),x+pad,bottom,half,40,false);draw(u.close,tr('返回'),x+pad+half+8,bottom,half,40,false);
     if(typeof ui.front==='function')u.decor.forEach(id=>ui.front(id));
+  }
+  // System back consumes exactly one local layer; home bypasses this hook.
+  function backOneLevel() {
+    if (disposed) return false;
+    if (optionPicker) { optionPicker=null;detailRenderKey='';render();return true; }
+    if (browseOpen) { cancelInputs(false);browseOpen=false;render();return true; }
+    if (detailOpen) { cancelInputs(false);detailOpen=false;quickGestureOwned=false;render();return true; }
+    if (settingsOpen) { cancelInputs(false);settingsOpen=false;render();return true; }
+    if (layoutEditing) { cancelInputs(false);layoutEditing=false;render();return true; }
+    if (nav!=='overview') { selectSection('overview');return true; }
+    return false;
   }
   function selectSection(section) {
     const previousSection=nav;
@@ -2708,10 +2721,10 @@
     initializeButtonPool();
     yield out;
     out.sidebar = panel(0, 0, SIDEBAR_W, H, sidebarStyle.paper, 0);
-    out.brand = label('我的家', 24, 30, SIDEBAR_W - 36, 28, 20, sidebarStyle.ink);
+    out.brand = label(tr('我的家'), 24, 30, SIDEBAR_W - 36, 28, 20, sidebarStyle.ink);
     const sections = [
-      ['overview', '\u603b\u89c8', '\uf015'], ['devices', '\u8bbe\u5907', '\uf00b'],
-      ['scenes', '场景', '\ue001'], ['logs', '日志', '\uf15b']
+      ['overview', tr('\u603b\u89c8'), '\uf015'], ['devices', tr('\u8bbe\u5907'), '\uf00b'],
+      ['scenes', tr('场景'), '\ue001'], ['logs', tr('日志'), '\uf15b']
     ];
     sections.forEach((entry, index) => {
       const y = (H<480?64:104) + index * 52;
@@ -2729,18 +2742,13 @@
       dot: panel(18, Math.min(352,H-112) + 5 + i * 28, 9, 9, i === 0 ? pal.blue : pal.good, 5),
       text: label('', 36, Math.min(352,H-112) + i * 28, SIDEBAR_W - 48, 20, 12, pal.muted)
     });
-    out.note = label('设备状态自动同步', 16, H - 36,
+    out.note = label(tr('设备状态自动同步'), 16, H - 36,
       SIDEBAR_W - 28, 18, 11, pal.muted);
     yield out;
 
     out.header = panel(GRID_X, 0, GRID_W, HEADER_H, pal.page, 0);
     out.back = iconButton('\uf053', GRID_X + 12, 16, 32, 30,
-      () => {
-        cancelInputs(false);
-        if (detailOpen) {detailOpen=false;optionPicker=null;quickGestureOwned=false;}
-        else settingsOpen = false;
-        render();
-      }, pal.page);
+      backOneLevel, pal.page);
     out.title = label('', GRID_X + 56, 17, 280, 30, 24, pal.ink);
     out.desktopPin=createButton('',W-160,10,144,40,toggleDesktopPin,pal.blueSoft,{radius:12,borderWidth:0,fontSize:15});out.desktopPin.section='detail';
     out.followButton=createButton('',W-278,10,110,44,toggleDeviceFollow,pal.blueSoft,{radius:12,borderWidth:0,fontSize:15});out.followButton.section='detail';
@@ -2757,10 +2765,10 @@
       if(search||selectedArea||favoritesOnly)clearDiscovery();else if(!connected)openSettings();else refresh();
     },pal.blueSoft,{radius:12,borderWidth:0,fontSize:16});out.emptyAction.section='list';
     [out.emptyTitle,out.emptyNote,out.emptyAction].forEach(id=>hide(id,true));
-    out.layoutEdit=createButton('编辑卡片',W-246,10,144,40,()=>{cancelInputs(false);quickGestureOwned=false;layoutEditing=!layoutEditing;roomPage=0;render();},pal.page,{radius:12,borderWidth:0,fontSize:16});out.layoutEdit.section='list';
+    out.layoutEdit=createButton(tr('编辑卡片'),W-246,10,144,40,()=>{cancelInputs(false);quickGestureOwned=false;layoutEditing=!layoutEditing;roomPage=0;render();},pal.page,{radius:12,borderWidth:0,fontSize:16});out.layoutEdit.section='list';
     out.layoutEditFace=panel(W-246,10,144,40,pal.blueSoft,12);
     out.layoutEditIcon=label('\ue003',W-232,20,24,24,18,pal.blue,true);
-    out.layoutEditLabel=label('编辑卡片',W-202,20,90,24,16,pal.blue);pushStyle(out.layoutEditLabel,'L',{center:1});
+    out.layoutEditLabel=label(tr('编辑卡片'),W-202,20,90,24,16,pal.blue);pushStyle(out.layoutEditLabel,'L',{center:1});
     yield out;
 
     if(WATERFALL){
@@ -2828,15 +2836,15 @@
     out.transport = label('', GRID_X + 42, GRID_Y + 102, GRID_W - 84, 24, 14, pal.warn);
     const settingsWidth = Math.floor((GRID_W - 96) / 2);
     [
-      ['\u670d\u52a1\u7aef', promptUrl], ['\u8bbf\u95ee\u4ee4\u724c', promptToken],
-      ['\u5141\u8bb8 HTTP', () => { httpAllowed = !httpAllowed; render(); }],
-      ['\u5168\u90e8\u5b9e\u4f53', () => {
+      [tr('\u670d\u52a1\u7aef'), promptUrl], [tr('\u8bbf\u95ee\u4ee4\u724c'), promptToken],
+      [tr('\u5141\u8bb8 HTTP'), () => { httpAllowed = !httpAllowed; render(); }],
+      [tr('\u5168\u90e8\u5b9e\u4f53'), () => {
         scope = scope === 'all' ? 'favorites' : 'all';
         save('eh_scope', scope);
         if (connected) { beginStates(); startQueued(); }
         render();
       }],
-      ['\u6dfb\u52a0\u5173\u6ce8', addFavorite], ['\u8fde\u63a5', connect], ['\u65ad\u5f00', disconnect]
+      [tr('\u6dfb\u52a0\u5173\u6ce8'), addFavorite], [tr('\u8fde\u63a5'), connect], [tr('\u65ad\u5f00'), disconnect]
     ].forEach((entry, index) => {
       const button = createButton(entry[0], GRID_X + 42 + (index % 2) * (settingsWidth + 12),
         GRID_Y + 142 + Math.floor(index / 2) * 46, settingsWidth, 36, entry[1],
@@ -2859,7 +2867,7 @@
     const remember=id=>{out.detailWidgets.push(id);return id;};
     out.detailPanel=remember(borderedPanel(cx,dy,cw,dh,dark?0x20262e:0xffffff,24));
     out.desktopPinFace=panel(W-160,10,144,40,pal.blueSoft,12);
-    out.desktopPinLabel=label('固定到桌面',W-154,20,132,24,15,pal.blue);pushStyle(out.desktopPinLabel,'L',{center:1});
+    out.desktopPinLabel=label(tr('固定到桌面'),W-154,20,132,24,15,pal.blue);pushStyle(out.desktopPinLabel,'L',{center:1});
 
     pushStyle(out.detailPanel,'S',{radius:24,borderWidth:1,borderColor:dark?0x303845:pal.line});
     out.detailCrumb=remember(label('',dx+8,dy+8,leftW-16,28,20,pal.ink));
@@ -2916,7 +2924,7 @@
       prompt.input({title:spec.title,value:item.state,maxLength:128},value=>{if(revision!==generation||value===null||value===undefined)return;requestFunction(indexedEntity(entity),spec,value);});
     }else requestFunction(item,spec);
   }
-  function optionLabel(value){const names={day:'日间',night:'夜间',relax:'放松',quiet:'安静',silent:'静音',sleep:'睡眠',normal:'标准',natural:'自然风',boost:'强力',eco:'节能',comfort:'舒适',low:'低',medium:'中',high:'高',vertical:'上下',horizontal:'左右',both:'全向',none:'无'};return value===true?'开启':value===false?'关闭':names[String(value).toLowerCase()]||STATE_WORDS[String(value)]||String(value);}
+  function optionLabel(value){const names={day:tr('日间'),night:tr('夜间'),relax:tr('放松'),quiet:tr('安静'),silent:tr('静音'),sleep:tr('睡眠'),normal:tr('标准'),natural:tr('自然风'),boost:tr('强力'),eco:tr('节能'),comfort:tr('舒适'),low:tr('低'),medium:tr('中'),high:tr('高'),vertical:tr('上下'),horizontal:tr('左右'),both:tr('全向'),none:tr('无')};return value===true?tr('开启'):value===false?tr('关闭'):names[String(value).toLowerCase()]||STATE_WORDS[String(value)]||String(value);}
   function detailText(id,value,x,y,w,h,font,color,center){
     hide(id,false);pushPos(id,Math.round(x),Math.round(y));pushSize(id,Math.floor(w),Math.floor(h));
     pushStyle(id,'L',{fontSize:font,center:center?1:0,icon:0,ellipsis:1});pushColor(id,color);pushText(id,String(value));
@@ -2974,13 +2982,13 @@
       optionPickerUi={choices:Array.from({length:4},(_,index)=>make('',()=>{
         if(!optionPicker)return;const state=optionPicker,entity=indexedEntity(state.entity),current=entity&&functionControls(entity).find(row=>row.service===state.service&&row.key===state.key);
         const value=current&&current.options[state.page*4+index];optionPicker=null;detailRenderKey='';if(value!==undefined)requestFunction(entity,current,value);render();
-      })),close:make('返回',()=>{optionPicker=null;detailRenderKey='';render();})};
+      })),close:make(tr('返回'),()=>{optionPicker=null;detailRenderKey='';render();})};
       optionPickerUi.pager=createPageIndicator('picker',target=>{if(optionPicker){optionPicker.page=target;render();}},id=>out.detailWidgets.push(id));
     }
     out.detailWidgets.forEach(id=>hide(id,true));hide(out.detailPanel,false);hide(out.detailName,false);hide(out.detailState,false);
     pushPos(out.detailName,box.x+20,box.y+16);pushSize(out.detailName,box.w-40,36);
     pushPos(out.detailState,box.x+20,box.y+54);pushSize(out.detailState,box.w-40,24);
-    pushText(out.detailName,spec.title);pushText(out.detailState,item.name+' · 直接选择');
+    pushText(out.detailName,spec.title);pushText(out.detailState,item.name+tr(' · 直接选择'));
     const pages=Math.ceil(spec.options.length/4);optionPicker.page=Math.min(optionPicker.page,pages-1);
     const rowH=Math.min(58,Math.floor((box.h-150)/4)),y=box.y+90;
     optionPickerUi.choices.forEach((button,index)=>{const value=spec.options[optionPicker.page*4+index];hide(button,value===undefined);if(value===undefined)return;
@@ -2989,7 +2997,7 @@
     hidePageIndicator(out.detailPager);
     updatePageIndicator(optionPickerUi.pager,optionPicker.page,pages,true,box.x+box.w/2,bottom,pal.card);
     Object.assign(optionPickerUi.close,{x:box.x+box.w-108,y:bottom,w:88,h:40});hide(optionPickerUi.close,false);
-    paintDetailButton(optionPickerUi.close,'返回',optionPickerUi.close.x,bottom,88,40,false,true);
+    paintDetailButton(optionPickerUi.close,tr('返回'),optionPickerUi.close.x,bottom,88,40,false,true);
 
   }
   function lampUi(){
@@ -3003,7 +3011,7 @@
     u.effectTitle=keep(label('',0,0,200,28,18,pal.ink));
     u.notice=keep(label('',0,0,200,44,14,pal.muted));
     u.preview=keep(panel(0,0,44,44,0xff962e,12));
-    u.colorLabel=keep(label('自选颜色',0,0,150,32,18,pal.ink));
+    u.colorLabel=keep(label(tr('自选颜色'),0,0,150,32,18,pal.ink));
     const make=action=>{const b=createButton('',0,0,4,4,action,pal.track,{radius:12,borderWidth:0,fontSize:16});b.section='detail';hide(b,true);u.buttons.push(b);return b;};
     const decorate=b=>{b.face=keep(panel(0,0,4,4,pal.track,12));b.caption=keep(label('',0,0,4,4,16,pal.ink));return b;};
     for(let i=0;i<8;i++){
@@ -3079,7 +3087,7 @@
     detailIcon(u.glyph,'\uf0eb',left,box.y+25,46,46,1,pal.blue);
     text(out.detailName,fit(currentDeviceCard().name,box.w-180,23),left+58,box.y+20,box.w-160,33,23);
     const area=entityDevices[item.entity_id]&&entityDevices[item.entity_id].area;
-    text(out.detailState,(area?area+' · ':'')+'设备功能',left+58,box.y+56,box.w-160,22,14,pal.muted);
+    text(out.detailState,(area?area+' · ':'')+tr('设备功能'),left+58,box.y+56,box.w-160,22,14,pal.muted);
     out.detailControlRows.forEach(row=>{row.item=item;row.spec=null;[row.title,row.track,row.fill,row.thumb,row.value,row.minusGlyph,row.plusGlyph].forEach(id=>hide(id,true));});
     const rh=detailDesign.rangeHeight,rowGap=92+detailDesign.fieldGap;
     ranges.forEach((spec,index)=>{
@@ -3107,7 +3115,7 @@
     if(!extras.length||lampAuxEntity!==item.entity_id&&(temperature||color||effect))hidePageIndicator(out.detailPager);
     if(extras.length){
       const sideControls=temperature||color||effect;
-      if(sideControls)button(u.extra,lampAuxEntity===item.entity_id?'返回灯光配色':'其他设备功能',right,box.y+box.h-44,auxW,34,false);
+      if(sideControls)button(u.extra,lampAuxEntity===item.entity_id?tr('返回灯光配色'):tr('其他设备功能'),right,box.y+box.h-44,auxW,34,false);
       if(lampAuxEntity===item.entity_id||!sideControls){
         out.detailAuxBox={x:right,y:top,w:auxW,h:box.h-172};
         out.detailAuxCount=out.detailControlCount;renderAuxFields(extras);return;
@@ -3115,7 +3123,7 @@
     }
     let nextY=top;
     if(temperature||color){
-      text(u.paletteTitle,temperature?(color?'常用色温 · 颜色':'常用色温'):'常用颜色',right,nextY,auxW,28,18);
+      text(u.paletteTitle,temperature?(color?tr('常用色温 · 颜色'):tr('常用色温')):tr('常用颜色'),right,nextY,auxW,28,18);
       const values=[];
       if(temperature)for(let i=0;i<4;i++){
         const k=Math.round(temperature.min+(temperature.max-temperature.min)*i/3);values.push({kelvin:k,color:[0xffaf59,0xffd2af,0xffebd6,0xfffdfa][i]});
@@ -3140,7 +3148,7 @@
         if(u.wheel===undefined){u.wheel=ui.colorWheel(right,nextY,Math.round(diameter));out.detailWidgets.push(u.wheel);}
         hide(u.wheel,false);pushPos(u.wheel,right,nextY);pushSize(u.wheel,Math.round(diameter),Math.round(diameter));
         u.wheelRect={x:right,y:nextY,w:diameter,h:diameter,entity:item.entity_id};
-        text(u.colorLabel,'颜色选择',right+diameter+12,nextY+diameter/2-13,auxW-diameter-12,28,16);
+        text(u.colorLabel,tr('颜色选择'),right+diameter+12,nextY+diameter/2-13,auxW-diameter-12,28,16);
         hide(u.preview,false);pushPos(u.preview,right+diameter+12,nextY+diameter/2+23);pushSize(u.preview,28,18);pushColor(u.preview,rgbColor(lampRgb(item)),!quickDrag&&!lampWheelDrag&&paint['c'+u.preview]!==undefined);
         placeWheelMarker(u,lampRgb(item));nextY+=diameter+10;
       }
@@ -3148,16 +3156,16 @@
     if(effect){
       const row=u.effectRow||(u.effectRow={});row.item=item;row.spec=effect;
       if(nextY+32+detailDesign.buttonHeight<=box.y+box.h-(extras.length?54:16)&&renderDirectOptions(row,item,effect,right,nextY+32,auxW,detailDesign.buttonHeight)){
-        text(u.effectTitle,'灯光效果',right,nextY,auxW,26,detailDesign.label,pal.ink);
+        text(u.effectTitle,tr('灯光效果'),right,nextY,auxW,26,detailDesign.label,pal.ink);
         if(typeof ui.front==='function')ui.front(u.effectTitle);
       }else{
         button(u.effects[0],'',right,nextY,auxW,44,false);
-        text(u.effectTitle,'灯光效果',right+12,nextY+10,auxW-128,26,16,pal.muted);
-        text(u.effects[0].caption,fit(optionLabel(controlValue(item,effect)||'选择'),106,16)+'  v',right+auxW-120,nextY+10,108,26,16);
+        text(u.effectTitle,tr('灯光效果'),right+12,nextY+10,auxW-128,26,16,pal.muted);
+        text(u.effects[0].caption,fit(optionLabel(controlValue(item,effect)||tr('选择')),106,16)+'  v',right+auxW-120,nextY+10,108,26,16);
         pushStyle(u.effects[0].caption,'L',{fontSize:16,center:1});
         if(typeof ui.front==='function'){ui.front(u.effectTitle);ui.front(u.effects[0].caption);}
       }
-    }else if(!temperature&&!color){text(u.notice,'此灯具未提供色温、颜色或灯光效果',right,top,auxW,60,14,pal.muted);}
+    }else if(!temperature&&!color){text(u.notice,tr('此灯具未提供色温、颜色或灯光效果'),right,top,auxW,60,14,pal.muted);}
   }
 
   function deviceFields(members){
@@ -3170,7 +3178,7 @@
       const specs=profileControls(item);
       if(specs.length)specs.forEach(spec=>fields.push({item,spec}));
       else if(!represented.has(item.entity_id))fields.push({item,spec:{title:item.name,kind:'read',value:dashboardValue(item)}});
-      if(isSceneCommand(item))fields.push({item,spec:{title:'触发记录',kind:'read',value:sceneTimestamp(item)}});
+      if(isSceneCommand(item))fields.push({item,spec:{title:tr('触发记录'),kind:'read',value:sceneTimestamp(item)}});
     });
     return profile&&(profile.layout==='climate'||profileQuickControl(card))?fields.concat(summary):summary.concat(fields);
   }
@@ -3208,7 +3216,7 @@
         if(renderDirectOptions(row,item,spec,box.x,y+30,box.w,52)){
           hide(row.face,true);hide(row.state,true);return;
         }
-        pushText(row.state,spec.kind==='read'?String(value):spec.kind==='options'?String(value===true?'开启':value===false?'关闭':value||'未选择')+'  >':spec.kind==='text'?'编辑内容':spec.title);
+        pushText(row.state,spec.kind==='read'?String(value):spec.kind==='options'?String(value===true?tr('开启'):value===false?tr('关闭'):value||tr('未选择'))+'  >':spec.kind==='text'?tr('编辑内容'):spec.title);
         Object.assign(row.button,{x:box.x,y:y+30,w:box.w,h:52});hide(row.button,!usable);
       }
     });
@@ -3262,7 +3270,7 @@
     detailIcon(u.glyph,dashboardIcon(device),left,box.y+25,D.icon,D.icon,3,pal.blue);
     detailText(out.detailName,device.name,left+D.icon+12,box.y+20,box.w-160,33,D.title,pal.ink);
     const area=entityDevices[item.entity_id]&&entityDevices[item.entity_id].area;
-    detailText(out.detailState,(area?area+' · ':'')+(profile.readonly?'传感器只读':'设备功能'),left+D.icon+12,box.y+56,box.w-160,22,14,pal.muted);
+    detailText(out.detailState,(area?area+' · ':'')+(profile.readonly?tr('传感器只读'):tr('设备功能')),left+D.icon+12,box.y+56,box.w-160,22,14,pal.muted);
     const all=deviceFields(members),used=new Set(),own=field=>field.item.entity_id===item.entity_id;
     const power=all.find(f=>own(f)&&f.spec.kind==='action'&&['turn_on','turn_off'].includes(f.spec.service));if(power)used.add(power);
     const usable=connected&&available(item)&&!layoutEditing&&!item.product_readonly,px=box.x+box.w-D.padding-44,py=box.y+25;
@@ -3293,9 +3301,9 @@
       else if(id==='move')field=grouped(['open_cover','stop_cover','close_cover']);
       else if(id==='playback')field=grouped(['media_previous_track','media_play','media_pause','media_next_track']);
       else if(id==='clean')field=grouped(['start','pause','return_to_base']);
-      else if(id==='state')field={item,spec:{kind:'read',status:true,value:available(item)?layout==='sensor'?'在线':friendlyState(item):'--'}};
+      else if(id==='state')field={item,spec:{kind:'read',status:true,value:available(item)?layout==='sensor'?tr('在线'):friendlyState(item):'--'}};
       else if(id==='favorite'){
-        const target=functionControls(item).find(s=>s.key==='position');if(target)field={item,spec:{kind:'presets',target,options:[100,50,0],labels:['全开','半开','全关']}};
+        const target=functionControls(item).find(s=>s.key==='position');if(target)field={item,spec:{kind:'presets',target,options:[100,50,0],labels:[tr('全开'),tr('半开'),tr('全关')]}};
       }
       else if(id==='power'&&power)field={item,spec:{kind:'power',target:power.spec}};
       if(field)field.spec=Object.assign({},field.spec,{title});return field;
@@ -3304,15 +3312,15 @@
       recipe.left.forEach(([id,title])=>{const f=resolve(id,title);if(f)main.push(f);});
       recipe.right.forEach(([id,title])=>{const f=resolve(id,title);if(f)side.push(f);});
       recipe.readings.forEach(([id,title])=>{const f=resolve(id,title);if(f){f.spec.compact=true;side.push(f);}});
-      if(layout==='outlet'&&power)main.unshift({item,spec:{title:'电源',kind:'power',target:power.spec}});
+      if(layout==='outlet'&&power)main.unshift({item,spec:{title:tr('电源'),kind:'power',target:power.spec}});
     }else if(profile.layout==='camera'){
-      main.push({item,spec:{kind:'camera',title:'画面预览'}});all.filter(f=>f.spec.kind==='read').forEach(f=>{used.add(f);side.push(f);});
+      main.push({item,spec:{kind:'camera',title:tr('画面预览')}});all.filter(f=>f.spec.kind==='read').forEach(f=>{used.add(f);side.push(f);});
     }else{
       const fields=all.filter(f=>!used.has(f));fields.forEach(f=>used.add(f));
       if(fields.every(f=>f.spec.kind==='read')){const half=Math.ceil(fields.length/2);main.push(...fields.slice(0,half));side.push(...fields.slice(half));}
       else fields.forEach(f=>(profile.primary.includes(f.spec.key||f.spec.service)?main:side).push(f));
     }
-    if(!main.length&&!side.length)main.push({item,spec:{title:'设备状态',kind:'read',status:true,value:available(item)?friendlyState(item):'--'}});
+    if(!main.length&&!side.length)main.push({item,spec:{title:tr('设备状态'),kind:'read',status:true,value:available(item)?friendlyState(item):'--'}});
     const extras=all.filter(f=>!used.has(f));
     const grid=!!profile.readonly&&profile.layout&&profile.layout!=='camera';
     const height=field=>field.spec.kind==='camera'?Math.round(width*9/16):field.spec.kind==='power'?156:field.spec.kind==='options'&&['oscillating','is_volume_muted'].includes(field.spec.key)?48:field.spec.kind==='read'?(field.spec.compact?52:grid?76:field.spec.status?81:96):field.spec.key==='temperature'?98:field.spec.kind==='range'?92:83;
@@ -3320,7 +3328,7 @@
     const paginate=fields=>{const pages=[[]];let size=0;for(const f of fields){const h=height(f),gap=size?(grid?18:D.fieldGap):0;if(pages.at(-1).length===3||size+gap+h>bodyHeight&&size){pages.push([]);size=0;}pages.at(-1).push(f);size+= (size?(grid?18:D.fieldGap):0)+h;}return pages;};
     const leftPages=paginate(main),rightPages=paginate(side),basePages=Math.max(leftPages.length,rightPages.length);
     const extraPages=paginate(extras),pages=basePages+(detailExpanded&&extras.length?extraPages.length:0);controlPage=Math.min(controlPage,pages-1);
-    hide(out.detailMore,!extras.length);buttonText(out.detailMore,detailExpanded?'收起参数':'更多参数');
+    hide(out.detailMore,!extras.length);buttonText(out.detailMore,detailExpanded?tr('收起参数'):tr('更多参数'));
     const paintRow=(row,field,x,y,w,aux)=>{
       row.item=field&&field.item;row.spec=field&&field.spec;
       const ids=aux?[row.face,row.name,row.state,row.fill,row.thumb]:[row.title,row.track,row.fill,row.thumb,row.value,row.minusGlyph,row.plusGlyph];ids.forEach(id=>hide(id,true));if(!field)return;
@@ -3329,7 +3337,7 @@
       const toggle=spec.kind==='options'&&['oscillating','is_volume_muted','away_mode'].includes(spec.key);
       if(toggle){
         detailText(title,spec.title,x,y+11,w-146,28,16,pal.ink);
-        detailText(valueLabel,value?'已开启':'已关闭',x+w-134,y+15,80,22,13,pal.muted,true);
+        detailText(valueLabel,value?tr('已开启'):tr('已关闭'),x+w-134,y+15,80,22,13,pal.muted,true);
         hide(track,false);pushPos(track,x+w-46,y+10);pushSize(track,46,28);pushColor(track,value?pal.blue:pal.track);pushStyle(track,'S',{radius:14,borderWidth:0});pushStyle(track,'G',{gradientHorizontal:0,gradientVertical:0});
         hide(row.thumb,false);pushPos(row.thumb,x+w-46+(value?21:3),y+13,!quickDrag&&!lampWheelDrag&&paint['p'+row.thumb]!==undefined);pushSize(row.thumb,22,22);pushStyle(row.thumb,'S',{radius:11,borderWidth:0});pushColor(row.thumb,value||!dark?0xffffff:0xbcc7d0);
         const b=aux?row.button:row.plus;Object.assign(b,{x,y,w,h:48,style:{radius:0,borderWidth:0,enabled:enabled?1:0}});buttonText(b,'');hide(b,!enabled);
@@ -3337,12 +3345,12 @@
       }
       if(spec.kind==='camera'){
         hide(track,false);pushPos(track,x,y);pushSize(track,w,Math.round(w*9/16));pushColor(track,pal.page);pushStyle(track,'S',{radius:18,borderWidth:0});pushStyle(track,'G',{gradientHorizontal:0,gradientVertical:0});
-        detailIcon(valueLabel,'\ue002',x,y+w*9/32-47,w,64,3,pal.muted);detailText(title,'暂无预览画面',x,y+w*9/16-41,w,24,13,pal.muted,true);
+        detailIcon(valueLabel,'\ue002',x,y+w*9/32-47,w,64,3,pal.muted);detailText(title,tr('暂无预览画面'),x,y+w*9/16-41,w,24,13,pal.muted,true);
         if(typeof ui.front==='function'){ui.front(track);ui.front(valueLabel);ui.front(title);}return;
       }
       if(spec.kind==='power'){
         hide(track,false);pushPos(track,x,y+8);pushSize(track,136,136);pushStyle(track,'S',{radius:64,borderWidth:0});pushStyle(track,'G',{gradientHorizontal:0,gradientVertical:0});pushColor(track,powerIsOn(entity)?dark?0x234936:0xdcf7e8:pal.track);
-        detailIcon(title,'\uf011',x,y+28,136,52,3,powerIsOn(entity)?dark?0xc7ffdf:0x13744d:pal.muted);detailText(valueLabel,powerIsOn(entity)?'已开启':'已关闭',x,y+88,136,28,16,powerIsOn(entity)?dark?0xc7ffdf:0x13744d:pal.muted,true);
+        detailIcon(title,'\uf011',x,y+28,136,52,3,powerIsOn(entity)?dark?0xc7ffdf:0x13744d:pal.muted);detailText(valueLabel,powerIsOn(entity)?tr('已开启'):tr('已关闭'),x,y+88,136,28,16,powerIsOn(entity)?dark?0xc7ffdf:0x13744d:pal.muted,true);
         row.plusAction=()=>toggleItem(lookupEntity(entity.entity_id));Object.assign(row.plus,{x,y:y+8,w:136,h:136});hide(row.plus,!enabled);buttonText(row.plus,'');return;
       }
       detailText(title,spec.title,x,y,w,grid?24:31,spec.compact?13:D.label,spec.kind==='read'?pal.muted:pal.ink);
@@ -3377,7 +3385,7 @@
         out.detailDragGroup.sliderRects.push(rect);if(enabled)out.detailDragGroup.controlRects.push(rect);return;
       }
       if(renderDirectOptions(row,entity,spec,x,ry,w,D.buttonHeight))return;
-      const b=aux?row.button:row.plus;paintDetailButton(b,spec.kind==='options'?optionLabel(value===null||value===undefined?'选择':value)+'  >':spec.kind==='text'?'编辑内容':spec.title,x,ry,w,D.buttonHeight,false,enabled);
+      const b=aux?row.button:row.plus;paintDetailButton(b,spec.kind==='options'?optionLabel(value===null||value===undefined?tr('选择'):value)+'  >':spec.kind==='text'?tr('编辑内容'):spec.title,x,ry,w,D.buttonHeight,false,enabled);
     };
     const draw=(rows,fields,x,w,aux)=>{let y=bodyY;rows.forEach((row,index)=>{const f=fields[index];paintRow(row,f,x,y,w,aux);if(f)y+=height(f)+(grid?18:D.fieldGap);});};
     draw(out.detailControlRows,controlPage<basePages?leftPages[controlPage]||[]:extraPages[controlPage-basePages]||[],left,width,false);
@@ -3419,7 +3427,7 @@
     const intent=controlTargets[selected.entity_id];
     const profile=commonCardProfile(device),readings=profileReadings(device);
     const profileState=readings.find(row=>row.key==='$state');
-    const detailState=intent?(intent.sent?'正在同步状态':'待执行'):profileState?profileState.display:selected.domain==='light'?friendlyState(selected):dashboardSubtitle(selected);
+    const detailState=intent?(intent.sent?tr('正在同步状态'):tr('待执行')):profileState?profileState.display:selected.domain==='light'?friendlyState(selected):dashboardSubtitle(selected);
     pushText(out.detailState,detailState+(profile&&profile.notice?' · '+profile.notice:''));
     pushColor(out.detailState,readings.some(row=>row.alert)?pal.warn:pal.muted);
     out.detailMembers.forEach(row=>{[row.face,row.name,row.state,row.fill,row.thumb].forEach(id=>hide(id,true));hide(row.button,true);});
@@ -3439,14 +3447,14 @@
     const readOnlyProfile=profile&&profile.layout&&allFields.every(field=>field.spec.kind==='read');
     const mainCount=readOnlyProfile?Math.min(out.detailControlCount,Math.ceil(allFields.length/2)):out.detailControlCount;
     const perPage=mainCount+out.detailAuxCount,fields=detailExpanded?allFields:allFields.slice(0,perPage),pages=Math.max(1,Math.ceil(fields.length/perPage));
-    hide(out.detailMore,allFields.length<=perPage);buttonText(out.detailMore,detailExpanded?'收起参数':'更多参数');
+    hide(out.detailMore,allFields.length<=perPage);buttonText(out.detailMore,detailExpanded?tr('收起参数'):tr('更多参数'));
     if(allFields.length>perPage){pushSize(out.detailName,out.detailBox.w-180,32);pushSize(out.detailState,out.detailBox.w-180,24);}
     controlPage=Math.min(controlPage,pages-1);
     const offset=controlPage*perPage;
     renderAuxFields([],fields.slice(offset+mainCount,offset+perPage),pages);
     const pageFields=fields.slice(offset,offset+mainCount);
     controlPage=Math.min(controlPage,pages-1);
-    pushText(out.detailAvailability,!connected?'未连接':!available(selected)?'设备不可用':specs.length?'拖动调节 · '+(controlPage+1)+'/'+pages:'传感器读数 · 只读');
+    pushText(out.detailAvailability,!connected?tr('未连接'):!available(selected)?tr('设备不可用'):specs.length?tr('拖动调节 · ')+(controlPage+1)+'/'+pages:tr('传感器读数 · 只读'));
     out.detailControlRows.forEach((row,i)=>{
       const field=i<out.detailControlCount?pageFields[i]:null,spec=field&&field.spec;row.item=field&&field.item;row.spec=spec;
       [row.title,row.track,row.fill,row.thumb,row.value,row.minusGlyph,row.plusGlyph].forEach(id=>hide(id,!spec));
@@ -3467,7 +3475,7 @@
         [row.fill,row.thumb,row.minusGlyph,row.plusGlyph,row.minus,row.plus].forEach(id=>hide(id,true));
         hide(row.track,false);pushPos(row.track,row.x,row.y);pushSize(row.track,fw,fh);pushColor(row.track,pal.page);pushStyle(row.track,'S',{radius:18,borderWidth:0});
         detailIcon(row.value,'\ue002',row.x,row.y+Math.round(fh/2)-48,fw,64,3,pal.muted);
-        hide(row.title,false);pushPos(row.title,row.x,row.y+fh-40);pushSize(row.title,fw,28);pushStyle(row.title,'L',{fontSize:16,center:1,icon:0});pushText(row.title,'暂无预览画面');
+        hide(row.title,false);pushPos(row.title,row.x,row.y+fh-40);pushSize(row.title,fw,28);pushStyle(row.title,'L',{fontSize:16,center:1,icon:0});pushText(row.title,tr('暂无预览画面'));
         if(typeof ui.front==='function'){ui.front(row.value);ui.front(row.title);}return;
       }
       if(spec.kind==='read'){
@@ -3497,10 +3505,10 @@
         if(renderDirectOptions(row,item,spec,row.x,row.y+30,row.w,52)){
           [row.track,row.value,row.minusGlyph,row.plusGlyph].forEach(id=>hide(id,true));return;
         }
-        pushColor(row.track,dark?0x2b3542:pal.blueSoft);pushText(row.value,spec.kind==='options'?String(value===true?'开启':value===false?'关闭':value||'未选择'):spec.kind==='read'?String(spec.value):spec.kind==='text'?'编辑内容':'点按执行');
+        pushColor(row.track,dark?0x2b3542:pal.blueSoft);pushText(row.value,spec.kind==='options'?String(value===true?tr('开启'):value===false?tr('关闭'):value||tr('未选择')):spec.kind==='read'?String(spec.value):spec.kind==='text'?tr('编辑内容'):tr('点按执行'));
         pushStyle(row.track,'G',{gradientHorizontal:0,gradientVertical:0});
         const options=spec.kind==='options';hide(row.minusGlyph,!options);hide(row.plusGlyph,false);
-        pushText(row.minusGlyph,'<');pushText(row.plusGlyph,options?'>':'执行');
+        pushText(row.minusGlyph,'<');pushText(row.plusGlyph,options?'>':tr('执行'));
         Object.assign(row.plus,{x:options?row.x+row.w-58:row.x,y:row.y+30,w:options?58:row.w,h:52});
         pushPos(row.plusGlyph,options?row.x+row.w-58:row.x,row.y+43);pushSize(row.plusGlyph,options?58:row.w,28);
         hide(row.value,!options&&spec.kind!=='read');pushColor(row.plusGlyph,pal.blue);
@@ -3557,7 +3565,7 @@
     const windowKey=WATERFALL?boardRows.map(row=>row?row.item.entity_id:'').join(','):'';
     if(WATERFALL)widgets.boardWindowKey=windowKey;
     const sectionNames = {
-      overview: '\u603b\u89c8', devices: '\u8bbe\u5907', scenes: '场景', logs: '日志'
+      overview: tr('\u603b\u89c8'), devices: tr('\u8bbe\u5907'), scenes: tr('场景'), logs: tr('日志')
     };
     const nextCardKey = discoveryRevision+'|'+windowKey+'|'+entityRevision + '|' + nav + '|' + roomPage + '|' +
       selectedId + '|' + connected + '|' + (pending ? pending.kind : '') + '|' +
@@ -3578,7 +3586,7 @@
     }
 
     hide(widgets.sidebar, false); hide(widgets.brand, false); hide(widgets.note, false);
-    pushText(widgets.note,groupedDeviceCards().length+' 台设备 · '+(connected?'已同步':'未连接'));
+    pushText(widgets.note,groupedDeviceCards().length+tr(' 台设备 · ')+(connected?tr('已同步'):tr('未连接')));
     hide(widgets.header, false); hide(widgets.title, false);
     widgets.menu.forEach(row => {
       const active = row.key === (detailRequested?'devices':nav);
@@ -3597,18 +3605,18 @@
       hide(entry.dot, settingsOpen); hide(entry.text, settingsOpen);
       pushText(entry.text,statistics[index]);
     });
-    pushText(widgets.title, settingsOpen ? '\u8fde\u63a5\u8bbe\u7f6e' :
-      detailRequested ? '更多功能' : !connected?(pending||queued||nativeBusy?'同步中 · ':'未连接 · ')+sectionNames[nav]:sectionNames[nav]);
-    pushText(widgets.status, connected ? '\u5df2\u540c\u6b65' : '\u672a\u8fde\u63a5');
+    pushText(widgets.title, settingsOpen ? tr('\u8fde\u63a5\u8bbe\u7f6e') :
+      detailRequested ? tr('更多功能') : !connected?(pending||queued||nativeBusy?tr('同步中 · '):tr('未连接 · '))+sectionNames[nav]:sectionNames[nav]);
+    pushText(widgets.status, connected ? tr('\u5df2\u540c\u6b65') : tr('\u672a\u8fde\u63a5'));
     if(listView){pushSize(widgets.title,Math.max(80,GRID_W-250),30);hide(widgets.status,true);}
     else pushSize(widgets.title,detailView?Math.max(80,GRID_W-350):280,30);
     pairHidden(widgets.back, !settingsOpen && !detailRequested);
     ensureDesktopPins();
     hide(widgets.desktopPin,!detailView);
     hide(widgets.followButton,!detailView);
-    if(detailView){const card=currentDeviceCard();buttonText(widgets.followButton,card&&card.device_entities.some(id=>favorites.includes(id))?'取消关注':'关注设备');}
+    if(detailView){const card=currentDeviceCard();buttonText(widgets.followButton,card&&card.device_entities.some(id=>favorites.includes(id))?tr('取消关注'):tr('关注设备'));}
     [widgets.desktopPinFace,widgets.desktopPinLabel].forEach(id=>hide(id,!detailView));
-    if(detailView)pushText(widgets.desktopPinLabel,desktopPins.includes(deviceCardKey(currentDeviceCard()))?'取消桌面固定':desktopPins.length>=2?'桌面已固定两台':'固定到桌面');
+    if(detailView)pushText(widgets.desktopPinLabel,desktopPins.includes(deviceCardKey(currentDeviceCard()))?tr('取消桌面固定'):desktopPins.length>=2?tr('桌面已固定两台'):tr('固定到桌面'));
     pairHidden(widgets.refresh, !listView);
     pairHidden(widgets.settingsButton, !listView);
     pairHidden(widgets.searchButton,!listView||nav==='logs');pairHidden(widgets.browseButton,!listView||nav==='logs');
@@ -3617,16 +3625,16 @@
     hide(widgets.emptyTitle,!empty);hide(widgets.emptyNote,!empty);hide(widgets.emptyAction,!empty);
     if(empty){
       const filtered=!!(search||selectedArea||favoritesOnly),loading=!!(pending||queued||nativeBusy);
-      pushText(widgets.emptyTitle,filtered?'没有匹配的设备':!connected?(loading?'正在同步设备':'尚未连接家庭'):nav==='logs'?'暂无操作记录':nav==='scenes'?'暂无场景':'暂无设备');
-      pushText(widgets.emptyNote,filtered?'调整搜索或房间筛选，也可以清除全部筛选。':!connected?(phase==='error'?fit(message,GRID_W-48,15):'连接家庭中枢后，这里会显示已同步的设备。'):nav==='logs'?'设备操作及同步结果会显示在这里。':'刷新设备列表，或在家庭中枢中添加设备。');
-      buttonText(widgets.emptyAction,filtered?'清除筛选':!connected?'连接设置':'刷新列表');
+      pushText(widgets.emptyTitle,filtered?tr('没有匹配的设备'):!connected?(loading?tr('正在同步设备'):tr('尚未连接家庭')):nav==='logs'?tr('暂无操作记录'):nav==='scenes'?tr('暂无场景'):tr('暂无设备'));
+      pushText(widgets.emptyNote,filtered?tr('调整搜索或房间筛选，也可以清除全部筛选。'):!connected?(phase==='error'?fit(message,GRID_W-48,15):tr('连接家庭中枢后，这里会显示已同步的设备。')):nav==='logs'?tr('设备操作及同步结果会显示在这里。'):tr('刷新设备列表，或在家庭中枢中添加设备。'));
+      buttonText(widgets.emptyAction,filtered?tr('清除筛选'):!connected?tr('连接设置'):tr('刷新列表'));
       if(typeof ui.front==='function'){ui.front(widgets.emptyTitle);ui.front(widgets.emptyNote);}
     }
     hide(widgets.layoutEdit,true);buttonText(widgets.layoutEdit,'');
     [widgets.layoutEditFace,widgets.layoutEditIcon,widgets.layoutEditLabel].forEach(id=>hide(id,true));
     pushColor(widgets.layoutEditFace,layoutEditing?pal.blue:pal.blueSoft);
     pushColor(widgets.layoutEditLabel,layoutEditing?0xffffff:pal.blue);pushColor(widgets.layoutEditIcon,layoutEditing?0xffffff:pal.blue);
-    pushText(widgets.layoutEditLabel,layoutEditing?'完成编辑':'编辑卡片');
+    pushText(widgets.layoutEditLabel,layoutEditing?tr('完成编辑'):tr('编辑卡片'));
 
     const cardsNeedUpdate = cardRenderCursor < SLOTS;
     const cardStart = cardRenderCursor;
@@ -3665,10 +3673,10 @@
     pushSize(widgets.selectedState, footerTextWidth, 24);
     pushStyle(widgets.selectedName, 'L', { ellipsis: 1 });
     pushStyle(widgets.selectedState, 'L', { ellipsis: 1 });
-    pushText(widgets.selectedName,fit(nav==='logs'?'本次会话日志 · 最多 32 条':nav==='scenes'?'场景与脚本':search||selectedArea||favoritesOnly?list.length+' 台 · '+[selectedArea,favoritesOnly?'关注设备':'',search?'搜索 '+search:''].filter(Boolean).join(' · '):layoutEditing?'编辑卡片布局':selected?selected.name:(WATERFALL?'上下滑动浏览 · 轻点更多功能':'轻点卡片 · 更多操作'),footerTextWidth,15));
+    pushText(widgets.selectedName,fit(nav==='logs'?tr('本次会话日志 · 最多 32 条'):nav==='scenes'?tr('场景与脚本'):search||selectedArea||favoritesOnly?list.length+tr(' 台 · ')+[selectedArea,favoritesOnly?tr('关注设备'):'',search?tr('搜索 ')+search:''].filter(Boolean).join(' · '):layoutEditing?tr('编辑卡片布局'):selected?selected.name:(WATERFALL?tr('上下滑动浏览 · 轻点更多功能'):tr('轻点卡片 · 更多操作')),footerTextWidth,15));
     const selectedTarget=selected&&controlTargets[selected.entity_id];
-    pushText(widgets.selectedState,layoutEditing?(layoutSaveError?'布局未保存，请重试':'选择尺寸后，点击完成编辑查看组合'):
-      nav==='logs'?'仅记录本页面 · 关闭后清除':nav==='scenes'?sceneStatusText(list.length):phase==='error'?message:selectedTarget?(selectedTarget.sent?'正在同步状态':'待执行 · 前一设备仍在执行'):selected?fit(quickCardModel(selected).subtitle,278,11):message);
+    pushText(widgets.selectedState,layoutEditing?(layoutSaveError?tr('布局未保存，请重试'):tr('选择尺寸后，点击完成编辑查看组合')):
+      nav==='logs'?tr('仅记录本页面 · 关闭后清除'):nav==='scenes'?sceneStatusText(list.length):phase==='error'?message:selectedTarget?(selectedTarget.sent?tr('正在同步状态'):tr('待执行 · 前一设备仍在执行')):selected?fit(quickCardModel(selected).subtitle,278,11):message);
 
     if(widgets.detailWidgets)renderDetail(selected,detailView);
 
@@ -3676,14 +3684,14 @@
     [widgets.url, widgets.secret, widgets.transport].forEach(id => hide(id, !settingsOpen));
     widgets.settings.forEach(button => hide(button, !settingsOpen));
     if (settingsOpen) {
-      pushText(widgets.url, '\u5bb6\u5ead\u4e2d\u67a2  \u00b7  ' + url);
-      pushText(widgets.secret, nativeManaged ? '\u4ee4\u724c\uff1a\u7531\u672c\u5730\u670d\u52a1\u7ba1\u7406' :
-        '\u4ee4\u724c\uff1a\u672a\u8f93\u5165');
-      pushText(widgets.transport, nativeManaged ? '\u5df2\u4f7f\u7528\u5df2\u9a8c\u8bc1\u7684\u672c\u5730 Home Assistant \u670d\u52a1' :
-        '\u8fde\u63a5\u524d\u9700\u786e\u8ba4 HTTP \u98ce\u9669');
-      buttonText(widgets.settings[2], httpAllowed ? 'HTTP \u5df2\u5141\u8bb8' : '\u5141\u8bb8 HTTP');
-      buttonText(widgets.settings[3], scope === 'favorites' ? '\u4ec5\u5173\u6ce8' : '\u5168\u90e8\u5b9e\u4f53');
-      buttonText(widgets.settings[5], connected ? '\u91cd\u65b0\u540c\u6b65' : '\u8fde\u63a5');
+      pushText(widgets.url, tr('\u5bb6\u5ead\u4e2d\u67a2  \u00b7  ') + url);
+      pushText(widgets.secret, nativeManaged ? tr('\u4ee4\u724c\uff1a\u7531\u672c\u5730\u670d\u52a1\u7ba1\u7406') :
+        tr('\u4ee4\u724c\uff1a\u672a\u8f93\u5165'));
+      pushText(widgets.transport, nativeManaged ? tr('\u5df2\u4f7f\u7528\u5df2\u9a8c\u8bc1\u7684\u672c\u5730 Home Assistant \u670d\u52a1') :
+        tr('\u8fde\u63a5\u524d\u9700\u786e\u8ba4 HTTP \u98ce\u9669'));
+      buttonText(widgets.settings[2], httpAllowed ? tr('HTTP \u5df2\u5141\u8bb8') : tr('\u5141\u8bb8 HTTP'));
+      buttonText(widgets.settings[3], scope === 'favorites' ? tr('\u4ec5\u5173\u6ce8') : tr('\u5168\u90e8\u5b9e\u4f53'));
+      buttonText(widgets.settings[5], connected ? tr('\u91cd\u65b0\u540c\u6b65') : tr('\u8fde\u63a5'));
     }
     const largeRows=listView?boardRows.filter(row=>row&&row.large):[];
     if(largeRows.length)ensureQuickGroups(largeRows.length);
@@ -3868,8 +3876,8 @@
 
   if (W < 640 || H < 400) {
     ui.background(pal.page);
-    label('米家 HA', 12, 12, Math.max(1, W - 24), 28, 20, pal.ink);
-    label('显示区域至少需要 640 × 400', 12, 56, Math.max(1, W - 24), 64, 16, pal.muted);
+    label(tr('米家 HA'), 12, 12, Math.max(1, W - 24), 28, 20, pal.ink);
+    label(tr('显示区域至少需要 640 × 400'), 12, 56, Math.max(1, W - 24), 64, 16, pal.muted);
     return;
   }
   const uiCreation = buildUiReference();
@@ -3884,9 +3892,10 @@
     else setTimeout(resumeUiCreation, 20);
   }
   setTimeout(resumeUiCreation, 20);
-  if (!bridgeReady) message = '固件未提供 Home Assistant 接口';
+  if (!bridgeReady) message = tr('固件未提供 Home Assistant 接口');
   renderNow();
   if (nativeManaged && bridgeReady) connect();
+  if(typeof ui.onBack==='function')ui.onBack(backOneLevel);
   ui.onSwipe(direction => {
     if(WATERFALL)return;
     if (disposed || settingsOpen || detailOpen || optionPicker || quickGestureOwned) return;
@@ -3905,7 +3914,7 @@
       if(r.vertical){pushSize(r.fill,r.w,Math.round(height),!quickDrag&&paint['s'+r.fill]!==undefined);pushPos(r.fill,r.x,Math.round(r.y+r.h-height));}
       else pushSize(r.fill,Math.max(1,Math.round(width)),Math.round(r.h),!quickDrag&&paint['s'+r.fill]!==undefined);hide(r.fill,percent===0);
     }
-    pushText(r.label,(r.spec?(r.valueOnly?'':(r.labelName||r.spec.title)+' ')+formatControl(r.spec,rangeValue(r,percent)):(r.labelPrefix===undefined?'亮度 ':r.labelPrefix)+percent+'%')+(r.labelSuffix||''));
+    pushText(r.label,(r.spec?(r.valueOnly?'':(r.labelName||r.spec.title)+' ')+formatControl(r.spec,rangeValue(r,percent)):(r.labelPrefix===undefined?tr('亮度 '):r.labelPrefix)+percent+'%')+(r.labelSuffix||''));
     if(r.extraValue!==undefined)pushText(r.extraValue,numberText(rangeValue(r,percent)));
     pushColor(r.label,r.labelColor===undefined?(percent>30?0xffffff:quickPalette.muted):r.labelColor);
     if(r.thumb&&!(r.cssRange&&typeof ui.rangeLinked==='function'))pushPos(r.thumb,r.vertical?Math.round(r.x+(r.w-40)/2):Math.round(r.thumbTrack?r.x+12+(r.w-30)*percent/100:r.x+width-(r.thumbInset||18)),r.vertical?Math.round(r.y+r.h-height+10):Math.round(r.y+(r.h-(r.thumbH||32))/2),!quickDrag&&!lampWheelDrag&&paint['p'+r.thumb]!==undefined);
@@ -3933,11 +3942,11 @@
     hide(card.name,false);pushPos(card.name,x+16,y+66);pushSize(card.name,w-32,30);
     pushStyle(card.name,'L',{fontSize:22,ellipsis:1});pushText(card.name,fit(item.name,w-32,22));pushColor(card.name,pal.ink);
     hide(card.value,false);pushPos(card.value,x+16,y+100);pushSize(card.value,w-32,24);
-    pushStyle(card.value,'L',{fontSize:14,ellipsis:1});pushText(card.value,large?'当前：大卡片':'当前：小卡片');pushColor(card.value,pal.muted);
+    pushStyle(card.value,'L',{fontSize:14,ellipsis:1});pushText(card.value,large?tr('当前：大卡片'):tr('当前：小卡片'));pushColor(card.value,pal.muted);
     hide(card.track,false);pushPos(card.track,x+16,y+h-50);pushSize(card.track,w-32,36);
     pushColor(card.track,pal.blueSoft);pushStyle(card.track,'S',{radius:10,borderWidth:0});
     hide(card.state,false);pushPos(card.state,x+16,y+h-43);pushSize(card.state,w-32,24);
-    pushStyle(card.state,'L',{fontSize:16,center:1});pushText(card.state,large?'设为小卡':'设为大卡');pushColor(card.state,pal.blue);
+    pushStyle(card.state,'L',{fontSize:16,center:1});pushText(card.state,large?tr('设为小卡'):tr('设为大卡'));pushColor(card.state,pal.blue);
     if(typeof ui.front==='function')ui.front(card.state);
     // Reuse the card's hit target; layout editing never sends device commands.
     hide(card.button,true);card.button._cardVisible=false;
@@ -3988,8 +3997,8 @@
     const status=range?spec?formatControl(spec,controlValue(main,spec)):displayBrightness(item)+'%':model.subtitle;
     const intent=controlTargets[item.entity_id],feedback=controlFeedback[item.entity_id];
     const progress=intent?(intent.slow?(intent.sent?'等待设备回报':'等待前序操作'):intent.sent?(pending&&pending.kind==='verify'&&pending.entityId===item.entity_id?'正在核对':'正在提交'):'等待执行'):feedback&&feedback.text;
-    const powerText=on?'已开启':'已关闭';
-    const stateText=!connected?'缓存 · 待同步':!available(item)?(item.state==='unknown'?'状态未知':'设备离线'):status+(power&&status.indexOf(powerText)<0?' · '+powerText:'');
+    const powerText=on?tr('已开启'):tr('已关闭');
+    const stateText=!connected?'缓存 · 待同步':!available(item)?(item.state==='unknown'?tr('状态未知'):tr('设备离线')):status+(power&&status.indexOf(powerText)<0?' · '+powerText:'');
     pushText(card.state,fit(progress||stateText,w-(power?126:82),14));
     pushColor(card.state,feedback&&!intent?(feedback.kind==='error'?pal.warn:pal.good):pal.muted);
     hide(card.powerGlyph,!power);pushPos(card.powerGlyph,x+w-46,y+26);pushSize(card.powerGlyph,24,28);
@@ -4001,7 +4010,7 @@
     card.iconButton.style.enabled=usable?1:0;hide(card.iconButton,!power);
     Object.assign(card.button,{x,y:y+h-42,w,h:38});card.button._cardVisible=true;hide(card.button,false);
     hide(card.moreLabel,false);pushPos(card.moreLabel,x+16,y+h-35);pushSize(card.moreLabel,w-32,26);
-    pushStyle(card.moreLabel,'L',{fontSize:14,center:0});pushText(card.moreLabel,'更多功能  >');pushColor(card.moreLabel,pal.muted);
+    pushStyle(card.moreLabel,'L',{fontSize:14,center:0});pushText(card.moreLabel,tr('更多功能  >'));pushColor(card.moreLabel,pal.muted);
     if(typeof ui.front==='function')ui.front(card.moreLabel);
     hide(card.value,false);pushPos(card.value,x+16,body);pushSize(card.value,rw,44);
     pushStyle(card.value,'L',{fontSize:28,center:0,ellipsis:1});pushColor(card.value,model.alert?pal.warn:pal.ink);
@@ -4024,12 +4033,12 @@
     }
     if(commonCardProfile(item)?.layout==='camera'){
       const previewH=WATERFALL?Math.max(48,h-136):48;
-      pushText(card.state,fit(available(item)?friendlyState(item):'设备离线',w-82,14));
+      pushText(card.state,fit(available(item)?friendlyState(item):tr('设备离线'),w-82,14));
       hide(card.track,false);pushPos(card.track,x+16,body);pushSize(card.track,rw,previewH);pushColor(card.track,pal.page);
       pushStyle(card.track,'S',{radius:12,borderWidth:0});pushStyle(card.track,'G',{gradientHorizontal:0,gradientVertical:0});
       if(!card.cameraGlyph)card.cameraGlyph=label('',0,0,32,36,32,pal.muted,3);
       detailIcon(card.cameraGlyph,'\ue002',x+24,body+(previewH-48)/2,32,48,3,pal.muted);
-      pushPos(card.value,x+66,body+(previewH-24)/2);pushSize(card.value,rw-58,24);pushStyle(card.value,'L',{fontSize:13,center:0,icon:0,ellipsis:1});pushColor(card.value,pal.muted);pushText(card.value,'暂无预览画面');
+      pushPos(card.value,x+66,body+(previewH-24)/2);pushSize(card.value,rw-58,24);pushStyle(card.value,'L',{fontSize:13,center:0,icon:0,ellipsis:1});pushColor(card.value,pal.muted);pushText(card.value,tr('暂无预览画面'));
       if(typeof ui.front==='function'){ui.front(card.track);ui.front(card.cameraGlyph);ui.front(card.value);}return;
     }
     if(!range){
@@ -4052,7 +4061,7 @@
     const value=spec?controlValue(main,spec):displayBrightness(item),percent=spec?(value-spec.min)*100/(spec.max-spec.min):value;
     const pct=Math.max(0,Math.min(100,Number.isFinite(percent)?percent:0));
     const rect=designSlider(card,card.track,card.state,main,spec,x+16,body,rw,rh,pct,light?0xffa64e:pal.blue);
-    Object.assign(rect,{valueOnly:true,labelPrefix:'',labelColor:pal.muted,labelSuffix:power?' · '+(on?'已开启':'已关闭'):''});
+    Object.assign(rect,{valueOnly:true,labelPrefix:'',labelColor:pal.muted,labelSuffix:power?' · '+(on?tr('已开启'):tr('已关闭')):''});
     card.sliderRects=[rect];if(spec){if(usable)card.controlRects=[rect];}else if(canAdjustBrightness(item))card.brightnessRect=rect;
   }
 
@@ -4078,10 +4087,10 @@
     const command=controlTargets[item.entity_id];
     hide(card.state,!command);pushPos(card.state,x+78,y+77);pushSize(card.state,w-94,22);
     pushStyle(card.state,'L',{center:0,fontSize:12});pushColor(card.state,pal.muted);
-    if(command)pushText(card.state,command.sent?'正在同步状态':'待执行');
+    if(command)pushText(card.state,command.sent?tr('正在同步状态'):tr('待执行'));
     pushPos(card.value,x+78,y+49);pushSize(card.value,w-94,26);pushStyle(card.value,'L',{fontSize:18,ellipsis:1});
     hide(card.value,false);pushText(card.value,available(item)?hasSlider?percent+'%':friendlyState(item):
-      item.state==='unavailable'?'设备离线':'状态未知');
+      item.state==='unavailable'?tr('设备离线'):tr('状态未知'));
     pushColor(card.value,available(item)?(dark?0xb7d9ed:0x667888):pal.muted);
     hide(card.switchFace,false);pushPos(card.switchFace,x+w-54,y+20);pushColor(card.switchFace,active?quickPalette.green:pal.track,!quickDrag&&!lampWheelDrag&&paint['c'+card.switchFace]!==undefined);
     hide(card.icon,false);pushPos(card.icon,x+w-48,y+26);pushSize(card.icon,24,24);

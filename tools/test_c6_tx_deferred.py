@@ -27,10 +27,13 @@ base=r'''
 #define FAR
 #define IFF_UP 1
 struct net_driver_s {unsigned d_flags;void *d_private;pthread_mutex_t lock;};
-struct c6net_state_s {struct net_driver_s dev;bool tx_pending;uint8_t if_type;};
+struct c6net_state_s {struct net_driver_s dev;bool tx_pending;unsigned tx_budget;uint8_t if_type;};
 #ifdef DEFERRED
 #define ESP_HOSTED_IF_AP 2
-struct c6net_stats_s {uint32_t tx_notifications,tx_polls,tx_packets;};
+#define C6NET_TX_BUDGET 8
+static uint32_t c6net_now_us(void){return 1;}
+static void c6net_stat_max(uint32_t *v,uint32_t n){if(n>*v)*v=n;}
+struct c6net_stats_s {uint32_t tx_notifications,tx_polls,tx_packets,tx_active,tx_poll_max_us;};
 static struct c6net_stats_s g_c6net_stats[2];
 static void c6net_tx_notify(void) {}
 #endif

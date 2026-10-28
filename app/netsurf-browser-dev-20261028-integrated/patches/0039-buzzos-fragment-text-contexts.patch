@@ -1,0 +1,211 @@
+--- a/libhubbub/include/hubbub/parser.h
++++ b/libhubbub/include/hubbub/parser.h
+@@ -33,7 +33,9 @@
+ 	HUBBUB_PARSER_TREE_HANDLER,
+ 	HUBBUB_PARSER_DOCUMENT_NODE,
+ 	HUBBUB_PARSER_ENABLE_SCRIPTING,
+-	HUBBUB_PARSER_PAUSE
++	HUBBUB_PARSER_PAUSE,
++	/* Text-only fragment input: no preceding start tag/end-tag match. */
++	HUBBUB_PARSER_FRAGMENT_TEXT_MODEL
+ } hubbub_parser_opttype;
+ 
+ /**
+@@ -107,4 +109,3 @@
+ #endif
+ 
+ #endif
+-
+--- a/libhubbub/src/parser.c
++++ b/libhubbub/src/parser.c
+@@ -169,6 +169,12 @@
+ 	case HUBBUB_PARSER_PAUSE:
+ 		result = hubbub_tokeniser_setopt(parser->tok,
+ 				HUBBUB_TOKENISER_PAUSE,
++				(hubbub_tokeniser_optparams *) params);
++		break;
++
++	case HUBBUB_PARSER_FRAGMENT_TEXT_MODEL:
++		result = hubbub_tokeniser_setopt(parser->tok,
++				HUBBUB_TOKENISER_FRAGMENT_TEXT_MODEL,
+ 				(hubbub_tokeniser_optparams *) params);
+ 		break;
+ 
+@@ -317,4 +323,3 @@
+ 
+ 	return name;
+ }
+-
+--- a/libhubbub/src/tokeniser/tokeniser.h
++++ b/libhubbub/src/tokeniser/tokeniser.h
+@@ -27,7 +27,8 @@
+ 	HUBBUB_TOKENISER_ERROR_HANDLER,
+ 	HUBBUB_TOKENISER_CONTENT_MODEL,
+ 	HUBBUB_TOKENISER_PROCESS_CDATA,
+-	HUBBUB_TOKENISER_PAUSE
++	HUBBUB_TOKENISER_PAUSE,
++	HUBBUB_TOKENISER_FRAGMENT_TEXT_MODEL
+ } hubbub_tokeniser_opttype;
+ 
+ /**
+@@ -72,4 +73,3 @@
+ hubbub_error hubbub_tokeniser_run(hubbub_tokeniser *tokeniser);
+ 
+ #endif
+-
+--- a/libhubbub/src/tokeniser/tokeniser.c
++++ b/libhubbub/src/tokeniser/tokeniser.c
+@@ -167,6 +167,7 @@
+ 	hubbub_content_model content_model;	/**< Current content
+ 						 * model flag */
+ 	bool escape_flag;		/**< Escape flag **/
++	bool fragment_text;              /**< Text-only fragment, no end tags */
+ 	bool process_cdata_section;	/**< Whether to process CDATA sections*/
+ 	bool paused; /**< flag for if parsing is currently paused */
+ 
+@@ -312,6 +313,7 @@
+ 	tok->content_model = HUBBUB_CONTENT_MODEL_PCDATA;
+ 
+ 	tok->escape_flag = false;
++	tok->fragment_text = false;
+ 	tok->process_cdata_section = false;
+ 
+ 	tok->paused = false;
+@@ -383,6 +385,15 @@
+ 		break;
+ 	case HUBBUB_TOKENISER_CONTENT_MODEL:
+ 		tokeniser->content_model = params->content_model.model;
++		break;
++	case HUBBUB_TOKENISER_FRAGMENT_TEXT_MODEL:
++		if (params->content_model.model != HUBBUB_CONTENT_MODEL_RCDATA &&
++				params->content_model.model != HUBBUB_CONTENT_MODEL_PLAINTEXT)
++			return HUBBUB_BADPARM;
++		tokeniser->content_model = params->content_model.model;
++		tokeniser->fragment_text = true;
++		tokeniser->escape_flag = false;
++		tokeniser->context.last_start_tag_len = 0;
+ 		break;
+ 	case HUBBUB_TOKENISER_PROCESS_CDATA:
+ 		tokeniser->process_cdata_section = params->process_cdata;
+@@ -696,7 +707,7 @@
+ 			/* Don't eat the '&'; it'll be handled by entity
+ 			 * consumption */
+ 			break;
+-		} else if (c == '-' &&
++		} else if (c == '-' && !tokeniser->fragment_text &&
+ 				tokeniser->escape_flag == false &&
+ 				(tokeniser->content_model ==
+ 						HUBBUB_CONTENT_MODEL_RCDATA ||
+@@ -718,7 +729,7 @@
+ 			}
+ 
+ 			tokeniser->context.pending += len;
+-		} else if (c == '<' && (tokeniser->content_model ==
++		} else if (c == '<' && !tokeniser->fragment_text && (tokeniser->content_model ==
+ 						HUBBUB_CONTENT_MODEL_PCDATA ||
+ 					((tokeniser->content_model ==
+ 						HUBBUB_CONTENT_MODEL_RCDATA ||
+--- a/libdom/bindings/hubbub/parser.h
++++ b/libdom/bindings/hubbub/parser.h
+@@ -76,6 +76,11 @@
+ 		dom_hubbub_parser **parser,
+ 		dom_document_fragment **fragment);
+ 
++/* Select a text-only HTML context after creating the synthetic body. This
++ * handles tokenisation only; full tree-construction contexts remain separate. */
++dom_hubbub_error dom_hubbub_fragment_parser_set_text_context(
++		dom_hubbub_parser *parser, dom_node *context);
++
+ /* Destroy a Hubbub parser instance */
+ void dom_hubbub_parser_destroy(dom_hubbub_parser *parser);
+ 
+--- a/libdom/bindings/hubbub/parser.c
++++ b/libdom/bindings/hubbub/parser.c
+@@ -9,6 +9,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <strings.h>
+ 
+ #include <hubbub/errors.h>
+ #include <hubbub/hubbub.h>
+@@ -1051,6 +1052,59 @@
+ }
+ 
+ 
++/* The fragment has no preceding start tag. RCDATA still decodes character
++ * references; raw/script data may use PLAINTEXT here (HTML fragment algorithm)
++ * since no appropriate end tag can be produced. Script execution stays inert
++ * through the existing fragment flag, independently of scripting tokenisation. */
++dom_hubbub_error dom_hubbub_fragment_parser_set_text_context(
++		dom_hubbub_parser *parser, dom_node *context)
++{
++	dom_string *name = NULL, *ns = NULL;
++	dom_exception exc;
++	hubbub_parser_optparams opt;
++	hubbub_error error;
++	const char *raw[] = {"style", "script", "xmp", "iframe", "noembed",
++		"noframes", "noscript", "plaintext"};
++	const char *data;
++	size_t length, i;
++	bool text = false;
++	if (parser == NULL || context == NULL || !parser->fragment)
++		return DOM_HUBBUB_BADPARM;
++	exc = dom_node_get_namespace(context, &ns);
++	if (exc != DOM_NO_ERR) return DOM_HUBBUB_DOM;
++	if (ns != NULL) {
++		bool html = dom_string_byte_length(ns) == 28 &&
++			memcmp(dom_string_data(ns), "http://www.w3.org/1999/xhtml", 28) == 0;
++		dom_string_unref(ns);
++		if (!html) return DOM_HUBBUB_OK;
++	}
++	exc = dom_node_get_local_name(context, &name);
++	if (exc != DOM_NO_ERR) return DOM_HUBBUB_DOM;
++	if (name == NULL) {
++		exc = dom_node_get_node_name(context, &name);
++		if (exc != DOM_NO_ERR) return DOM_HUBBUB_DOM;
++	}
++	if (name == NULL) return DOM_HUBBUB_OK;
++	data = dom_string_data(name); length = dom_string_byte_length(name);
++	opt.content_model.model = HUBBUB_CONTENT_MODEL_PLAINTEXT;
++	if ((length == 5 && strncasecmp(data, "title", length) == 0) ||
++			(length == 8 && strncasecmp(data, "textarea", length) == 0)) {
++		opt.content_model.model = HUBBUB_CONTENT_MODEL_RCDATA;
++		text = true;
++	} else {
++		for (i = 0; i < sizeof(raw) / sizeof(raw[0]); i++) {
++			if (length == strlen(raw[i]) && strncasecmp(data, raw[i], length) == 0) {
++				text = true; break;
++			}
++		}
++	}
++	dom_string_unref(name);
++	if (!text) return DOM_HUBBUB_OK;
++	error = hubbub_parser_setopt(parser->parser,
++		HUBBUB_PARSER_FRAGMENT_TEXT_MODEL, &opt);
++	return error == HUBBUB_OK ? DOM_HUBBUB_OK : DOM_HUBBUB_HUBBUB_ERR | error;
++}
++
+ dom_hubbub_error
+ dom_hubbub_parser_insert_chunk(dom_hubbub_parser *parser,
+ 			       const uint8_t *data,
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -1399,6 +1399,7 @@
+ el_set_innerHTML(JSContext *ctx, JSValueConst this_val, JSValueConst v)
+ {
+ 	dom_node *node = qjs_this_node(ctx, this_val);
++	dom_node *context = node;
+ 	size_t size;
+ 	const char *s;
+ 	dom_hubbub_parser_params parse_params;
+@@ -1446,6 +1447,9 @@
+ 	 * leading script/style/meta nodes are retained in the fragment rather
+ 	 * than stranded in its synthetic head. Full context parsing is TODO. */
+ 	error = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)"<body>", 6);
++	if (error != DOM_HUBBUB_OK)
++		goto out;
++	error = dom_hubbub_fragment_parser_set_text_context(parser, context);
+ 	if (error != DOM_HUBBUB_OK)
+ 		goto out;
+ 	error = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)s,

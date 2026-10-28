@@ -1,0 +1,41 @@
+--- a/libdom/src/html/html_document.c
++++ b/libdom/src/html/html_document.c
+@@ -1077,9 +1077,8 @@
+ 	if (doc->title != NULL) {
+ 		*title = dom_string_ref(doc->title);
+ 	} else {
+-		dom_element *node;
++		dom_element *node = NULL;
+ 		dom_nodelist *nodes;
+-		uint32_t len;
+ 		
+ 		exc = dom_document_get_elements_by_tag_name(doc,
+ 				doc->elements[DOM_HTML_ELEMENT_TYPE_TITLE],
+@@ -1088,23 +1087,16 @@
+ 			return exc;
+ 		}
+ 		
+-		exc = dom_nodelist_get_length(nodes, &len);
+-		if (exc != DOM_NO_ERR) {
+-			dom_nodelist_unref(nodes);
+-			return exc;
+-		}
+-		
+-		if (len == 0) {
+-			dom_nodelist_unref(nodes);
+-			return DOM_NO_ERR;
+-		}
+-		
++		/* Only the first title is needed; counting walks the whole DOM. */
+ 		exc = dom_nodelist_item(nodes, 0, (void *) &node);
+ 		dom_nodelist_unref(nodes);
+ 		if (exc != DOM_NO_ERR) {
+ 			return exc;
+ 		}
+ 		
++		if (node == NULL)
++			return DOM_NO_ERR;
++
+ 		exc = dom_node_get_text_content(node, title);
+ 		dom_node_unref(node);
+ 	}

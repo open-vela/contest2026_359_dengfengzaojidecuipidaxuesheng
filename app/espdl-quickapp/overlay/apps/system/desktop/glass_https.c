@@ -79,8 +79,17 @@ static int wait_socket(struct glass_https_request *request,int fd,int events)
   }
 }
 
-static int tcp_connect(struct glass_https_request *request,const char *host,const char *port)
+static int tcp_connect(struct glass_https_request *request,const char *host,const char *port,
+                       uint32_t connect_timeout_ms)
 {
+  /* DNS/TCP use a local deadline. Do not consume/replace the caller's
+   * handshake deadline or modify the old request ABI used by other apps. */
+  struct glass_https_request bounded=*request;
+  if(connect_timeout_ms) {
+    int64_t end=glass_https_milliseconds()+connect_timeout_ms;
+    if(!bounded.deadline_ms||end<bounded.deadline_ms) bounded.deadline_ms=end;
+    request=&bounded;
+  }
   struct addrinfo hints={.ai_family=AF_INET,.ai_socktype=SOCK_STREAM,.ai_protocol=IPPROTO_TCP};
   struct addrinfo *addresses=NULL;
   stage(request,"dns");
@@ -128,8 +137,8 @@ static int tls_wait(struct webclient_tls_connection *conn,int ret)
                       ret==MBEDTLS_ERR_SSL_WANT_READ?POLLIN:POLLOUT);
 }
 
-static int tls_connect(void *ctx,const char *host,const char *port,
-                       unsigned timeout,struct webclient_tls_connection **out)
+static int tls_connect_common(void *ctx,const char *host,const char *port,
+                       unsigned timeout,struct webclient_tls_connection **out, uint32_t connect_timeout_ms)
 {
   if(out) *out=NULL;
   struct glass_https_request *request=ctx;
@@ -152,7 +161,7 @@ static int tls_connect(void *ctx,const char *host,const char *port,
   mbedtls_ssl_conf_ca_chain(&conn->config,&conn->ca,NULL);
   ret=mbedtls_ssl_setup(&conn->ssl,&conn->config); if(ret) goto fail;
   ret=mbedtls_ssl_set_hostname(&conn->ssl,host); if(ret) goto fail;
-  result=tcp_connect(request,host,port); if(result<0) goto fail;
+  result=tcp_connect(request,host,port,connect_timeout_ms); if(result<0) goto fail;
   conn->net.fd=result;
   /* This is the same BIO used by the verified weather connection. */
   mbedtls_ssl_set_bio(&conn->ssl,&conn->net,mbedtls_net_send,mbedtls_net_recv,NULL);
@@ -169,6 +178,23 @@ fail:
     request->diagnostic->verify_flags=mbedtls_ssl_get_verify_result(&conn->ssl);
   }
   tls_close(ctx,conn); return result;
+}
+
+static int tls_connect(void *ctx,const char *host,const char *port,
+                       unsigned timeout,struct webclient_tls_connection **out)
+{ return tls_connect_common(ctx,host,port,timeout,out,0); }
+static int bounded_connect(void *ctx,const char *host,const char *port,
+                       unsigned timeout,struct webclient_tls_connection **out)
+{
+  struct glass_https_bounded_request *r=ctx;
+  if(!r) return -EINVAL;
+  int result=tls_connect_common(&r->request,host,port,timeout,out,r->connect_timeout_ms);
+  /* A completed handshake starts the HTTP I/O phase. Crypto CPU time may
+   * consume the last connect-budget slice; do not reject the first write
+   * on a healthy verified connection because of that old deadline. */
+  if(!result&&r->request.idle_timeout_ms)
+    (*out)->request.deadline_ms=glass_https_milliseconds()+r->request.idle_timeout_ms;
+  return result;
 }
 
 static ssize_t tls_send(void *ctx,struct webclient_tls_connection *conn,const void *data,size_t size)
@@ -239,3 +265,9 @@ void glass_https_set_deadline(struct webclient_tls_connection *conn,int64_t dead
 { if(conn) conn->request.deadline_ms=deadline_ms; }
 void glass_https_set_abort_flag(struct webclient_tls_connection *conn,atomic_bool *flag)
 { if(conn) conn->request.abort_flag=flag; }
+
+const struct webclient_tls_ops *glass_https_bounded_tls_ops(void)
+{
+  static const struct webclient_tls_ops ops={.connect=bounded_connect,.send=tls_send,.recv=tls_recv,.close=tls_close};
+  return &ops;
+}

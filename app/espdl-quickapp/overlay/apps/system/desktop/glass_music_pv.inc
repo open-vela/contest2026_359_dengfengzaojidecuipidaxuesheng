@@ -77,7 +77,7 @@ static void music_pv_plan(struct music_pv_ui *p,const char *text,const char *tra
   lv_obj_set_style_bg_color(p->rule,lv_color_hex(p->secondary),0);
   lv_obj_set_style_bg_color(p->sweep,lv_color_hex(p->accent),0);
   lv_obj_set_style_bg_color(p->marker,lv_color_hex(p->accent),0);
-  music_pv_text(lv_obj_get_child(p->style_button,0),music_pv_names[p->layout]);
+  music_pv_text(lv_obj_get_child(p->style_button,0),glass_tr(music_pv_names[p->layout]));
   lv_obj_set_style_text_color(lv_obj_get_child(p->style_button,0),lv_color_hex(p->accent),0);
   for(unsigned i=0;i<MUSIC_PV_PARTS;i++){
     if(i>=p->count){lv_obj_add_flag(p->groups[i],LV_OBJ_FLAG_HIDDEN);continue;}
@@ -115,7 +115,7 @@ static void music_pv_refresh(struct music_pv_ui *p)
 {
   if(!p->visible||!glass_ui_can_paint(p->root))return;
   struct music_now_playing now;glass_music_now_playing(&now);
-  music_pv_text(p->title,now.name[0]?now.name:"音乐 · 文字 PV");
+  music_pv_text(p->title,now.name[0]?now.name:glass_tr("音乐 · 文字 PV"));
   glass_music_lyrics_read(p->current<0?0:(unsigned)p->current,&p->window);
   if(p->window.track_id==now.track_id&&p->window.current>=0&&
      ((unsigned)p->window.current<p->window.first||(unsigned)p->window.current>=p->window.first+p->window.count))
@@ -125,10 +125,10 @@ static void music_pv_refresh(struct music_pv_ui *p)
     (unsigned)index>=p->window.first&&(unsigned)index<p->window.first+p->window.count&&
     (now.state==MUSIC_PLAYING||now.state==MUSIC_PAUSED);
   if(!ready){
-    const char *hint=now.state==MUSIC_ERROR?"播放失败":now.state==MUSIC_STOPPED?"已停止":
-      now.state==MUSIC_ENDED?"播放结束":now.state==MUSIC_IDLE?"选择一首歌开始":
-      now.state==MUSIC_LOADING?"正在加载音乐…":now.lyrics_state==MUSIC_LYRICS_LOADING?"正在获取歌词…":
-      now.lyrics_state==MUSIC_LYRICS_READY?"前奏 · 等待歌词":"暂无歌词 · 仍可继续听歌";
+    const char *hint=now.state==MUSIC_ERROR?glass_tr("播放失败"):now.state==MUSIC_STOPPED?glass_tr("已停止"):
+      now.state==MUSIC_ENDED?glass_tr("播放结束"):now.state==MUSIC_IDLE?glass_tr("选择一首歌开始"):
+      now.state==MUSIC_LOADING?glass_tr("正在加载音乐…"):now.lyrics_state==MUSIC_LYRICS_LOADING?glass_tr("正在获取歌词…"):
+      now.lyrics_state==MUSIC_LYRICS_READY?glass_tr("前奏 · 等待歌词"):glass_tr("暂无歌词 · 仍可继续听歌");
     music_pv_text(p->hint,hint);lv_obj_remove_flag(p->hint,LV_OBJ_FLAG_HIDDEN);
     for(unsigned i=0;i<MUSIC_PV_PARTS;i++)lv_obj_add_flag(p->groups[i],LV_OBJ_FLAG_HIDDEN);
     music_pv_text(p->counter,"");music_pv_text(p->next,"");
@@ -182,7 +182,7 @@ static void music_pv_style_next(lv_event_t *event)
 {
   struct music_pv_ui *p=lv_event_get_user_data(event);
   p->style_index=(p->style_index+1)%MUSIC_PV_LAYOUTS;p->valid=false;
-  music_pv_text(lv_obj_get_child(p->style_button,0),music_pv_names[p->style_index]);
+  music_pv_text(lv_obj_get_child(p->style_button,0),glass_tr(music_pv_names[p->style_index]));
   music_ui_refresh(NULL);
 }
 static void music_pv_create(struct music_pv_ui *p,lv_obj_t *parent)
@@ -211,7 +211,7 @@ static void music_pv_create(struct music_pv_ui *p,lv_obj_t *parent)
   lv_obj_set_style_text_align(p->translation,LV_TEXT_ALIGN_CENTER,0);
   lv_obj_add_flag(p->translation,LV_OBJ_FLAG_HIDDEN);
   p->next=music_ui_text(p->root,"",64,356,848,16,sub);
-  p->style_button=music_ui_button(parent,music_pv_names[0],832,16,168,44,g_music_ui.surface,music_pv_style_next,p,false);
+  p->style_button=music_ui_button(parent,glass_tr(music_pv_names[0]),832,16,168,44,g_music_ui.surface,music_pv_style_next,p,false);
   lv_obj_set_style_bg_opa(p->style_button,LV_OPA_TRANSP,0);lv_obj_add_flag(p->style_button,LV_OBJ_FLAG_HIDDEN);
   p->timer=lv_timer_create(music_pv_tick,50,p);lv_timer_pause(p->timer);lv_obj_add_flag(p->root,LV_OBJ_FLAG_HIDDEN);
 }

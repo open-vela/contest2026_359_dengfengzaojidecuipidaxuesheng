@@ -43,8 +43,8 @@ int main(int argc,char **argv){
   assert(pixels[200*1024+512]==0x1234); /* Visible image interior survives. */
   assert(pixels[599*1024+512]==0&&pixels[300*1024+20]==0);
   assert(pixels[74*1024+300]==0); /* No heavy rails across the viewfinder. */
-  assert(pixels[133*1024+126]==qpk_camera_rgb565(0x676268));
-  assert(pixels[22*1024+126]==0); /* The frame fits the image, not a square mockup. */
+  assert(pixels[103*1024+24]==qpk_camera_rgb565(0x676268));
+  assert(pixels[22*1024+24]==0); /* The frame fits the image, not a square mockup. */
   assert(pixels[26*1024+28]==qpk_camera_rgb565(0x35ca70));
   const struct camera_reference_tile *shutter=&camera_reference_tiles[CAMERA_REFERENCE_SHUTTER_TILE];
   for(int y=0;y<shutter->h;y++)assert(!memcmp(pixels+(shutter->y+y)*1024+shutter->x,
@@ -114,33 +114,56 @@ int main(int argc,char **argv){
     unsigned zoom=camera_reference_zoom_values[index];assert(qpk_camera_zoom_set(zoom));
     assert(qpk_camera_zoom_percent()==zoom);
     for(unsigned y=0;y<600;y++)for(unsigned x=0;x<width;x++)pixels[y*1024+x]=(uint16_t)((y<<5)^x);
-    unsigned height=600*570/width,top=22+(556-height)/2;
     unsigned crop_w=width*100/zoom,crop_h=600*100/zoom;
+    unsigned height=crop_h*672/crop_w,top=22+(556-height)/2;
     unsigned crop_x=(width-crop_w)/2,crop_y=(600-crop_h)/2;
     qpk_camera_reference_prepare_view(pixels,width,zoom);
-    for(unsigned y=0;y<height;y+=height/11)for(unsigned x=0;x<570;x+=51){
-      unsigned sy=crop_y+y*crop_h/height,sx=crop_x+x*crop_w/570;
-      assert(pixels[(top+y)*1024+126+x]==camera_color_pixel((uint16_t)((sy<<5)^sx),style));
+    for(unsigned y=0;y<height;y+=height/11)for(unsigned x=0;x<672;x+=61){
+      unsigned sy=crop_y+y*crop_h/height,sx=crop_x+x*crop_w/672;
+      assert(pixels[(top+y)*1024+24+x]==camera_color_pixel((uint16_t)((sy<<5)^sx),style));
     }
     assert(allocation[0]==0x55aa&&allocation[1024*600+1]==0x55aa);
   }
   /* Independent solid image fixtures expose letterbox/frame mismatches. */
-  const unsigned cases[][10]={
-    {1024,1024,600,0,0,1024,600,126,133,570},
-    {896,640,480,48,0,800,600,157,109,509},
-    {896,1280,720,0,48,896,504,126,140,570}
+  const unsigned cases[][11]={
+    {1024,1024,600,0,0,1024,600,24,103,672,393},
+    {896,640,480,48,0,800,600,24,48,672,504},
+    {896,1280,720,0,48,896,504,24,111,672,378},
+    {896,160,120,48,0,800,600,24,48,672,504},
+    {896,480,640,223,0,450,600,151,22,417,556},
+    {896,320,320,148,0,600,600,82,22,556,556}
   };
+  const unsigned case_count=sizeof(cases)/sizeof(cases[0]);
+  /* Coordinate-coded input catches in-place sampling corruption, including
+   * portrait/square frames and enlarged zoom crops. */
+  qpk_camera_style_set(0);
+  for(unsigned c=0;c<case_count;c++)for(unsigned aspect=0;aspect<=4;aspect++)for(unsigned z=0;z<4;z++){
+    const unsigned *a=cases[c];unsigned zoom=camera_reference_zoom_values[z];
+    memset(pixels,0,1024*600*2);
+    for(unsigned y=a[4];y<a[4]+a[6];y++)for(unsigned x=a[3];x<a[3]+a[5];x++)
+      pixels[y*1024+x]=(uint16_t)(0x8000|((y<<5)^x));
+    struct camera_reference_rect crop=camera_reference_crop(a[0],a[1],a[2],zoom,aspect);
+    struct camera_reference_rect target=camera_reference_output(a[0],a[1],a[2],zoom,aspect);
+    qpk_camera_reference_prepare_frame(pixels,a[0],zoom,a[1],a[2],aspect);
+    for(unsigned y=0;y<target.h;y+=17)for(unsigned x=0;x<target.w;x+=19){
+      unsigned sx=crop.x+x*crop.w/target.w,sy=crop.y+y*crop.h/target.h;
+      assert(pixels[(target.y+y)*1024+target.x+x]==(uint16_t)(0x8000|((sy<<5)^sx)));
+    }
+    assert(allocation[0]==0x55aa&&allocation[1024*600+1]==0x55aa);
+  }
   qpk_camera_style_set(0);video=false;g_photo_status=0;
-  for(unsigned c=0;c<3;c++)for(unsigned z=0;z<4;z++){
+  for(unsigned c=0;c<case_count;c++)for(unsigned z=0;z<4;z++){
     const unsigned *a=cases[c];unsigned zoom=camera_reference_zoom_values[z];qpk_camera_zoom_set(zoom);
     memset(pixels,0,1024*600*2);
     for(unsigned y=a[4];y<a[4]+a[6];y++)for(unsigned x=a[3];x<a[3]+a[5];x++)pixels[y*1024+x]=0x1234;
     qpk_camera_bar_draw(pixels,a[0],NULL,a[1],a[2]);
     struct camera_reference_rect frame=camera_reference_frame(a[0],a[1],a[2],zoom,0);
     if(!z){assert(frame.x==a[7]&&frame.y==a[8]&&frame.w==a[9]);
-      assert(frame.h==(c==0?333:c==1?381:320));}
-    for(unsigned y=22;y<578;y++)for(unsigned x=126;x<696;x++){
+      assert(frame.h==a[10]);}
+    for(unsigned y=22;y<578;y++)for(unsigned x=24;x<696;x++){
+      if(x<=32&&y<=30)continue; /* Live status dot is outside the image. */
       bool inside=x>=frame.x&&x<frame.x+frame.w&&y>=frame.y&&y<frame.y+frame.h;
+      if((pixels[y*1024+x]!=0)!=inside)fprintf(stderr,"VIEW_MISMATCH case=%u zoom=%u x=%u y=%u pixel=%x inside=%d frame=%u,%u,%u,%u",c,zoom,x,y,pixels[y*1024+x],inside,frame.x,frame.y,frame.w,frame.h);
       assert((pixels[y*1024+x]!=0)==inside);
     }
     /* Prepared MJPEG output must keep exactly the same guides and letterbox. */
@@ -151,15 +174,17 @@ int main(int argc,char **argv){
     }
   }
   recording=0;assert(!qpk_camera_aspect_set(5));
-  for(unsigned aspect=1;aspect<=4;aspect++)for(unsigned c=0;c<3;c++)for(unsigned z=0;z<4;z++){
+  for(unsigned aspect=1;aspect<=4;aspect++)for(unsigned c=0;c<case_count;c++)for(unsigned z=0;z<4;z++){
     const unsigned *a=cases[c];unsigned zoom=camera_reference_zoom_values[z];qpk_camera_zoom_set(zoom);
     assert(qpk_camera_aspect_set(aspect));memset(pixels,0,1024*600*2);
     for(unsigned y=a[4];y<a[4]+a[6];y++)for(unsigned x=a[3];x<a[3]+a[5];x++)pixels[y*1024+x]=0x1234;
     qpk_camera_bar_draw(pixels,a[0],NULL,a[1],a[2]);
     struct camera_reference_rect frame=camera_reference_frame(a[0],a[1],a[2],zoom,aspect);
-    assert(frame.w==(aspect==4?556:570));assert(frame.h==(aspect==1?356:aspect==2?320:aspect==3?427:556));
-    for(unsigned y=22;y<578;y++)for(unsigned x=126;x<696;x++){
+    assert(frame.w==(aspect==4?556:672));assert(frame.h==(aspect==1?420:aspect==2?378:aspect==3?504:556));
+    for(unsigned y=22;y<578;y++)for(unsigned x=24;x<696;x++){
+      if(x<=32&&y<=30)continue; /* Live status dot is outside the image. */
       bool inside=x>=frame.x&&x<frame.x+frame.w&&y>=frame.y&&y<frame.y+frame.h;
+      if((pixels[y*1024+x]!=0)!=inside)fprintf(stderr,"VIEW_MISMATCH case=%u zoom=%u x=%u y=%u pixel=%x inside=%d frame=%u,%u,%u,%u",c,zoom,x,y,pixels[y*1024+x],inside,frame.x,frame.y,frame.w,frame.h);
       assert((pixels[y*1024+x]!=0)==inside);
     }
   }
@@ -168,16 +193,16 @@ int main(int argc,char **argv){
   /* A selection arriving during fast MJPEG decoding applies next frame. */
   memset(pixels,0,1024*600*2);qpk_camera_aspect_set(4);
   qpk_camera_bar_draw(pixels,896,&(struct qpk_camera_view_state){100,0,0},640,480);
-  assert(pixels[109*1024+157]==qpk_camera_rgb565(0x676268));
-  assert(pixels[22*1024+133]==0);
+  assert(pixels[48*1024+24]==qpk_camera_rgb565(0x676268));
+  assert(pixels[22*1024+82]==0);
   qpk_camera_style_set(4);memset(pixels,0,1024*600*2);
   qpk_camera_bar_draw(pixels,896,&(struct qpk_camera_view_state){100,1,2},640,480);
-  assert(pixels[140*1024+126]==qpk_camera_rgb565(0x676268));
+  assert(pixels[111*1024+24]==qpk_camera_rgb565(0x676268));
   for(int y=0;y<caption->h;y++)assert(!memcmp(pixels+(caption->y+y)*1024+caption->x,
     camera_style_1+y*caption->w,caption->w*2));
   assert(camera_reference_control_hit(828,540,false)==16);
   assert(camera_reference_control_hit(828,540,true)==CAMERA_FILTER_DISMISS);
-  free(allocation);puts("CAMERA_CONTROLS_OK: native and four selectable aspects, image-only crop without black bars, all zooms/styles, shutter, frame boundaries and recording guard");
+  free(allocation);puts("CAMERA_CONTROLS_OK: maximized 672px view, six input sizes including low-res/portrait, no double letterbox, four aspects, all zooms/styles, shutter, frame boundaries and recording guard");
 }
 '''
 unit=out/'camera-controls.c';unit.write_text(prelude+source[start:end]+test)

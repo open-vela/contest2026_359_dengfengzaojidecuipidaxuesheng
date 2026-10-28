@@ -1,0 +1,15 @@
+{
+  "verified_at": "2026-10-28T19:24:59.380156+08:00",
+  "firmware_sha256": "c5d012c0a3b69d102174b765dd26a7fec76128cefdce42e8aef9b4dc6467b9aa",
+  "module_sha256": "856ce0f205ff1badfa2e9910afa05508a25c534d2a7c0cd113528f9525683c0f",
+  "module_imports_resolved": 222,
+  "host_abi": "fabd5ba19ab16b29e709b63f5d4907f8ef38386f054fa1587090cffd036de088",
+  "module_executed_on_p4": true,
+  "controlled_page_loaded": true,
+  "normal_reading_roundtrip_on_p4": true,
+  "canonical_app_entry_restored": true,
+  "user_browser_storage_fingerprints_unchanged": true,
+  "dynamic_dom_mutation_scenarios": "existing seven host cases; not all replayed on hardware",
+  "evidence": "docs/evidence/integrated-20261028/verification.json",
+  "no_arbitrary_modern_site_compatibility_claim": true
+}

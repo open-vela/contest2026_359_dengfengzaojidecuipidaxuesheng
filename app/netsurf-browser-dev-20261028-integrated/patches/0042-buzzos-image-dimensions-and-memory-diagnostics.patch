@@ -1,0 +1,99 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -1887,6 +1887,18 @@
+ accessor(ElementP, 'naturalWidth', function () { var s = imageState(this); return s ? s.width : 0; });
+ accessor(ElementP, 'naturalHeight', function () { var s = imageState(this); return s ? s.height : 0; });
+ accessor(ElementP, 'currentSrc', function () { var s = imageState(this); return s ? s.url : ''; });
++/* Image dimensions are content-box sizes when rendered, otherwise valid
++ * dimension attributes with an intrinsic-size fallback (HTML 4.8.17).
++ * In particular detached preloads must not require width/height attributes. */
++function imageDimension(el, axis) {
++	var rect = el.isConnected ? ns.rect(el) : null;
++	if (rect) return Math.max(0, rect[10 + axis]);
++	var raw = el.getAttribute(axis ? 'height' : 'width');
++	var match = raw === null ? null : /^[\t\n\f\r ]*\+?([0-9]+)/.exec(raw);
++	if (match) return Number(match[1]);
++	var state = imageState(el);
++	return state ? (axis ? state.height : state.width) : 0;
++}
+ method(ElementP, 'decode', function () {
+ 	var state = imageState(this);
+ 	if (!state || state.status === 'empty' || state.status === 'error')
+@@ -1992,14 +2004,22 @@
+ 	var w = Object.getOwnPropertyDescriptor(ElementP, 'width');
+ 	var h = Object.getOwnPropertyDescriptor(ElementP, 'height');
+ 	def(ElementP, 'width', {
+-		get: function () { return this.tagName === 'CANVAS' ? ns.canvasSize(this)[0] : w.get.call(this); },
++		get: function () {
++			if (this.tagName === 'CANVAS') return ns.canvasSize(this)[0];
++			return this.tagName === 'IMG' ? imageDimension(this, 0) : w.get.call(this);
++		},
+ 		set: function (v) {
++			if (this.tagName === 'IMG') v = v >>> 0;
+ 			w.set.call(this, v);
+ 			if (this.tagName === 'CANVAS') ns.canvasResize(this, v >>> 0, ns.canvasSize(this)[1]);
+ 		}, enumerable: true });
+ 	def(ElementP, 'height', {
+-		get: function () { return this.tagName === 'CANVAS' ? ns.canvasSize(this)[1] : h.get.call(this); },
++		get: function () {
++			if (this.tagName === 'CANVAS') return ns.canvasSize(this)[1];
++			return this.tagName === 'IMG' ? imageDimension(this, 1) : h.get.call(this);
++		},
+ 		set: function (v) {
++			if (this.tagName === 'IMG') v = v >>> 0;
+ 			h.set.call(this, v);
+ 			if (this.tagName === 'CANVAS') ns.canvasResize(this, ns.canvasSize(this)[0], v >>> 0);
+ 		}, enumerable: true });
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -121,7 +121,7 @@
+ 
+ /**
+  * __ns.rect(node) -> [x, y, w, h, scrollW, scrollH, clientW, clientH,
+- *                     borderLeft, borderTop] in document coordinates of
++ *                     borderLeft, borderTop, contentW, contentH] in document coordinates of
+  * the border box, or null if the node is not rendered.
+  */
+ static JSValue nat_rect(JSContext *ctx, JSValueConst this_val,
+@@ -132,7 +132,7 @@
+ 	struct box *box;
+ 	int x, y, w, h, i;
+ 	JSValue arr;
+-	int v[10];
++	int v[12];
+ 
+ 	if (argc < 1 || t == NULL)
+ 		return JS_NULL;
+@@ -172,12 +172,14 @@
+ 	v[7] = h;
+ 	v[8] = box->border[LEFT].width;
+ 	v[9] = box->border[TOP].width;
++	v[10] = box->width;
++	v[11] = box->height;
+ 
+ 	arr = JS_NewArray(ctx);
+ 	float factor = 1, dx = 0, dy = 0;
+ 	bool visual = argc > 1 && JS_ToBool(ctx, argv[1]) > 0;
+ 	if (visual) box_document_transform(&t->htmlc->unit_len_ctx, box, &factor, &dx, &dy);
+-	for (i = 0; i < 10; i++) {
++	for (i = 0; i < 12; i++) {
+ 		if (visual && i < 4) {
+ 			float value = v[i] * factor + (i == 0 ? dx : i == 1 ? dy : 0);
+ 			JS_SetPropertyUint32(ctx, arr, i, JS_NewFloat64(ctx, value));
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -161,6 +161,14 @@
+ 
+ void qjs_dump_error(JSContext *ctx)
+ {
++	/* Capture before converting the exception: diagnostic string allocation
++	 * may itself fail when the runtime is at its allocation limit. */
++	JSMemoryUsage usage;
++	JS_ComputeMemoryUsage(JS_GetRuntime(ctx), &usage);
++	NSLOG(jserrors, WARNING, "JS memory at exception: allocated=%llu limit=%llu used=%llu",
++	      (unsigned long long)usage.malloc_size,
++	      (unsigned long long)usage.malloc_limit,
++	      (unsigned long long)usage.memory_used_size);
+ 	JSValue exc = JS_GetException(ctx);
+ 	const char *msg = JS_ToCString(ctx, exc);
+ 

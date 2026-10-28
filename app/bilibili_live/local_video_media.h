@@ -26,6 +26,7 @@ struct local_video_snapshot {
 struct local_video *local_video_create(const char *, const struct local_video_ops *, void *);
 int local_video_run(struct local_video *);
 void local_video_cancel(struct local_video *);
+bool local_video_cancelled(struct local_video *);
 void local_video_pause(struct local_video *, bool);
 void local_video_volume(struct local_video *, unsigned);
 void local_video_snapshot(struct local_video *, struct local_video_snapshot *);

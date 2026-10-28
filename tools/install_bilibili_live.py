@@ -40,7 +40,7 @@ def main():
         'decoder/core/src/decoder_core.cpp','decoder/core/src/decoder.cpp',
         'decoder/core/src/pic_queue.cpp','decoder/core/src/decode_slice.cpp',
         'decoder/core/src/wels_decoder_thread.cpp',
-        'common/src/mc.cpp','decoder/core/src/decode_mb_aux.cpp',
+        'common/src/mc.cpp','common/src/deblocking_common.cpp','decoder/core/src/decode_mb_aux.cpp',
         'decoder/core/src/parse_mb_syn_cavlc.cpp','decoder/core/src/cabac_decoder.cpp',
         'decoder/plus/src/welsDecoderExt.cpp','decoder/plus/inc/welsDecoderExt.h']
     with tarfile.open(a.archive) as tar:

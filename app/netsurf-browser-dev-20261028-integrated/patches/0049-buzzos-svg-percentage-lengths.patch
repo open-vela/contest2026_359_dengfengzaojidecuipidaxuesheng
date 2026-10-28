@@ -1,0 +1,39 @@
+--- a/libsvgtiny/src/svgtiny_parse.c
++++ b/libsvgtiny/src/svgtiny_parse.c
+@@ -1041,14 +1041,14 @@
+ 	case SVGTIOP_LENGTH:
+ 		res = svgtiny_parse_length(value,
+ 				     value_len,
+-				     *((int *)styleop->param),
++				     *((float *)styleop->param),
+ 				     styleop->value);
+ 		break;
+ 
+ 	case SVGTIOP_INTLENGTH:
+ 		res = svgtiny_parse_length(value,
+ 				     value_len,
+-				     *((int *)styleop->param),
++				     *((float *)styleop->param),
+ 				     &parse_len);
+ 		*((int *)styleop->value) = parse_len;
+ 		break;
+@@ -1188,7 +1188,7 @@
+ svgtiny_code
+ svgtiny_parse_length(const char *text,
+ 		     size_t textlen,
+-		     int viewport_size,
++		     float viewport_size,
+ 		     float *length)
+ {
+ 	svgtiny_code err;
+--- a/libsvgtiny/src/svgtiny_internal.h
++++ b/libsvgtiny/src/svgtiny_internal.h
+@@ -108,7 +108,7 @@
+ svgtiny_code svgtiny_parse_poly_points(const char *data, size_t datalen,
+ 		float *pointv, unsigned int *pointc);
+ svgtiny_code svgtiny_parse_length(const char *text, size_t textlen,
+-		int viewport_size, float *length);
++		float viewport_size, float *length);
+ svgtiny_code svgtiny_parse_transform(const char *text, size_t textlen,
+ 		struct svgtiny_transformation_matrix *tm);
+ svgtiny_code svgtiny_parse_color(const char *text, size_t textlen,

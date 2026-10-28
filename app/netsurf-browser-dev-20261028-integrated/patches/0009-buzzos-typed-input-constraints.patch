@@ -1,0 +1,395 @@
+--- a/netsurf/content/handlers/html/box_textarea.c
++++ b/netsurf/content/handlers/html/box_textarea.c
+@@ -260,9 +260,16 @@
+ 		form_gadget_update_value(gadget,
+ 					 strndup(msg->data.modified.text,
+ 						 msg->data.modified.len));
+-		if (gadget->node != NULL)
+-			fire_generic_dom_event(corestring_dom_input,
+-					gadget->node, true, false);
++		if (gadget->node != NULL) {
++			/* JS input handlers can replace the box tree. Keep only a DOM
++			 * reference across the call and never revisit the old gadget. */
++			dom_node *node = dom_node_ref(gadget->node);
++#ifdef BUZZOS_QUICKJS_FETCH_BODY
++			js_mark_input_edit(html->jsthread, node);
++#endif
++			fire_generic_dom_event(corestring_dom_input, node, true, false);
++			dom_node_unref(node);
++		}
+ 		break;
+ 	}
+ }
+--- a/netsurf/content/handlers/javascript/js.h
++++ b/netsurf/content/handlers/javascript/js.h
+@@ -148,6 +148,9 @@
+ /**
+  * fire an event at a dom node
+  */
++/* QuickJS native text edits; caller holds a DOM node reference. */
++void js_mark_input_edit(jsthread *thread, struct dom_node *node);
++
+ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target);
+ 
+ bool
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -3019,6 +3019,7 @@
+ 
+ 	JS_SetContextOpaque(ctx, t);
+ 	t->native_form_submit = JS_UNDEFINED;
++	t->native_input_edit = JS_UNDEFINED;
+ 
+ 	if (!t->heap->classes_ready) {
+ 		static const JSClassDef node_def = {
+@@ -3260,6 +3261,10 @@
+ 	{
+ 		JSValue primitives = JS_GetPropertyStr(ctx, global, "__ns");
+ 		t->native_form_submit = JS_GetPropertyStr(ctx, primitives, "submitNativeForm");
++		t->native_input_edit = JS_GetPropertyStr(ctx, primitives, "markNativeInputEdit");
++		JSAtom edit_atom = JS_NewAtom(ctx, "markNativeInputEdit");
++		JS_DeleteProperty(ctx, primitives, edit_atom, 0);
++		JS_FreeAtom(ctx, edit_atom);
+ 		JSAtom atom = JS_NewAtom(ctx, "submitNativeForm");
+ 		JS_DeleteProperty(ctx, primitives, atom, 0);
+ 		JS_FreeAtom(ctx, atom);
+@@ -3321,6 +3326,7 @@
+ 	JS_FreeValue(ctx, t->text_proto);
+ 	JS_FreeValue(ctx, t->event_proto);
+ 	JS_FreeValue(ctx, t->native_form_submit);
++	JS_FreeValue(ctx, t->native_input_edit);
+ }
+ 
+ /* ------------------------------------------------------------------ */
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -62,6 +62,7 @@
+ 	struct html_content *htmlc;
+ 	bool closed;
+ 	JSValue native_form_submit;
++	JSValue native_input_edit;
+ 
+ 	/* dom_node* / dom_event* pointer-keyed wrapper caches */
+ 	JSValue node_map;
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -404,6 +404,23 @@
+ 	return qjs_dom_fire_event(thread, type, doc, target);
+ }
+ 
++void js_mark_input_edit(jsthread *thread, struct dom_node *node)
++{
++	if (thread == NULL || thread->closed || thread->ctx == NULL || node == NULL ||
++	    !JS_IsFunction(thread->ctx, thread->native_input_edit))
++		return;
++	JSContext *ctx = thread->ctx;
++	qjs_deadline_start(thread);
++	JSValue argument = qjs_dom_wrap_node(thread, node);
++	JSValue result = JS_Call(ctx, thread->native_input_edit, JS_UNDEFINED, 1, &argument);
++	if (JS_IsException(result))
++		qjs_dump_error(ctx);
++	JS_FreeValue(ctx, result);
++	JS_FreeValue(ctx, argument);
++	qjs_deadline_stop(thread);
++	/* Do not drain jobs here: the owning widget is still in its callback. */
++}
++
+ bool js_request_submit(jsthread *thread, struct dom_node *form,
+ 		struct dom_node *submitter)
+ {
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -658,11 +658,18 @@
+ /* type attribute (input defaults to "text") */
+ accessor(ElementP, 'type', function () {
+ 	var v = this.getAttribute('type');
+-	if (this.tagName === 'INPUT') return v ? v.toLowerCase() : 'text';
+-	if (this.tagName === 'BUTTON') return v ? v.toLowerCase() : 'submit';
++	if (this.tagName === 'INPUT') return v && /^(hidden|text|search|tel|url|email|password|date|month|week|time|datetime-local|number|range|color|checkbox|radio|file|submit|image|reset|button)$/.test(v.toLowerCase()) ? v.toLowerCase() : 'text';
++	if (this.tagName === 'BUTTON') return v && /^(submit|reset|button)$/.test(v.toLowerCase()) ? v.toLowerCase() : 'submit';
+ 	if (this.tagName === 'SELECT') return this.multiple ? 'select-multiple' : 'select-one';
+ 	return v || '';
+-}, function (v) { this.setAttribute('type', v); });
++}, function (v) {
++	var previousType = this.type, previousValue = this.tagName === 'INPUT' ? this.value : undefined;
++	this.setAttribute('type', v);
++	if (this.tagName === 'INPUT' && this.type !== previousType) {
++		inputEditStates.delete(this);
++		this.value = previousValue;
++	}
++});
+ 
+ /* href/URL decomposition on links */
+ ['protocol', 'host', 'hostname', 'port', 'pathname', 'search', 'hash', 'origin'].forEach(function (k) {
+@@ -675,10 +682,185 @@
+ 	});
+ });
+ 
++/* Typed API values share one parser with constraint validation. Native widgets
++ * retain their raw edit buffer, so an unfinished number can expose value=""
++ * and badInput=true without erasing what the user is typing. */
++var inputEditStates = new WeakMap();
++function rawControlValue(element) {
++	return ns.inputValue ? ns.inputValue(element) : toStr(element.getAttribute('value'));
++}
++function numericInputType(type) {
++	return /^(number|date|month|week|time|datetime-local)$/.test(type);
++}
++function inputNumber(value) {
++	if (!/^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(value)) return NaN;
++	var number = Number(value);
++	return isFinite(number) ? number : NaN;
++}
++function civilDays(year, month, day) {
++	/* Gregorian days since 1970-01-01, including years below 100. */
++	year -= month <= 2 ? 1 : 0;
++	var era = Math.floor(year / 400), y = year - era * 400;
++	var m = month + (month > 2 ? -3 : 9);
++	return era * 146097 + y * 365 + Math.floor(y / 4) - Math.floor(y / 100) +
++		Math.floor((153 * m + 2) / 5) + day - 1 - 719468;
++}
++function inputDateParts(value) {
++	var match = /^([0-9]{4,})-([0-9]{2})(?:-([0-9]{2}))?$/.exec(value);
++	if (!match) return null;
++	var year = Number(match[1]), month = Number(match[2]), day = Number(match[3] || 1);
++	var leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
++	var days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
++	if (!Number.isSafeInteger(year) || year < 1 || month < 1 || month > 12 || day < 1 || day > days[month - 1]) return null;
++	return [year, month, day];
++}
++function weekMonday(year) {
++	var january4 = civilDays(year, 1, 4);
++	return january4 - ((january4 + 3) % 7 + 7) % 7;
++}
++function inputTime(value) {
++	var match = /^([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,3}))?)?$/.exec(value);
++	if (!match || Number(match[1]) > 23 || Number(match[2]) > 59 || Number(match[3] || 0) > 59) return NaN;
++	return Number(match[1]) * 3600000 + Number(match[2]) * 60000 +
++		Number(match[3] || 0) * 1000 + Number((match[4] || '').padEnd(3, '0'));
++}
++function typedInputNumber(type, value) {
++	if (type === 'number') return inputNumber(value);
++	if (type === 'time') return inputTime(value);
++	if (type === 'datetime-local') {
++		var pair = value.split(/[T ]/);
++		return pair.length === 2 ? typedInputNumber('date', pair[0]) + inputTime(pair[1]) : NaN;
++	}
++	if (type === 'week') {
++		var week = /^([0-9]{4,})-W([0-9]{2})$/.exec(value);
++		if (!week) return NaN;
++		var year = Number(week[1]), index = Number(week[2]);
++		if (!Number.isSafeInteger(year) || year < 1 || index < 1 ||
++		    index > (weekMonday(year + 1) - weekMonday(year)) / 7) return NaN;
++		return (weekMonday(year) + (index - 1) * 7) * 86400000;
++	}
++	var parts = inputDateParts(value);
++	if (!parts || (type === 'date' ? !/^[0-9]{4,}-[0-9]{2}-[0-9]{2}$/.test(value) :
++		! /^[0-9]{4,}-[0-9]{2}$/.test(value))) return NaN;
++	return type === 'month' ? (parts[0] - 1970) * 12 + parts[1] - 1 : civilDays(parts[0], parts[1], parts[2]) * 86400000;
++}
++function timeInputString(number) {
++	var hour = Math.floor(number / 3600000), minute = Math.floor(number / 60000) % 60;
++	var second = Math.floor(number / 1000) % 60, millisecond = number % 1000;
++	var result = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
++	if (second || millisecond) result += ':' + String(second).padStart(2, '0');
++	if (millisecond) result += '.' + String(millisecond).padStart(3, '0').replace(/0+$/, '');
++	return result;
++}
++function sanitizedControlValue(element, value) {
++	if (element.tagName === 'TEXTAREA') return value.replace(/\r\n?/g, '\n');
++	var type = element.type;
++	if (numericInputType(type)) {
++		if (isNaN(typedInputNumber(type, value))) return '';
++		if (type === 'datetime-local') {
++			var pair = value.split(/[T ]/);
++			return pair[0] + 'T' + timeInputString(inputTime(pair[1]));
++		}
++		return value;
++	}
++	if (/^(text|search|tel|url|email|password)$/.test(type)) value = value.replace(/[\r\n]/g, '');
++	if (type === 'url' || type === 'email') value = value.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
++	if (type === 'email' && element.multiple) value = value.split(',').map(function (part) {
++		return part.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
++	}).join(',');
++	return value;
++}
++/* Called only by the native textarea callback, before any page input handler.
++ * Cached by C then removed from __ns; synthetic input events cannot mark edits. */
++ns.markNativeInputEdit = function (element) {
++	inputEditStates.set(element, { raw: rawControlValue(element), type: element.type });
++};
++function lastInputEdit(element) {
++	var state = inputEditStates.get(element);
++	return state && state.type === element.type && state.raw === rawControlValue(element) ? state : null;
++}
++function lengthLimit(element, name) {
++	var raw = element.getAttribute(name);
++	var match = raw !== null && /^[\t\n\f\r ]*\+?([0-9]+)/.exec(raw);
++	return match ? Math.min(Number(match[1]), 2147483647) : -1;
++}
++['maxLength', 'minLength'].forEach(function (name) {
++	accessor(ElementP, name, function () { return lengthLimit(this, name.toLowerCase()); }, function (value) {
++		value = Number(value) >> 0;
++		if (value < 0) throw new DOMException('The length must not be negative', 'IndexSizeError');
++		this.setAttribute(name.toLowerCase(), String(value));
++	});
++});
++function stepSettings(element) {
++	var type = element.type, scale = /^(time|datetime-local)$/.test(type) ? 1000 :
++		type === 'date' ? 86400000 : type === 'week' ? 604800000 : 1;
++	var raw = element.getAttribute('step');
++	var step = raw !== null && raw.toLowerCase() === 'any' ? null : inputNumber(raw || '');
++	if (step !== null && (!(step > 0) || !isFinite(step * scale))) step = /^(time|datetime-local)$/.test(type) ? 60 : 1;
++	var base = typedInputNumber(type, element.getAttribute('min') || '');
++	if (isNaN(base)) base = typedInputNumber(type, element.getAttribute('value') || '');
++	if (isNaN(base)) base = type === 'week' ? -259200000 : 0;
++	return { step: step === null ? null : step * scale, base: base };
++}
++function decimalParts(number) {
++	/* Canonical finite numbers have at most 17 digits. Exact decimal arithmetic
++ * avoids tolerance growing with the quotient and accepting half-step values. */
++	var parts = String(number).toLowerCase().split('e'), mantissa = parts[0].split('.');
++	return { coefficient: BigInt(mantissa.join('')), exponent: Number(parts[1] || 0) - (mantissa[1] || '').length };
++}
++function inputStepMismatch(number, settings) {
++	if (settings.step === null) return false;
++	var value = decimalParts(number), base = decimalParts(settings.base), step = decimalParts(settings.step);
++	var exponent = Math.min(value.exponent, base.exponent, step.exponent);
++	function scaled(part) { return part.coefficient * (10n ** BigInt(part.exponent - exponent)); }
++	return (scaled(value) - scaled(base)) % scaled(step) !== 0n;
++}
++accessor(ElementP, 'valueAsNumber', function () {
++	return this.tagName === 'INPUT' && numericInputType(this.type) ? typedInputNumber(this.type, this.value) : NaN;
++}, function (value) {
++	if (this.tagName !== 'INPUT' || !numericInputType(this.type))
++		throw new DOMException('This input does not support numeric values', 'InvalidStateError');
++	value = Number(value);
++	if (!isFinite(value) && !isNaN(value)) throw new TypeError('The number must be finite');
++	this.value = isNaN(value) ? '' : typedInputString(this.type, value);
++});
++function typedInputString(type, number) {
++	if (type === 'number') return String(number);
++	if (type === 'time') return number >= 0 && number < 86400000 ? timeInputString(Math.floor(number)) : '';
++	if (type === 'month') {
++		var year = 1970 + Math.floor(number / 12), month = ((Math.floor(number) % 12) + 12) % 12 + 1;
++		return year > 0 ? String(year).padStart(4, '0') + '-' + String(month).padStart(2, '0') : '';
++	}
++	var date = new Date(number);
++	if (isNaN(date.getTime()) || date.getUTCFullYear() < 1) return '';
++	if (type === 'week') {
++		var days = Math.floor(number / 86400000), weekday = ((days + 3) % 7 + 7) % 7;
++		var thursday = new Date((days - weekday + 3) * 86400000), year = thursday.getUTCFullYear();
++		if (!(year > 0)) return '';
++		return String(year).padStart(4, '0') + '-W' + String(Math.floor((days - weekMonday(year)) / 7) + 1).padStart(2, '0');
++	}
++	var day = String(date.getUTCFullYear()).padStart(4, '0') + '-' + String(date.getUTCMonth() + 1).padStart(2, '0') +
++		'-' + String(date.getUTCDate()).padStart(2, '0');
++	return type === 'datetime-local' ? day + 'T' + timeInputString(((Math.floor(number) % 86400000) + 86400000) % 86400000) : day;
++}
++accessor(ElementP, 'valueAsDate', function () {
++	if (this.tagName !== 'INPUT' || !/^(date|month|week|time)$/.test(this.type)) return null;
++	var number = this.type === 'month' ? typedInputNumber('date', this.value + '-01') : this.valueAsNumber;
++	return isNaN(number) || isNaN(new Date(number).getTime()) ? null : new Date(number);
++}, function (value) {
++	if (this.tagName !== 'INPUT' || !/^(date|month|week|time)$/.test(this.type))
++		throw new DOMException('This input does not support Date values', 'InvalidStateError');
++	if (value !== null && Object.prototype.toString.call(value) !== '[object Date]') throw new TypeError('Expected a Date or null');
++	var number = value === null ? NaN : Date.prototype.getTime.call(value);
++	if (!isNaN(number) && this.type === 'month') number = (value.getUTCFullYear() - 1970) * 12 + value.getUTCMonth();
++	if (!isNaN(number) && this.type === 'time') number = ((number % 86400000) + 86400000) % 86400000;
++	this.valueAsNumber = number;
++});
++
+ /* form control value/checked, backed by the DOM form state */
+ accessor(ElementP, 'value', function () {
+ 	var t = this.tagName;
+-	if (t === 'INPUT' || t === 'TEXTAREA') return ns.inputValue ? ns.inputValue(this) : toStr(this.getAttribute('value'));
++	if (t === 'INPUT' || t === 'TEXTAREA') return sanitizedControlValue(this, rawControlValue(this));
+ 	if (t === 'SELECT') {
+ 		var o = this.selectedOptions[0];
+ 		return o ? o.value : '';
+@@ -691,6 +873,8 @@
+ 	var t = this.tagName;
+ 	v = toStr(v);
+ 	if (t === 'INPUT' || t === 'TEXTAREA') {
++		inputEditStates.delete(this);
++		v = sanitizedControlValue(this, v);
+ 		if (ns.setInputValue) ns.setInputValue(this, v);
+ 		else this.setAttribute('value', v);
+ 	} else if (t === 'SELECT') {
+@@ -817,6 +1001,28 @@
+ 				(element.tagName === 'TEXTAREA' || (element.tagName === 'INPUT' &&
+ 				!/^(hidden|button|reset|image|submit|range|color)$/.test(type)))) state.valueMissing = value === '';
+ 		}
++
++		var edited = lastInputEdit(element);
++		if (element.tagName === 'TEXTAREA' || (element.tagName === 'INPUT' && /^(text|search|tel|url|email|password)$/.test(type))) {
++			var minimumLength = lengthLimit(element, 'minlength'), maximumLength = lengthLimit(element, 'maxlength');
++			state.tooShort = !!edited && value !== '' && minimumLength >= 0 && value.length < minimumLength;
++			state.tooLong = !!edited && maximumLength >= 0 && value.length > maximumLength;
++		}
++		if (element.tagName === 'INPUT' && numericInputType(type)) {
++			state.badInput = !!edited && edited.raw !== '' && isNaN(typedInputNumber(type, edited.raw));
++			var number = typedInputNumber(type, value);
++			if (!isNaN(number)) {
++				var minimum = typedInputNumber(type, element.getAttribute('min') || '');
++				var maximum = typedInputNumber(type, element.getAttribute('max') || '');
++				if (type === 'time' && !isNaN(minimum) && !isNaN(maximum) && minimum > maximum) {
++					state.rangeUnderflow = state.rangeOverflow = number < minimum && number > maximum;
++				} else {
++					state.rangeUnderflow = !isNaN(minimum) && number < minimum;
++					state.rangeOverflow = !isNaN(maximum) && number > maximum;
++				}
++				state.stepMismatch = inputStepMismatch(number, stepSettings(element));
++			}
++		}
+ 		if (element.tagName === 'INPUT' && value !== '' && type === 'email') {
+ 			var addresses = element.multiple ? value.split(',') : [value];
+ 			var emailPattern = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+@@ -845,9 +1051,15 @@
+ 	var custom = customValidityMessages.get(element);
+ 	if (custom) return custom;
+ 	var state = validationState(element);
++	if (state.badInput) return 'Please enter a valid ' + element.type + '.';
+ 	if (state.valueMissing) return 'Please complete this field.';
+ 	if (state.typeMismatch) return 'Please enter a valid ' + element.type + '.';
+ 	if (state.patternMismatch) return 'Please match the requested format.';
++	if (state.tooShort) return 'Please lengthen this text.';
++	if (state.tooLong) return 'Please shorten this text.';
++	if (state.rangeUnderflow) return 'Please enter a value within the minimum bound.';
++	if (state.rangeOverflow) return 'Please enter a value within the maximum bound.';
++	if (state.stepMismatch) return 'Please enter a value matching the requested step.';
+ 	return '';
+ }
+ function checkControlValidity(element, interactive) {
+@@ -1351,7 +1563,8 @@
+ method(ElementP, 'reset', function () {
+ 	if (this.tagName !== 'FORM') return;
+ 	if (!this.dispatchEvent(new Event('reset', { bubbles: true, cancelable: true }))) return;
+-	qsa(this, 'input,textarea').forEach(function (el) {
++	ownedFormControls(this).forEach(function (el) {
++		if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
+ 		if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+ 		else el.value = el.defaultValue;
+ 	});
+@@ -1393,8 +1606,18 @@
+ 	if (!action) throw new DOMException('Invalid form action', 'SyntaxError');
+ 	if (!/^https?:/i.test(action))
+ 		throw new DOMException('This form action scheme is not supported', 'NotSupportedError');
+-	ns.formSubmit(form, submitter, action, method, attribute('target', 'formtarget'),
+-		form.getAttribute('accept-charset') || '');
++	var restored = [];
++	try {
++		if (ns.setInputValue) ownedFormControls(form).forEach(function (element) {
++			if (controlDisabled(element) || (element.tagName !== 'INPUT' && element.tagName !== 'TEXTAREA')) return;
++			var raw = rawControlValue(element), value = sanitizedControlValue(element, raw);
++			if (raw !== value) { restored.push([element, raw]); ns.setInputValue(element, value); }
++		});
++		ns.formSubmit(form, submitter, action, method, attribute('target', 'formtarget'),
++			form.getAttribute('accept-charset') || '');
++	} finally {
++		restored.forEach(function (entry) { ns.setInputValue(entry[0], entry[1]); });
++	}
+ }
+ 
+ accessor(ElementP, 'shadowRoot', function () { return null; });

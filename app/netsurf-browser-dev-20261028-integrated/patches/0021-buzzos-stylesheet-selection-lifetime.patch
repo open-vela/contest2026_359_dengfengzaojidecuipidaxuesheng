@@ -1,0 +1,52 @@
+--- a/netsurf/content/handlers/html/css.c
++++ b/netsurf/content/handlers/html/css.c
+@@ -44,6 +44,7 @@
+ #include "html/private.h"
+ #include "html/css.h"
+ #include "html/shadow.h"
++#include "html/rebuild.h"
+ 
+ static nsurl *html_default_stylesheet_url;
+ static nsurl *html_adblock_stylesheet_url;
+@@ -90,6 +91,23 @@
+ /**
+  * Callback for fetchcache() for stylesheets.
+  */
++static void html_css_release_sheet(html_content *c, hlcache_handle *sheet)
++{
++	/* Selection contexts borrow stylesheet pointers.  The cache may collect
++	 * an unreferenced sheet before the replacement finishes loading, so
++	 * detach it before releasing its last handle, including duplicate slots. */
++	if (c->select_ctx != NULL) {
++		css_stylesheet *css = nscss_get_stylesheet(sheet);
++		if (css != NULL) {
++			while (css_select_ctx_remove_sheet(c->select_ctx, css) == CSS_OK)
++				;
++		}
++		c->rebuild_styles_changed = true;
++		html_rebuild_schedule(c);
++	}
++	hlcache_handle_release(sheet);
++}
++
+ static nserror
+ html_convert_css_callback(hlcache_handle *css,
+ 			  const hlcache_event *event,
+@@ -123,7 +141,7 @@
+ 		      nsurl_access(hlcache_handle_get_url(css)),
+ 		      event->data.errordata.errormsg);
+ 
+-		hlcache_handle_release(css);
++		html_css_release_sheet(parent, css);
+ 		s->sheet = NULL;
+ 		parent->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
+@@ -360,7 +378,7 @@
+ 				NSLOG(netsurf, INFO, "%d fetches active",
+ 				      c->base.active);
+ 			}
+-			hlcache_handle_release(s->sheet);
++			html_css_release_sheet(c, s->sheet);
+ 		}
+ 		s->sheet = sheet;
+ 	}

@@ -39,6 +39,7 @@
 
 #define C6NET_BUFSIZE (CONFIG_NET_ETH_PKTSIZE + 64)
 #define C6NET_POLL_US       10000
+#define C6NET_TX_BUDGET     8
 #define C6NET_TASK_PRIORITY 110
 #define C6NET_TASK_STACK    4096
 
@@ -48,6 +49,7 @@ struct c6net_state_s
   pid_t daemon_pid;
   bool registered;
   bool tx_pending;
+  unsigned int tx_budget;
   uint8_t if_type;
   uint8_t buf[C6NET_BUFSIZE] __attribute__((aligned(4)));
 };
@@ -166,6 +168,10 @@ int c6net_stats_read(bool softap, FAR struct c6net_stats_s *out)
   C6NET_READ_STAT(rx_down_drops);
   C6NET_READ_STAT(rx_unsupported);
   C6NET_READ_STAT(tx_last_error);
+  C6NET_READ_STAT(tx_yields);
+  C6NET_READ_STAT(tx_active);
+  C6NET_READ_STAT(tx_poll_max_us);
+  C6NET_READ_STAT(rx_stage);
 #undef C6NET_READ_STAT
   return 0;
 }
@@ -268,6 +274,18 @@ static int c6net_txpoll(FAR struct net_driver_s *dev)
       c6net_stat_add(&stats->tx_packets, 1);
       c6net_stat_add(&stats->tx_bytes, dev->d_len);
       dev->d_len = 0;
+      /* A flat-buffer poll restarts its connection scan after every packet.
+       * Release the network lock between bounded bursts, even if a socket
+       * keeps producing data. Keep the notification for the next pass.
+       */
+
+      if (priv->tx_budget != 0 && --priv->tx_budget == 0)
+        {
+          c6net_stat_add(&stats->tx_yields, 1);
+          __atomic_store_n(&priv->tx_pending, true, __ATOMIC_RELEASE);
+          c6net_tx_notify();
+          return 1;
+        }
     }
 
   return 0;
@@ -333,7 +351,15 @@ static void c6net_poll_pending(FAR struct c6net_state_s *priv)
       netdev_lock(dev);
       if ((dev->d_flags & IFF_UP) != 0)
         {
+          uint32_t started = c6net_now_us();
+          FAR struct c6net_stats_s *stats = c6net_stats(priv->if_type);
+          priv->tx_budget = C6NET_TX_BUDGET;
+          __atomic_store_n(&stats->tx_active, 1, __ATOMIC_RELEASE);
           devif_poll(dev, c6net_txpoll);
+          __atomic_store_n(&stats->tx_active, 0, __ATOMIC_RELEASE);
+          priv->tx_budget = 0;
+          c6net_stat_max(&stats->tx_poll_max_us,
+                        c6net_now_us() - started);
         }
 
       netdev_unlock(dev);
@@ -368,7 +394,9 @@ static void c6net_rx(FAR void *arg, uint8_t if_type,
       return;
     }
 
+  __atomic_store_n(&stats->rx_stage, 1, __ATOMIC_RELEASE);
   netdev_lock(&priv->dev);
+  __atomic_store_n(&stats->rx_stage, 2, __ATOMIC_RELEASE);
   if ((priv->dev.d_flags & IFF_UP) == 0 ||
       (priv->if_type == ESP_HOSTED_IF_AP &&
        c6_softap_preserve_mode(1) != 3) ||
@@ -376,6 +404,7 @@ static void c6net_rx(FAR void *arg, uint8_t if_type,
        (c6_link_read(&g_c6link, &value) < 0 || !value.ifup)))
     {
       c6net_stat_add(&stats->rx_down_drops, 1);
+      __atomic_store_n(&stats->rx_stage, 0, __ATOMIC_RELEASE);
       netdev_unlock(&priv->dev);
       return;
     }
@@ -389,6 +418,7 @@ static void c6net_rx(FAR void *arg, uint8_t if_type,
   ethertype = ((uint16_t)priv->buf[12] << 8) | priv->buf[13];
   if (ethertype == ETHTYPE_IP)
     {
+      __atomic_store_n(&stats->rx_stage, 3, __ATOMIC_RELEASE);
       ipv4_input(&priv->dev);
     }
 #ifdef CONFIG_NET_IPv6
@@ -415,9 +445,11 @@ static void c6net_rx(FAR void *arg, uint8_t if_type,
 
   if (priv->dev.d_len > 0)
     {
+      __atomic_store_n(&stats->rx_stage, 4, __ATOMIC_RELEASE);
       (void)c6net_txpoll(&priv->dev);
     }
 
+  __atomic_store_n(&stats->rx_stage, 0, __ATOMIC_RELEASE);
   netdev_unlock(&priv->dev);
 }
 

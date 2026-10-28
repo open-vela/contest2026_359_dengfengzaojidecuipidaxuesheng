@@ -40,6 +40,8 @@ static bool speech_cancelled(void *unused){(void)unused;return atomic_load(&spee
 /* Wake handoff has no retained TTS weights in this isolated fixture. */
 void glass_speech_clear_cache(void){}
 static bool pcm_busy;
+static bool foreground_pending;
+static bool music_pcm_foreground_pending(void){return foreground_pending;}
 static bool music_pcm_session_active(void){return pcm_busy;}
 static void *speech_worker(void *argument){(void)argument;return NULL;}
 static int test_thread_create(pthread_t *tid,const pthread_attr_t *attr,void *(*worker)(void *),void *argument)
@@ -47,9 +49,17 @@ static int test_thread_create(pthread_t *tid,const pthread_attr_t *attr,void *(*
 #define pthread_create test_thread_create
 #include "wake_handoff_production.inc"
 static void reset(void)
-{assert(!capture_live&&!model_live);memset(&speech,0,sizeof(speech));atomic_store(&speech_cancel,false);create_error=open_error=feed_error=calls=cancel_at=0;}
+{assert(!capture_live&&!model_live);memset(&speech,0,sizeof(speech));atomic_store(&speech_cancel,false);foreground_pending=false;create_error=open_error=feed_error=calls=cancel_at=0;}
 int main(void)
 {
+  reset();foreground_pending=true;
+  assert(speech_start_mode(NULL,false,true,NULL,0,true)==-EBUSY&&!speech.active);
+  foreground_pending=false;
+  reset();speech.active=true;speech.background_wake=true;speech.wake_ready=true;
+  assert(glass_speech_yield_background()&&speech_cancelled(NULL)&&!speech.wake_ready);
+  assert(speech.active&&speech.phase==SPEECH_STOPPING);
+  reset();speech.active=true;speech.background_wake=false;
+  assert(!glass_speech_yield_background()&&!speech_cancelled(NULL)&&speech.active);
   reset();speech.active=true;speech.request=7;speech.phase=SPEECH_SPEAKING;
   glass_speech_capture_woke();assert(speech.wake_event==1&&speech.wake_ms==1000&&speech.active&&speech.request==7&&speech.phase==SPEECH_SPEAKING);
   glass_speech_capture_woke();assert(speech.wake_event==2);

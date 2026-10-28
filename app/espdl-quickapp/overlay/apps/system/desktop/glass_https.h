@@ -35,3 +35,10 @@ int glass_https_poll(struct webclient_tls_connection *connection,
 void glass_https_set_deadline(struct webclient_tls_connection *connection,
                               int64_t deadline_ms);
 void glass_https_set_abort_flag(struct webclient_tls_connection *connection,atomic_bool *flag);
+
+/* Opt-in extension: original request layout and TLS ops remain unchanged. */
+struct glass_https_bounded_request {
+  struct glass_https_request request;
+  uint32_t connect_timeout_ms;
+};
+const struct webclient_tls_ops *glass_https_bounded_tls_ops(void);

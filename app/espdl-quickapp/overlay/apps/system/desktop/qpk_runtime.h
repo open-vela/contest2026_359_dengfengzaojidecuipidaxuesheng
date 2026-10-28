@@ -33,6 +33,8 @@ int qpk_runtime_launch(lv_obj_t *root, const char *name,
                        qpk_unresponsive_cb_t unresponsive_cb);
 void qpk_runtime_stop(void);
 bool qpk_runtime_running(void);
+/* Pop one app-owned view or input dialog. False lets the shell exit one level. */
+bool qpk_runtime_back(void);
 /* Select classification (0) or face following (1) on the active built-in
  * ESP-DL app. Bounded JS callback, LVGL thread only; does not start capture. */
 int qpk_runtime_select_espdl_mode(unsigned mode);

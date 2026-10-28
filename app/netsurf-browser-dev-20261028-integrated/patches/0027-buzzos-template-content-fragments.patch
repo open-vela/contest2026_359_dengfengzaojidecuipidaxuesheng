@@ -1,0 +1,814 @@
+--- a/libdom/include/dom/html/html_element.h
++++ b/libdom/include/dom/html/html_element.h
+@@ -9,9 +9,16 @@
+ #define dom_html_element_h_
+ 
+ #include <dom/core/element.h>
++#include <dom/core/doc_fragment.h>
+ #include <dom/html/html_elements.h>
+ 
+ typedef struct dom_html_element dom_html_element;
++
++/* Native template support. The returned content fragment is referenced. */
++bool dom_html_element_is_template(const dom_node *node);
++dom_exception dom_html_element_get_template_content(dom_node *node,
++		struct dom_document_fragment **result);
++bool dom_html_element_is_in_template_content(const dom_node *node);
+ 
+ typedef struct dom_html_element_vtable {
+ 	struct dom_element_vtable base;
+@@ -158,4 +165,3 @@
+ 		(type))
+ 
+ #endif
+-
+--- a/libdom/src/html/html_element.h
++++ b/libdom/src/html/html_element.h
+@@ -23,6 +23,7 @@
+ 	struct dom_element base;
+ 			/**< The base class */
+ 	dom_html_element_type type;
++	struct dom_document_fragment *template_content; /* owned, not childNodes */
+ };
+ 
+ struct dom_html_element_create_params {
+@@ -165,4 +166,3 @@
+ extern const struct dom_html_element_vtable _dom_html_element_vtable;
+ 
+ #endif
+-
+--- a/libdom/src/html/html_element.c
++++ b/libdom/src/html/html_element.c
+@@ -16,6 +16,7 @@
+ #include "core/node.h"
+ #include "core/attr.h"
+ #include "core/document.h"
++#include "core/doc_fragment.h"
+ #include "utils/utils.h"
+ 
+ const struct dom_html_element_vtable _dom_html_element_vtable = {
+@@ -70,6 +71,7 @@
+ 	dom_exception err;
+ 
+ 	el->type = params->type;
++	el->template_content = NULL;
+ 
+ 	err = _dom_element_initialise(&params->doc->base, &el->base,
+ 			params->name, params->namespace, params->prefix);
+@@ -81,7 +83,54 @@
+ 
+ void _dom_html_element_finalise(struct dom_html_element *ele)
+ {
++	if (ele->template_content != NULL) {
++		ele->template_content->template_host = NULL;
++		dom_node_unref(ele->template_content);
++		ele->template_content = NULL;
++	}
+ 	_dom_element_finalise(&ele->base);
++}
++
++bool dom_html_element_is_template(const dom_node *node)
++{
++	const dom_node_internal *n = (const dom_node_internal *)node;
++	/* Generic HTML templates use this vtable; XML/SVG elements must not be
++	 * cast to the larger HTML structure merely because their name matches. */
++	return n != NULL && n->type == DOM_ELEMENT_NODE &&
++		n->base.vtable == (const void *)&_dom_html_element_vtable &&
++		((const dom_html_element *)n)->type == DOM_HTML_ELEMENT_TYPE_TEMPLATE;
++}
++
++dom_exception dom_html_element_get_template_content(dom_node *node,
++		struct dom_document_fragment **result)
++{
++	dom_html_element *html = (dom_html_element *)node;
++	dom_exception err;
++	*result = NULL;
++	if (!dom_html_element_is_template(node))
++		return DOM_NO_ERR;
++	if (html->template_content == NULL) {
++		/* TODO: use the appropriate inert template owner document once
++		 * libdom implements identity-preserving cross-document adoption. */
++		err = dom_document_create_document_fragment(
++			((dom_node_internal *)node)->owner, &html->template_content);
++		if (err != DOM_NO_ERR)
++			return err;
++		html->template_content->template_host = (dom_node_internal *)node;
++	}
++	*result = dom_node_ref(html->template_content);
++	return DOM_NO_ERR;
++}
++
++bool dom_html_element_is_in_template_content(const dom_node *node)
++{
++	const dom_node_internal *n = (const dom_node_internal *)node;
++	if (n == NULL)
++		return false;
++	while (n->parent != NULL)
++		n = n->parent;
++	return n->type == DOM_DOCUMENT_FRAGMENT_NODE &&
++		((const dom_document_fragment *)n)->template_host != NULL;
+ }
+ 
+ /*------------------------------------------------------------------------*/
+@@ -130,6 +179,7 @@
+ 	}
+ 
+ 	new->type = old->type;
++	new->template_content = NULL;
+ 
+ 	return DOM_NO_ERR;
+ }
+--- a/libdom/src/html/html_script_element.c
++++ b/libdom/src/html/html_script_element.c
+@@ -142,6 +142,10 @@
+ 	if (err != DOM_NO_ERR) {
+ 		return err;
+ 	}
++	/* A clone retains already-started, but is not parser-inserted. Never
++	 * leave flags uninitialized when activating cloned template scripts. */
++	new->flags = DOM_HTML_SCRIPT_ELEMENT_FLAG_NON_BLOCKING |
++		(old->flags & DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED);
+ 
+ 	return DOM_NO_ERR;
+ }
+--- a/libdom/src/core/doc_fragment.h
++++ b/libdom/src/core/doc_fragment.h
+@@ -10,6 +10,12 @@
+ 
+ #include <dom/core/exceptions.h>
+ #include <dom/core/doc_fragment.h>
++#include "core/node.h"
++
++struct dom_document_fragment {
++	dom_node_internal base;
++	dom_node_internal *template_host; /* weak; cleared when host is finalized */
++};
+ 
+ dom_exception _dom_document_fragment_create(dom_document *doc,
+ 		dom_string *name, dom_string *value,
+--- a/libdom/src/core/doc_fragment.c
++++ b/libdom/src/core/doc_fragment.c
+@@ -14,13 +14,6 @@
+ #include "core/doc_fragment.h"
+ #include "core/node.h"
+ #include "utils/utils.h"
+-
+-/**
+- * A DOM document fragment
+- */
+-struct dom_document_fragment {
+-	dom_node_internal base;		/**< Base node */
+-};
+ 
+ static const struct dom_node_vtable df_vtable = {
+ 	{
+@@ -60,6 +53,7 @@
+ 
+ 	f->base.base.vtable = &df_vtable;
+ 	f->base.vtable = &df_protect_vtable;
++	f->template_host = NULL;
+ 
+ 	/* And initialise the node */
+ 	err = _dom_document_fragment_initialise(&f->base, doc, 
+@@ -109,6 +103,8 @@
+ 	new_f = malloc(sizeof(dom_document_fragment));
+ 	if (new_f == NULL)
+ 		return DOM_NO_MEM_ERR;
++	/* A cloned fragment is ordinary: it is not associated with the host. */
++	new_f->template_host = NULL;
+ 
+ 	err = dom_node_copy_internal(old, new_f);
+ 	if (err != DOM_NO_ERR) {
+@@ -120,4 +116,3 @@
+ 
+ 	return DOM_NO_ERR;
+ }
+-
+--- a/libdom/src/core/node.c
++++ b/libdom/src/core/node.c
+@@ -34,6 +34,7 @@
+ #include "core/node.h"
+ #include "core/pi.h"
+ #include "core/text.h"
++#include "html/html_element.h"
+ #include "utils/utils.h"
+ #include "utils/validate.h"
+ #include "events/mutation_event.h"
+@@ -722,13 +723,29 @@
+  * the responsibility of the caller to unref the node once it has
+  * finished with it.
+  */
++static dom_node_internal *host_inclusive_parent(dom_node_internal *node)
++{
++	if (node->parent != NULL)
++		return node->parent;
++	if (node->type == DOM_DOCUMENT_FRAGMENT_NODE)
++		return ((dom_document_fragment *)node)->template_host;
++	return NULL;
++}
++
++static bool host_inclusive_ancestor(dom_node_internal *ancestor,
++		dom_node_internal *node)
++{
++	for (; node != NULL; node = host_inclusive_parent(node))
++		if (node == ancestor)
++			return true;
++	return false;
++}
++
+ dom_exception _dom_node_insert_before(dom_node_internal *node,
+ 		dom_node_internal *new_child, dom_node_internal *ref_child,
+ 		dom_node_internal **result)
+ {
+ 	dom_exception err;
+-	dom_node_internal *n;
+-	
+ 	assert(node != NULL);
+ 	
+ 	/* Ensure that new_child and node are owned by the same document */
+@@ -748,9 +765,13 @@
+ 		return DOM_NOT_FOUND_ERR;
+ 	
+ 	/* Ensure that new_child is not an ancestor of node, nor node itself */
+-	for (n = node; n != NULL; n = n->parent) {
+-		if (n == new_child)
+-			return DOM_HIERARCHY_REQUEST_ERR;
++	if (host_inclusive_ancestor(new_child, node))
++		return DOM_HIERARCHY_REQUEST_ERR;
++	if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
++		dom_node_internal *c;
++		for (c = new_child->first_child; c != NULL; c = c->next)
++			if (host_inclusive_ancestor(c, node))
++				return DOM_HIERARCHY_REQUEST_ERR;
+ 	}
+ 
+ 	/* Ensure that new_child is permitted as a child of node */
+@@ -869,8 +890,6 @@
+ 		dom_node_internal *new_child, dom_node_internal *old_child,
+ 		dom_node_internal **result)
+ {
+-	dom_node_internal *n;
+-
+ 	/* We don't support replacement of DocumentType or root Elements */
+ 	if (node->type == DOM_DOCUMENT_NODE && 
+ 			(new_child->type == DOM_DOCUMENT_TYPE_NODE || 
+@@ -890,9 +909,13 @@
+ 		return DOM_NOT_FOUND_ERR;
+ 
+ 	/* Ensure that new_child is not an ancestor of node, nor node itself */
+-	for (n = node; n != NULL; n = n->parent) {
+-		if (n == new_child)
+-			return DOM_HIERARCHY_REQUEST_ERR;
++	if (host_inclusive_ancestor(new_child, node))
++		return DOM_HIERARCHY_REQUEST_ERR;
++	if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
++		dom_node_internal *c;
++		for (c = new_child->first_child; c != NULL; c = c->next)
++			if (host_inclusive_ancestor(c, node))
++				return DOM_HIERARCHY_REQUEST_ERR;
+ 	}
+ 
+ 	/* Ensure that new_child is permitted as a child of node */
+@@ -1140,6 +1163,31 @@
+ 		}
+ 	}
+ 
++	/* Template contents are associated storage, not ordinary children. */
++	if (deep && dom_html_element_is_template((dom_node *)node)) {
++		dom_document_fragment *source = NULL, *target = NULL;
++		err = dom_html_element_get_template_content((dom_node *)node, &source);
++		if (err == DOM_NO_ERR)
++			err = dom_html_element_get_template_content((dom_node *)n, &target);
++		if (err == DOM_NO_ERR) {
++			for (child = source->base.first_child; child != NULL; child = child->next) {
++				dom_node_internal *cc = NULL, *r = NULL;
++				err = dom_node_clone_node(child, true, (void *)&cc);
++				if (err == DOM_NO_ERR)
++					err = dom_node_append_child(target, cc, (void *)&r);
++				dom_node_unref(r);
++				dom_node_unref(cc);
++				if (err != DOM_NO_ERR)
++					break;
++			}
++		}
++		dom_node_unref(source);
++		dom_node_unref(target);
++		if (err != DOM_NO_ERR) {
++			dom_node_unref(n);
++			return err;
++		}
++	}
+ 	*result = n;
+ 
+ 	/* Call the dom_user_data_handlers */
+@@ -2704,4 +2752,3 @@
+ 
+ 	return DOM_NO_ERR;
+ }
+-
+--- a/libdom/bindings/hubbub/parser.c
++++ b/libdom/bindings/hubbub/parser.c
+@@ -22,8 +22,10 @@
+ #include "core/document.h"
+ #include "core/string.h"
+ #include "core/node.h"
++#include "core/doc_fragment.h"
+ 
+ #include "html/html_document.h"
++#include "html/html_element.h"
+ #include "html/html_button_element.h"
+ #include "html/html_input_element.h"
+ #include "html/html_select_element.h"
+@@ -335,15 +337,30 @@
+ 	return HUBBUB_OK;
+ }
+ 
++/* Only parser insertions target template contents. Ordinary DOM appendChild
++ * on a template must continue to operate on its ordinary childNodes. */
++static dom_exception parser_parent(void *node, dom_node **result)
++{
++	dom_document_fragment *content = NULL;
++	dom_exception err = dom_html_element_get_template_content(node, &content);
++	if (err == DOM_NO_ERR)
++		*result = content != NULL ? (dom_node *)content : dom_node_ref(node);
++	return err;
++}
++
+ static hubbub_error append_child(void *parser, void *parent, void *child,
+ 		void **result)
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+-
+-	err = dom_node_append_child((struct dom_node *) parent,
++	dom_node *target = NULL;
++
++	err = parser_parent(parent, &target);
++	if (err == DOM_NO_ERR)
++		err = dom_node_append_child(target,
+ 				    (struct dom_node *) child,
+ 				    (struct dom_node **) result);
++	dom_node_unref(target);
+ 	if (err != DOM_NO_ERR) {
+ 		dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+ 				"Can't append child '%p' for parent '%p'",
+@@ -359,11 +376,15 @@
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+-
+-	err = dom_node_insert_before((struct dom_node *) parent,
++	dom_node *target = NULL;
++
++	err = parser_parent(parent, &target);
++	if (err == DOM_NO_ERR)
++		err = dom_node_insert_before(target,
+ 			(struct dom_node *) child,
+ 			(struct dom_node *) ref_child,
+ 			(struct dom_node **) result);
++	dom_node_unref(target);
+ 	if (err != DOM_NO_ERR) {
+ 		dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+ 				"Can't insert node '%p' before node '%p'",
+@@ -379,10 +400,14 @@
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+-
+-	err = dom_node_remove_child((struct dom_node *) parent,
++	dom_node *target = NULL;
++
++	err = parser_parent(parent, &target);
++	if (err == DOM_NO_ERR)
++		err = dom_node_remove_child(target,
+ 			(struct dom_node *) child,
+ 			(struct dom_node **) result);
++	dom_node_unref(target);
+ 	if (err != DOM_NO_ERR) {
+ 		dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+ 				"Can't remove child '%p'", child);
+@@ -414,20 +439,27 @@
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+-	struct dom_node *child, *result;
++	struct dom_node *child = NULL, *result;
++	dom_node *source = NULL, *target = NULL;
++	if (parser_parent(node, &source) != DOM_NO_ERR)
++		return HUBBUB_UNKNOWN;
++	if (parser_parent(new_parent, &target) != DOM_NO_ERR) {
++		dom_node_unref(source);
++		return HUBBUB_UNKNOWN;
++	}
+ 
+ 	while(true) {
+-		err = dom_node_get_first_child((struct dom_node *) node,
++		err = dom_node_get_first_child(source,
+ 				&child);
+ 		if (err != DOM_NO_ERR) {
+ 			dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+ 					"Error in dom_note_get_first_child");
+-			return HUBBUB_UNKNOWN;
++			goto fail;
+ 		}
+ 		if (child == NULL)
+ 			break;
+ 
+-		err = dom_node_remove_child(node, (struct dom_node *) child,
++		err = dom_node_remove_child(source, (struct dom_node *) child,
+ 				&result);
+ 		if (err != DOM_NO_ERR) {
+ 			dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+@@ -436,7 +468,7 @@
+ 		}
+ 		dom_node_unref(result);
+ 
+-		err = dom_node_append_child((struct dom_node *) new_parent,
++		err = dom_node_append_child(target,
+ 				(struct dom_node *) child, &result);
+ 		if (err != DOM_NO_ERR) {
+ 			dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+@@ -446,10 +478,14 @@
+ 		dom_node_unref(result);
+ 		dom_node_unref(child);
+ 	}
++	dom_node_unref(source);
++	dom_node_unref(target);
+ 	return HUBBUB_OK;
+ 
+ fail:
+ 	dom_node_unref(child);
++	dom_node_unref(source);
++	dom_node_unref(target);
+ 	return HUBBUB_UNKNOWN;
+ }
+ 
+@@ -468,7 +504,15 @@
+ 				"Error in dom_node_get_parent");
+ 		return HUBBUB_UNKNOWN;
+ 	}
+-	if (element_only == false) {
++	if (parent != NULL) {
++		dom_node_internal *p = (dom_node_internal *)parent;
++		if (p->type == DOM_DOCUMENT_FRAGMENT_NODE &&
++			((dom_document_fragment *)p)->template_host != NULL) {
++			parent = dom_node_ref(((dom_document_fragment *)p)->template_host);
++			dom_node_unref(p);
++		}
++	}
++	if (element_only == false || parent == NULL) {
+ 		*result = parent;
+ 		return HUBBUB_OK;
+ 	}
+@@ -498,8 +542,12 @@
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_exception err;
+-
+-	err = dom_node_has_child_nodes((struct dom_node *) node, result);
++	dom_node *target = NULL;
++
++	err = parser_parent(node, &target);
++	if (err == DOM_NO_ERR)
++		err = dom_node_has_child_nodes(target, result);
++	dom_node_unref(target);
+ 	if (err != DOM_NO_ERR) {
+ 		dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx,
+ 				"Error in dom_node_has_child_nodes");
+@@ -680,6 +728,15 @@
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_hubbub_error err;
++	if (dom_html_element_is_in_template_content(script)) {
++		dom_html_script_element_flags flags;
++		if (dom_html_script_element_get_flags(script, &flags) == DOM_NO_ERR) {
++			flags &= ~DOM_HTML_SCRIPT_ELEMENT_FLAG_PARSER_INSERTED;
++			flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_NON_BLOCKING;
++			dom_html_script_element_set_flags(script, flags);
++		}
++		return HUBBUB_OK;
++	}
+ 
+ 	err = dom_parser->script(dom_parser->mctx, (struct dom_node *)script);
+ 
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -587,10 +587,18 @@
+ 	dom_node_type type;
+ 	dom_exception exc;
+ 	html_content *htmlc = pw;
++	bool connected = false;
+ 
+ 	exc = dom_event_get_target(evt, &node);
+ 	if ((exc != DOM_NO_ERR) || (node == NULL)) {
+ 		/* failed to obtain the event target node */
++		return;
++	}
++	/* Detached fragments (including template contents and clone assembly)
++	 * must not install styles, change the base URL, or execute scripts. */
++	if (dom_node_contains(htmlc->document, node, &connected) != DOM_NO_ERR ||
++		!connected) {
++		dom_node_unref(node);
+ 		return;
+ 	}
+ 
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -285,7 +285,8 @@
+ 		proto = t->document_proto;
+ 		break;
+ 	case DOM_ELEMENT_NODE:
+-		proto = qjs_node_is_media(node) ?
++		proto = dom_html_element_is_template(node) ? t->template_proto :
++			qjs_node_is_media(node) ?
+ 			t->media_proto : t->element_proto;
+ 		break;
+ 	case DOM_TEXT_NODE:
+@@ -757,6 +758,32 @@
+ 	return qjs_children_array(ctx, qjs_this_node(ctx, this_val), false);
+ }
+ 
++static JSValue qjs_throw_dom_exception(JSContext *ctx, dom_exception exc)
++{
++	const char *name;
++	JSValue global, ctor, args[2], error;
++	switch (exc) {
++	case DOM_HIERARCHY_REQUEST_ERR: name = "HierarchyRequestError"; break;
++	case DOM_WRONG_DOCUMENT_ERR: name = "WrongDocumentError"; break;
++	case DOM_NOT_FOUND_ERR: name = "NotFoundError"; break;
++	case DOM_NO_MODIFICATION_ALLOWED_ERR: name = "NoModificationAllowedError"; break;
++	case DOM_NOT_SUPPORTED_ERR: name = "NotSupportedError"; break;
++	case DOM_INVALID_STATE_ERR: name = "InvalidStateError"; break;
++	case DOM_NO_MEM_ERR: return JS_ThrowOutOfMemory(ctx);
++	default: return JS_ThrowInternalError(ctx, "DOM operation failed (%d)", exc);
++	}
++	global = JS_GetGlobalObject(ctx);
++	ctor = JS_GetPropertyStr(ctx, global, "DOMException");
++	args[0] = JS_NewString(ctx, "The DOM operation could not be completed");
++	args[1] = JS_NewString(ctx, name);
++	error = JS_CallConstructor(ctx, ctor, 2, args);
++	JS_FreeValue(ctx, args[0]);
++	JS_FreeValue(ctx, args[1]);
++	JS_FreeValue(ctx, ctor);
++	JS_FreeValue(ctx, global);
++	return JS_IsException(error) ? error : JS_Throw(ctx, error);
++}
++
+ static JSValue
+ node_appendChild(JSContext *ctx, JSValueConst this_val,
+ 		 int argc, JSValueConst *argv)
+@@ -771,8 +798,9 @@
+ 	child = qjs_this_node(ctx, argv[0]);
+ 	if (child == NULL)
+ 		return JS_UNDEFINED;
+-	if (dom_node_append_child(node, child, &res) != DOM_NO_ERR)
+-		return JS_NULL;
++	dom_exception exc = dom_node_append_child(node, child, &res);
++	if (exc != DOM_NO_ERR)
++		return qjs_throw_dom_exception(ctx, exc);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -793,8 +821,9 @@
+ 		return JS_UNDEFINED;
+ 	if (argc >= 2 && !JS_IsNull(argv[1]) && !JS_IsUndefined(argv[1]))
+ 		ref = qjs_this_node(ctx, argv[1]);
+-	if (dom_node_insert_before(node, child, ref, &res) != DOM_NO_ERR)
+-		return JS_NULL;
++	dom_exception exc = dom_node_insert_before(node, child, ref, &res);
++	if (exc != DOM_NO_ERR)
++		return qjs_throw_dom_exception(ctx, exc);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -812,8 +841,9 @@
+ 	child = qjs_this_node(ctx, argv[0]);
+ 	if (child == NULL)
+ 		return JS_UNDEFINED;
+-	if (dom_node_remove_child(node, child, &res) != DOM_NO_ERR)
+-		return JS_NULL;
++	dom_exception exc = dom_node_remove_child(node, child, &res);
++	if (exc != DOM_NO_ERR)
++		return qjs_throw_dom_exception(ctx, exc);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -833,8 +863,9 @@
+ 	oldc = qjs_this_node(ctx, argv[1]);
+ 	if (newc == NULL || oldc == NULL)
+ 		return JS_UNDEFINED;
+-	if (dom_node_replace_child(node, newc, oldc, &res) != DOM_NO_ERR)
+-		return JS_NULL;
++	dom_exception exc = dom_node_replace_child(node, newc, oldc, &res);
++	if (exc != DOM_NO_ERR)
++		return qjs_throw_dom_exception(ctx, exc);
+ 	return qjs_wrap_and_unref(t, res);
+ }
+ 
+@@ -1326,6 +1357,24 @@
+ 	return JS_NewStringLen(ctx, "", 0);
+ }
+ 
++static JSValue el_get_template_content(JSContext *ctx, JSValueConst this_val)
++{
++	struct jsthread *t = qjs_thread(ctx);
++	dom_node *node = qjs_this_node(ctx, this_val);
++	dom_document_fragment *content = NULL;
++	dom_exception exc;
++	if (t == NULL || !dom_html_element_is_template(node))
++		return JS_ThrowTypeError(ctx, "Illegal template content receiver");
++	exc = dom_html_element_get_template_content(node, &content);
++	if (exc != DOM_NO_ERR)
++		return qjs_throw_dom_exception(ctx, exc);
++	return qjs_wrap_and_unref(t, (dom_node *)content);
++}
++
++static const JSCFunctionListEntry qjs_template_funcs[] = {
++	JS_CGETSET_DEF("content", el_get_template_content, NULL),
++};
++
+ /* replace this element's children with a parsed HTML fragment;
+  * same technique as the duktape Element.bnd setter */
+ static JSValue
+@@ -1339,6 +1388,7 @@
+ 	dom_hubbub_parser *parser = NULL;
+ 	struct dom_document *doc = NULL;
+ 	struct dom_document_fragment *fragment = NULL;
++	struct dom_document_fragment *template_content = NULL;
+ 	dom_exception exc;
+ 	struct dom_node *child = NULL, *html = NULL, *body = NULL;
+ 	struct dom_nodelist *bodies = NULL;
+@@ -1347,7 +1397,14 @@
+ 		return JS_UNDEFINED;
+ 	s = JS_ToCStringLen(ctx, &size, v);
+ 	if (s == NULL)
+-		return JS_UNDEFINED;
++		return JS_EXCEPTION;
++	exc = dom_html_element_get_template_content(node, &template_content);
++	if (exc != DOM_NO_ERR) {
++		JS_FreeCString(ctx, s);
++		return qjs_throw_dom_exception(ctx, exc);
++	}
++	if (template_content != NULL)
++		node = (dom_node *)template_content;
+ 
+ 	exc = dom_node_get_owner_document(node, &doc);
+ 	if (exc != DOM_NO_ERR)
+@@ -1430,6 +1487,8 @@
+ out:
+ 	if (parser != NULL)
+ 		dom_hubbub_parser_destroy(parser);
++	if (template_content != NULL)
++		dom_node_unref(template_content);
+ 	if (doc != NULL)
+ 		dom_node_unref(doc);
+ 	if (fragment != NULL)
+@@ -3080,6 +3139,9 @@
+ 	JS_SetPropertyFunctionList(ctx, t->media_proto, qjs_media_funcs,
+ 				   sizeof(qjs_media_funcs) /
+ 				   sizeof(qjs_media_funcs[0]));
++	t->template_proto = JS_NewObjectProto(ctx, t->element_proto);
++	JS_SetPropertyFunctionList(ctx, t->template_proto, qjs_template_funcs,
++				   sizeof(qjs_template_funcs) / sizeof(qjs_template_funcs[0]));
+ 
+ 	t->document_proto = JS_NewObjectProto(ctx, t->node_proto);
+ 	JS_SetPropertyFunctionList(ctx, t->document_proto,
+@@ -3256,6 +3318,8 @@
+ 			  JS_DupValue(ctx, t->event_proto));
+ 	JS_SetPropertyStr(ctx, global, "__ns_Media_proto",
+ 			  JS_DupValue(ctx, t->media_proto));
++	JS_SetPropertyStr(ctx, global, "__ns_Template_proto",
++			  JS_DupValue(ctx, t->template_proto));
+ 
+ 	qjs_native_setup(t);
+ 
+@@ -3300,7 +3364,7 @@
+ 		static const char *hide[] = {
+ 			"__ns_Element_proto", "__ns_Node_proto",
+ 			"__ns_Document_proto", "__ns_Text_proto",
+-			"__ns_Event_proto", "__ns_Media_proto", NULL
++			"__ns_Event_proto", "__ns_Media_proto", "__ns_Template_proto", NULL
+ 		};
+ 		int i;
+ 
+@@ -3345,6 +3409,7 @@
+ 	JS_FreeValue(ctx, t->event_map);
+ 	JS_FreeValue(ctx, t->node_proto);
+ 	JS_FreeValue(ctx, t->element_proto);
++	JS_FreeValue(ctx, t->template_proto);
+ 	JS_FreeValue(ctx, t->media_proto);
+ 	JS_FreeValue(ctx, t->document_proto);
+ 	JS_FreeValue(ctx, t->text_proto);
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -71,6 +71,7 @@
+ 	/* prototypes for wrapped objects */
+ 	JSValue node_proto;
+ 	JSValue element_proto;
++	JSValue template_proto; /* template readonly associated content */
+ 	JSValue media_proto;    /* <audio>/<video>, extends element */
+ 	JSValue document_proto;
+ 	JSValue text_proto;
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -15,6 +15,7 @@
+ var TextP = global.__ns_Text_proto;
+ var EventP = global.__ns_Event_proto;
+ var MediaP = global.__ns_Media_proto;
++var TemplateP = global.__ns_Template_proto;
+ var nativeElementsByClass = DocP.getElementsByClassName;
+ var nativeElementsByTag = DocP.getElementsByTagName;
+ 
+@@ -1426,6 +1427,13 @@
+ var VOID_TAGS = /^(AREA|BASE|BR|COL|EMBED|HR|IMG|INPUT|LINK|META|PARAM|SOURCE|TRACK|WBR)$/;
+ function escapeText(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;'); }
+ function escapeAttr(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/\u00a0/g, '&nbsp;'); }
++function htmlContents(n) {
++	if (n.tagName === 'TEMPLATE') {
++		var content = n.content;
++		if (content && content.nodeType === 11) return content;
++	}
++	return n;
++}
+ function serialize(n) {
+ 	if (n.nodeType === 3) {
+ 		var p = n.parentNode;
+@@ -1440,7 +1448,7 @@
+ 		for (var i = 0; i < attrs.length; i++) s += ' ' + attrs[i][0] + '="' + escapeAttr(attrs[i][1]) + '"';
+ 		s += '>';
+ 		if (VOID_TAGS.test(n.tagName)) return s;
+-		for (var c = n.firstChild; c; c = c.nextSibling) s += serialize(c);
++		for (var c = htmlContents(n).firstChild; c; c = c.nextSibling) s += serialize(c);
+ 		return s + '</' + tag + '>';
+ 	}
+ 	if (n.nodeType === 11 || n.nodeType === 9) {
+@@ -1456,7 +1464,8 @@
+ 	var tmp = this.ownerDocument.createElement(p.nodeType === 1 ? p.tagName : 'div');
+ 	tmp.innerHTML = html;
+ 	var frag = this.ownerDocument.createDocumentFragment();
+-	while (tmp.firstChild) frag.appendChild(tmp.firstChild);
++	var contents = htmlContents(tmp);
++	while (contents.firstChild) frag.appendChild(contents.firstChild);
+ 	p.replaceChild(frag, this);
+ });
+ method(ElementP, 'getHTML', function () { return this.innerHTML; });
+@@ -1465,7 +1474,8 @@
+ 	var tmp = ctxEl.ownerDocument.createElement(ctxEl.nodeType === 1 && ctxEl.tagName ? ctxEl.tagName : 'div');
+ 	tmp.innerHTML = html;
+ 	var frag = ctxEl.ownerDocument.createDocumentFragment();
+-	while (tmp.firstChild) frag.appendChild(tmp.firstChild);
++	var contents = htmlContents(tmp);
++	while (contents.firstChild) frag.appendChild(contents.firstChild);
+ 	return frag;
+ }
+ method(ElementP, 'insertAdjacentElement', function (where, node) {
+@@ -1791,10 +1801,7 @@
+ 
+ /* <template>.content */
+ accessor(ElementP, 'content', function () {
+-	if (this.tagName !== 'TEMPLATE') return toStr(this.getAttribute('content'));
+-	var frag = this.ownerDocument.createDocumentFragment();
+-	for (var c = this.firstChild; c; c = c.nextSibling) frag.appendChild(c.cloneNode(true));
+-	return frag;
++	return toStr(this.getAttribute('content'));
+ }, function (v) { this.setAttribute('content', v); });
+ 
+ /* Image fetching is independent of attachment and layout. A preload's
+@@ -2163,7 +2170,9 @@
+ 	var e = new Error(message);
+ 	Object.setPrototypeOf(e, DOMException.prototype);
+ 	e.name = name || 'Error';
+-	e.code = { IndexSizeError: 1, NotFoundError: 8, NotSupportedError: 9, InvalidStateError: 11,
++	e.code = { IndexSizeError: 1, HierarchyRequestError: 3, WrongDocumentError: 4,
++		InvalidCharacterError: 5, NoModificationAllowedError: 7,
++		NotFoundError: 8, NotSupportedError: 9, InvalidStateError: 11,
+ 		SyntaxError: 12, InvalidAccessError: 15, TimeoutError: 23, AbortError: 20, DataCloneError: 25 }[e.name] || 0;
+ 	return e;
+ }
+@@ -2301,12 +2310,14 @@
+ 	if (d && d.set) {
+ 		accessor(ElementP, 'innerHTML', function () {
+ 			var out = '';
+-			for (var c = this.firstChild; c; c = c.nextSibling) out += serialize(c);
++			for (var c = htmlContents(this).firstChild; c; c = c.nextSibling) out += serialize(c);
+ 			return out;
+ 		}, function (v) {
+-			var removed = observers.length ? elementChildren(this) : [];
++			var target = htmlContents(this);
++			var removed = observers.length ? Array.prototype.slice.call(target.childNodes) : [];
+ 			d.set.call(this, v);
+-			if (observers.length) queueMutation('childList', this, { removed: removed, added: elementChildren(this) });
++			if (observers.length) queueMutation('childList', target, {
++				removed: removed, added: Array.prototype.slice.call(target.childNodes) });
+ 		});
+ 	}
+ 	var t = Object.getOwnPropertyDescriptor(NodeP, 'textContent');
+@@ -3795,7 +3806,7 @@
+ Object.keys(TAG_IFACES).forEach(function (name) {
+ 	var re = new RegExp('^(' + TAG_IFACES[name] + ')$', 'i');
+ 	var C = function () { throw new TypeError('Illegal constructor'); };
+-	C.prototype = ElementP;
++	C.prototype = name === 'HTMLTemplateElement' && TemplateP ? TemplateP : ElementP;
+ 	def(C, Symbol.hasInstance, { value: function (o) { return isElement(o) && (!TAG_IFACES[name] || re.test(o.tagName)); } });
+ 	def(C, 'name', { value: name });
+ 	global[name] = C;

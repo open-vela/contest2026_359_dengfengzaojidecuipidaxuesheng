@@ -1,0 +1,200 @@
+--- a/netsurf/include/netsurf/misc.h
++++ b/netsurf/include/netsurf/misc.h
+@@ -25,10 +25,19 @@
+ #ifndef NETSURF_MISC_H_
+ #define NETSURF_MISC_H_
+ 
++#include <stdint.h>
++
+ struct form_control;
+ struct gui_window;
+ struct cert_chain;
+ struct nsurl;
++
++enum gui_script_control {
++	GUI_SCRIPT_BEGIN,
++	GUI_SCRIPT_POLL,
++	GUI_SCRIPT_END,
++	GUI_SCRIPT_CANCELLED
++};
+ 
+ /**
+  * Graphical user interface browser misc function table.
+@@ -124,6 +133,18 @@
+ 	 * \return NSERROR_OK on success
+ 	 */
+ 	nserror (*present_cookies)(const char *search_term);
++
++	/**
++	 * Optional out-of-band script cancellation. Returns a cancellation
++	 * generation, changed only by an explicit user stop/navigation/close.
++	 * Called on the renderer thread, including from the engine interrupt
++	 * hook. Must not dispatch events, enter JavaScript, or reenter the core.
++	 * BEGIN/END bracket execution; POLL is a cheap read. CANCELLED reports
++	 * an aborted context after the JavaScript stack has unwound.
++	 * Frontends providing this hook use user cancellation rather than the
++	 * legacy per-callback wallclock timeout.
++	 */
++	uint32_t (*script_control)(enum gui_script_control action);
+ };
+ 
+ #endif
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -46,13 +46,25 @@
+ 
+ #define QJS_MEMORY_LIMIT (64 * 1024 * 1024)
+ 
+-/* abort long-running scripts via the runtime interrupt hook */
++/* This hook never pumps GUI/page events. Native frontends supply a cheap
++ * cancellation-generation read that remains available when JS is busy. */
++bool qjs_execution_cancelled(struct jsthread *thread)
++{
++	struct jsheap *heap = thread->heap;
++	if (thread->closed || (guit->misc->script_control &&
++	    guit->misc->script_control(GUI_SCRIPT_POLL) != thread->control_cookie))
++		heap->cancel_requested = true;
++	return heap->cancel_requested;
++}
++
+ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
+ {
+ 	struct jsheap *heap = opaque;
+ 	uint64_t now;
+ 
+-	if (heap->deadline_ms == 0)
++	if (heap->active_thread && qjs_execution_cancelled(heap->active_thread))
++		return 1;
++	if (guit->misc->script_control || heap->deadline_ms == 0)
+ 		return 0;
+ 	if (nsu_getmonotonic_ms(&now) != NSUERROR_OK)
+ 		return 0;
+@@ -66,7 +78,14 @@
+ 	/* A nested native/DOM call belongs to the same task. It must neither
+ 	 * restart the clock nor shorten the explicitly selected task budget. */
+ 	if (heap->deadline_depth++ != 0) return;
++	heap->active_thread = thread;
++	heap->cancel_requested = false;
+ 	heap->deadline_saved = heap->deadline_ms;
++	if (guit->misc->script_control) {
++		guit->misc->script_control(GUI_SCRIPT_BEGIN);
++		qjs_execution_cancelled(thread);
++		return;
++	}
+ 
+ 	if (budget_ms > 0 &&
+ 	    nsu_getmonotonic_ms(&now) == NSUERROR_OK) {
+@@ -95,8 +114,22 @@
+ void qjs_deadline_stop(struct jsthread *thread)
+ {
+ 	struct jsheap *heap = thread->heap;
+-	if (heap->deadline_depth && --heap->deadline_depth == 0)
++	if (heap->deadline_depth && --heap->deadline_depth == 0) {
+ 		heap->deadline_ms = heap->deadline_saved;
++		struct jsthread *active = heap->active_thread;
++		if (active && qjs_execution_cancelled(active)) {
++			/* Cancel jobs, timers and async callbacks now, but defer freeing
++			 * the context until its native caller has released local values. */
++			if (guit->misc->script_control)
++				guit->misc->script_control(GUI_SCRIPT_CANCELLED);
++			fprintf(stderr, "[js] execution cancelled by user\n");
++			js_closethread(active);
++		} else if (!heap->draining_jobs && guit->misc->script_control) {
++			guit->misc->script_control(GUI_SCRIPT_END);
++		}
++		heap->active_thread = NULL;
++		heap->cancel_requested = false;
++	}
+ }
+ 
+ /* minimal console for script diagnostics */
+@@ -234,6 +267,8 @@
+ 	heap->nthreads++;
+ 	thread->bw = win_priv;
+ 	thread->htmlc = doc_priv;
++	thread->control_cookie = guit->misc->script_control ?
++		guit->misc->script_control(GUI_SCRIPT_POLL) : 0;
+ 
+ 	qjs_setup_console(thread->ctx);
+ 	qjs_dom_setup(thread);
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_private.h
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_private.h
+@@ -44,6 +44,8 @@
+ 	uint64_t deadline_ms; /* monotonic deadline while executing */
+ 	uint64_t deadline_saved;
+ 	unsigned deadline_depth;
++	struct jsthread *active_thread;
++	bool cancel_requested;
+ 
+ 	/* JSClass ids are runtime scoped in quickjs-ng */
+ 	JSClassID node_class;
+@@ -58,6 +60,7 @@
+ struct jsthread {
+ 	struct jsheap *heap;
+ 	JSContext *ctx;
++	uint32_t control_cookie; /* cancellation generation when this realm opens */
+ 	struct browser_window *bw;
+ 	struct html_content *htmlc;
+ 	bool closed;
+@@ -92,6 +95,7 @@
+ void qjs_deadline_start(struct jsthread *thread);
+ void qjs_deadline_start_script(struct jsthread *thread);
+ void qjs_deadline_stop(struct jsthread *thread);
++bool qjs_execution_cancelled(struct jsthread *thread);
+ 
+ /* log and consume the current exception */
+ void qjs_dump_error(JSContext *ctx);
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -212,10 +212,10 @@
+ 	if (heap->draining_jobs || heap->deadline_depth != 0 ||
+ 			heap->dying || heap->nthreads == 0)
+ 		return;
+-	uint64_t started, now, saved = heap->deadline_ms;
+-	nsu_getmonotonic_ms(&started);
+ 	heap->draining_jobs = true;
+-	for (int budget = 128; budget > 0 && JS_IsJobPending(heap->rt); budget--) {
++	/* A checkpoint drains recursively enqueued microtasks before any next
++	 * page task/rendering. It cannot be split into scheduler callbacks. */
++	while (JS_IsJobPending(heap->rt)) {
+ 		JSContext *jctx = NULL;
+ 		JSContext *pending = JS_GetPendingJobContext(heap->rt);
+ 		struct jsthread *thread = pending ? JS_GetContextOpaque(pending) : NULL;
+@@ -224,28 +224,21 @@
+ 			else break;
+ 			continue;
+ 		}
+-		nsu_getmonotonic_ms(&now);
+-		if (now - started >= 10) break;
+-		/* Initial application hydration is commonly queued as one Promise
+-		 * job by frameworks. Give it the same finite startup budget as its
+-		 * script, rather than interrupting a normal multi-component mount
+-		 * after one second. Completed documents keep the short job budget. */
+-		bool startup = thread->ready_state < 2;
+-		heap->deadline_ms = now + (startup ? 5000 : 1000);
+-		if (saved && saved < heap->deadline_ms) heap->deadline_ms = saved;
+-		/* Nested DOM/script entries belong to this bounded job and must
+-		 * not run a checkpoint or reset its deadline. */
+-		if (startup) qjs_deadline_start_script(thread);
+-		else qjs_deadline_start(thread);
++		qjs_deadline_start(thread);
++		/* Short/infinite chains also check cancellation between jobs, even
++		 * when no individual job reaches QuickJS's interrupt interval. */
++		if (qjs_execution_cancelled(thread)) {
++			qjs_deadline_stop(thread);
++			continue;
++		}
+ 		int result = JS_ExecutePendingJob(heap->rt, &jctx);
+ 		qjs_deadline_stop(thread);
+ 		if (result < 0 && jctx) qjs_dump_error(jctx);
+ 		if (result == 0) break;
+ 	}
+-	heap->deadline_ms = saved;
+ 	heap->draining_jobs = false;
+-	if (JS_IsJobPending(heap->rt))
+-		guit->misc->schedule(1, qjs_drain_jobs, heap);
++	if (guit->misc->script_control)
++		guit->misc->script_control(GUI_SCRIPT_END);
+ }
+ 
+ void qjs_cancel_jobs(struct jsheap *heap)

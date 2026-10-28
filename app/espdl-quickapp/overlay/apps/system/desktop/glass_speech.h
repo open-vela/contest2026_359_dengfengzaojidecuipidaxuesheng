@@ -36,6 +36,9 @@ int glass_speech_zh_q8(int mode);
 int glass_speech_esp_tts(int mode);
 int glass_speech_p4tts(int mode);
 void glass_speech_stop(void);
+/* Cancel only a background wake owner; actual DMA teardown stays in its
+ * capture worker. Returns whether a background owner was asked to yield. */
+bool glass_speech_yield_background(void);
 /* Evict idle TTS weights; active synthesis defers eviction until return. */
 void glass_speech_clear_cache(void);
 /* UI housekeeping only; no I/O and no waiting for an active synthesis. */

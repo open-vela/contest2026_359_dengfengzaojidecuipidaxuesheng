@@ -206,9 +206,10 @@ int main(int argc,char **argv)
     review_capture(display,"bluetooth-eight-paused","蓝牙 · 八个设备暂停，保留恢复身份");
 #endif
     state=single;fixture(&state);
-    review_click("无线触摸板");assert(!g_ble_list&&g_mouse_status&&!lv_obj_has_state(g_mouse_start,LV_STATE_DISABLED));
+    assert(!review_find(g_desktop.panel,"无线触摸板"));glass_mouse_open(NULL);
+    assert(!g_ble_list&&g_mouse_status&&!lv_obj_has_state(g_mouse_start,LV_STATE_DISABLED));
     assert(!g_mouse_input_ready);
-    review_click("设备连接");assert(g_ble_list&&!g_mouse_status);
+    glass_bluetooth_page(NULL);assert(g_ble_list&&!g_mouse_status);
     review_ble_error_fixture(-EBUSY);click(g_ble_list->control);wait_job();glass_ble_read(&state);
     assert(state.connected&&!state.disconnecting&&!lv_obj_has_state(g_ble_list->control,LV_STATE_DISABLED));
     review_ble_error_fixture(0);
@@ -244,7 +245,7 @@ int main(int argc,char **argv)
     state.scanning=false;fixture(&state);
     hid.enabled=hid.connected=true;hid.advertising=false;state.connected=false;
     review_hid_snapshot_fixture(&hid);fixture(&state);
-    assert(g_ble_list->action==BLE_LIST_MOUSE);
+    assert(g_ble_list->action==0&&lv_obj_has_state(g_ble_list->control,LV_STATE_DISABLED));
     assert(lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));
     scans=review_ble_call_count(1);
     click(g_ble_list->scan);wait_job();
@@ -252,13 +253,13 @@ int main(int argc,char **argv)
     assert(!g_ble_list->state.connected&&g_ble_list->hid.connected);
     review_ble_error_fixture(0);
     review_capture(display,"bluetooth-hid-busy","蓝牙 · 独立业务状态与后端忙反馈");
-    review_click("无线触摸板");assert(!g_ble_list&&g_mouse_status);
+    glass_mouse_open(NULL);assert(!g_ble_list&&g_mouse_status);
     review_capture(display,"bluetooth-touchpad","蓝牙 · 原有触摸板入口");
     hid.store_error=-ENOSPC;review_hid_snapshot_fixture(&hid);glass_mouse_refresh(NULL);
     assert(strstr(lv_label_get_text(g_mouse_detail),"保存失败"));
     review_capture(display,"bluetooth-mouse-store-failed","蓝牙 · 鼠标配对保存失败");
     hid.store_error=0;review_hid_snapshot_fixture(&hid);glass_mouse_refresh(NULL);
-    review_click("设备连接");assert(g_ble_list&&!g_mouse_timer&&!g_mouse_status);
+    glass_bluetooth_page(NULL);assert(g_ble_list&&!g_mouse_timer&&!g_mouse_status);
     wait_job();glass_ble_read(&state);
     assert(!state.scanning&&g_ble_list->hid.connected);
     assert(lv_obj_has_state(g_ble_list->scan,LV_STATE_DISABLED));

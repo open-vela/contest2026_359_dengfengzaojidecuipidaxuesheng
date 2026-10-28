@@ -75,7 +75,7 @@ def main():
         run('gcc',*flags,'-c',s,'-o',obj);return obj
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         objects=list(pool.map(compile,enumerate(sorted((lvgl/'src').rglob('*.c')))))
-    run('gcc',*flags,repo/'app/espdl-quickapp/tests/render_refined_home.c',desktop/'glass_icons.c',desktop/'glass_grok.c',desktop/'glass_grok_state.c',desktop/'qpk_mjpeg.c',desktop/'qpk_tjpgd.c',apps/'netutils/cjson/cJSON/cJSON.c',
+    run('gcc',*flags,repo/'app/espdl-quickapp/tests/render_refined_home.c',desktop/'glass_i18n.c',desktop/'glass_icons.c',desktop/'glass_code_font.c',desktop/'glass_grok.c',desktop/'glass_grok_state.c',desktop/'qpk_mjpeg.c',desktop/'qpk_tjpgd.c',apps/'netutils/cjson/cJSON/cJSON.c',
         *objects,'-lm','-o',out/'render-refined-home')
     run(out/'render-refined-home',apps/'system/desktop/AlibabaPuHuiTi-3-55-Regular.otf',out)
     for path in out.glob('*.rgb565'):png565(path)

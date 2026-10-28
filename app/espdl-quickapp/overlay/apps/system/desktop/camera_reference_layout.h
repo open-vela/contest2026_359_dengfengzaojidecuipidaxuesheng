@@ -3,39 +3,39 @@
 #include <stdbool.h>
 #include "camera_color.h"
 #include "camera_frame.h"
-#define CAMERA_REFERENCE_VIEW_LEFT 126
+#define CAMERA_REFERENCE_VIEW_LEFT 24
 #define CAMERA_REFERENCE_VIEW_RIGHT 696
+#define CAMERA_REFERENCE_VIEW_TOP 22
+#define CAMERA_REFERENCE_VIEW_HEIGHT 556
+#define CAMERA_REFERENCE_VIEW_WIDTH (CAMERA_REFERENCE_VIEW_RIGHT-CAMERA_REFERENCE_VIEW_LEFT)
 #define CAMERA_REFERENCE_GUIDE_COUNT 8
-/* Match the live contain-to-canvas, centred digital crop and integer sampling.
- * USB input can contain black bars; guides enclose image pixels, not those bars. */
-static struct camera_reference_rect camera_reference_view(unsigned canvas)
+/* Preserve the photo/video field of view, but discard canvas-only letterbox
+ * pixels before fitting the display. Low-resolution USB input then uses the
+ * whole viewfinder instead of being contained twice inside a smaller canvas. */
+static struct camera_reference_rect camera_reference_crop(unsigned canvas,unsigned width,unsigned height,unsigned zoom,unsigned aspect)
 {
-  unsigned h=600*(CAMERA_REFERENCE_VIEW_RIGHT-CAMERA_REFERENCE_VIEW_LEFT)/canvas;
-  return (struct camera_reference_rect){CAMERA_REFERENCE_VIEW_LEFT,22+(556-h)/2,
-    CAMERA_REFERENCE_VIEW_RIGHT-CAMERA_REFERENCE_VIEW_LEFT,h};
+  struct camera_reference_rect crop=camera_frame_crop(canvas,600,width,height,zoom,aspect);
+  if(aspect)return crop;
+  struct camera_reference_rect image=camera_frame_content(canvas,600,width,height);
+  unsigned left=crop.x>image.x?crop.x:image.x,top=crop.y>image.y?crop.y:image.y;
+  unsigned right=crop.x+crop.w<image.x+image.w?crop.x+crop.w:image.x+image.w;
+  unsigned bottom=crop.y+crop.h<image.y+image.h?crop.y+crop.h:image.y+image.h;
+  return (struct camera_reference_rect){left,top,right-left,bottom-top};
 }
-static struct camera_reference_rect camera_reference_output(unsigned canvas,unsigned aspect)
+static struct camera_reference_rect camera_reference_output(unsigned canvas,unsigned width,unsigned height,unsigned zoom,unsigned aspect)
 {
-  if(!aspect)return camera_reference_view(canvas);
-  unsigned w=570,h=camera_aspect_height(w,aspect);
-  if(h>556){h=556;w=h*camera_aspects[aspect][0]/camera_aspects[aspect][1];}
-  return (struct camera_reference_rect){126+(570-w)/2,22+(556-h)/2,w,h};
+  struct camera_reference_rect crop=camera_reference_crop(canvas,width,height,zoom,aspect);
+  unsigned rw=aspect?camera_aspects[aspect][0]:crop.w,rh=aspect?camera_aspects[aspect][1]:crop.h;
+  unsigned w=CAMERA_REFERENCE_VIEW_WIDTH,h=(uint64_t)rh*w/rw;
+  if(h>CAMERA_REFERENCE_VIEW_HEIGHT){h=CAMERA_REFERENCE_VIEW_HEIGHT;w=(uint64_t)rw*h/rh;}
+  if(!w)w=1;
+  if(!h)h=1;
+  return (struct camera_reference_rect){CAMERA_REFERENCE_VIEW_LEFT+(CAMERA_REFERENCE_VIEW_WIDTH-w)/2,
+    CAMERA_REFERENCE_VIEW_TOP+(CAMERA_REFERENCE_VIEW_HEIGHT-h)/2,w,h};
 }
 static struct camera_reference_rect camera_reference_frame(unsigned canvas,unsigned width,unsigned height,unsigned zoom,unsigned aspect)
 {
-  if(aspect)return camera_reference_output(canvas,aspect);
-  struct camera_reference_rect view=camera_reference_view(canvas);
-  unsigned iw=canvas,ih=(uint64_t)height*canvas/width;
-  if(ih>600){ih=600;iw=(uint64_t)width*600/height;}
-  if(!iw)iw=1;if(!ih)ih=1;
-  unsigned ix=(canvas-iw)/2,iy=(600-ih)/2;
-  unsigned cw=canvas*100/zoom,ch=600*100/zoom,cx=(canvas-cw)/2,cy=(600-ch)/2;
-  unsigned left=ix>cx?ix:cx,top=iy>cy?iy:cy;
-  unsigned right=ix+iw<cx+cw?ix+iw:cx+cw,bottom=iy+ih<cy+ch?iy+ih:cy+ch;
-  unsigned x=(left-cx)*view.w+cw-1,y=(top-cy)*view.h+ch-1;
-  unsigned end_x=((right-cx)*view.w+cw-1)/cw,end_y=((bottom-cy)*view.h+ch-1)/ch;
-  x/=cw;y/=ch;
-  return (struct camera_reference_rect){view.x+x,view.y+y,end_x-x,end_y-y};
+  return camera_reference_output(canvas,width,height,zoom,aspect);
 }
 static void camera_reference_guide(struct camera_reference_rect frame,unsigned index,int line[4])
 {

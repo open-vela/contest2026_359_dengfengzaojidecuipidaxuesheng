@@ -13,7 +13,7 @@ static unsigned check_visible_icons(lv_obj_t *object,uint32_t expected)
 {
   if(!object||!lv_obj_is_visible(object))return 0;
   unsigned found=0;
-  if(lv_obj_check_type(object,&lv_label_class))
+  if(lv_obj_has_class(object,&lv_label_class))
     {
       const unsigned char *text=(const unsigned char *)lv_label_get_text(object);
       const lv_font_t *font=lv_obj_get_style_text_font(object,LV_PART_MAIN);

@@ -1,0 +1,88 @@
+--- a/libcss/src/parse/preprocess.c
++++ b/libcss/src/parse/preprocess.c
+@@ -356,6 +356,7 @@
+ 	int depth;
+ 	bool media_ok; /**< current media conditions match the device */
+ 	bool inline_style;
++	bool collecting; /**< discover sheet variables before rewriting declarations */
+ } pp_ctx;
+ 
+ static void pp_rules(pp_ctx *pp, slice text, slice *parent, int nparent,
+@@ -2001,16 +2002,21 @@
+ 		if (!has_block)
+ 			return;
+ 		pp->media_ok = pp->media_ok && pp_media_eval(prelude);
+-		buf_str(&pp->out, "@media ");
+-		pp_media_prelude_out(&pp->out, prelude);
+-		buf_chr(&pp->out, '{');
++		if (!pp->collecting) {
++			buf_str(&pp->out, "@media ");
++			pp_media_prelude_out(&pp->out, prelude);
++			buf_chr(&pp->out, '{');
++		}
+ 		pp_rules(pp, block, parent, nparent, frame);
+-		buf_chr(&pp->out, '}');
++		if (!pp->collecting)
++			buf_chr(&pp->out, '}');
+ 		pp->media_ok = saved_ok;
+ 		return;
+ 	}
+ 
+ 	if (sl_eq(name, "property")) {
++		if (!pp->collecting || !pp->media_ok)
++			return;
+ 		/* registered custom property: its initial value */
+ 		pp_item *items = NULL;
+ 		int n = pp_block_items(block, &items), i;
+@@ -2042,6 +2048,8 @@
+ 	}
+ 
+ 	if (sl_eq(name, "import") && parent == NULL) {
++		if (pp->collecting)
++			return;
+ 		/* strip layer() and supports() import conditions */
+ 		size_t p = 0;
+ 		buf_str(&pp->out, "@import ");
+@@ -2067,7 +2075,7 @@
+ 		return;
+ 	}
+ 
+-	if (parent != NULL)
++	if (parent != NULL || pp->collecting)
+ 		return; /* other at-rules cannot be nested */
+ 
+ 	/* anything else (@font-face, @page, @charset, @namespace): copy */
+@@ -2201,7 +2209,7 @@
+ 				val = sl_trim((slice){ val.s, j - 1 });
+ 		}
+ 		var_set(&frame.v, &frame.n, &frame.cap, nm, val, true);
+-		if (!pp->media_ok)
++		if (!pp->media_ok || !pp->collecting)
+ 			continue;
+ 		if (rootish || pp->inline_style == false) {
+ 			if (rootish)
+@@ -2214,7 +2222,7 @@
+ 	}
+ 
+ 	/* the rule itself */
+-	if (has_decls) {
++	if (has_decls && !pp->collecting) {
+ 		size_t mark = pp->out.len;
+ 		bool first = true;
+ 		bool ok = true;
+@@ -2328,6 +2336,15 @@
+ 		pp_style_block(&pp, NULL, 0, text, NULL, false);
+ 	} else {
+ 		kf_scan(text);
++		/* A root definition may occur after its consumers, including inside
++		 * active conditional/nested rules. Use the same traversal to collect
++		 * the complete sheet first. Do not mutate the resulting global values
++		 * while emitting earlier rules: later root declarations must win.
++		 * This retains the existing preprocessor's limited variable scope;
++		 * full per-element custom-property cascading is a separate feature. */
++		pp.collecting = true;
++		pp_rules(&pp, text, NULL, 0, NULL);
++		pp.collecting = false;
+ 		pp_rules(&pp, text, NULL, 0, NULL);
+ 	}
+ 

@@ -8,7 +8,7 @@ static unsigned camera_text_lines(lv_obj_t *object,const char *text)
 {
   if(!object||!lv_obj_is_visible(object))return 0;
   unsigned found=0;
-  if(lv_obj_check_type(object,&lv_label_class)&&!strcmp(lv_label_get_text(object),text))
+  if(lv_obj_has_class(object,&lv_label_class)&&!strcmp(lv_label_get_text(object),text))
     {
       const lv_font_t *face=lv_obj_get_style_text_font(object,LV_PART_MAIN);
       int height=lv_obj_get_content_height(object);

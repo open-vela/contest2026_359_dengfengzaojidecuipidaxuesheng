@@ -1,0 +1,50 @@
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -634,6 +634,8 @@
+ 
+ 		case DOM_HTML_ELEMENT_TYPE_STYLE:
+ 			if (nsoption_bool(author_level_css)) {
++				/* A detached subtree has not registered its sheets yet. */
++				html_css_update_style(htmlc, (dom_node *)node);
+ 				html_css_process_style(htmlc, (dom_node *)node);
+ 			}
+ 			break;
+@@ -682,33 +684,11 @@
+ dom_default_action_DOMNodeInsertedIntoDocument_cb(struct dom_event *evt,
+ 						  void *pw)
+ {
+-	html_content *htmlc = pw;
+-	dom_event_target *node;
+-	dom_node_type type;
+-	dom_exception exc;
+-
+-	exc = dom_event_get_target(evt, &node);
+-	if ((exc == DOM_NO_ERR) && (node != NULL)) {
+-		exc = dom_node_get_node_type(node, &type);
+-		if ((exc == DOM_NO_ERR) && (type == DOM_ELEMENT_NODE)) {
+-			/* an element node has been modified */
+-			dom_html_element_type tag_type;
+-
+-			exc = dom_html_element_get_tag_type(node, &tag_type);
+-			if (exc != DOM_NO_ERR) {
+-				tag_type = DOM_HTML_ELEMENT_TYPE__UNKNOWN;
+-			}
+-
+-			switch (tag_type) {
+-			case DOM_HTML_ELEMENT_TYPE_SCRIPT:
+-				dom_SCRIPT_showed_up(htmlc, (dom_html_script_element *) node);
+-				fallthrough;
+-			default:
+-				break;
+-			}
+-		}
+-		dom_node_unref(node);
+-	}
++	/* libdom reports the inserted root through DOMNodeInserted, but its
++	 * descendants through this event. Apply the same connected-node resource
++	 * processing to both, including styles and links assembled off-document.
++	 * The shared callback excludes detached trees and template contents. */
++	dom_default_action_DOMNodeInserted_cb(evt, pw);
+ }
+ 
+ 

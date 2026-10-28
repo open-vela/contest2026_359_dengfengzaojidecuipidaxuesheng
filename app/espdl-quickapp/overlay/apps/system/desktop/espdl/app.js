@@ -1,6 +1,9 @@
 'use strict';
+
+const tr = value => typeof system.translate === 'function' ? system.translate(value) : value;
+
 const size = ui.getSize(), dl = system.espdl;
-const names = ['物体分类', '人脸跟随'];
+const names = [tr('物体分类'), tr('人脸跟随')];
 // The runtime publishes the same card, surface, text and accent colours the
 // desktop uses, so the app follows the current theme without hardcoding it.
 const light = ((ui.card >> 16) & 255) + ((ui.card >> 8) & 255) + (ui.card & 255) > 384;
@@ -43,9 +46,9 @@ const buttons = [];
 [1, 0].forEach((i, position) => {
   buttons[i] = button(names[i], 28 + position * 158, 8, 154, () => selectMode(i), false, 40);
 });
-const modeHint = label('选择模式后点击开始', 364, 18, 260, 24, 16, colors.secondary);
+const modeHint = label(tr('选择模式后点击开始'), 364, 18, 260, 24, 16, colors.secondary);
 card(size.width - 188, 8, 164, 36, colors.card, 18);
-label('本地识别 · 无需联网', size.width - 184, 14, 156, 24, 16, colors.accent, true);
+label(tr('本地识别 · 无需联网'), size.width - 184, 14, 156, 24, 16, colors.accent, true);
 ui.setHidden(modeHint,size.width<900);
 
 const bodyY = 64, footerY = size.height - 64, bodyH = footerY - bodyY - 16;
@@ -62,8 +65,8 @@ const placeholder = [card(centerX - 36, centerY - 76, 72, 72, colors.inset, 24)]
 // LV_SYMBOL_EYE_OPEN for following, LV_SYMBOL_IMAGE for classification.
 const modeIcon = ui.text('\uf06e', centerX - 12, centerY - 52, 24, colors.accent, 1);
 placeholder.push(modeIcon);
-const emptyTitle = label('相机已就绪', 44, centerY + 16, leftW - 40, 32, 20, colors.primary, true);
-const emptyHint = label('点击开始跟随，查看实时画面', 44, centerY + 56, leftW - 40, 28, 16, colors.secondary, true);
+const emptyTitle = label(tr('相机已就绪'), 44, centerY + 16, leftW - 40, 32, 20, colors.primary, true);
+const emptyHint = label(tr('点击开始跟随，查看实时画面'), 44, centerY + 56, leftW - 40, 28, 16, colors.secondary, true);
 placeholder.push(emptyTitle, emptyHint);
 const preview = dl.preview(previewX, previewY, previewW);
 ui.setHidden(preview, true);
@@ -77,7 +80,7 @@ function showPreview(show) {
 const compact=size.height<504,deviceH=compact?72:100;
 const resultH = bodyH - deviceH - 16;
 card(rightX, bodyY, rightW, resultH);
-const section = label('跟随状态', rightX + 24, bodyY + (compact?8:16), rightW - 48, 24, compact?14:16, colors.secondary);
+const section = label(tr('跟随状态'), rightX + 24, bodyY + (compact?8:16), rightW - 48, 24, compact?14:16, colors.secondary);
 const title = label('', rightX + 24, bodyY + (compact?32:48), rightW - 48, compact?28:40, compact?20:28);
 const detail = label('', rightX + 24, bodyY + (compact?60:92), rightW - 48, compact?22:40, compact?14:16, colors.secondary);
 const rows = [];
@@ -92,11 +95,11 @@ for (let i = 0; i < 3; i++) {
 }
 const deviceY = bodyY + resultH + 16;
 card(rightX, deviceY, rightW, deviceH);
-label('当前相机', rightX + 20, deviceY + (compact?4:12), rightW - 40, compact?20:24, compact?14:16, colors.secondary);
-const source = button('检测相机', rightX + 16, deviceY + (compact?24:42), rightW - 32, cycleDevice, false, 44);
-const status = label('请选择相机后开始', 24, footerY + 4, leftW, 44, 16, colors.secondary);
-const startButton = button('开始跟随', rightX, footerY, rightW - 116, start, true);
-const stopButton = button('停止', rightX + rightW - 104, footerY, 104, cancel);
+label(tr('当前相机'), rightX + 20, deviceY + (compact?4:12), rightW - 40, compact?20:24, compact?14:16, colors.secondary);
+const source = button(tr('检测相机'), rightX + 16, deviceY + (compact?24:42), rightW - 32, cycleDevice, false, 44);
+const status = label(tr('请选择相机后开始'), 24, footerY + 4, leftW, 44, 16, colors.secondary);
+const startButton = button(tr('开始跟随'), rightX, footerY, rightW - 116, start, true);
+const stopButton = button(tr('停止'), rightX + rightW - 104, footerY, 104, cancel);
 
 function setStatus(value, error = false) {
   write(status, value); ui.setColor(status, error ? colors.error : colors.secondary);
@@ -114,9 +117,9 @@ function refreshDevices() {
   deviceIndex = Math.max(0, index); lastDeviceCheck = Date.now(); showDevice();
 }
 function showDevice() {
-  write(source, devices.length ? Array.from(devices[deviceIndex].name).slice(0, 32).join('') : '未连接 USB 相机 · 点击刷新');
-  write(emptyTitle, devices.length ? '相机已就绪' : '等待连接相机');
-  write(emptyHint, devices.length ? (mode ? '点击开始跟随，查看实时画面' : '将物体对准相机，点击拍摄并分类') : '连接 USB 相机后即可开始');
+  write(source, devices.length ? Array.from(devices[deviceIndex].name).slice(0, 32).join('') : tr('未连接 USB 相机 · 点击刷新'));
+  write(emptyTitle, devices.length ? tr('相机已就绪') : tr('等待连接相机'));
+  write(emptyHint, devices.length ? (mode ? tr('点击开始跟随，查看实时画面') : tr('将物体对准相机，点击拍摄并分类')) : tr('连接 USB 相机后即可开始'));
   controls();
 }
 function cycleDevice() {
@@ -127,7 +130,7 @@ function cycleDevice() {
 }
 function resetRows() {
   rows.forEach((row, i) => {
-    write(row.name, mode ? ['横向偏移', '纵向偏移', '画面内人脸'][i] : '候选类别 ' + (i + 1));
+    write(row.name, mode ? [tr('横向偏移'), tr('纵向偏移'), tr('画面内人脸')][i] : tr('候选类别 ') + (i + 1));
     write(row.value, '--'); ui.setHidden(row.bar, true);
   });
 }
@@ -136,55 +139,55 @@ function describeMode() {
     ui.setColor(id, mode === i ? colors.accent : colors.card);
     ui.setStyle(id, {borderWidth: 0, textColor: mode === i ? colors.onAccent : colors.secondary});
   });
-  write(startButton, mode ? '开始跟随' : '拍摄并分类');
+  write(startButton, mode ? tr('开始跟随') : tr('拍摄并分类'));
   write(modeIcon, mode ? '\uf06e' : '\uf03e');
-  write(modeHint, mode ? '人脸跟随 · 实时本地推理' : '物体分类 · 拍摄一帧识别');
-  write(section, mode ? '跟随状态' : '分类结果');
-  write(title, mode ? '让人脸进入画面' : '发现眼前的物体');
-  write(detail, mode ? '自动标记目标，持续显示位置与方向' : '拍摄一帧，查看最可能的三种类别');
+  write(modeHint, mode ? tr('人脸跟随 · 实时本地推理') : tr('物体分类 · 拍摄一帧识别'));
+  write(section, mode ? tr('跟随状态') : tr('分类结果'));
+  write(title, mode ? tr('让人脸进入画面') : tr('发现眼前的物体'));
+  write(detail, mode ? tr('自动标记目标，持续显示位置与方向') : tr('拍摄一帧，查看最可能的三种类别'));
   resetRows(); showDevice();
 }
 function selectMode(next) {
   if ((next !== 0 && next !== 1) || mode === next) return;
   dl.cancel(); dl.clear(); request = frame = 0; switching = dl.status().busy; mode = next;
-  showPreview(false); afterStop = names[mode] + ' · 已就绪';
-  describeMode(); setStatus(switching ? '正在切换模式…' : afterStop);
+  showPreview(false); afterStop = names[mode] + tr(' · 已就绪');
+  describeMode(); setStatus(switching ? tr('正在切换模式…') : afterStop);
 }
 function errorMessage(error) {
-  if (error === -16) return '设备正忙，请稍后重试';
-  if (error === -19 || error === -116) return '相机已断开，请重新连接';
-  if (error === -2 || error === -74) return '识别模型不可用，请检查模型包';
-  if (error === -12) return '内存不足，请关闭应用后重试';
-  if (error === -110) return '相机取帧超时，请检查连接';
-  if (error === -95) return '暂不支持当前相机模式';
-  if (error === -125) return '已停止';
-  return '识别失败（' + error + '），可重试';
+  if (error === -16) return tr('设备正忙，请稍后重试');
+  if (error === -19 || error === -116) return tr('相机已断开，请重新连接');
+  if (error === -2 || error === -74) return tr('识别模型不可用，请检查模型包');
+  if (error === -12) return tr('内存不足，请关闭应用后重试');
+  if (error === -110) return tr('相机取帧超时，请检查连接');
+  if (error === -95) return tr('暂不支持当前相机模式');
+  if (error === -125) return tr('已停止');
+  return tr('识别失败（') + error + tr('），可重试');
 }
 function start() {
   if (dl.status().busy || switching) return;
   refreshDevices();
   const device = devices[deviceIndex];
-  if (!device) { setStatus('请连接 USB 相机后重试', true); return; }
+  if (!device) { setStatus(tr('请连接 USB 相机后重试'), true); return; }
   dl.clear(); showPreview(false); frame = 0; resetRows();
   fpsStart = Date.now(); fpsFrame = 0; fps = '--';
   request = dl.start(mode, device.id, device.generation);
   if (request <= 0) { setStatus(errorMessage(request), true); request = 0; controls(); return; }
-  write(title, mode ? '正在寻找人脸' : '正在识别物体');
-  write(detail, mode ? '让人脸正对相机，并保持光线充足' : '请稍候，结果将在这里显示');
-  write(emptyTitle, '正在获取画面'); write(emptyHint, '请保持相机连接'); controls(); tick();
+  write(title, mode ? tr('正在寻找人脸') : tr('正在识别物体'));
+  write(detail, mode ? tr('让人脸正对相机，并保持光线充足') : tr('请稍候，结果将在这里显示'));
+  write(emptyTitle, tr('正在获取画面')); write(emptyHint, tr('请保持相机连接')); controls(); tick();
 }
 function cancel() {
   dl.cancel(); dl.clear(); request = frame = 0; switching = dl.status().busy;
-  afterStop = '已停止 · 可以重新开始'; showPreview(false); describeMode();
-  setStatus(switching ? '正在停止…' : afterStop); controls();
+  afterStop = tr('已停止 · 可以重新开始'); showPreview(false); describeMode();
+  setStatus(switching ? tr('正在停止…') : afterStop); controls();
 }
 function showResult(state) {
   if (mode === 0) {
-    write(title, state.items.length ? state.items[0].label : '没有识别结果');
-    write(detail, '前三个候选类别 · 分数表示模型置信度');
+    write(title, state.items.length ? state.items[0].label : tr('没有识别结果'));
+    write(detail, tr('前三个候选类别 · 分数表示模型置信度'));
     rows.forEach((row, i) => {
       const item = state.items[i];
-      write(row.name, item ? item.label : '候选类别 ' + (i + 1));
+      write(row.name, item ? item.label : tr('候选类别 ') + (i + 1));
       write(row.value, item ? (item.score * 100).toFixed(1) + '%' : '--');
       ui.setHidden(row.bar, !item || item.score <= 0);
       if (item) ui.setSize(row.bar, Math.max(1, Math.round((rightW - 48) * Math.min(1, Math.max(0, item.score)))), 2);
@@ -193,18 +196,18 @@ function showResult(state) {
   }
   const t = state.track, tracking = t.state === 1;
   if (!tracking) {
-    write(title, t.state === 2 ? '目标暂时丢失' : '正在寻找人脸');
-    write(detail, t.state === 2 ? '等待原目标重新进入画面' : '请正对相机，并保持光线充足');
+    write(title, t.state === 2 ? tr('目标暂时丢失') : tr('正在寻找人脸'));
+    write(detail, t.state === 2 ? tr('等待原目标重新进入画面') : tr('请正对相机，并保持光线充足'));
   } else {
     const direction = [];
-    if (t.offsetX) direction.push(t.offsetX > 0 ? '向右' : '向左');
-    if (t.offsetY) direction.push(t.offsetY > 0 ? '向下' : '向上');
-    write(title, direction.join(' / ') || '目标已居中');
-    write(detail, '正在跟随目标 ' + t.id + ' · 绿色框标记位置');
+    if (t.offsetX) direction.push(t.offsetX > 0 ? tr('向右') : tr('向左'));
+    if (t.offsetY) direction.push(t.offsetY > 0 ? tr('向下') : tr('向上'));
+    write(title, direction.join(' / ') || tr('目标已居中'));
+    write(detail, tr('正在跟随目标 ') + t.id + tr(' · 绿色框标记位置'));
   }
   write(rows[0].value, tracking ? (t.offsetX / 10).toFixed(1) + '%' : '--');
   write(rows[1].value, tracking ? (t.offsetY / 10).toFixed(1) + '%' : '--');
-  write(rows[2].value, state.items.length + ' 张');
+  write(rows[2].value, state.items.length + tr(' 张'));
 }
 function tick() {
   const state = dl.status();
@@ -218,7 +221,7 @@ function tick() {
   }
   if (state.error) {
     request = 0; dl.clear(); showPreview(false); resetRows();
-    write(title, state.error === -125 ? '已停止' : '暂时无法识别');
+    write(title, state.error === -125 ? tr('已停止') : tr('暂时无法识别'));
     write(detail, errorMessage(state.error)); setStatus(errorMessage(state.error), state.error !== -125);
     refreshDevices(); return;
   }
@@ -231,9 +234,9 @@ function tick() {
       fps = ((frame - fpsFrame) * 1000 / (now - fpsStart)).toFixed(1);
       fpsStart = now; fpsFrame = frame;
     }
-    setStatus(mode ? '正在跟随 · ' + fps + ' fps' : '分类完成 · 可再次拍摄');
+    setStatus(mode ? tr('正在跟随 · ') + fps + ' fps' : tr('分类完成 · 可再次拍摄'));
   } else if (!frame && state.busy) {
-    setStatus(['', '正在采集画面…', '正在准备识别…', '正在识别…'][state.stage] || '正在处理…');
+    setStatus(['', tr('正在采集画面…'), tr('正在准备识别…'), tr('正在识别…')][state.stage] || tr('正在处理…'));
   }
   controls(state.busy);
   if (!state.busy) request = 0;

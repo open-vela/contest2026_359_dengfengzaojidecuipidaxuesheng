@@ -2,6 +2,7 @@
 #pragma once
 #include <lvgl/lvgl.h>
 #include <string.h>
+#include "glass_icons.h"
 
 /* Native motion tokens: short tactile response, slower spatial arrival.
  * Hermite interpolation retains fractional position and velocity when a target
@@ -376,6 +377,7 @@ static void glass_motion_press_event(lv_event_t *event)
   lv_obj_t *obj=lv_event_get_target(event);lv_event_code_t code=lv_event_get_code(event);
   if(obj!=lv_event_get_current_target(event))return;
   if(g_motion_reduced)return;
+  if(code==LV_EVENT_PRESSED)(void)0;
   if(code==LV_EVENT_PRESSED&&!lv_obj_has_state(obj,LV_STATE_DISABLED))glass_motion_begin(obj,MOTION_PRESS,0,1024,GLASS_MOTION_PRESS,0);
   else if(code==LV_EVENT_RELEASED||code==LV_EVENT_PRESS_LOST){
     for(unsigned i=0;i<GLASS_MOTION_SLOTS;i++)if(g_motion_jobs[i].object==obj){
@@ -390,16 +392,36 @@ static void glass_motion_button(lv_obj_t *obj)
     if(lv_event_dsc_get_cb(lv_obj_get_event_dsc(obj,i))==glass_motion_press_event)return;
   lv_obj_add_event_cb(obj,glass_motion_press_event,LV_EVENT_ALL,NULL);
 }
+static void glass_motion_collect(lv_obj_t *obj,lv_obj_t **items,unsigned *count,unsigned depth)
+{
+  if(!obj||depth>10||*count>=GLASS_MOTION_BATCH_LIMIT||!lv_obj_is_visible(obj))return;
+  if(lv_obj_has_class(obj,&lv_label_class)){
+    lv_obj_t *parent=lv_obj_get_parent(obj);
+    /* Control geometry and captions stay fixed under an active pointer. */
+    if(!parent||!lv_obj_check_type(parent,&lv_button_class))items[(*count)++]=obj;
+    return;
+  }
+  for(unsigned i=0;i<lv_obj_get_child_count(obj);i++)
+    glass_motion_collect(lv_obj_get_child(obj,i),items,count,depth+1);
+}
 static void glass_motion_enter(lv_obj_t *obj,bool horizontal,unsigned delay)
 {
-  LV_UNUSED(obj);LV_UNUSED(horizontal);LV_UNUSED(delay);
-  /* All page/dialog entrances use their final geometry immediately. */
+  LV_UNUSED(delay);
+  if(!obj||g_motion_reduced)return;
+  lv_obj_update_layout(obj);
+  lv_obj_t *items[GLASS_MOTION_BATCH_LIMIT];unsigned count=0;
+  glass_motion_collect(obj,items,&count,0);
+  glass_motion_present_axis(items,count,6,horizontal);
+  (void)0;
 }
 static void glass_motion_page_ready(void *object)
 {glass_motion_enter(object,false,0);}
 static void glass_motion_panel(lv_obj_t *obj)
 {
-  LV_UNUSED(obj); /* Page construction already uses the final geometry. */
+  if(!obj||g_motion_reduced)return;
+  glass_motion_watch(obj);
+  lv_async_call_cancel(glass_motion_page_ready,obj);
+  lv_async_call(glass_motion_page_ready,obj);
 }
 static void glass_motion_notice(lv_obj_t *obj)
 {glass_motion_begin(obj,MOTION_NOTICE,0,1024,GLASS_MOTION_NOTICE,0);}
@@ -412,6 +434,7 @@ static bool glass_motion_dismiss(lv_obj_t *obj,void (*done)(lv_obj_t *))
 static void glass_motion_set_reduced(bool reduced)
 {
   g_motion_reduced=reduced;
+  (void)0;
   if(reduced){
     for(unsigned i=0;i<GLASS_MOTION_SLOTS;i++)if(g_motion_jobs[i].object)glass_motion_finish(&g_motion_jobs[i],true);
     glass_motion_idle();

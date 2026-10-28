@@ -4,14 +4,14 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../overlay/apps/system/desktop/camera/app.js'),'utf8');
 function fixture(width=1024,height=504,dark=false){
-  const widgets=[],calls=[];let touch,zoom=100,style=0,aspect=0,action=0,album=0,tick,now=1000,scans=0,shutterReady=false,frame=[],state={busy:false,error:0};
+  const widgets=[],calls=[];let touch,back,zoom=100,style=0,aspect=0,action=0,album=0,tick,now=1000,scans=0,shutterReady=false,frame=[],state={busy:false,error:0};
   let devices=Array.from({length:9},(_,i)=>({id:'usb:'+i,generation:1,name:'USB Camera '+i,transport:'usb',previewSupported:true}));
   let modes=[{width:640,height:480,index:1,intervals:[666666,1000000],continuous:false}];
   let recording={status:0,revision:0,video:false,path:''};
   function add(text,x,y,w,h,action){widgets.push({text,x,y,w,h,action,hidden:false});return widgets.length-1;}
   const ui={getSize:()=>({width,height}),card:dark?0x22252f:0xffffff,surface:dark?0x2e303d:0xf5f5f7,
     primary:0x252d46,secondary:0x616981,accent:0x77658f,background(){},cameraReference(){return 1;},cameraReferenceZoom(){},cameraReferenceControls:(scene,style,video,ready,menu,filters,...geometry)=>{shutterReady=ready;frame=geometry;},setOpacity:(id,opacity)=>widgets[id].opacity=opacity,onTouch:fn=>touch=fn,
-    text:(t,x,y,font)=>add(t,x,y,20,font+4),panel:(x,y,w,h)=>add('',x,y,w,h),
+    onBack:fn=>back=fn,text:(t,x,y,font)=>add(t,x,y,20,font+4),panel:(x,y,w,h)=>add('',x,y,w,h),
     button:(t,x,y,w,h,action)=>add(t,x,y,w,h,action),
     setPos:(id,x,y)=>Object.assign(widgets[id],{x,y}),setSize:(id,w,h)=>Object.assign(widgets[id],{w,h}),setStyle:(id,s)=>Object.assign(widgets[id],s),
     setColor(){},setHidden:(id,hidden)=>widgets[id].hidden=hidden,setText:(id,text)=>widgets[id].text=text};
@@ -23,9 +23,19 @@ function fixture(width=1024,height=504,dark=false){
   vm.runInContext(source,context);
   return {widgets,calls,app:context.CameraPreview,touch:(state,x,y)=>touch(state,x/1024,y/600),tick(){now+=500;tick();},scans:()=>scans,
     nativeAction:value=>action=value,albumRequests:()=>album,shutterReady:()=>shutterReady,frame:()=>frame,devices:value=>devices=value,modes:value=>modes=value,state:value=>state=value,
-    recording:value=>recording={...recording,...value},
+    recording:value=>recording={...recording,...value},back:()=>back(),
     click(text){const w=widgets.find(w=>w.text===text&&w.action&&!w.hidden);assert(w,text);if(w.enabled!==false)w.action();}};
 }
+
+test('system back closes camera settings or filters without starting capture',()=>{
+  const f=fixture(1024,600);
+  f.click('切换相机');assert(f.app.settings());
+  assert.equal(f.back(),true);assert.equal(f.app.settings(),false);
+  assert.equal(f.back(),false);
+  f.click('色彩风格');assert(f.app.filters());
+  assert.equal(f.back(),true);assert.equal(f.app.filters(),false);
+  assert.equal(f.back(),false);assert.deepEqual(f.calls,[]);
+});
 test('camera controls fit compact and board viewports in both themes, including paged devices',()=>{
   for(const [w,h] of [[640,400],[800,450],[1024,504],[1024,600]])for(const dark of [false,true]){
     const f=fixture(w,h,dark);f.click('切换相机');

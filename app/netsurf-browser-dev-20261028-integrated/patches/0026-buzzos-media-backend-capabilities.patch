@@ -1,0 +1,28 @@
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -57,6 +57,7 @@
+ #include "netsurf/misc.h"
+ #include "netsurf/types.h"
+ #include "desktop/gui_internal.h"
++#include "netsurf/media.h"
+ #include "desktop/browser_private.h"
+ #include "content/hlcache.h"
+ #include "content/urldb.h"
+@@ -1674,10 +1675,16 @@
+ 	const char *r = "";
+ 
+ 	if (argc < 1)
+-		return JS_NewString(ctx, "");
++		return JS_ThrowTypeError(ctx, "A media type is required");
+ 	type = JS_ToCString(ctx, argv[0]);
+ 	if (type == NULL)
++		return JS_EXCEPTION;
++	/* A MIME spelling is not a decoder. Ports without a media backend
++	 * must report an unsupported type so pages can select their fallback. */
++	if (guit == NULL || guit->media == NULL || guit->media->create == NULL) {
++		JS_FreeCString(ctx, type);
+ 		return JS_NewString(ctx, "");
++	}
+ 	if (strcasestr(type, "mpegurl") != NULL ||
+ 	    strcasestr(type, "dash") != NULL) {
+ 		r = "";

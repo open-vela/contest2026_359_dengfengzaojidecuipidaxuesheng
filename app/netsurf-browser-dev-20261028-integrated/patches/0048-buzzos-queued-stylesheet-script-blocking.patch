@@ -1,0 +1,13 @@
+--- a/netsurf/content/handlers/html/script.c
++++ b/netsurf/content/handlers/html/script.c
+@@ -53,6 +53,10 @@
+ 		struct html_stylesheet *s = &c->stylesheets[i];
+ 		if (s->unused) continue;
+ 		if (s->modified) return true;
++		/* A queued fetch has a handle before it has a content object.
++		 * content_get_status(NULL) reports ERROR, not fetch completion. */
++		if (s->sheet != NULL && hlcache_handle_get_content(s->sheet) == NULL)
++			return true;
+ 		if (s->sheet != NULL &&
+ 		    content_get_status(s->sheet) != CONTENT_STATUS_DONE &&
+ 		    content_get_status(s->sheet) != CONTENT_STATUS_ERROR)

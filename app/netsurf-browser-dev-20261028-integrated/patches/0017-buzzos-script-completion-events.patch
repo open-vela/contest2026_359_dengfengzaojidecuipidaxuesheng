@@ -1,0 +1,194 @@
+--- a/netsurf/content/handlers/html/html.h
++++ b/netsurf/content/handlers/html/html.h
+@@ -69,6 +69,7 @@
+  * Container for scripts used by an HTML document
+  */
+ struct html_script {
++	struct dom_node *element; /**< Referenced external script event target */
+ 	/** Type of script */
+ 	enum html_script_type { HTML_SCRIPT_INLINE,
+ 				HTML_SCRIPT_SYNC,
+--- a/netsurf/content/handlers/html/script.c
++++ b/netsurf/content/handlers/html/script.c
+@@ -58,14 +58,34 @@
+ /**
+  * Run a script body, as a classic script or an ES module.
+  */
+-static void html_script_run(jsthread *thread, const struct html_script *s,
++static void html_script_run(jsthread *thread, struct html_script *s,
+ 		script_handler_t *handler, const uint8_t *data, size_t size,
+ 		const char *url)
+ {
+-	if (s->module)
++	/* Script evaluation and its completion callback can append scripts and
++	 * reallocate the script array. Retain only the event target across it.
++	 * Mark started first so reentrant execution cannot run this body again. */
++	dom_node *element = s->element;
++	bool module = s->module;
++	if (element != NULL) dom_node_ref(element);
++	s->already_started = true;
++	if (module)
+ 		js_exec_module(thread, data, size, url);
+ 	else
+ 		handler(thread, data, size, url);
++	/* Classic script runtime exceptions do not turn a completed download
++	 * into a resource error. Module promise completion is handled separately. */
++	if (element != NULL && !module)
++		js_fire_event(thread, "load", NULL, element);
++	if (element != NULL) dom_node_unref(element);
++}
++
++static void html_script_error(html_content *c, struct html_script *s)
++{
++	if (s->already_started) return;
++	s->already_started = true;
++	if (s->element != NULL && c->jsthread != NULL)
++		js_fire_event(c->jsthread, "error", NULL, s->element);
+ }
+ 
+ /* exported internal interface documented in html/html_internal.h */
+@@ -153,6 +173,7 @@
+ 	c->scripts_count++;
+ 
+ 	nscript->already_started = false;
++	nscript->element = NULL;
+ 	nscript->parser_inserted = false;
+ 	nscript->force_async = true;
+ 	nscript->ready_exec = false;
+@@ -212,6 +233,7 @@
+ 		s->data.handle = NULL;
+ 		parent->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
++		html_script_error(parent, s);
+ 
+ 		break;
+ 
+@@ -275,6 +297,7 @@
+ 		s->data.handle = NULL;
+ 		parent->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
++		html_script_error(parent, s);
+ 
+ 		break;
+ 
+@@ -329,8 +352,6 @@
+ 		      nsurl_access(hlcache_handle_get_url(script)));
+ 		parent->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
+-
+-		s->already_started = true;
+ 
+ 		/* attempt to execute script */
+ 		script_handler = select_script_handler(content_get_type(s->data.handle));
+@@ -342,6 +363,8 @@
+ 			html_script_run(parent->jsthread, s, script_handler,
+ 				       data, size,
+ 				       nsurl_access(hlcache_handle_get_url(s->data.handle)));
++		} else {
++			html_script_error(parent, s);
+ 		}
+ 
+ 		/* continue parse */
+@@ -365,7 +388,7 @@
+ 
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
+ 
+-		s->already_started = true;
++		html_script_error(parent, s);
+ 
+ 		/* continue parse */
+ 		if (parent->parser != NULL && active_sync_scripts == 0) {
+@@ -487,6 +510,7 @@
+ 	}
+ 	nscript->module = dom_string_caseless_lwc_isequal(mimetype,
+ 			corestring_lwc_module);
++	nscript->element = dom_node_ref(node);
+ 
+ 	/* set up child fetch encoding and quirks */
+ 	child.charset = c->encoding;
+@@ -510,9 +534,9 @@
+ 		 * fetch never became active
+ 		 */
+ 		/* mark duff script fetch as already started */
+-		nscript->already_started = true;
+ 		nscript->data.handle = NULL;
+ 		NSLOG(netsurf, INFO, "Fetch failed with error %d", ns_error);
++		html_script_error(c, nscript);
+ 	} else {
+ 		/* update base content active fetch count */
+ 		c->base.active++;
+@@ -689,6 +713,8 @@
+ 	unsigned int i;
+ 
+ 	for (i = 0; i != html->scripts_count; i++) {
++		if (html->scripts[i].element != NULL)
++			dom_node_unref(html->scripts[i].element);
+ 		if (html->scripts[i].mimetype != NULL) {
+ 			dom_string_unref(html->scripts[i].mimetype);
+ 		}
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -3354,8 +3354,6 @@
+ 
+ 	if (t->closed)
+ 		return true;
+-	if (target != NULL)
+-		return true; /* only window-targeted events, like dukky */
+ 
+ 	if (dom_string_create((const uint8_t *)type, strlen(type),
+ 			      &tds) != DOM_NO_ERR)
+@@ -3366,6 +3364,21 @@
+ 	}
+ 	dom_event_init(evt, tds, false, false);
+ 	dom_string_unref(tds);
++	if (target != NULL) {
++		bool success = false;
++		JSValue node_js = qjs_dom_wrap_node(t, target);
++		/* A property handler alone has no libdom listener yet. Register the
++		 * same bridge used by addEventListener, without duplicating it. */
++		qjs_ensure_dom_listener(t, node_js, target, type);
++		qjs_deadline_start(t);
++		dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
++		qjs_deadline_stop(t);
++		JS_FreeValue(ctx, node_js);
++		qjs_run_jobs(ctx);
++		qjs_dom_event_cleanup(t, evt);
++		dom_event_unref(evt);
++		return success;
++	}
+ 
+ 	global = JS_GetGlobalObject(ctx);
+ 
+--- a/netsurf/content/handlers/javascript/quickjs/quickjs.c
++++ b/netsurf/content/handlers/javascript/quickjs/quickjs.c
+@@ -101,6 +101,21 @@
+ 	return JS_UNDEFINED;
+ }
+ 
++/* Errors must survive an INFO-filtered build, including exceptions caught
++ * by DOM event dispatch. Logging them as INFO silently hid callback failures. */
++static JSValue qjs_console_error(JSContext *ctx, JSValueConst this_val,
++				 int argc, JSValueConst *argv)
++{
++	for (int i = 0; i < argc; i++) {
++		const char *s = JS_ToCString(ctx, argv[i]);
++		if (s != NULL) {
++			NSLOG(netsurf, ERROR, "js console error: %s", s);
++			JS_FreeCString(ctx, s);
++		}
++	}
++	return JS_UNDEFINED;
++}
++
+ static void qjs_setup_console(JSContext *ctx)
+ {
+ 	JSValue global = JS_GetGlobalObject(ctx);
+@@ -111,7 +126,7 @@
+ 	JS_SetPropertyStr(ctx, console, "warn",
+ 			  JS_NewCFunction(ctx, qjs_console_log, "warn", 1));
+ 	JS_SetPropertyStr(ctx, console, "error",
+-			  JS_NewCFunction(ctx, qjs_console_log, "error", 1));
++			  JS_NewCFunction(ctx, qjs_console_error, "error", 1));
+ 	JS_SetPropertyStr(ctx, console, "info",
+ 			  JS_NewCFunction(ctx, qjs_console_log, "info", 1));
+ 	JS_SetPropertyStr(ctx, console, "debug",

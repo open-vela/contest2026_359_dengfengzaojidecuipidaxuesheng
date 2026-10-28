@@ -1,0 +1,270 @@
+--- a/netsurf/content/urldb.c
++++ b/netsurf/content/urldb.c
+@@ -1743,18 +1743,26 @@
+ 			break;
+ 	}
+ 
++    /* The first pair is always the cookie name/value, even when its
++     * name happens to equal an attribute such as Expires or Path. */
++    if (c->name == NULL) {
++        c->name = strdup(n);
++        c->value = strdup(v);
++        c->value_was_quoted = was_quoted;
++        return c->name != NULL && c->value != NULL;
++    }
++
+ 	if (!c->comment && strcasecmp(n, "Comment") == 0) {
+ 		c->comment = strdup(v);
+ 		if (!c->comment)
+ 			return false;
+ 	} else if (!c->domain && strcasecmp(n, "Domain") == 0) {
+-		if (v[0] == '.') {
+-			/* Domain must start with a dot */
+-			c->domain_from_set = true;
+-			c->domain = strdup(v);
+-			if (!c->domain)
+-				return false;
+-		}
++        c->domain_from_set = true;
++        size_t length = strlen(v);
++        c->domain = malloc(length + 2);
++        if (c->domain == NULL) return false;
++        if (v[0] == '.') memcpy(c->domain, v, length + 1);
++        else { c->domain[0] = '.'; memcpy(c->domain + 1, v, length + 1); }
+ 	} else if (strcasecmp(n, "Max-Age") == 0) {
+ 		int temp = atoi(v);
+ 		if (temp == 0)
+@@ -2256,7 +2264,7 @@
+ static bool
+ urldb_insert_cookie(struct cookie_internal_data *c,
+ 		    lwc_string *scheme,
+-		    nsurl *url)
++		    nsurl *url, bool from_script)
+ {
+ 	struct cookie_internal_data *d;
+ 	const struct host_part *h;
+@@ -2310,6 +2318,11 @@
+ 		    !strcmp(d->path, c->path) &&
+ 		    !strcmp(d->name, c->name))
+ 			break;
++	}
++
++	if (d && from_script && d->http_only) {
++		urldb_free_cookie(c);
++		return false;
+ 	}
+ 
+ 	if (d) {
+@@ -3907,7 +3920,7 @@
+ 
+ 
+ /* exported interface documented in content/urldb.h */
+-bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
++static bool urldb_set_cookie_internal(const char *header, nsurl *url, nsurl *referer, bool from_script)
+ {
+ 	const char *cur = header, *end;
+ 	lwc_string *path, *host, *scheme;
+@@ -4033,6 +4046,11 @@
+ 		c = urldb_parse_cookie(url, &cur);
+ 		if (!c) {
+ 			/* failed => stop parsing */
++			goto error;
++		}
++
++		if (from_script && c->http_only) {
++			urldb_free_cookie(c);
+ 			goto error;
+ 		}
+ 
+@@ -4148,7 +4166,7 @@
+ 		}
+ 
+ 		/* Now insert into database */
+-		if (!urldb_insert_cookie(c, scheme, urlt))
++		if (!urldb_insert_cookie(c, scheme, urlt, from_script))
+ 			goto error;
+ 	} while (cur < end);
+ 
+@@ -4168,6 +4186,40 @@
+ 	return false;
+ }
+ 
++
++bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
++{
++    return urldb_set_cookie_internal(header, url, referer, false);
++}
++
++bool urldb_set_cookie_from_script(const char *header, nsurl *url)
++{
++    if (header == NULL || url == NULL || strchr(header, '\r') || strchr(header, '\n'))
++        return false;
++    /* A script assignment sets one cookie. Do not let the HTTP parser's
++     * legacy comma-separated header support turn it into several cookies.
++     * The weekday comma in an Expires attribute remains valid. */
++    const char *part = header;
++    while (*part) {
++        const char *end = strchr(part, ';');
++        if (end == NULL) end = part + strlen(part);
++        const char *name = part;
++        while (name < end && (*name == ' ' || *name == '\t')) name++;
++        const char *comma = memchr(part, ',', end - part);
++        if (comma && (part == header || end - name < 8 || strncasecmp(name, "expires=", 8) ||
++                memchr(name + 8, '=', end - name - 8) || memchr(comma + 1, ',', end - comma - 1)))
++            return false;
++        part = *end ? end + 1 : end;
++    }
++    size_t length = strlen(header);
++    char *terminated = malloc(length + 3);
++    if (terminated == NULL) return false;
++    memcpy(terminated, header, length);
++    memcpy(terminated + length, "\r\n", 3);
++    bool result = urldb_set_cookie_internal(terminated, url, NULL, true);
++    free(terminated);
++    return result;
++}
+ 
+ /* exported interface documented in content/urldb.h */
+ char *urldb_get_cookie(nsurl *url, bool include_http_only)
+@@ -4192,9 +4244,21 @@
+ 	 * up also apply. */
+ 	urldb_add_url(url);
+ 
+-	p = urldb_find_url(url);
+-	if (!p)
+-		return NULL;
++    /* Cookies are independent of the resource port. The cookie insertion
++     * tree uses port zero; look up the same canonical path for reads. */
++    char *canonical_text = NULL;
++    size_t canonical_length;
++    nsurl *canonical_url = NULL;
++    if (nsurl_get(url, NSURL_COMPLETE & ~NSURL_PORT, &canonical_text,
++            &canonical_length) != NSERROR_OK)
++        return NULL;
++    nserror error = nsurl_create(canonical_text, &canonical_url);
++    free(canonical_text);
++    if (error != NSERROR_OK) return NULL;
++    if (!urldb_add_url(canonical_url)) { nsurl_unref(canonical_url); return NULL; }
++    p = urldb_find_url(canonical_url);
++    nsurl_unref(canonical_url);
++    if (p == NULL) return NULL;
+ 
+ 	scheme = p->scheme;
+ 
+@@ -4254,8 +4318,9 @@
+ 					 * ignore */
+ 					continue;
+ 
++
++
+ 				if (c->http_only && !include_http_only)
+-					/* Ignore HttpOnly */
+ 					continue;
+ 
+ 				matched_cookies[count++] = c;
+@@ -4292,6 +4357,10 @@
+ 				    match == false)
+ 					/* Secure cookie for insecure server
+ 					 * => ignore */
++					continue;
++
++
++				if (c->http_only && !include_http_only)
+ 					continue;
+ 
+ 				matched_cookies[count++] = c;
+@@ -4338,6 +4407,9 @@
+ 				 * => ignore */
+ 				continue;
+ 
++			if (c->http_only && !include_http_only)
++				continue;
++
+ 			matched_cookies[count++] = c;
+ 
+ 			GROW_MATCHED_COOKIES;
+@@ -4370,6 +4442,9 @@
+ 							    &match) &&
+ 			    match == false)
+ 				/* secure cookie for insecure host. ignore */
++				continue;
++
++			if (c->http_only && !include_http_only)
+ 				continue;
+ 
+ 			matched_cookies[count++] = c;
+@@ -4554,7 +4629,7 @@
+ 							 NSURL_SCHEME);
+ 
+ 			/* And insert it into database */
+-			if (!urldb_insert_cookie(c, scheme_lwc, url_nsurl)) {
++			if (!urldb_insert_cookie(c, scheme_lwc, url_nsurl, false)) {
+ 				/* Cookie freed for us */
+ 				nsurl_unref(url_nsurl);
+ 				lwc_string_unref(scheme_lwc);
+@@ -4564,7 +4639,7 @@
+ 			lwc_string_unref(scheme_lwc);
+ 
+ 		} else {
+-			if (!urldb_insert_cookie(c, NULL, NULL)) {
++			if (!urldb_insert_cookie(c, NULL, NULL, false)) {
+ 				/* Cookie freed for us */
+ 				break;
+ 			}
+--- a/netsurf/content/urldb.h
++++ b/netsurf/content/urldb.h
+@@ -141,6 +141,9 @@
+  */
+ bool urldb_set_cookie(const char *header, struct nsurl *url, struct nsurl *referrer);
+ 
++/** Set one script cookie, protecting existing and new HttpOnly cookies. */
++bool urldb_set_cookie_from_script(const char *header, struct nsurl *url);
++
+ 
+ /**
+  * Retrieve cookies for an URL
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -59,6 +59,7 @@
+ #include "desktop/gui_internal.h"
+ #include "desktop/browser_private.h"
+ #include "content/hlcache.h"
++#include "content/urldb.h"
+ #include "html/private.h"
+ #include "html/media.h"
+ 
+@@ -2069,14 +2070,22 @@
+ static JSValue
+ doc_get_cookie(JSContext *ctx, JSValueConst this_val)
+ {
+-	return JS_NewStringLen(ctx, "", 0);
++    nsurl *url = qjs_realm_url(qjs_thread(ctx));
++    char *cookie = url ? urldb_get_cookie(url, false) : NULL;
++    JSValue result = JS_NewString(ctx, cookie ? cookie : "");
++    free(cookie);
++    return result;
+ }
+ 
+ static JSValue
+ doc_set_cookie(JSContext *ctx, JSValueConst this_val, JSValueConst v)
+ {
+-	NSLOG(netsurf, DEBUG, "document.cookie write ignored");
+-	return JS_UNDEFINED;
++    nsurl *url = qjs_realm_url(qjs_thread(ctx));
++    const char *cookie = JS_ToCString(ctx, v);
++    if (cookie == NULL) return JS_EXCEPTION;
++    if (url != NULL) urldb_set_cookie_from_script(cookie, url);
++    JS_FreeCString(ctx, cookie);
++    return JS_UNDEFINED;
+ }
+ 
+ static JSValue
+@@ -3160,7 +3169,7 @@
+ 			  JS_NewString(ctx, "NetSurf"));
+ 	JS_SetPropertyStr(ctx, navigator, "language",
+ 			  JS_NewString(ctx, "en"));
+-	JS_SetPropertyStr(ctx, navigator, "cookieEnabled", JS_FALSE);
++	JS_SetPropertyStr(ctx, navigator, "cookieEnabled", JS_TRUE);
+ 	JS_SetPropertyStr(ctx, navigator, "onLine", JS_TRUE);
+ 	JS_SetPropertyStr(ctx, global, "navigator", navigator);
+ 

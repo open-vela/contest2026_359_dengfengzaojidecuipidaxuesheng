@@ -1,0 +1,22 @@
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -226,11 +226,17 @@
+ 		}
+ 		nsu_getmonotonic_ms(&now);
+ 		if (now - started >= 10) break;
+-		heap->deadline_ms = now + 1000;
++		/* Initial application hydration is commonly queued as one Promise
++		 * job by frameworks. Give it the same finite startup budget as its
++		 * script, rather than interrupting a normal multi-component mount
++		 * after one second. Completed documents keep the short job budget. */
++		bool startup = thread->ready_state < 2;
++		heap->deadline_ms = now + (startup ? 5000 : 1000);
+ 		if (saved && saved < heap->deadline_ms) heap->deadline_ms = saved;
+ 		/* Nested DOM/script entries belong to this bounded job and must
+ 		 * not run a checkpoint or reset its deadline. */
+-		qjs_deadline_start(thread);
++		if (startup) qjs_deadline_start_script(thread);
++		else qjs_deadline_start(thread);
+ 		int result = JS_ExecutePendingJob(heap->rt, &jctx);
+ 		qjs_deadline_stop(thread);
+ 		if (result < 0 && jctx) qjs_dump_error(jctx);

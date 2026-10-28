@@ -80,7 +80,7 @@ static void glass_status_tick(void)
   }
   char date[64];
   if(now>1700000000&&localtime_r(&now,&local))snprintf(date,sizeof(date),"%d/%d",local.tm_mon+1,local.tm_mday);
-  else snprintf(date,sizeof(date),"时钟待校准");
+  else snprintf(date,sizeof(date),glass_tr("时钟待校准"));
   if(strcmp(lv_label_get_text(g_status_ui.date),date))lv_label_set_text(g_status_ui.date,date);
   struct glass_status_network net = {0};
 #ifdef CONFIG_SYSTEM_C6_DESKTOP

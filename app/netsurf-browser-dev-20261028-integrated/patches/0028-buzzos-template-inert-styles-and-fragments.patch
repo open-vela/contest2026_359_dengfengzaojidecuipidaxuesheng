@@ -1,0 +1,145 @@
+--- a/libdom/src/html/html_element.c
++++ b/libdom/src/html/html_element.c
+@@ -118,7 +118,8 @@
+ 			return err;
+ 		html->template_content->template_host = (dom_node_internal *)node;
+ 	}
+-	*result = dom_node_ref(html->template_content);
++	dom_node_ref(html->template_content);
++	*result = html->template_content;
+ 	return DOM_NO_ERR;
+ }
+ 
+--- a/libdom/bindings/hubbub/parser.c
++++ b/libdom/bindings/hubbub/parser.c
+@@ -48,6 +48,7 @@
+ 	const char *encoding; 		/**< The document's encoding */
+ 
+ 	bool complete;			/**< Indicate stream completion */
++	bool fragment;                  /**< innerHTML fragments keep scripts inert */
+ 
+ 	dom_msg msg;		/**< Informational messaging function */
+ 
+@@ -728,6 +729,14 @@
+ {
+ 	dom_hubbub_parser *dom_parser = (dom_hubbub_parser *) parser;
+ 	dom_hubbub_error err;
++	if (dom_parser->fragment) {
++		dom_html_script_element_flags flags;
++		if (dom_html_script_element_get_flags(script, &flags) == DOM_NO_ERR) {
++			flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED;
++			dom_html_script_element_set_flags(script, flags);
++		}
++		return HUBBUB_OK;
++	}
+ 	if (dom_html_element_is_in_template_content(script)) {
+ 		dom_html_script_element_flags flags;
+ 		if (dom_html_script_element_get_flags(script, &flags) == DOM_NO_ERR) {
+@@ -840,6 +849,7 @@
+ 	}
+ 
+ 	binding->complete = false;
++	binding->fragment = false;
+ 
+ 	if (params->msg == NULL) {
+ 		binding->msg = dom_hubbub_parser_default_msg;
+@@ -962,6 +972,7 @@
+ 
+ 	binding->parser = NULL;
+ 	binding->doc = (struct dom_document *)dom_node_ref(document);
++	binding->fragment = true;
+ 	binding->encoding = params->enc;
+ 
+ 	if (params->enc != NULL) {
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -719,9 +719,15 @@
+ 	dom_node_type type;
+ 	dom_exception exc;
+ 	html_content *htmlc = pw;
++	bool connected = false;
+ 
+ 	exc = dom_event_get_target(evt, &node);
+ 	if ((exc == DOM_NO_ERR) && (node != NULL)) {
++		if (dom_node_contains(htmlc->document, node, &connected) != DOM_NO_ERR ||
++			!connected) {
++			dom_node_unref(node);
++			return;
++		}
+ 		/* the rendered document changed after layout */
+ 		if (htmlc->had_initial_layout &&
+ 		    html_rebuild_node_matters((dom_node *)node)) {
+--- a/netsurf/content/handlers/html/script.c
++++ b/netsurf/content/handlers/html/script.c
+@@ -633,8 +633,14 @@
+ {
+ 	html_content *c = (html_content *)ctx;
+ 	dom_exception exc; /* returned by libdom functions */
+-	dom_string *src, *mimetype;
++	dom_string *src = NULL, *mimetype;
+ 	dom_hubbub_error err = DOM_HUBBUB_OK;
++	dom_html_script_element_flags flags;
++	/* DOM reinsertion and recursive mutation events must not execute a
++	 * prepared script twice. Fragment-parsed scripts also remain inert. */
++	if (dom_html_script_element_get_flags(node, &flags) != DOM_NO_ERR ||
++		(flags & DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED))
++		return DOM_HUBBUB_OK;
+ 
+ 	/* ensure javascript context is available */
+ 	/* We should only ever be here if scripting was enabled for this
+@@ -670,6 +676,29 @@
+ 	}
+ 
+ 	exc = dom_element_get_attribute(node, corestring_dom_src, &src);
++	{
++		lwc_string *type = NULL;
++		bool executable = dom_string_caseless_lwc_isequal(mimetype, corestring_lwc_module) ||
++			dom_string_caseless_lwc_isequal(mimetype, corestring_lwc_importmap);
++		if (!executable && dom_string_intern(mimetype, &type) == DOM_NO_ERR) {
++			executable = select_script_handler(content_factory_type_from_mime_type(type)) != NULL;
++			lwc_string_unref(type);
++		}
++		if (executable) {
++			dom_string *text = NULL;
++			if (src == NULL) {
++				dom_node_get_text_content(node, &text);
++				bool empty = text == NULL || dom_string_byte_length(text) == 0;
++				dom_string_unref(text);
++				if (empty) {
++					dom_string_unref(mimetype);
++					return DOM_HUBBUB_OK;
++				}
++			}
++			flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED;
++			dom_html_script_element_set_flags(node, flags);
++		}
++	}
+ 	if (exc != DOM_NO_ERR || src == NULL) {
+ 		err = exec_inline_script(c, node, mimetype);
+ 	} else {
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -1424,6 +1424,12 @@
+ 		NSLOG(netsurf, ERROR, "innerHTML: no fragment parser");
+ 		goto out;
+ 	}
++	/* This legacy fragment parser starts before head/body. Enter body so
++	 * leading script/style/meta nodes are retained in the fragment rather
++	 * than stranded in its synthetic head. Full context parsing is TODO. */
++	error = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)"<body>", 6);
++	if (error != DOM_HUBBUB_OK)
++		goto out;
+ 	error = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)s,
+ 					      size);
+ 	if (error != DOM_HUBBUB_OK)
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -3807,6 +3807,8 @@
+ 	var re = new RegExp('^(' + TAG_IFACES[name] + ')$', 'i');
+ 	var C = function () { throw new TypeError('Illegal constructor'); };
+ 	C.prototype = name === 'HTMLTemplateElement' && TemplateP ? TemplateP : ElementP;
++	if (name === 'HTMLTemplateElement' && TemplateP)
++		def(TemplateP, 'constructor', { value: C });
+ 	def(C, Symbol.hasInstance, { value: function (o) { return isElement(o) && (!TAG_IFACES[name] || re.test(o.tagName)); } });
+ 	def(C, 'name', { value: name });
+ 	global[name] = C;

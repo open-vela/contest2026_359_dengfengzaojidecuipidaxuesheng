@@ -12,9 +12,14 @@ static const lv_font_t *chat_ui_mono(void)
 }
 static const lv_font_t *chat_ui_bold(void)
 {
-  if(!chat_bold_font)chat_bold_font=lv_tiny_ttf_create_data_ex(glass_bold_font_data,glass_bold_font_size,20,LV_FONT_KERNING_NORMAL,64);
+  if(!chat_bold_font){
+    chat_bold_font=lv_tiny_ttf_create_data_ex(glass_bold_font_data,glass_bold_font_size,20,LV_FONT_KERNING_NORMAL,64);
+    if(chat_bold_font)chat_bold_font->fallback=zh_font(20);
+    glass_global_font_bind(chat_bold_font,20);
+  }
   if(!chat_bold_font)return zh_font(20);
-  chat_bold_font->fallback=zh_font(20);return chat_bold_font;
+  if(!global_font_selected)chat_bold_font->fallback=zh_font(20);
+  return chat_bold_font;
 }
 static void chat_ui_markdown(struct chat_output_part *part,const char *body,int width,uint32_t color)
 {

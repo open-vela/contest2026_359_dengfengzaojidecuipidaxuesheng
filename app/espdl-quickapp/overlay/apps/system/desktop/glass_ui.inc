@@ -4,6 +4,7 @@
  */
 
 #include "glass_status.h"
+#include "glass_input_guard.h"
 #include "glass_pager.h"
 static void glass_status_tick(void);
 static void glass_status_visibility(bool locked);
@@ -18,54 +19,34 @@ static void glass_status_visibility(bool locked);
 #include "glass_weather.h"
 #include "glass_ime.h"
 #include "glass_sd_font.h"
-#if defined(CONFIG_ESPRESSIF_LEDC_TIMER0) && \
-    CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN == 26 && CONFIG_PWM_NCHANNELS == 1
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <nuttx/timers/pwm.h>
-#define GLASS_PWM_BACKLIGHT 1
-static int g_backlight_fd = -1;
-#endif
-
-static int g_screen_brightness = 100;
-
-static void glass_brightness_preview(lv_event_t *e)
+#include "glass_device_controls.h"
+#include "glass_backlight.h"
+static int g_screen_brightness=100;
+static void glass_brightness_preview(lv_event_t *event)
 {
-  lv_obj_t *slider = lv_event_get_target(e);
-  lv_obj_t *label = lv_event_get_user_data(e);
-  const int value = lv_event_get_code(e) == LV_EVENT_PRESS_LOST ?
-                    g_screen_brightness : lv_slider_get_value(slider);
-  if (lv_event_get_code(e) == LV_EVENT_PRESS_LOST)
-    lv_slider_set_value(slider, value, LV_ANIM_OFF);
-  lv_label_set_text_fmt(label, "%d%%", value);
+  lv_obj_t *slider=lv_event_get_target(event),*label=lv_event_get_user_data(event);
+  int value=lv_event_get_code(event)==LV_EVENT_PRESS_LOST?g_screen_brightness:lv_slider_get_value(slider);
+  if(lv_event_get_code(event)==LV_EVENT_PRESS_LOST)lv_slider_set_value(slider,value,LV_ANIM_OFF);
+  if(glass_screen_brightness_set((unsigned)value)<0){
+    lv_slider_set_value(slider,g_screen_brightness,LV_ANIM_OFF);
+    lv_label_set_text(label,glass_tr("调节失败"));return;
+  }
+  lv_label_set_text_fmt(label,"%d%%",value);
 }
-
-static void glass_brightness_changed(lv_event_t *e)
+static void glass_brightness_changed(lv_event_t *event)
 {
-#ifdef GLASS_PWM_BACKLIGHT
-  lv_obj_t *slider = lv_event_get_target(e);
-  lv_obj_t *label = lv_event_get_user_data(e);
-  int value = lv_slider_get_value(slider);
-  struct pwm_info_s info;
-  memset(&info, 0, sizeof(info));
-  info.frequency = 5000;
-  info.channels[0].channel = 0;
-  info.channels[0].duty = (uint32_t)value * 65536 / 100;
-  if (g_backlight_fd < 0) g_backlight_fd = open("/dev/pwm0", O_RDWR);
-  bool success = g_backlight_fd >= 0 &&
-    ioctl(g_backlight_fd, PWMIOC_SETCHARACTERISTICS, (unsigned long)&info) >= 0 &&
-    ioctl(g_backlight_fd, PWMIOC_START, 0) >= 0;
-  if (!success)
-    {
-      lv_slider_set_value(slider, g_screen_brightness, LV_ANIM_OFF);
-      lv_label_set_text(label, "调节失败");
-      return;
-    }
-  g_screen_brightness = value;
-  lv_label_set_text_fmt(label, "%d%%", value);
-#else
-  LV_UNUSED(e);
-#endif
+  lv_obj_t *slider=lv_event_get_target(event),*label=lv_event_get_user_data(event);
+  int value=lv_slider_get_value(slider);
+  int result=glass_screen_brightness_set((unsigned)value);
+  if(result){lv_slider_set_value(slider,g_screen_brightness,LV_ANIM_OFF);lv_label_set_text_fmt(label,"%d%%",g_screen_brightness);show_toast(glass_tr("亮度调节失败"));return;}
+  g_screen_brightness=value;lv_label_set_text_fmt(label,"%d%%",value);
+}
+static void glass_speaker_changed(lv_event_t *event)
+{
+  lv_obj_t *slider=lv_event_get_target(event),*label=lv_event_get_user_data(event);
+  if(glass_speaker_volume_set((unsigned)lv_slider_get_value(slider)))
+    lv_slider_set_value(slider,(int)glass_speaker_volume(),LV_ANIM_OFF);
+  lv_label_set_text_fmt(label,"%u%%",glass_speaker_volume());
 }
 
 static struct
@@ -90,10 +71,12 @@ static struct
   lv_obj_t *chart_hint;
   lv_obj_t *settings_switch;
   lv_obj_t *widget_dropdown;
-  lv_obj_t *lyric_font_dropdown;
+  lv_obj_t *global_font_dropdown;
+  lv_obj_t *language_dropdown;
   lv_obj_t *home_cards[GLASS_HOME_CARD_COUNT];
   lv_obj_t *motion_switch;
   lv_obj_t *brightness_slider;
+  lv_obj_t *speaker_slider,*speaker_value;
   lv_font_t *font72;
   lv_font_t *font48;
   lv_font_t *music_font72;
@@ -112,12 +95,31 @@ static struct
   unsigned int palette;
   unsigned int widget;
 } g_glass;
+static void glass_speaker_control_deleted(lv_event_t *event)
+{
+  if(lv_event_get_target(event)==g_glass.speaker_slider){g_glass.speaker_slider=NULL;g_glass.speaker_value=NULL;}
+}
+static void glass_speaker_control_refresh(void)
+{
+  lv_obj_t *slider=g_glass.speaker_slider;
+  if(!slider||!glass_ui_can_paint(slider)||lv_obj_has_state(slider,LV_STATE_PRESSED))return;
+  unsigned value=glass_speaker_volume();
+  if(lv_slider_get_value(slider)!=(int)value){
+    lv_slider_set_value(slider,(int)value,LV_ANIM_OFF);
+    lv_label_set_text_fmt(g_glass.speaker_value,"%u%%",value);
+  }
+}
 
-static unsigned music_font_selected,music_font_requested;
+static unsigned global_font_selected,global_font_requested;
+static void glass_global_fonts_init(void);
+static void glass_global_font_bind(lv_font_t *font,unsigned pixels);
+static void glass_global_fonts_poll(void);
+static void glass_global_font_selected(lv_event_t *event);
+static void music_full_fonts_changed(void);
+static void glass_language_refresh(void);
 static void home_music_refresh(void);
 static void home_music_obscure(void);
 static void music_full_fonts_poll(void);
-static void music_full_font_selected(lv_event_t *event);
 
 /* Cache display semantics, never lv_label_get_text(): LONG_DOT modifies that
  * buffer in place. No per-tick allocation or retained label text pointers.
@@ -156,7 +158,7 @@ static unsigned glass_preferences_display_state(void)
 static const char *glass_preferences_status_text(void)
 {
   static const char *text[] = {"", "保存中", "保存失败", "已保存"};
-  return text[glass_preferences_display_state()];
+  return glass_tr(text[glass_preferences_display_state()]);
 }
 
 static void glass_preferences_show_status(void)
@@ -184,7 +186,7 @@ static void glass_preferences_update(void)
   g_preferences_waiting = false;
   g_preferences_save_failed = status.error != 0;
   glass_preferences_show_status();
-  if (g_preferences_save_failed) show_toast("设置保存失败");
+  if (g_preferences_save_failed) show_toast(glass_tr("设置保存失败"));
 }
 
 static void glass_save_preferences(void)
@@ -196,7 +198,7 @@ static void glass_save_preferences(void)
   g_preferences_requested = true;
   g_preferences_waiting = !g_preferences_save_failed;
   glass_preferences_show_status();
-  if (g_preferences_save_failed) show_toast("设置保存失败");
+  if (g_preferences_save_failed) show_toast(glass_tr("设置保存失败"));
 }
 
 static lv_obj_t *glass_box(lv_obj_t *parent, int x, int y, int w, int h,
@@ -281,6 +283,7 @@ static lv_obj_t *glass_button(lv_obj_t *parent, const char *text,
   lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
   lv_obj_set_style_border_opa(button, 25, 0);
   lv_obj_set_style_bg_opa(button, 180, LV_STATE_PRESSED);
+  glass_input_guard_install(button);
   if (callback != NULL)
     {
       lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, data);
@@ -288,6 +291,7 @@ static lv_obj_t *glass_button(lv_obj_t *parent, const char *text,
   lv_obj_t *label = make_label(button, text, theme_primary(), 16);
   lv_obj_set_width(label, w - 24);
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+  lv_obj_set_height(label,lv_obj_get_style_text_font(label,0)->line_height);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_center(label);
   return button;
@@ -295,6 +299,7 @@ static lv_obj_t *glass_button(lv_obj_t *parent, const char *text,
 
 static void glass_clickable(lv_obj_t *card, lv_event_cb_t callback, void *data)
 {
+  glass_input_guard_install(card);
   lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_border_opa(card, 160, LV_STATE_PRESSED);
   glass_motion_button(card);
@@ -337,13 +342,13 @@ static void glass_chart_refresh(void)
     {
       lv_chart_set_value_by_id(g_glass.chart, g_glass.series, 0, 0);
       lv_obj_add_flag(g_glass.chart, LV_OBJ_FLAG_HIDDEN);
-      lv_label_set_text(g_glass.chart_hint, "暂无温度记录 · 在智能家居中连接传感器");
+      lv_label_set_text(g_glass.chart_hint, glass_tr("暂无温度记录 · 在智能家居中连接传感器"));
     }
   else
     {
       lv_obj_remove_flag(g_glass.chart, LV_OBJ_FLAG_HIDDEN);
       lv_label_set_text_fmt(g_glass.chart_hint,
-        "本次运行已采集 %u 个温度样本 · 轻触折线查看数值", g_glass.samples);
+        glass_tr("本次运行已采集 %u 个温度样本 · 轻触折线查看数值"), g_glass.samples);
     }
 }
 
@@ -352,7 +357,7 @@ static void glass_chart_pressed(lv_event_t *e)
   int32_t point = lv_chart_get_pressed_point(lv_event_get_target(e));
   if (point >= 0 && (unsigned int)point < g_glass.samples)
     {
-      lv_label_set_text_fmt(g_glass.chart_hint, "样本 %ld / %u     %d C",
+      lv_label_set_text_fmt(g_glass.chart_hint, glass_tr("样本 %ld / %u     %d C"),
         (long)point + 1, g_glass.samples, g_glass.history[point]);
     }
 }
@@ -360,9 +365,9 @@ static void glass_chart_pressed(lv_event_t *e)
 static void glass_environment(lv_event_t *e)
 {
   LV_UNUSED(e);
-  lv_obj_t *card = panel_card("环境趋势");
-  glass_text(card, "温度 / 摄氏度", 28, 80, 300, 20, theme_primary());
-  glass_text(card, "来自 Home Assistant · 最近 24 次有效采样",
+  lv_obj_t *card = panel_card(glass_tr("环境趋势"));
+  glass_text(card, glass_tr("温度 / 摄氏度"), 28, 80, 300, 20, theme_primary());
+  glass_text(card, glass_tr("来自 Home Assistant · 最近 24 次有效采样"),
              28, 116, 800, 16, theme_secondary());
   g_glass.chart = lv_chart_create(card);
   lv_obj_set_pos(g_glass.chart, 40, 168);
@@ -425,6 +430,7 @@ void glass_dashboard_publish(int temperature, int humidity, int pm25,
 static void glass_update(lv_timer_t *timer)
 {
   glass_status_tick();
+  glass_speaker_control_refresh();
   uint8_t portal_values[4];
   if(portal_desktop_take(portal_values)) {
     g_desktop.light_theme=portal_values[0]; g_glass.palette=portal_values[1];
@@ -513,12 +519,12 @@ static void glass_update(lv_timer_t *timer)
         {
           /* Expired snapshots do not need a perpetual once-per-second redraw. */
           static const char *units[] = {"秒", "分钟", "小时", "天"};
-          lv_label_set_text_fmt(g_glass.sync, "%lu %s前",
+          lv_label_set_text_fmt(g_glass.sync, glass_tr("%lu %s前"),
                                 (unsigned long)display.sync_value,
-                                units[display.sync_unit]);
+                                glass_tr(units[display.sync_unit]));
         }
       else
-        lv_label_set_text(g_glass.sync, "尚未同步");
+        lv_label_set_text(g_glass.sync, glass_tr("尚未同步"));
     }
   bool widget_changed = initial || display.widget != g_glass_display.widget;
   bool weather_changed = widget_changed ||
@@ -528,18 +534,18 @@ static void glass_update(lv_timer_t *timer)
     display.weather_stale != g_glass_display.weather_stale;
   if (initial || display.humidity != g_glass_display.humidity)
     lv_label_set_text(g_glass.humidity_status,
-      display.humidity < 0 ? "暂无数据" : display.humidity < 30 ? "偏干燥" :
-      display.humidity > 60 ? "偏潮湿" : "舒适");
+      display.humidity < 0 ? glass_tr("暂无数据") : display.humidity < 30 ? glass_tr("偏干燥") :
+      display.humidity > 60 ? glass_tr("偏潮湿") : glass_tr("舒适"));
   if (weather_changed)
     lv_label_set_text(g_glass.weather_condition,
-      weather.valid ? weather.data.condition :
-      weather.state == WEATHER_WAIT_NET ? "等待联网" :
-      weather.state == WEATHER_WAIT_TIME ? "等待校时" :
-      weather.state == WEATHER_FAILED ? "更新失败" : "正在更新");
+      weather.valid ? glass_tr(weather.data.condition) :
+      weather.state == WEATHER_WAIT_NET ? glass_tr("等待联网") :
+      weather.state == WEATHER_WAIT_TIME ? glass_tr("等待校时") :
+      weather.state == WEATHER_FAILED ? glass_tr("更新失败") : glass_tr("正在更新"));
   if (widget_changed)
     {
-      lv_label_set_text(g_glass.widget_title, display.widget == 0 ? "空气质量" :
-                        display.widget == 1 ? "环境湿度" : "系统运行");
+      lv_label_set_text(g_glass.widget_title, display.widget == 0 ? glass_tr("空气质量") :
+                        display.widget == 1 ? glass_tr("环境湿度") : glass_tr("系统运行"));
       if (display.widget == 0)
         lv_obj_remove_flag(g_glass.widget_badge, LV_OBJ_FLAG_HIDDEN);
       else
@@ -558,7 +564,7 @@ static void glass_update(lv_timer_t *timer)
         {
           lv_label_set_text(g_glass.air, "AQI");
           lv_label_set_text(g_glass.widget_category,
-            weather.valid && weather.data.aqi >= 0 ? weather.data.category : "暂无数据");
+            weather.valid && weather.data.aqi >= 0 ? glass_tr(weather.data.category) : glass_tr("暂无数据"));
           static const uint32_t colors[] = {0x969aa5, 0x49b894, 0xba9e40,
             0xd89256, 0xda7275, 0xac80ae, 0xbd6989};
           static const uint32_t light_colors[] = {0x606b7e, 0x24765b, 0x80651b,
@@ -593,8 +599,8 @@ static void glass_update(lv_timer_t *timer)
         lv_label_set_text_fmt(g_glass.widget_value, "%lu", display.uptime_minutes);
       if (widget_changed)
         {
-          lv_label_set_text(g_glass.widget_hint, "分钟 · 本机实时数据");
-          lv_label_set_text(g_glass.air, "分钟");
+          lv_label_set_text(g_glass.widget_hint, glass_tr("分钟 · 本机实时数据"));
+          lv_label_set_text(g_glass.air, glass_tr("分钟"));
           lv_obj_set_style_text_color(g_glass.widget_value, lv_color_hex(theme_primary()), 0);
         }
     }
@@ -602,18 +608,18 @@ static void glass_update(lv_timer_t *timer)
     {
       if (weather.valid)
         {
-          const char *status = weather.state == WEATHER_WAIT_NET ? "离线数据" :
-            weather.state == WEATHER_WAIT_TIME ? "等待校时" :
-            weather.state == WEATHER_FETCHING ? "更新中" :
-            weather.state == WEATHER_FAILED ? "更新失败" :
-            display.weather_stale ? "待更新" : weather.data.condition;
+          const char *status = weather.state == WEATHER_WAIT_NET ? glass_tr("离线数据") :
+            weather.state == WEATHER_WAIT_TIME ? glass_tr("等待校时") :
+            weather.state == WEATHER_FETCHING ? glass_tr("更新中") :
+            weather.state == WEATHER_FAILED ? glass_tr("更新失败") :
+            display.weather_stale ? glass_tr("待更新") : weather.data.condition;
           lv_label_set_text_fmt(g_glass.widget_hint, "%s · %s", weather.data.location, status);
         }
       else
         lv_label_set_text(g_glass.widget_hint,
-          weather.state == WEATHER_WAIT_NET ? "等待联网" :
-          weather.state == WEATHER_WAIT_TIME ? "等待校时" :
-          weather.state == WEATHER_FAILED ? "天气暂不可用 · 稍后重试" : "正在更新天气");
+          weather.state == WEATHER_WAIT_NET ? glass_tr("等待联网") :
+          weather.state == WEATHER_WAIT_TIME ? glass_tr("等待校时") :
+          weather.state == WEATHER_FAILED ? glass_tr("天气暂不可用 · 稍后重试") : glass_tr("正在更新天气"));
     }
   weather_home_update(&weather, display.weather_stale, weather_is_night());
   glass_weather_detail_update(&weather, display.weather_stale);
@@ -677,7 +683,7 @@ static void glass_control_close_async(void *data)
   LV_UNUSED(data);
   g_control_close_pending = false;
   if (g_control_card != NULL && g_desktop.current_card == g_control_card)
-    panel_hide(NULL);
+    glass_navigation_return_settings();
 }
 
 static void glass_control_deleted(lv_event_t *e)
@@ -795,17 +801,17 @@ static void glass_ble_devices_open(lv_event_t *event);
 static void glass_bluetooth_page(void *unused)
 {
   LV_UNUSED(unused);
-  lv_obj_t *card = panel_card("蓝牙");
+  lv_obj_t *card = panel_card(glass_tr("蓝牙"));
   if (card == NULL) return;
 #ifdef CONFIG_SYSTEM_GLASS_BLE
   glass_ble_devices_page(card);
 #else
   detail_page(card);
-  detail_sidebar(card, "蓝牙", LV_SYMBOL_BLUETOOTH, panel_hide);
-  detail_text(card, "蓝牙设备", 216, 26, 500, 28, detail_ink());
+  glass_settings_sidebar(card,SETTINGS_BLUETOOTH);
+  detail_text(card, glass_tr("蓝牙设备"), 216, 26, 500, 28, detail_ink());
   lv_obj_t *status = detail_tile(card, 216, 104, 784, 160);
-  detail_text(status, "蓝牙鼠标服务未启用", 24, 28, 720, 20, detail_ink());
-  detail_text(status, "当前配置无法配对或发送鼠标操作", 24, 80, 720, 16, detail_muted());
+  detail_text(status, glass_tr("蓝牙鼠标服务未启用"), 24, 28, 720, 20, detail_ink());
+  detail_text(status, glass_tr("当前配置无法配对或发送鼠标操作"), 24, 80, 720, 16, detail_muted());
 #endif
 }
 
@@ -828,6 +834,15 @@ static void glass_system_page_async(void *unused)
   if (g_system_page_kind == 1) glass_storage_page(NULL);
   else if (g_system_page_kind == 2) glass_bluetooth_page(NULL);
   else if (g_system_page_kind == 3) glass_resources_page(NULL);
+  else if (g_system_page_kind == SETTINGS_PANEL) glass_settings(NULL);
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+  else if (g_system_page_kind == SETTINGS_HOTSPOT) glass_wifi_recovery_page(NULL);
+#endif
+#ifdef CONFIG_SYSTEM_GLASS_BLE
+  else if (g_system_page_kind == SETTINGS_MOUSE) glass_mouse_open(NULL);
+#endif
+  else if (g_system_page_kind == SETTINGS_PORTAL) glass_portal_open(NULL);
+  else if (g_system_page_kind == SETTINGS_ABOUT) about_clicked(NULL);
   else glass_wifi_page(NULL);
 }
 
@@ -835,10 +850,17 @@ static void glass_system_page_open(lv_event_t *e)
 {
   if (g_system_page_pending) return;
   uintptr_t kind = (uintptr_t)lv_event_get_user_data(e);
-  if (kind > 3) return;
+  if (kind > SETTINGS_ABOUT) return;
   g_system_page_kind = (unsigned int)kind;
   if (lv_async_call(glass_system_page_async, NULL) == LV_RESULT_OK)
     g_system_page_pending = true;
+}
+static void glass_files_open(lv_event_t *e)
+{
+  LV_UNUSED(e);
+  if(g_system_page_pending)return;
+  g_system_page_kind=SETTINGS_FILES;
+  if(lv_async_call(glass_system_page_async,NULL)==LV_RESULT_OK)g_system_page_pending=true;
 }
 
 #include "glass_portal_ui.inc"
@@ -853,8 +875,12 @@ static void glass_homeassistant(lv_event_t *e)
 {
   launch_builtin_homeassistant_qapp(e);
 }
-#include "glass_speech_ui.inc"
+#ifdef GLASS_LOCAL_SPEECH
+static void glass_speech_open(lv_event_t *event);
+#endif
 #include "glass_chat_ui.inc"
+#include "glass_speech_ui.inc"
+#include "glass_navigation.inc"
 
 static void glass_music(lv_event_t *e)
 {
@@ -862,8 +888,9 @@ static void glass_music(lv_event_t *e)
   home_music_obscure();
   bool return_apps=g_desktop.apps_page || (g_music_ui.root&&g_music_ui.return_apps) ||
     (portal_page&&portal_page==g_desktop.current_card&&portal_return==glass_music&&music_config_return_apps);
-  lv_obj_t *card = panel_card("音乐空间");
+  lv_obj_t *card = panel_card(glass_tr("音乐空间"));
   if (card) glass_music_app(card,return_apps);
+  if(card)glass_navigation_register(glass_music,return_apps,0);
 }
 
 static void glass_widget_open(lv_event_t *e)
@@ -889,6 +916,7 @@ struct glass_app_slot
   bool pressed;
 };
 static struct glass_app_slot g_apps_slots[9];
+static struct glass_swipe_tracker g_apps_drag;
 /* Rebinding a retained tile while a finger is down must never launch the
  * replacement application (or open its removal confirmation). */
 static void glass_apps_press_guard(lv_event_t *e)
@@ -909,6 +937,7 @@ static void glass_apps_deleted(lv_event_t *event)
   LV_UNUSED(event);g_apps_card=g_apps_grid=g_apps_pager=g_apps_count=NULL;
   g_apps_page_count=0;
   memset(g_apps_slots,0,sizeof(g_apps_slots));
+  g_apps_drag.tracking=false;
 }
 
 static void glass_apps_render(void);
@@ -922,8 +951,8 @@ static void glass_apps_remove_poll(lv_timer_t *timer)
   g_apps_remove_timer = NULL; lv_timer_delete(timer);
   qpk_scan();
   if (g_desktop.apps_page) glass_apps_render();
-  if (!state.remove_error) show_toast("应用和应用数据已删除");
-  else { char message[112]; snprintf(message, sizeof(message), "删除未完成（%d），请重试", state.remove_error); show_toast(message); }
+  if (!state.remove_error) show_toast(glass_tr("应用和应用数据已删除"));
+  else { char message[112]; snprintf(message, sizeof(message), glass_tr("删除未完成（%d），请重试"), state.remove_error); show_toast(message); }
 }
 
 static void glass_apps_remove_confirm(lv_event_t *e)
@@ -931,13 +960,13 @@ static void glass_apps_remove_confirm(lv_event_t *e)
   LV_UNUSED(e);
   if (g_apps_remove_timer) return;
   lv_timer_t *timer = lv_timer_create(glass_apps_remove_poll, 150, NULL);
-  if (!timer) { show_toast("内存不足，请稍后重试"); return; }
+  if (!timer) { show_toast(glass_tr("内存不足，请稍后重试")); return; }
   int ret = glass_qpk_remove_async_from(g_apps_remove_target.dir, g_apps_remove_target.package,g_apps_remove_target.volume);
-  if (ret) { lv_timer_delete(timer); show_toast(ret == -EBUSY ? "正在处理应用，请稍后重试" : "无法删除这个应用"); return; }
+  if (ret) { lv_timer_delete(timer); show_toast(ret == -EBUSY ? glass_tr("正在处理应用，请稍后重试") : glass_tr("无法删除这个应用")); return; }
   g_apps_remove_timer = timer;
   dialog_cancel();
   glass_apps_render();
-  show_toast("正在删除应用和数据…");
+  show_toast(glass_tr("正在删除应用和数据…"));
 }
 
 static void glass_apps_remove_cancel(lv_event_t *e)
@@ -957,11 +986,11 @@ static void glass_apps_remove_open(lv_event_t *e)
   lv_obj_set_style_bg_opa(shade, LV_OPA_70, 0);
   lv_obj_add_flag(shade, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_t *box = glass_box(shade, 232, 140, 560, 320, theme_card(), 24);
-  glass_text(box, "删除这个应用？", 28, 24, 504, 28, theme_primary());
+  glass_text(box, glass_tr("删除这个应用？"), 28, 24, 504, 28, theme_primary());
   glass_text(box, entry->name, 28, 82, 504, 20, theme_primary());
-  glass_text(box, "应用文件和应用数据将一并删除，无法恢复。", 28, 140, 504, 20, theme_secondary());
-  glass_button(box, "取消", 28, 238, 238, theme_surface(), glass_apps_remove_cancel, NULL);
-  glass_button(box, "删除应用", 282, 238, 250, theme_accent(), glass_apps_remove_confirm, NULL);
+  glass_text(box, glass_tr("应用文件和应用数据将一并删除，无法恢复。"), 28, 140, 504, 20, theme_secondary());
+  glass_button(box, glass_tr("取消"), 28, 238, 238, theme_surface(), glass_apps_remove_cancel, NULL);
+  glass_button(box, glass_tr("删除应用"), 282, 238, 250, theme_accent(), glass_apps_remove_confirm, NULL);
 }
 static void glass_apps_page(void *context,unsigned page)
 {
@@ -974,15 +1003,12 @@ static void glass_apps_swipe(lv_event_t *event)
   lv_indev_t *input=lv_indev_active();
   if(!input||lv_indev_get_type(input)!=LV_INDEV_TYPE_POINTER||
      !g_desktop.apps_page||g_desktop.current_card!=g_apps_card||g_desktop.dialog)return;
-  lv_dir_t direction=lv_indev_get_gesture_dir(input);
-  /* Consume the entire stroke, including at the first/last page and on a
-   * delete button. Its release must never become an application click. */
-  lv_indev_wait_release(input);
-  lv_event_stop_bubbling(event);
+  lv_dir_t direction=glass_swipe_direction(event,&g_apps_drag);
+  if(direction==LV_DIR_NONE)return;
   if(g_apps_remove_timer)return;
   int page=g_apps_page_index;
-  if(direction==LV_DIR_LEFT)page++;
-  else if(direction==LV_DIR_RIGHT)page--;
+  if(direction==LV_DIR_LEFT||direction==LV_DIR_TOP)page++;
+  else if(direction==LV_DIR_RIGHT||direction==LV_DIR_BOTTOM)page--;
   if(page>=0&&page<g_apps_page_count&&page!=g_apps_page_index)
     glass_apps_page(NULL,(unsigned)page);
 }
@@ -998,15 +1024,17 @@ static void glass_apps(lv_event_t *e)
 static void glass_apps_render(void)
 {
   bool reuse=g_desktop.apps_page&&g_apps_card&&g_desktop.current_card==g_apps_card;
-  lv_obj_t *card=reuse?g_apps_card:panel_card("全部应用");
+  lv_obj_t *card=reuse?g_apps_card:panel_card(glass_tr("全部应用"));
   if(!card)return;
   g_desktop.apps_page=true;
   if(!reuse){
     g_apps_card=card;lv_obj_add_event_cb(card,glass_apps_deleted,LV_EVENT_DELETE,NULL);
     /* Descendant gestures stop here; screen-edge strips retain back navigation. */
     lv_obj_remove_flag(card,LV_OBJ_FLAG_GESTURE_BUBBLE);
-    lv_obj_add_event_cb(card,glass_apps_swipe,LV_EVENT_GESTURE,NULL);
+    lv_obj_add_flag(card,LV_OBJ_FLAG_PRESS_LOCK);
+    lv_obj_add_event_cb(card,glass_apps_swipe,LV_EVENT_ALL,NULL);
     g_apps_grid=glass_box(card,48,0,928,332,theme_card(),0);
+    lv_obj_add_flag(g_apps_grid,LV_OBJ_FLAG_EVENT_BUBBLE|LV_OBJ_FLAG_PRESS_LOCK);
     lv_obj_set_style_bg_opa(g_apps_grid,LV_OPA_TRANSP,0);
     g_apps_count=glass_text(card,"",28,64,868,16,theme_secondary());
     g_apps_pager=glass_pager_create(card,theme_surface(),theme_primary(),theme_secondary(),glass_apps_page,NULL);
@@ -1016,27 +1044,27 @@ static void glass_apps_render(void)
   if(!g_apps_direction)glass_motion_cancel(grid);
   const char *names[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
-"网络直播", "相册",
+glass_tr("网络直播"), glass_tr("相册"),
 #endif
-"ESPClaw AI 助手", "相机", "音乐", "录音机", "智能家居", "蓝牙鼠标", "Grok Ball", "2048", "你好快应用", "ESP-DL 离线识别", "大肥鱼桌宠"};
+glass_tr("ESPClaw AI 助手"), glass_tr("相机"), glass_tr("音乐"), glass_tr("录音机"), glass_tr("智能家居"), glass_tr("无线触摸板"), "Grok Ball", "2048", glass_tr("你好快应用"), glass_tr("ESP-DL 离线识别"), glass_tr("大肥鱼桌宠"), glass_tr("文件管理")};
   const char *symbols[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 LV_SYMBOL_VIDEO, LV_SYMBOL_IMAGE,
 #endif
 GLASS_ICON_SPARKLES, GLASS_ICON_CAMERA, GLASS_ICON_HEADPHONES, GLASS_ICON_MIC, LV_SYMBOL_HOME, GLASS_ICON_MOUSE,
-                           GLASS_ICON_FACE, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, GLASS_ICON_FISH};
+                           GLASS_ICON_FACE, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, GLASS_ICON_FISH, LV_SYMBOL_DIRECTORY};
   const char *descriptions[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
-"观看在线直播", "浏览照片与视频",
+glass_tr("观看在线直播"), glass_tr("浏览照片与视频"),
 #endif
-"对话、创作与助手", "拍照与实时预览", "听音乐、看歌词", "录制与回放声音", "连接与控制设备", "连接电脑与控制指针",
-"语音与趣味互动", "数字合成小游戏", "探索快应用", "本地模型识别", "陪伴你的桌面伙伴"};
+glass_tr("对话、创作与助手"), glass_tr("拍照与实时预览"), glass_tr("听音乐、看歌词"), glass_tr("录制与回放声音"), glass_tr("连接与控制设备"), glass_tr("连接电脑与控制指针"),
+glass_tr("语音与趣味互动"), glass_tr("数字合成小游戏"), glass_tr("探索快应用"), glass_tr("本地模型识别"), glass_tr("陪伴你的桌面伙伴"), glass_tr("浏览设备存储与 SD 卡")};
   lv_event_cb_t callbacks[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 launch_bilibili, launch_local_video,
 #endif
 glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorder_qapp, glass_homeassistant,
-    glass_mouse_open, launch_builtin_ouo_qapp, launch_builtin_2048_qapp, launch_builtin_qapp, launch_builtin_espdl_qapp, launch_builtin_dafeiyu_qapp};
+    glass_mouse_open, launch_builtin_ouo_qapp, launch_builtin_2048_qapp, launch_builtin_qapp, launch_builtin_espdl_qapp, launch_builtin_dafeiyu_qapp, glass_files_open};
   const int builtin_count=sizeof(names)/sizeof(names[0]);
   const int total = builtin_count + g_desktop.nqpk;
   const int pages = (total + 8) / 9;
@@ -1067,16 +1095,19 @@ glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorde
                  80, 18, 200, 20, theme_primary());
       slot->source=glass_text(slot->tile,"",80,57,200,16,theme_secondary());
       lv_obj_add_flag(slot->tile,LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_add_flag(slot->tile,LV_OBJ_FLAG_EVENT_BUBBLE);
+      glass_input_guard_install(slot->tile);
       lv_obj_set_style_border_opa(slot->tile,160,LV_STATE_PRESSED);
       lv_obj_set_style_bg_color(slot->tile,lv_color_hex(theme_surface()),LV_STATE_PRESSED);
       lv_obj_set_style_border_color(slot->tile,lv_color_hex(theme_accent()),LV_STATE_PRESSED);
       glass_motion_button(slot->tile);
       lv_obj_add_event_cb(slot->tile,glass_apps_press_guard,LV_EVENT_ALL,slot);
-      slot->remove=glass_button(slot->tile,"删除",212,50,68,theme_surface(),NULL,NULL);
+      slot->remove=glass_button(slot->tile,glass_tr("删除"),212,50,68,theme_surface(),NULL,NULL);
       lv_obj_set_height(slot->remove,44);
       lv_obj_set_style_text_color(lv_obj_get_child(slot->remove,0),lv_color_hex(palette.danger),0);
       lv_obj_remove_flag(slot->remove,LV_OBJ_FLAG_EVENT_BUBBLE);
       lv_obj_add_event_cb(slot->remove,glass_apps_press_guard,LV_EVENT_ALL,slot);
+      lv_obj_add_event_cb(slot->remove,glass_apps_swipe,LV_EVENT_ALL,NULL);
       }
       lv_obj_t *tile=slot->tile;
       /* Retain the same reading order and positions on a partially filled page. */
@@ -1089,7 +1120,7 @@ glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorde
       lv_obj_set_style_text_color(slot->icon,lv_color_hex(ink),0);
       lv_obj_center(slot->icon);
       lv_label_set_text(slot->name,i<builtin_count?names[i]:g_desktop.qpk[i-builtin_count].name);
-      lv_label_set_text(slot->source,i<builtin_count?descriptions[i]:g_desktop.qpk[i-builtin_count].volume==QPK_VOLUME_SD?"SD 卡应用":"内置存储");
+      lv_label_set_text(slot->source,i<builtin_count?descriptions[i]:g_desktop.qpk[i-builtin_count].volume==QPK_VOLUME_SD?glass_tr("SD 卡应用"):glass_tr("内置存储"));
       if(slot->callback)lv_obj_remove_event_cb(tile,slot->callback);
       slot->callback=i<builtin_count?callbacks[i]:external_qapp_clicked;
       lv_obj_add_event_cb(tile,slot->callback,LV_EVENT_CLICKED,i<builtin_count?NULL:(void *)(intptr_t)(i-builtin_count));
@@ -1106,24 +1137,49 @@ glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorde
       else lv_obj_remove_state(tile,LV_STATE_DISABLED);
       lv_obj_remove_flag(tile,LV_OBJ_FLAG_HIDDEN);
     }
-  char count_text[64];snprintf(count_text,sizeof(count_text),"共 %d 个应用 · 第 %d / %d 页",total,g_apps_page_index+1,pages);
+  char count_text[64];snprintf(count_text,sizeof(count_text),glass_tr("共 %d 个应用 · 第 %d / %d 页"),total,g_apps_page_index+1,pages);
   lv_label_set_text(g_apps_count,count_text);
   glass_pager_update(g_apps_pager,g_apps_page_index,pages,!g_apps_remove_timer);
   /* Page selection replaces content in place, without a floating translation. */
   g_apps_direction=0;
-  if (g_desktop.qpk_scan_failed) show_toast("内存不足，部分应用暂未列出；请稍后重新打开");
+  if (g_desktop.qpk_scan_failed) show_toast(glass_tr("内存不足，部分应用暂未列出；请稍后重新打开"));
+}
+
+static lv_obj_t *g_edge_strips[3];
+static void glass_edge_lock(bool locked)
+{
+  for(unsigned i=0;i<3;i++) if(g_edge_strips[i]) {
+    if(locked)lv_obj_add_flag(g_edge_strips[i],LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_remove_flag(g_edge_strips[i],LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 #include "glass_home_ui.inc"
+#include "glass_global_fonts.inc"
 #include "glass_lockscreen.inc"
 #include "glass_status_ui.inc"
 
+static void glass_language_refresh(void)
+{
+  glass_rebuild();
+  g_status_ui.valid=false;
+  glass_status_tick();
+  if(g_desktop.settings_page){
+    lv_async_call_cancel(settings_rebuild_async,NULL);
+    g_desktop.settings_rebuild_pending=true;
+    settings_rebuild_async(NULL);
+  }
+}
+
 static bool g_edge_back_pending;
+static bool g_edge_home_pending;
+static lv_style_prop_t g_edge_translate = LV_STYLE_TRANSLATE_X;
 static bool g_edge_tracking;
 static lv_point_t g_edge_start;
 static lv_obj_t *g_edge_page;
 static void glass_edge_back_async(void *data);
 static lv_obj_t *g_edge_strip;
+static lv_indev_t *g_edge_input;
 static lv_style_value_t g_edge_saved;
 static bool g_edge_had_offset;
 static int g_edge_offset;
@@ -1131,15 +1187,15 @@ static void glass_edge_deleted(lv_event_t *event)
 {
   if(g_edge_page==lv_event_get_target(event)){
     lv_async_call_cancel(glass_edge_back_async,NULL);
-    g_edge_page=NULL;g_edge_tracking=false;g_edge_back_pending=false;g_edge_offset=0;
+    g_edge_page=NULL;g_edge_tracking=false;g_edge_back_pending=false;g_edge_home_pending=false;g_edge_offset=0;
   }
 }
 static void glass_edge_restore(bool animate)
 {
   LV_UNUSED(animate);
-  if(!g_edge_page||g_edge_page!=g_desktop.current_card)return;
-  if(g_edge_had_offset)lv_obj_set_local_style_prop(g_edge_page,LV_STYLE_TRANSLATE_X,g_edge_saved,0);
-  else lv_obj_remove_local_style_prop(g_edge_page,LV_STYLE_TRANSLATE_X,0);
+  if(!g_edge_offset||!g_edge_page||g_edge_page!=g_desktop.current_card)return;
+  if(g_edge_had_offset)lv_obj_set_local_style_prop(g_edge_page,g_edge_translate,g_edge_saved,0);
+  else lv_obj_remove_local_style_prop(g_edge_page,g_edge_translate,0);
   /* Gesture cancellation restores position immediately. */
   g_edge_offset=0;
 }
@@ -1148,68 +1204,86 @@ static void glass_edge_restore(bool animate)
 static void glass_edge_back_async(void *data)
 {
   LV_UNUSED(data);
+  bool home = g_edge_home_pending;
   g_edge_back_pending = false;
+  g_edge_home_pending = false;
   /* Ignore a gesture if another action changed the page before dispatch. */
   if (g_lock_ui.root || g_edge_page != g_desktop.current_card) return;
-  if(g_music_ui.full){music_full_close(NULL);return;}
+  if(home){panel_hide(NULL);return;}
   if (g_desktop.dialog != NULL)
     dialog_cancel();
+  else if(g_music_ui.full) music_full_close(NULL);
+#ifdef CONFIG_SYSTEM_BILIBILI_LIVE
+  else if(local_video_back(g_desktop.current_card)) return;
+  else if(local_album_back(g_desktop.current_card)) return;
+#endif
   else if (!lv_obj_has_flag(g_desktop.panel, LV_OBJ_FLAG_HIDDEN))
     {
       if (g_desktop.chat_page) glass_chat_back(NULL);
       else if (portal_page == g_desktop.current_card) portal_go_back(NULL);
       else if (g_desktop.qapp_page) qapp_back(NULL);
       else if (g_music_ui.root==g_desktop.current_card) music_ui_back(NULL);
+      else if (g_files_shell == g_desktop.current_card)glass_files_back(NULL);
+      else if (g_desktop.page_back) g_desktop.page_back(NULL);
       else panel_hide(NULL);
     }
 }
 
 static void glass_edge_event(lv_event_t *e)
 {
-  lv_indev_t *input = lv_indev_active();
-  if (input == NULL) return;
+  lv_indev_t *input = lv_event_get_indev(e);
+  if (input == NULL || lv_indev_get_type(input)!=LV_INDEV_TYPE_POINTER) return;
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t *strip = lv_event_get_target(e);
   if (code == LV_EVENT_PRESSED)
     {
       if(g_lock_ui.root||!g_desktop.current_card||g_edge_back_pending)return;
+      if(g_edge_tracking&&g_edge_input!=input)return;
       glass_edge_restore(false);
       glass_motion_cancel(g_desktop.current_card);
       lv_indev_get_point(input, &g_edge_start);
       g_edge_tracking = true;
-      g_edge_strip = strip;
+      g_edge_strip = strip;g_edge_input=input;
       g_edge_page = g_desktop.current_card;g_edge_offset=0;
-      g_edge_had_offset=lv_obj_get_local_style_prop(g_edge_page,LV_STYLE_TRANSLATE_X,&g_edge_saved,0)==LV_STYLE_RES_FOUND;
+      g_edge_translate = (uintptr_t)lv_event_get_user_data(e) == 2 ?
+        LV_STYLE_TRANSLATE_Y : LV_STYLE_TRANSLATE_X;
+      g_edge_had_offset=lv_obj_get_local_style_prop(g_edge_page,g_edge_translate,&g_edge_saved,0)==LV_STYLE_RES_FOUND;
       bool watched=false;
       for(unsigned i=0;i<lv_obj_get_event_count(g_edge_page);i++)
         if(lv_event_dsc_get_cb(lv_obj_get_event_dsc(g_edge_page,i))==glass_edge_deleted)watched=true;
       if(!watched)lv_obj_add_event_cb(g_edge_page,glass_edge_deleted,LV_EVENT_DELETE,NULL);
     }
-  else if (code == LV_EVENT_PRESSING && g_edge_tracking && strip == g_edge_strip)
+  else if ((code == LV_EVENT_PRESSING || code == LV_EVENT_RELEASED) &&
+           g_edge_tracking && strip == g_edge_strip && input == g_edge_input)
     {
       lv_point_t point;
       lv_indev_get_point(input, &point);
       int dx = point.x - g_edge_start.x;
-      int dy = abs(point.y - g_edge_start.y);
-      bool right = (uintptr_t)lv_event_get_user_data(e) != 0;
-      int inward = right ? -dx : dx;
+      int dy = point.y - g_edge_start.y;
+      uintptr_t side = (uintptr_t)lv_event_get_user_data(e);
+      int inward = side == 2 ? -dy : side == 1 ? -dx : dx;
+      int cross = abs(side == 2 ? dx : dy);
       if(g_edge_page!=g_desktop.current_card){g_edge_tracking=false;return;}
-      if (dy > 48){g_edge_tracking=false;glass_edge_restore(true);}
-      else if (inward >= 72 && inward > 2 * dy)
+      int threshold=side==2?72:48,drift=side==2?48:64;
+      bool directed=side==2?inward>2*cross:2*inward>3*cross;
+      if (cross > drift){g_edge_tracking=false;glass_edge_restore(true);}
+      else if (inward >= threshold && directed)
         {
           g_edge_tracking = false;
-          lv_indev_wait_release(input);
+          if(code!=LV_EVENT_RELEASED)lv_indev_wait_release(input);
           glass_edge_restore(false);
           /* Delete after pointer dispatch, without an exit-animation delay. */
-          if(!g_edge_back_pending&&lv_async_call(glass_edge_back_async,NULL)==LV_RESULT_OK)g_edge_back_pending=true;
+          if(!g_edge_back_pending&&lv_async_call(glass_edge_back_async,NULL)==LV_RESULT_OK){
+            g_edge_home_pending = side == 2;
+            g_edge_back_pending = true;
+          }
         }
-      else if(!g_motion_reduced&&!g_desktop.dialog){
-        int distance=inward<0?0:inward/4;if(distance>24)distance=24;
-        g_edge_offset=right?-distance:distance;
-        lv_obj_set_style_translate_x(g_edge_page,(g_edge_had_offset?g_edge_saved.num:0)+g_edge_offset,0);
-      }
+      /* Keep text and controls stationary while tracking. Translating an
+       * entire page on each input sample rerasterizes SD fonts and delays
+       * the next touch read. Commit once after the bounded gesture. */
+      else if(code==LV_EVENT_RELEASED){glass_edge_restore(true);g_edge_tracking=false;}
     }
-  else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST){
+  else if ((code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) && input==g_edge_input){
     if(g_edge_tracking)glass_edge_restore(true);
     g_edge_tracking=false;
   }
@@ -1217,12 +1291,14 @@ static void glass_edge_event(lv_event_t *e)
 
 static void glass_edge_back_create(void)
 {
-  for (int side = 0; side < 2; side++)
+  for (int side = 0; side < 3; side++)
     {
-      lv_obj_t *strip = lv_obj_create(lv_layer_top());
+      lv_obj_t *strip = lv_obj_create(lv_layer_sys());
+      g_edge_strips[side] = strip;
       lv_obj_remove_style_all(strip);
-      lv_obj_set_pos(strip, side ? 1004 : 0, 0);
-      lv_obj_set_size(strip, 20, 600);
+      /* The bottom strip is created last and owns both lower corners. */
+      lv_obj_set_pos(strip, side == 1 ? 996 : 0, side == 2 ? 580 : 0);
+      lv_obj_set_size(strip, side == 2 ? 1024 : 28, side == 2 ? 20 : 600);
       lv_obj_remove_flag(strip, LV_OBJ_FLAG_SCROLLABLE);
       lv_obj_remove_flag(strip, LV_OBJ_FLAG_GESTURE_BUBBLE);
       lv_obj_add_flag(strip, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK);
@@ -1242,10 +1318,10 @@ static int pet_fill_weather(char *buf, size_t size)
   glass_weather_get(&weather);
   if (weather.valid && weather.state == WEATHER_READY)
     {
-      snprintf(buf, size, "%s今天%d°，%s",
-               weather.data.location[0] ? weather.data.location : "这里",
+      snprintf(buf, size, glass_tr("%s今天%d°，%s"),
+               weather.data.location[0] ? weather.data.location : glass_tr("这里"),
                weather.data.temperature,
-               weather.data.condition[0] ? weather.data.condition : "不明");
+               weather.data.condition[0] ? glass_tr(weather.data.condition) : glass_tr("不明"));
       return 0;
     }
 
@@ -1253,16 +1329,18 @@ static int pet_fill_weather(char *buf, size_t size)
       weather.state == WEATHER_WAIT_NET ||
       weather.state == WEATHER_WAIT_TIME)
     {
-      snprintf(buf, size, "天气还在路上，先摸会鱼");
+      snprintf(buf, size, glass_tr("天气还在路上，先摸会鱼"));
       return 0;
     }
 
-  snprintf(buf, size, "今天适合摸鱼，别问温度。");
+  snprintf(buf, size, glass_tr("今天适合摸鱼，别问温度。"));
   return 0;
 }
 
 static void desktop_ui_create(void)
 {
+  /* The resident desktop owns the PWM fd for the lifetime of the display. */
+  (void)glass_backlight_set(100);
   size_t size = (size_t)(g_desktop_font_end - g_desktop_font_start);
   memset(&g_desktop, 0, sizeof(g_desktop));
   memset(&g_glass, 0, sizeof(g_glass));
@@ -1305,7 +1383,9 @@ static void desktop_ui_create(void)
   if (g_desktop.font16) g_desktop.font16->fallback = glass_icon_font(16);
   if (g_desktop.font20) g_desktop.font20->fallback = glass_icon_font(20);
   if (g_desktop.font28) g_desktop.font28->fallback = glass_icon_font(24);
+  glass_global_fonts_init();
   glass_sd_font_start();
+  glass_i18n_start();
   g_desktop.screen = glass_box(lv_screen_active(), 0, GLASS_STATUS_HEIGHT,
                                 1024, GLASS_CONTENT_HEIGHT, theme_card(), 0);
   lv_obj_set_style_text_font(g_desktop.screen, zh_font(20), 0);

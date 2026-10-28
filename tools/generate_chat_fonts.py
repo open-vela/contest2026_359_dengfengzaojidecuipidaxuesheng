@@ -14,4 +14,5 @@ for name in ('glass_code', 'glass_bold'):
     rows = ['  ' + ','.join(f'0x{value:02x}' for value in data[i:i+16]) + ',' for i in range(0, len(data), 16)]
     chunks.append('const unsigned char ' + name + '_font_data[] = {\n' + '\n'.join(rows) + '\n};')
     chunks.append('const size_t ' + name + '_font_size = sizeof(' + name + '_font_data);')
+chunks.append('#include "glass_heading.inc"')
 (root / 'glass_code_font.c').write_text('\n'.join(chunks) + '\n')

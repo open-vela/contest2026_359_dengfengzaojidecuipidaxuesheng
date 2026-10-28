@@ -57,10 +57,13 @@ int glass_music_play(const struct music_song *song);
  * Query and revision are checked atomically; URLs never cross the tool API. */
 int glass_music_play_result(const char *query, unsigned result_id, unsigned *track_id);
 void glass_music_toggle(void);
+/* Worker performs an accurate decoded-sample seek. Reject stale UI gestures. */
+int glass_music_seek(unsigned track_id, unsigned position_ms);
 /* Idempotent transport control: never starts or toggles a different track. */
 int glass_music_set_paused(bool paused);
 void glass_music_stop(void);
 int glass_music_stop_wait(unsigned timeout_ms);
+/* Set the shared system speaker volume (clamped to 0..100). */
 void glass_music_volume(unsigned volume);
 int glass_music_favorite(const struct music_song *song);
 bool glass_music_is_favorite(const struct music_snapshot *state, const struct music_song *song);

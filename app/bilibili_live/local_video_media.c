@@ -2,6 +2,7 @@
 #include "local_video_media.h"
 #include "bili_decoder.h"
 #include "bili_cpu.h"
+#include "bili_late_pacer.h"
 #include "aacdec.h"
 #include "qpk_mjpeg.h"
 #include <strings.h>
@@ -70,7 +71,8 @@ struct local_video {
   FILE *file;
   struct file_reader reader;
   int video_track, audio_track;
-  uint64_t size, start_ms, pause_started, pause_total, last_display_ms;
+  uint64_t size, start_ms, pause_started, pause_total;
+  struct bili_late_pacer late_pacer;
   void *decoder;
   uint64_t callback_us, render_us, read_us, decode_us;
 };
@@ -163,12 +165,12 @@ static int timed_frame(void *opaque,const uint8_t *const planes[3],const int str
    * Dropping every late picture starves the viewport indefinitely. */
   uint64_t display_now=now_ms();
   bool late=(uint64_t)clock>pts+150;
-  bool drop=late && s->state.frames && display_now-s->last_display_ms<bili_cpu_frame_period_us()/1000;
+  bool drop=bili_late_drop(&s->late_pacer,display_now,late,bili_cpu_frame_period_us()/1000);
   uint64_t render_started=now_us();
   int ret=drop?0:s->ops.frame(s->opaque,planes,strides,w,h);
   s->render_us+=now_us()-render_started;
   pthread_mutex_lock(&s->lock);
-  if(drop)s->state.dropped++;else {s->state.frames++;s->last_display_ms=display_now;}
+  if(drop)s->state.dropped++;else s->state.frames++;
   s->state.video_ms=pts;
   s->state.late_ms=clock>pts?clock-pts:0;
   s->state.position_ms=clock;
@@ -373,6 +375,7 @@ done:
   printf("[local-video] finished error=%d index_remaining=%lu\n",ret,(unsigned long)atomic_load(&index_used));return ret;
 }
 void local_video_cancel(struct local_video *s){if(s)atomic_store(&s->cancel,true);}
+bool local_video_cancelled(struct local_video *s){return !s || atomic_load(&s->cancel);}
 void local_video_pause(struct local_video *s,bool pause)
 {
   if(!s)return;pthread_mutex_lock(&s->lock);

@@ -61,7 +61,9 @@ def main():
     p.add_argument('--source-revision',help='Explicit 40-hex source revision for Windows-mounted Git worktrees')
     p.add_argument('--usb-camera',action='store_true',help='Include the dedicated P4 HS/UTMI UVC MJPEG host alongside the existing CSI camera')
     p.add_argument('--psram-xip',action='store_true',help='Opt-in experimental P4 Simple Boot text/rodata PSRAM XIP; requires dedicated trial workspace and physical validation')
+    p.add_argument('--lcd-backlight',action='store_true',help='Reserve PWM0/GPIO26 for factory LCD J6 PWM brightness (5 kHz, single channel)')
     p.add_argument('--hardware-jpeg',action='store_true',help='Opt-in native P4 JPEG decoder with shared PPA/DMA2D ownership; requires image and display validation')
+    p.add_argument('--video-blit',action='store_true',help='Opt-in synchronous PPA/DMA2D image blit inside LVGL ownership, with non-halting stage timers')
     p.add_argument('--ethernet-share',action='store_true',help='Opt-in eth0 to SoftAP NAT44 with resident wired DHCP ownership')
     p.add_argument('--share-forward-slots',type=int,choices=[4,8,16],default=4,help='Bounded static forwarding pool; requires --ethernet-share for non-default values')
     p.add_argument('--share-net-stats',action='store_true',help='Enable native network statistics for an Ethernet-sharing diagnostic candidate')
@@ -157,6 +159,10 @@ def main():
     ble_identity=create_ble_identity(root/'apps',out)
     from instrument_p4_timing import apply as apply_camera_timing
     camera_timing_sources=apply_camera_timing(root/'nuttx')
+    from prepare_video_blit import apply as prepare_video_blit
+    video_blit_sources=prepare_video_blit(root/'apps',a.video_blit)
+    from prepare_lvgl_event_dispatch import apply as prepare_lvgl_event_dispatch
+    lvgl_event_sources=prepare_lvgl_event_dispatch(root/'apps')
     from protect_p4_display_flash import restore as restore_display_flash
     display_flash_sources={'enabled':False,'rejected_cache_off_irq_removed':
                           restore_display_flash(root/'nuttx')}
@@ -168,19 +174,36 @@ def main():
     if a.psram_xip:
         from prepare_p4_psram_xip import apply as prepare_psram_xip
         psram_xip_sources=prepare_psram_xip(root/'nuttx')
+    from prepare_openvela_exec_pool import apply as prepare_browser_pool
+    browser_pool_sources=prepare_browser_pool(root/'nuttx')
+    for path in browser_pool_sources:
+        psram_xip_sources[str(path.relative_to(root/'nuttx'))]=hashlib.sha256(path.read_bytes()).hexdigest()
+    from openvela_response_headers import apply as prepare_response_headers
+    webclient=root/'apps/netutils/webclient/webclient.c'
+    if '  char line[16384];' not in webclient.read_text():
+        webclient.write_text(prepare_response_headers(webclient.read_text()))
+
     speech_libraries=[]
     desktop_make=root/'apps/system/desktop/Makefile'
     make=desktop_make.read_text()
+    from prepare_video_framebuffer import apply as prepare_video_framebuffer
+    video_framebuffer_sources=prepare_video_framebuffer(root/'nuttx',a.video_blit)
+    backlight_sources={'implementation':'screen_pwm LEDC PWM0','enabled':a.lcd_backlight}
     make=make.split('# BEGIN OPTIONAL LOCAL SPEECH')[0].rstrip()+'\n'
     if a.speech_runtime:
         prepared=a.speech_runtime.resolve()
         make+='\n# BEGIN OPTIONAL LOCAL SPEECH\nCFLAGS += -DGLASS_LOCAL_SPEECH -DQPK_DL_SD_ONLY\n'
     if desktop_make.read_text()!=make:desktop_make.write_text(make)
+    if a.video_blit:
+        with desktop_make.open('a') as file:file.write('\nCFLAGS += -DGLASS_VIDEO_BLIT\n')
 
     # No private credential header is imported into the candidate.
     for name in ['music_credentials.h','music_api_key.h']:
         (root/'apps/system/desktop'/name).unlink(missing_ok=True)
     run(['python3',repo/'tools/install_bilibili_live.py','--apps',root/'apps','--archive',a.archive])
+    if a.video_blit:
+        with (root/'apps/system/bilibili_live/Makefile').open('a') as file:
+            file.write('\nCFLAGS += -DGLASS_VIDEO_BLIT\n')
     run(['../tools/mkkconfig.sh','-m','System Libraries and NSH Add-Ons','-o','Kconfig'],cwd=root/'apps/system')
     import re
     cfg=root/'nuttx/.config';s=cfg.read_text() if (root/'bilibili-clean.txt').exists() else (base/'nuttx/.config').read_text()
@@ -190,6 +213,11 @@ def main():
     # pool bounded (48 KiB payload) and leave internal RAM for DMA/threads.
     for name,value in [('ESP32P4_FLASH_AUTO_SUSPEND','y' if a.flash_auto_suspend_jedec else 'n'),('ESPRESSIF_STORAGE_MTD_OFFSET',hex(data_offset)),('ESPRESSIF_STORAGE_MTD_SIZE',hex(data_size)),('LIBM','y'),('LIBM_TOOLCHAIN','n'),('LIBM_NONE','n'),('NET_BROADCAST','y'),('SYSTEM_BILIBILI_LIVE','y'),('PTHREAD_MUTEX_TYPES','y'),('NSH_DISABLE_DATE','n'),
                        ('ESP32P4_PSRAM_XIP','y' if a.psram_xip else 'n'),
+                       ('ESP32P4_LCD_BACKLIGHT','n'),
+                       ('OV_BROWSER_TEXT_POOL','y'),('MODULE','y'),('LIBC_ARCH_ELF','y'),('LIBC_ELF','y'),
+                       ('LIBC_LOCALE','y'),('LIBC_LOCALE_CHINESE','y'),
+                       ('LIBC_ELF_MAXDEPEND','2'),('LIBC_ELF_RELOCATION_BUFFERCOUNT','256'),('LIBC_ELF_SYMBOL_CACHECOUNT','256'),
+                       ('ESPRESSIF_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY','y'),
                        ('ESP32P4_JPEG','y' if a.hardware_jpeg else 'n'),
                        ('NET_IPFORWARD','y' if a.ethernet_share else 'n'),
                        ('NET_NAT','y' if a.ethernet_share else 'n'),
@@ -239,10 +267,16 @@ def main():
         if n!=1:p.error('Prepared NimBLE connection capacity missing or duplicated')
         cfg.write_text(s)
     if a.factory_header:
-        for key,value in [('ESPRESSIF_I2C1_SDAPIN',2),('ESPRESSIF_I2C1_SCLPIN',3),('ESPRESSIF_SPI2_CSPIN',6),('ESPRESSIF_LEDC_CHANNEL0_PIN',2)]:
+        for key,value in [('ESPRESSIF_I2C1_SDAPIN',2),('ESPRESSIF_I2C1_SCLPIN',3),('ESPRESSIF_SPI2_CSPIN',6),('ESPRESSIF_LEDC_CHANNEL0_PIN',26 if a.lcd_backlight else 2)]:
             name='CONFIG_'+key;pattern=r'^'+name+r'=.*$'
             if re.search(pattern,s,re.M):s=re.sub(pattern,name+'='+str(value),s,flags=re.M)
             else:s+='\n'+name+'='+str(value)+'\n'
+        if cfg.read_text()!=s:cfg.write_text(s)
+    if a.lcd_backlight:
+        for key,value in [('PWM','y'),('ESPRESSIF_LEDC','y'),('ESPRESSIF_LEDC_TIMER0','y'),('ESPRESSIF_LEDC_TIMER0_CHANNELS','1'),('ESPRESSIF_LEDC_TIMER0_RESOLUTION','13'),('ESPRESSIF_LEDC_CHANNEL0_PIN','26')]:
+            name='CONFIG_'+key;pattern=r'^(?:'+name+r'=.*|# '+name+r' is not set)$'
+            s=re.sub(pattern,name+'='+value,s,flags=re.M) if re.search(pattern,s,re.M) else s+'\n'+name+'='+value+'\n'
+        if 'CONFIG_PWM_MULTICHAN=y' in s:p.error('LCD backlight requires the prepared single-channel PWM ABI')
         if cfg.read_text()!=s:cfg.write_text(s)
     if a.usb_camera:
         s=re.sub(r'^(?:CONFIG_ESP32P4_CAMERA_USB=.*|# CONFIG_ESP32P4_CAMERA_USB is not set)$','CONFIG_ESP32P4_CAMERA_USB=y',s,flags=re.M)
@@ -262,9 +296,14 @@ def main():
     if a.ble_connections is not None and f'CONFIG_NIMBLE_BLE_MAX_CONN={a.ble_connections}\n' not in config:
         raise RuntimeError('Requested NimBLE connection capacity disabled by Kconfig')
     if a.factory_header:
-        for value in ['CONFIG_ESPRESSIF_I2C1_SDAPIN=2','CONFIG_ESPRESSIF_I2C1_SCLPIN=3','CONFIG_ESPRESSIF_SPI2_CSPIN=6','CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN=2']:
+        for value in ['CONFIG_ESPRESSIF_I2C1_SDAPIN=2','CONFIG_ESPRESSIF_I2C1_SCLPIN=3','CONFIG_ESPRESSIF_SPI2_CSPIN=6','CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN='+('26' if a.lcd_backlight else '2')]:
             if value not in config:raise RuntimeError('Factory J1 pin configuration missing: '+value)
+    if a.lcd_backlight:
+        for value in ['CONFIG_PWM=y','CONFIG_ESPRESSIF_LEDC_TIMER0=y','CONFIG_ESPRESSIF_LEDC_TIMER0_CHANNELS=1','CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN=26']:
+            if value+'\n' not in config:raise RuntimeError('LCD backlight disabled by Kconfig: '+value)
+        if 'CONFIG_PWM_MULTICHAN=y\n' in config:raise RuntimeError('LCD backlight PWM ABI mismatch')
     if a.usb_camera and 'CONFIG_ESP32P4_CAMERA_USB=y' not in config:raise RuntimeError('USB camera disabled by Kconfig')
+    if 'CONFIG_ESP32P4_LCD_BACKLIGHT=y' in config:raise RuntimeError('Old MCPWM backlight conflicts with the selected LEDC route')
     for option in ['NETUTILS_DHCPD','NET_BINDTODEVICE','SCHED_WAITPID']:
         if 'CONFIG_'+option+'=y\n' not in config:raise RuntimeError('SoftAP recovery dependency not enabled: '+option)
     if a.ethernet_share:
@@ -313,6 +352,9 @@ def main():
         speech_compile=json.loads((out/'speech/compile.json').read_text())
         speech_libraries=[archive]+[Path(path) for path in speech_compile['link_libraries']]
         libs=['--start-group',*speech_libraries,*libs,'--end-group']
+    from build_integrated_browser_loader import build as build_browser_loader
+    browser_loader=build_browser_loader(root,out,env)
+    libs=[browser_loader,*libs]
     run(['make',f'-j{a.jobs}',cross,f'ESPCLAW_TLS_CFLAGS={includes}','EXTRA_LIBS='+' '.join(map(str,libs))],cwd=root/'nuttx')
     program_limit=data_offset
     if 0x2000+(root/'nuttx/nuttx.bin').stat().st_size>program_limit:raise RuntimeError('Firmware overlaps reserved storage')
@@ -355,7 +397,9 @@ def main():
     if revision:
         if not re.fullmatch('[0-9a-f]{40}',revision):p.error('source-revision must be 40-hex')
     else:revision=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip()
-    metadata={'camera_timing':camera_timing_sources,
+    metadata={'native_browser':{'enabled':True,'reserved_pool_bytes':0x300000,'loader_sha256':sha(browser_loader),'pool_sources':{str(path.relative_to(root/'nuttx')):sha(path) for path in browser_pool_sources},'webclient_sha256':sha(webclient)},'camera_timing':camera_timing_sources,
+              'lvgl_event_dispatch':{'sources':lvgl_event_sources,
+                'tool_sha256':sha(repo/'tools/prepare_lvgl_event_dispatch.py')},
               'hardware_jpeg':{'enabled':a.hardware_jpeg,
                 'sdk_sources':{name:sha(root/'nuttx/arch/risc-v/src/esp32p4/esp-hal-3rdparty'/name)
                   for name in ['components/esp_hal_jpeg/jpeg_hal.c',
@@ -394,12 +438,18 @@ def main():
               'tts_backend':a.tts_backend if a.speech_runtime else None,'ebss':hex(int(bss.group(1),16)),
               'usb_camera':a.usb_camera,
               'factory_header':a.factory_header,
+              'lcd_backlight':{'enabled':a.lcd_backlight,'pin':26 if a.lcd_backlight else None,'device':'/dev/pwm0' if a.lcd_backlight else None,'frequency':5000,'minimum_percent':10,'startup_percent':100},
               'esp_tts_voice_storage':a.esp_tts_storage if a.esp_tts_prepared else None,
               'compiler':subprocess.check_output([str(tc/'riscv32-esp-elf-gcc'),'--version'],text=True).splitlines()[0],
               'flash_offset':'0x2000','program_limit':hex(program_limit),'vision_models_sd_only':True,'data_offset':hex(data_offset),'data_size':hex(data_size),'flash_layout':f'{data_offset//0x100000}m-firmware-{data_size//0x100000}m-data','board_tested':False,'l2_cache_kb':a.l2_kb,
               'sha256':{name:sha(out/name) for name in ['nuttx.bin','nuttx.elf','resolved.config']},
               'reused_libraries':{str(lib):sha(Path(lib)) for lib in libs if Path(lib).is_file()},
-              'source_sha256':copied_source_hashes}
+              'source_sha256':copied_source_hashes,
+              'backlight':backlight_sources,
+              'video_blit':{'enabled':a.video_blit,'lvgl_sources':video_blit_sources,
+                            'framebuffer_sources':{name:sha(root/'nuttx'/name) for name in video_framebuffer_sources},
+                            'framebuffer_tool_sha256':sha(repo/'tools/prepare_video_framebuffer.py'),
+                            'tool_sha256':sha(repo/'tools/prepare_video_blit.py')}}
     if source_inputs()!=copied_source_hashes:
         raise RuntimeError('Source inputs changed during build; rebuild before deployment')
     if a.speech_runtime:

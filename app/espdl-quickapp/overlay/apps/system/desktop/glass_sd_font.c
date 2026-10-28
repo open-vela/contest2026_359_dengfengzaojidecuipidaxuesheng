@@ -4,6 +4,7 @@
  * stay unchanged. STB symbols inside LVGL are already static.
  */
 #include "glass_sd_font.h"
+#include "glass_i18n.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@
 #ifndef GLASS_SD_FONT_PATH
 #define GLASS_SD_FONT_PATH SD_FONT_DEFAULT_PATH
 #endif
-#define SD_FONT_SIZES 5
+#define SD_FONT_SIZES 12
 #define SD_FONT_PAGE_BYTES 4096u
 #define SD_FONT_PAGE_COUNT 32u
 struct sd_font_page {
@@ -47,9 +48,10 @@ struct sd_font_state {
 };
 /* Keep descriptors/caches in PSRAM, not scarce internal static RAM. */
 static struct sd_font_state *sd_fonts;
-static const unsigned sd_sizes[SD_FONT_SIZES]={16,20,28,48,72};
-static const unsigned sd_counts[SD_FONT_SIZES]={96,128,128,32,24};
+static const unsigned sd_sizes[SD_FONT_SIZES]={12,14,16,20,28,32,34,40,48,64,72,128};
+static const unsigned sd_counts[SD_FONT_SIZES]={48,64,96,128,128,24,24,24,32,16,24,4};
 struct sd_font_file { uint32_t position; };
+#include "glass_font_choice.inc"
 
 static void *sd_font_check(void *arg)
 {
@@ -76,6 +78,7 @@ static void *sd_font_check(void *arg)
     if(ferror(file)||total!=SD_FONT_BYTES||hash!=SD_FONT_FNV)error=-EIO;
   }
   free(buffer);if(file)fclose(file);
+  font_choice_read();
   pthread_mutex_lock(&s->lock);
   s->error=error;s->checked=true;
   pthread_mutex_unlock(&s->lock);

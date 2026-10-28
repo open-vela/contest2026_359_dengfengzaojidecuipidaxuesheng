@@ -46,7 +46,12 @@ int main(void)
 #else
   assert(get(cJSON_GetArrayItem(get(r,"i2c"),0),"sda")->valueint==2);
   assert(get(cJSON_GetArrayItem(get(r,"spi"),0),"cs")->valueint==6);
+#ifdef BACKLIGHT_PINS
+  assert(cJSON_GetArraySize(get(r,"pwm"))==3);
+  cJSON_ArrayForEach(item,get(r,"pwm"))assert(get(item,"channel")->valueint!=0&&get(item,"pin")->valueint!=26);
+#else
   assert(get(cJSON_GetArrayItem(get(r,"pwm"),0),"pin")->valueint==2);
+#endif
   assert(QPK_I2C_MASK==12&&QPK_SPI_MASK==120&&QPK_UART_MASK==48);
 #endif
 #endif

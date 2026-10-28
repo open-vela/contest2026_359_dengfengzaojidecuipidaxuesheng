@@ -1,0 +1,136 @@
+--- a/netsurf/content/handlers/html/canvas.c
++++ b/netsurf/content/handlers/html/canvas.c
+@@ -77,7 +77,7 @@
+ 	dom_node *node;
+ 
+ 	int w, h;
+-	uint8_t *px;        /* RGBA, straight alpha, stride w*4 */
++	uint8_t *px;        /* RGBA; NULL is an untouched transparent surface */
+ 
+ 	struct bitmap *bmp; /* page copy */
+ 	bool dirty;
+@@ -91,6 +91,18 @@
+ };
+ 
+ static void cv_redraw_cb(void *p);
++
++/* A context or size query does not need a backing store. Materialise only
++ * when pixels will be written or consumed as a drawImage source. */
++static bool cv_ensure_pixels(struct html_canvas *cv)
++{
++	if (cv->px != NULL)
++		return true;
++	if (cv->w <= 0 || cv->h <= 0)
++		return false;
++	cv->px = calloc((size_t)cv->w * cv->h, 4);
++	return cv->px != NULL;
++}
+ 
+ /* ------------------------------------------------------------------ */
+ /* State                                                              */
+@@ -183,8 +195,6 @@
+ /* exported interface documented in html/canvas.h */
+ void html_canvas_set_size(struct html_canvas *cv, int w, int h)
+ {
+-	uint8_t *px;
+-
+ 	if (w < 0)
+ 		w = 0;
+ 	if (h < 0)
+@@ -194,11 +204,8 @@
+ 	if (h > CANVAS_MAX_DIM)
+ 		h = CANVAS_MAX_DIM;
+ 
+-	px = calloc((size_t)(w ? w : 1) * (h ? h : 1), 4);
+-	if (px == NULL)
+-		return;
+ 	free(cv->px);
+-	cv->px = px;
++	cv->px = NULL;
+ 	cv->w = w;
+ 	cv->h = h;
+ 	if (cv->bmp != NULL) {
+@@ -340,7 +347,8 @@
+ 	size_t stride;
+ 	int row;
+ 
+-	if (cv == NULL || cv->w == 0 || cv->h == 0 || w <= 0 || h <= 0)
++	if (cv == NULL || cv->px == NULL || cv->w == 0 || cv->h == 0 ||
++	    w <= 0 || h <= 0)
+ 		return true;
+ 
+ 	if (cv->bmp == NULL) {
+@@ -928,6 +936,8 @@
+ 	if (y1 > c[3]) y1 = c[3];
+ 	if (x0 >= x1 || y0 >= y1)
+ 		return false;
++	if (!cv_ensure_pixels(cv))
++		return false;
+ 	r->x0 = x0;
+ 	r->y0 = y0;
+ 	r->w = x1 - x0;
+@@ -1001,7 +1011,7 @@
+ 	float x0, y0, x1, y1;
+ 	int s, k;
+ 
+-	if (p->npt < 3 || cv->px == NULL)
++	if (p->npt < 3)
+ 		return;
+ 	cv_path_bbox(p, 0, &x0, &y0, &x1, &y1);
+ 	if (!cv_raster_begin(cv, &r, x0, y0, x1, y1))
+@@ -1026,7 +1036,7 @@
+ 	float x0, y0, x1, y1, hw;
+ 	int s;
+ 
+-	if (p->npt < 1 || cv->px == NULL)
++	if (p->npt < 1)
+ 		return;
+ 	hw = (float)(cv->st.line_width * cv_scale(cv->st.m) / 2);
+ 	if (!(hw > 0))
+@@ -1234,7 +1244,7 @@
+ 	float ga = (float)cv->st.global_alpha;
+ 	bool smooth = cv->st.smoothing;
+ 
+-	if (cv->px == NULL || px == NULL || pw <= 0 || ph <= 0 ||
++	if (px == NULL || pw <= 0 || ph <= 0 ||
+ 	    sw == 0 || sh == 0 || dw == 0 || dh == 0)
+ 		return;
+ 
+@@ -1258,6 +1268,8 @@
+ 	if (iy0 < c[1]) iy0 = c[1];
+ 	if (ix1 > c[2]) ix1 = c[2];
+ 	if (iy1 > c[3]) iy1 = c[3];
++	if (ix0 >= ix1 || iy0 >= iy1 || !cv_ensure_pixels(cv))
++		return;
+ 
+ 	for (y = iy0; y < iy1; y++) {
+ 		uint8_t *d = cv->px + ((size_t)y * cv->w + ix0) * 4;
+@@ -1461,7 +1473,7 @@
+ 		struct html_canvas *o = html_canvas_for_node(cv->html, src,
+ 				true);
+ 		uint8_t *copy;
+-		if (o == NULL || o->px == NULL || o->w == 0 || o->h == 0)
++		if (o == NULL || !cv_ensure_pixels(o))
+ 			return false;
+ 		if (!have_src_rect) {
+ 			sx = sy = 0;
+@@ -1535,7 +1547,7 @@
+ {
+ 	int row;
+ 
+-	if (cv->px == NULL)
++	if (!cv_ensure_pixels(cv))
+ 		return;
+ 	if (sx < 0) { sw += sx; sx = 0; }
+ 	if (sy < 0) { sh += sy; sy = 0; }
+@@ -1670,8 +1682,8 @@
+ 	uint32_t c = paint->type == CANVAS_PAINT_COLOUR ? paint->colour :
+ 			(paint->nstops > 0 ? paint->stop_colour[0] : 0xff000000);
+ 
+-	if (cv->px == NULL || guit->canvas == NULL ||
+-	    guit->canvas->fill_text == NULL || text[0] == '\0')
++	if (guit->canvas == NULL || guit->canvas->fill_text == NULL ||
++	    text[0] == '\0' || !cv_ensure_pixels(cv))
+ 		return;
+ 
+ 	cv_font_style(cv, scale, &fs);

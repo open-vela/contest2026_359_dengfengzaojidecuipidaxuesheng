@@ -1,0 +1,245 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -1851,23 +1851,7 @@
+ 	return new Uint8Array(out);
+ }
+ function utf8Decode(bytes) {
+-	var out = '', i = 0, n = bytes.length;
+-	var chunk = [];
+-	while (i < n) {
+-		var b = bytes[i++], c;
+-		if (b < 0x80) c = b;
+-		else if (b >= 0xc0 && b < 0xe0 && i < n) c = ((b & 31) << 6) | (bytes[i++] & 63);
+-		else if (b >= 0xe0 && b < 0xf0 && i + 1 < n) { c = ((b & 15) << 12) | ((bytes[i] & 63) << 6) | (bytes[i + 1] & 63); i += 2; }
+-		else if (b >= 0xf0 && i + 2 < n) {
+-			c = ((b & 7) << 18) | ((bytes[i] & 63) << 12) | ((bytes[i + 1] & 63) << 6) | (bytes[i + 2] & 63); i += 3;
+-			c -= 0x10000;
+-			chunk.push(0xd800 + (c >> 10), 0xdc00 + (c & 1023));
+-			c = -1;
+-		} else c = 0xfffd;
+-		if (c >= 0) chunk.push(c);
+-		if (chunk.length > 8192) { out += String.fromCharCode.apply(null, chunk); chunk = []; }
+-	}
+-	return out + String.fromCharCode.apply(null, chunk);
++	return new TextDecoder().decode(bytes);
+ }
+ function TextEncoder() {}
+ TextEncoder.prototype.encoding = 'utf-8';
+@@ -1905,18 +1889,158 @@
+ 	}
+ 	return { read: read, written: written };
+ };
+-function TextDecoder(label) { this.encoding = (label || 'utf-8').toLowerCase(); }
+-TextDecoder.prototype.decode = function (buf) {
+-	if (!buf) return '';
+-	var bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) :
+-		new Uint8Array(buf.buffer || buf, buf.byteOffset || 0, buf.byteLength !== undefined ? buf.byteLength : buf.length);
+-	if (this.encoding === 'utf-8' || this.encoding === 'utf8') {
+-		var start = (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) ? 3 : 0;
+-		return utf8Decode(start ? bytes.subarray(3) : bytes);
+-	}
+-	var s = '';
+-	for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+-	return s;
++var textDecoderStates = new WeakMap();
++var textDecoderLabels = Object.create(null);
++[
++	['utf-8', 'unicode-1-1-utf-8 unicode11utf8 unicode20utf8 utf-8 utf8 x-unicode20utf8'],
++	['utf-16le', 'csunicode iso-10646-ucs-2 ucs-2 unicode unicodefeff utf-16 utf-16le'],
++	['utf-16be', 'unicodefffe utf-16be'],
++	['windows-1252', 'ansi_x3.4-1968 ascii cp1252 cp819 csisolatin1 ibm819 iso-8859-1 iso-ir-100 iso8859-1 iso88591 iso_8859-1 iso_8859-1:1987 l1 latin1 us-ascii windows-1252 x-cp1252'],
++	['gbk', 'chinese csgb2312 csiso58gb231280 gb2312 gb_2312 gb_2312-80 gbk iso-ir-58 x-gbk'],
++	['gb18030', 'gb18030'],
++	['x-user-defined', 'x-user-defined']
++].forEach(function (entry) {
++	entry[1].split(' ').forEach(function (label) { textDecoderLabels[label] = entry[0]; });
++});
++var textDecoderCP1252 = [
++	0x20ac, 0x81, 0x201a, 0x192, 0x201e, 0x2026, 0x2020, 0x2021,
++	0x2c6, 0x2030, 0x160, 0x2039, 0x152, 0x8d, 0x17d, 0x8f,
++	0x90, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
++	0x2dc, 0x2122, 0x161, 0x203a, 0x153, 0x9d, 0x17e, 0x178
++];
++function textDecoderOptions(options) {
++	if (options == null) return {};
++	if (typeof options !== 'object' && typeof options !== 'function')
++		throw new TypeError('Expected decoder options');
++	return options;
++}
++function textDecoderState(receiver) {
++	var state = textDecoderStates.get(receiver);
++	if (!state) throw new TypeError('Invalid TextDecoder receiver');
++	return state;
++}
++function TextDecoder(label, options) {
++	if (!new.target) throw new TypeError('TextDecoder requires new');
++	if (typeof label === 'symbol') throw new TypeError('Invalid encoding label');
++	label = (label === undefined ? 'utf-8' : String(label))
++		.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '')
++		.replace(/[A-Z]/g, function (character) { return character.toLowerCase(); });
++	var encoding = textDecoderLabels[label];
++	if (!encoding) throw new RangeError('Unsupported encoding: ' + label);
++	options = textDecoderOptions(options);
++	textDecoderStates.set(this, { encoding: encoding, fatal: !!options.fatal,
++		ignoreBOM: !!options.ignoreBOM, streaming: false, bomSeen: false,
++		pending: new Uint8Array(0) });
++}
++['encoding', 'fatal', 'ignoreBOM'].forEach(function (name) {
++	def(TextDecoder.prototype, name, { get: function () { return textDecoderState(this)[name]; },
++		enumerable: true });
++});
++def(TextDecoder.prototype, Symbol.toStringTag, { value: 'TextDecoder' });
++TextDecoder.prototype.decode = function (input, options) {
++	var state = textDecoderState(this), bytes;
++	if (input === undefined) bytes = new Uint8Array(0);
++	else if (ArrayBuffer.isView(input)) bytes = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
++	else if (input instanceof ArrayBuffer ||
++		(typeof SharedArrayBuffer !== 'undefined' && input instanceof SharedArrayBuffer)) bytes = new Uint8Array(input);
++	else throw new TypeError('Expected a BufferSource');
++	options = textDecoderOptions(options);
++	var streaming = !!options.stream;
++	if (!state.streaming) { state.pending = new Uint8Array(0); state.bomSeen = false; }
++	state.streaming = streaming;
++	if (state.pending.length) {
++		var joined = new Uint8Array(state.pending.length + bytes.length);
++		joined.set(state.pending); joined.set(bytes, state.pending.length); bytes = joined;
++	}
++	state.pending = new Uint8Array(0);
++	var cursor = 0, chunks = [], units = [], size = bytes.length, encoding = state.encoding;
++	function emit(codepoint) {
++		if (codepoint > 0xffff) {
++			codepoint -= 0x10000;
++			units.push(0xd800 + (codepoint >> 10), 0xdc00 + (codepoint & 1023));
++		} else units.push(codepoint);
++		if (units.length >= 8192) { chunks.push(String.fromCharCode.apply(null, units)); units = []; }
++	}
++	function invalid() {
++		if (state.fatal) {
++			state.pending = bytes.slice(cursor);
++			throw new TypeError('Invalid ' + encoding + ' data');
++		}
++		emit(0xfffd);
++	}
++	function incomplete(start) {
++		cursor = size;
++		if (streaming) state.pending = bytes.slice(start);
++		else invalid();
++	}
++	while (cursor < size) {
++		var start = cursor, first = bytes[cursor++], codepoint = first;
++		if (encoding === 'utf-8') {
++			if (first < 0x80) { emit(first); continue; }
++			var needed, lower = 0x80, upper = 0xbf;
++			if (first >= 0xc2 && first <= 0xdf) { needed = 1; codepoint = first & 31; }
++			else if (first >= 0xe0 && first <= 0xef) {
++				needed = 2; codepoint = first & 15;
++				if (first === 0xe0) lower = 0xa0;
++				if (first === 0xed) upper = 0x9f;
++			} else if (first >= 0xf0 && first <= 0xf4) {
++				needed = 3; codepoint = first & 7;
++				if (first === 0xf0) lower = 0x90;
++				if (first === 0xf4) upper = 0x8f;
++			} else { invalid(); continue; }
++			var valid = true;
++			for (var index = 0; index < needed; index++) {
++				if (cursor === size) { incomplete(start); valid = false; break; }
++				var next = bytes[cursor];
++				if (next < lower || next > upper) { invalid(); valid = false; break; }
++				cursor++; codepoint = (codepoint << 6) | (next & 63); lower = 0x80; upper = 0xbf;
++			}
++			if (valid) emit(codepoint);
++		} else if (encoding === 'utf-16le' || encoding === 'utf-16be') {
++			if (cursor === size) { incomplete(start); break; }
++			var little = encoding === 'utf-16le', second = bytes[cursor++];
++			codepoint = little ? first | (second << 8) : (first << 8) | second;
++			if (codepoint >= 0xd800 && codepoint <= 0xdbff) {
++				if (cursor + 1 >= size) { incomplete(start); break; }
++				var trail = little ? bytes[cursor] | (bytes[cursor + 1] << 8) :
++					(bytes[cursor] << 8) | bytes[cursor + 1];
++				if (trail < 0xdc00 || trail > 0xdfff) { invalid(); continue; }
++				cursor += 2; codepoint = 0x10000 + ((codepoint - 0xd800) << 10) + trail - 0xdc00;
++			} else if (codepoint >= 0xdc00 && codepoint <= 0xdfff) { invalid(); continue; }
++			emit(codepoint);
++		} else if (encoding === 'gbk' || encoding === 'gb18030') {
++			if (first < 0x80) { emit(first); continue; }
++			if (first === 0x80) { emit(0x20ac); continue; }
++			if (first === 0xff) { invalid(); continue; }
++			if (cursor === size) { incomplete(start); break; }
++			var chineseSecond = bytes[cursor];
++			if (chineseSecond >= 0x30 && chineseSecond <= 0x39) {
++				if (cursor + 1 === size) { incomplete(start); break; }
++				var third = bytes[cursor + 1];
++				if (third < 0x81 || third > 0xfe) { invalid(); continue; }
++				if (cursor + 2 === size) { incomplete(start); break; }
++				var fourth = bytes[cursor + 2];
++				if (fourth < 0x30 || fourth > 0x39) { invalid(); continue; }
++				cursor += 3;
++				codepoint = ns.decodeChinese(((first - 0x81) * 10 + chineseSecond - 0x30) * 1260 +
++					(third - 0x81) * 10 + fourth - 0x30, true);
++			} else {
++				codepoint = chineseSecond >= 0x40 && chineseSecond <= 0xfe && chineseSecond !== 0x7f ?
++					ns.decodeChinese((first - 0x81) * 190 + chineseSecond - (chineseSecond < 0x7f ? 0x40 : 0x41), false) : 0;
++				if (codepoint || chineseSecond >= 0x80) cursor++;
++			}
++			if (codepoint) emit(codepoint); else invalid();
++		} else if (encoding === 'windows-1252') {
++			emit(first >= 0x80 && first <= 0x9f ? textDecoderCP1252[first - 0x80] : first);
++		} else emit(first < 0x80 ? first : first + 0xf700);
++	}
++	var output = chunks.join('') + String.fromCharCode.apply(null, units);
++	if ((encoding === 'utf-8' || encoding === 'utf-16le' || encoding === 'utf-16be') &&
++		!state.ignoreBOM && !state.bomSeen && output.length) {
++		state.bomSeen = true;
++		if (output.charCodeAt(0) === 0xfeff) output = output.slice(1);
++	}
++	return output;
+ };
+ global.TextEncoder = TextEncoder;
+ global.TextDecoder = TextDecoder;
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -67,6 +67,36 @@
+ #include "html/form_internal.h"
+ 
+ #include "javascript/quickjs/qjs_private.h"
++#include "buzzos_textdecoder_tables.h"
++
++static JSValue nat_decode_chinese(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	uint32_t pointer;
++	(void)this_val;
++	if (argc < 2)
++		return JS_ThrowTypeError(ctx, "Expected a Chinese encoding pointer");
++	if (JS_ToUint32(ctx, &pointer, argv[0]) < 0)
++		return JS_EXCEPTION;
++	if (!JS_ToBool(ctx, argv[1])) {
++		if (pointer >= sizeof(textdecoder_gb18030_index) / sizeof(textdecoder_gb18030_index[0]))
++			return JS_NewUint32(ctx, 0);
++		return JS_NewUint32(ctx, textdecoder_gb18030_index[pointer]);
++	}
++	if ((pointer > 39419 && pointer < 189000) || pointer > 1237575)
++		return JS_NewUint32(ctx, 0);
++	if (pointer == 7457)
++		return JS_NewUint32(ctx, 0xe7c7);
++	size_t lower = 0;
++	size_t upper = sizeof(textdecoder_gb18030_ranges) / sizeof(textdecoder_gb18030_ranges[0]);
++	while (lower + 1 < upper) {
++		size_t middle = lower + (upper - lower) / 2;
++		if (textdecoder_gb18030_ranges[middle][0] <= pointer) lower = middle;
++		else upper = middle;
++	}
++	return JS_NewUint32(ctx, textdecoder_gb18030_ranges[lower][1] +
++			pointer - textdecoder_gb18030_ranges[lower][0]);
++}
+ 
+ static struct jsthread *nat_thread(JSContext *ctx)
+ {
+@@ -1518,6 +1548,7 @@
+ }
+ 
+ static const JSCFunctionListEntry nat_funcs[] = {
++    JS_CFUNC_DEF("decodeChinese", 2, nat_decode_chinese),
+     JS_CFUNC_DEF("imageLoad", 2, nat_image_load),
+     JS_CFUNC_DEF("imageAbort", 1, nat_image_abort),
+     JS_CFUNC_DEF("randomFill", 1, nat_random_fill),

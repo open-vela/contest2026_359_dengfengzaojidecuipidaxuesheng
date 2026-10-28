@@ -71,7 +71,7 @@ static void home_device_state(const cJSON *body, const char *value,
      {"docked", "已回充"}, {"returning", "正在回充"}};
   const char *text = value;
   for (unsigned i = 0; i < sizeof(labels) / sizeof(labels[0]); i++)
-    if (!strcmp(value, labels[i][0])) { text = labels[i][1]; break; }
+    if (!strcmp(value, labels[i][0])) { text = glass_tr(labels[i][1]); break; }
   const cJSON *attributes = cJSON_GetObjectItemCaseSensitive(body, "attributes");
   const cJSON *id = cJSON_GetObjectItemCaseSensitive(body, "entity_id");
   const cJSON *brightness = cJSON_GetObjectItemCaseSensitive(attributes, "brightness");
@@ -126,7 +126,7 @@ static int home_devices_accept(const char *json, bool persist)
                 strcmp(rows[i].name, g_home_devices.rows[i].name) ||
                 rows[i].pinned != g_home_devices.rows[i].pinned;
   if (!persist)
-    for (int i = 0; i < count; i++) strcpy(rows[i].state, "等待同步");
+    for (int i = 0; i < count; i++) strcpy(rows[i].state, glass_tr("等待同步"));
 #ifdef CONFIG_SYSTEM_HASS
   if (selection && g_home_devices.client > 0)
     {
@@ -215,7 +215,7 @@ static void home_devices_tick(void)
       int ret = hass_poll(g_home_devices.client, &result);
       if (ret >= 0 && !result.done) { hass_result_free(&result); return; }
       struct home_device_s *row = &g_home_devices.rows[g_home_devices.index];
-      const char *state = "同步失败";
+      const char *state = glass_tr("同步失败");
       cJSON *body = NULL;
       char entity[128], value[129], formatted[80];
       if (ret >= 0 && result.request_id == (uint32_t)g_home_devices.pending &&
@@ -226,11 +226,11 @@ static void home_devices_tick(void)
               !strcmp(entity, row->entity) && home_device_string(body, "state", value, sizeof(value)))
             {
               home_device_state(body, value, formatted, sizeof(formatted));
-              state = strlen(value) >= sizeof(formatted) ? "已同步" : formatted;
+              state = strlen(value) >= sizeof(formatted) ? glass_tr("已同步") : formatted;
             }
         }
-      else if (result.status == 404) state = "设备已移除";
-      else if (result.status == 401 || result.status == 403) state = "需要重新连接";
+      else if (result.status == 404) state = glass_tr("设备已移除");
+      else if (result.status == 401 || result.status == 403) state = glass_tr("需要重新连接");
       if (strcmp(row->state, state)) { snprintf(row->state, sizeof(row->state), "%s", state); g_home_devices.revision++; }
       cJSON_Delete(body);hass_result_free(&result);
       g_home_devices.pending = 0;

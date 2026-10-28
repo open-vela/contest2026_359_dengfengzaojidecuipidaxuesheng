@@ -33,6 +33,10 @@ enum album_format local_album_probe(const char *path)
 {
   if(!local_album_valid_path(path))return ALBUM_UNKNOWN;
   struct stat st;if(lstat(path,&st)||!S_ISREG(st.st_mode))return ALBUM_UNKNOWN;
+  return local_album_probe_regular(path);
+}
+enum album_format local_album_probe_regular(const char *path)
+{
   unsigned char head[256];FILE *file=fopen(path,"rb");if(!file)return ALBUM_UNKNOWN;
   size_t n=fread(head,1,sizeof(head),file);fclose(file);
   if(n>=3&&head[0]==0xff&&head[1]==0xd8&&head[2]==0xff)return ALBUM_JPEG;
@@ -58,4 +62,13 @@ enum album_format local_album_probe(const char *path)
   /* Older QuickTime files can start with a movie/media atom, before ftyp. */
   if(n>=8&&(!memcmp(head+4,"moov",4)||!memcmp(head+4,"mdat",4)))return ALBUM_MOV;
   return ALBUM_UNKNOWN;
+}
+bool local_album_entry_path(const struct album_listing *listing,unsigned index,char *path,size_t size)
+{
+  if(!listing||index>=listing->count||!path||!size)return false;
+  const struct album_entry *entry=&listing->entries[index];
+  if(entry->directory && entry->directory>=listing->directory_bytes)return false;
+  const char *directory=listing->directories+entry->directory;
+  int n=snprintf(path,size,"%s/%s%s%s",listing->path,directory,*directory?"/":"",entry->name);
+  return n>=0&&(size_t)n<size;
 }

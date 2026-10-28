@@ -1,0 +1,19 @@
+--- a/netsurf/content/handlers/html/box_construct.c
++++ b/netsurf/content/handlers/html/box_construct.c
+@@ -1054,6 +1054,16 @@
+ 	if (box->type == BOX_NONE || (ns_computed_display(box->style,
+ 			props.node_is_root) == CSS_DISPLAY_NONE &&
+ 			props.node_is_root == false)) {
++		/* During a rebuild this node may still point at its old inline
++		 * box. Leaving that pointer in place makes next_node() construct
++		 * an INLINE_END referencing the old tree, which is then freed.
++		 * Hidden elements generate no box and must not be completed as
++		 * if their previous visible box belonged to the new tree. */
++		err = dom_node_set_user_data(ctx->n,
++				corestring_dom___ns_key_box_node_data, NULL, NULL,
++				(void *) &old_box);
++		if (err != DOM_NO_ERR)
++			return false;
+ 		css_select_results_destroy(styles);
+ 		box->styles = NULL;
+ 		box->style = NULL;

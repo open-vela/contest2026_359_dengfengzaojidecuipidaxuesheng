@@ -1,0 +1,60 @@
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -1258,6 +1258,15 @@
+ 	return ret;
+ }
+ 
++/** A frame callback must wait for this realm's first renderable layout. */
++static JSValue nat_frame_ready(JSContext *ctx, JSValueConst this_val,
++        int argc, JSValueConst *argv)
++{
++    struct jsthread *t = nat_thread(ctx);
++    return JS_NewBool(ctx, t != NULL && !t->closed && t->htmlc != NULL &&
++            t->htmlc->layout != NULL && t->htmlc->base.status >= CONTENT_STATUS_READY);
++}
++
+ /** __ns.now() -> ms (monotonic, fractional) */
+ static JSValue nat_now(JSContext *ctx, JSValueConst this_val,
+ 		int argc, JSValueConst *argv)
+@@ -1632,6 +1641,7 @@
+ 	JS_CFUNC_DEF("mediaMatches", 1, nat_media_matches),
+ 	JS_CFUNC_DEF("parseDocument", 1, nat_parse_document),
+ 	JS_CFUNC_DEF("now", 0, nat_now),
++    JS_CFUNC_DEF("frameReady", 0, nat_frame_ready),
+ 	JS_CFUNC_DEF("baseURL", 0, nat_base_url),
+ 	JS_CFUNC_DEF("resolveURL", 2, nat_resolve_url),
+ 	JS_CFUNC_DEF("log", 1, nat_log),
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -3368,11 +3368,27 @@
+ 	return setTimeout(function () { f({ didTimeout: false, timeRemaining: function () { return Math.max(0, 50 - (Date.now() - start)); } }); }, 1);
+ };
+ global.cancelIdleCallback = function (id) { clearTimeout(id); };
+-var rafStart = ns.now();
++var rafStart = ns.now(), rafSequence = 0, rafPending = Object.create(null);
+ global.requestAnimationFrame = function (f) {
+-	return setTimeout(function () { f(ns.now() - rafStart); }, 16);
+-};
+-global.cancelAnimationFrame = function (id) { clearTimeout(id); };
++    if (typeof f !== 'function') throw new TypeError('Animation callback must be a function');
++    var id = ++rafSequence;
++    function frame() {
++        if (!Object.prototype.hasOwnProperty.call(rafPending, id)) return;
++        if (ns.frameReady && !ns.frameReady()) {
++            rafPending[id] = setTimeout(frame, 16);
++            return;
++        }
++        delete rafPending[id];
++        f(ns.now() - rafStart);
++    }
++    rafPending[id] = setTimeout(frame, 16);
++    return id;
++};
++global.cancelAnimationFrame = function (id) {
++    if (!Object.prototype.hasOwnProperty.call(rafPending, id)) return;
++    clearTimeout(rafPending[id]);
++    delete rafPending[id];
++};
+ 
+ global.performance = {
+ 	timeOrigin: Date.now(),

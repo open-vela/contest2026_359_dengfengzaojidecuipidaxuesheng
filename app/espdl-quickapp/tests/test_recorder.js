@@ -3,7 +3,7 @@ const vm = require('node:vm'), fs = require('node:fs'), assert = require('node:a
 const source = fs.readFileSync(process.argv[2], 'utf8');
 function launch() {
   const widgets = [], jobs = new Map(), submitted = [], stopped = [], cancelled = [];
-  let timer, sequence = 0;
+  let timer, back, sequence = 0;
   function widget(label, x, y, width, height, callback) {
     widgets.push({label, x, y, width, height, callback, style: {}}); return widgets.length - 1;
   }
@@ -15,7 +15,7 @@ function launch() {
     setPos: (id,x,y) => Object.assign(widgets[id], {x,y}),
     setSize: (id,width,height) => Object.assign(widgets[id], {width,height}),
     setStyle: (id,style) => Object.assign(widgets[id].style, style),
-    setHidden: (id,hidden) => widgets[id].hidden = hidden, setColor() {}};
+    setHidden: (id,hidden) => widgets[id].hidden = hidden, setColor() {},onBack:fn=>back=fn};
   const audio = {};
   for (const op of ['list','record','play','remove']) audio[op] = args => {
     const id = ++sequence; jobs.set(id, {done:false, state:'running'});
@@ -32,7 +32,7 @@ function launch() {
   const done = (ok, result = {}, error = 0) => {
     jobs.set(app.state().task, {done: true, ok, result, error, elapsedMs: 200}); timer();
   };
-  return {app, widgets, submitted, stopped, cancelled, jobs, timer: () => timer(), last, done};
+  return {app, widgets, submitted, stopped, cancelled, jobs, timer: () => timer(), last, done,back:()=>back()};
 }
 const a = launch();
 assert.equal(a.last().op, 'list'); assert.equal(a.submitted.length, 1, 'opening must never record');
@@ -55,6 +55,9 @@ a.done(false, {}, -125); a.done(true, {clips:[clip]});
 assert.equal(a.app.state().count, 1); assert(a.widgets.some(w => w.label === '已放弃本次录音'));
 const beforeDelete = a.submitted.length;
 a.app.remove(); assert.equal(a.submitted.length, beforeDelete, 'delete requires an explicit second press');
+assert.equal(a.back(),true);assert.equal(a.submitted.length,beforeDelete,'back cancels confirmation without deleting');
+assert(a.widgets.some(w=>w.label==='删除'));assert.equal(a.back(),false);
+a.app.remove();assert.equal(a.submitted.length,beforeDelete,'deletion needs fresh confirmation after back');
 a.app.remove(); assert.equal(a.last().op, 'remove'); a.done(true); a.done(true, {clips:[]});
 assert.equal(a.app.state().count, 0);
 
@@ -70,7 +73,14 @@ assert.equal(b.app.state().count, 9); assert(b.widgets.some(w => w.label.include
 for (const w of b.widgets) if (!w.hidden && Number.isFinite(w.width) && Number.isFinite(w.height)) {
   assert(w.x >= 0 && w.y >= 0 && w.x + w.width <= 1022 && w.y + w.height <= 536, 'widget outside content area');
 }
-const result = {result: 'PASS: explicit recording, real progress, stop/cancel completion, playback, confirmed deletion, durable paging, list-failure recovery and full-storage errors',
+const legacy=launch();
+legacy.done(true,{clips:[{clip:'flash:rec_000001',readOnly:true,valid:true,fileBytes:6444,durationMs:200}]});
+let legacyCalls=legacy.submitted.length;
+legacy.app.remove();assert.equal(legacy.submitted.length,legacyCalls,'legacy Flash recordings remain read-only');
+legacy.app.play();assert.equal(legacy.last().args.clip,'flash:rec_000001');legacy.done(true);
+legacy.app.record();legacy.done(false,{},-19);legacy.done(true,{clips:[]});
+assert(legacy.widgets.some(w=>w.label.includes('SD 卡')),'missing SD explains why recording cannot start');
+const result = {result: 'PASS: explicit recording, real progress, stop/cancel completion, playback, confirmed deletion, durable paging, list-failure recovery, full-storage errors, read-only legacy clips and missing SD',
   source_sha256: require('node:crypto').createHash('sha256').update(source).digest('hex'), physical_io:'mocked'};
 console.log(result.result);
 fs.writeFileSync(require('node:path').join(__dirname, '../evidence/recorder-js-validation.json'), JSON.stringify(result,null,2) + '\n');

@@ -20,6 +20,7 @@ def main():
              '-I' + str(repo / 'app/espdl-quickapp/overlay/apps/system/desktop'),
              '-I' + str(args.apps / 'graphics/lvgl'), '-I' + str(args.cache)]
     command = ['gcc', *flags, str(repo / 'app/espdl-quickapp/tests/interaction_motion_host.c'),
+               str(repo / 'app/espdl-quickapp/overlay/apps/system/desktop/glass_icons.c'),
                *map(str, objects), '-lm', '-o', str(args.output / 'test')]
     with (args.output / 'compile.log').open('w') as log:
         subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)

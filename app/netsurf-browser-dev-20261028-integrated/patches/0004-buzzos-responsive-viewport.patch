@@ -1,0 +1,419 @@
+--- a/libcss/include/libcss/stylesheet.h
++++ b/libcss/include/libcss/stylesheet.h
+@@ -164,6 +164,7 @@
+  * Evaluate a media query list against the preprocessor's viewport.
+  */
+ bool css_media_query_matches(const char *query);
++bool css_media_query_matches_viewport(const char *query, int width, int height);
+ 
+ css_error css_stylesheet_next_pending_import(css_stylesheet *parent,
+ 		lwc_string **url);
+@@ -187,4 +188,3 @@
+ #endif
+ 
+ #endif
+-
+--- a/libcss/src/parse/preprocess.c
++++ b/libcss/src/parse/preprocess.c
+@@ -704,6 +704,19 @@
+ 	return pp_media_eval(sl_trim(q));
+ }
+ 
++bool css_media_query_matches_viewport(const char *query, int width, int height)
++{
++	int previous_width = pp_vw;
++	int previous_height = pp_vh;
++	bool matches;
++
++	css_preprocess_set_viewport(width, height);
++	matches = css_media_query_matches(query);
++	pp_vw = previous_width;
++	pp_vh = previous_height;
++	return matches;
++}
++
+ /** is a property name one LibCSS knows? */
+ static bool pp_known_property(slice name)
+ {
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -148,18 +148,28 @@
+ 	return arr;
+ }
+ 
+-/** __ns.viewport() -> [scrollX, scrollY, width, height, docW, docH] */
++/** __ns.viewport() -> [scrollX, scrollY, width, height, docW, docH, scale, deviceW, deviceH] */
+ static JSValue nat_viewport(JSContext *ctx, JSValueConst this_val,
+ 		int argc, JSValueConst *argv)
+ {
+ 	struct jsthread *t = nat_thread(ctx);
+ 	int sx = 0, sy = 0, w = 1280, h = 720, dw = 0, dh = 0, i;
+ 	JSValue arr;
+-	int v[6];
++	int v[8];
++	float scale = 1;
+ 
+ 	if (t != NULL && t->bw != NULL) {
+ 		browser_window_script_get_scroll(t->bw, &sx, &sy);
+ 		browser_window_get_dimensions(t->bw, &w, &h);
++		scale = browser_window_get_scale(t->bw);
++	}
++	v[6] = w;
++	v[7] = h;
++	if (t != NULL && t->bw != NULL && t->bw->window != NULL) {
++		sx /= scale;
++		sy /= scale;
++		w /= scale;
++		h /= scale;
+ 	}
+ 	if (t != NULL && t->htmlc != NULL) {
+ 		nat_flush_layout(t);
+@@ -170,7 +180,20 @@
+ 	arr = JS_NewArray(ctx);
+ 	for (i = 0; i < 6; i++)
+ 		JS_SetPropertyUint32(ctx, arr, i, JS_NewInt32(ctx, v[i]));
++	JS_SetPropertyUint32(ctx, arr, 6, JS_NewFloat64(ctx, scale));
++	JS_SetPropertyUint32(ctx, arr, 7, JS_NewInt32(ctx, v[6]));
++	JS_SetPropertyUint32(ctx, arr, 8, JS_NewInt32(ctx, v[7]));
+ 	return arr;
++}
++
++static int nat_css_to_device(int value, float scale)
++{
++	double result = (double)value * scale;
++	if (result > INT_MAX)
++		return INT_MAX;
++	if (result < INT_MIN)
++		return INT_MIN;
++	return (int)result;
+ }
+ 
+ /** __ns.scrollTo(x, y) */
+@@ -185,6 +208,11 @@
+ 	JS_ToInt32(ctx, &x, argv[0]);
+ 	JS_ToInt32(ctx, &y, argv[1]);
+ 	nat_flush_layout(t);
++	if (t->bw->window != NULL) {
++		float scale = browser_window_get_scale(t->bw);
++		x = nat_css_to_device(x, scale);
++		y = nat_css_to_device(y, scale);
++	}
+ 	browser_window_script_set_scroll(t->bw, x, y);
+ 	return JS_UNDEFINED;
+ }
+@@ -1127,13 +1155,23 @@
+ {
+ 	const char *q;
+ 	bool m;
++	struct jsthread *thread = nat_thread(ctx);
++	int width = 1280, height = 720;
+ 
+ 	if (argc < 1)
+ 		return JS_FALSE;
+ 	q = JS_ToCString(ctx, argv[0]);
+ 	if (q == NULL)
+ 		return JS_FALSE;
+-	m = css_media_query_matches(q);
++	if (thread != NULL && thread->bw != NULL) {
++		browser_window_get_dimensions(thread->bw, &width, &height);
++		if (thread->bw->window != NULL) {
++			float scale = browser_window_get_scale(thread->bw);
++			width /= scale;
++			height /= scale;
++		}
++	}
++	m = css_media_query_matches_viewport(q, width, height);
+ 	JS_FreeCString(ctx, q);
+ 	return JS_NewBool(ctx, m);
+ }
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -2811,8 +2811,8 @@
+ var vpAccessors = {
+ 	innerWidth: function () { return ns.viewport()[2]; },
+ 	innerHeight: function () { return ns.viewport()[3]; },
+-	outerWidth: function () { return ns.viewport()[2]; },
+-	outerHeight: function () { return ns.viewport()[3]; },
++	outerWidth: function () { return ns.viewport()[7]; },
++	outerHeight: function () { return ns.viewport()[8]; },
+ 	scrollX: function () { return ns.viewport()[0]; },
+ 	scrollY: function () { return ns.viewport()[1]; },
+ 	pageXOffset: function () { return ns.viewport()[0]; },
+@@ -2821,10 +2821,10 @@
+ 	screenLeft: function () { return 0; }, screenTop: function () { return 0; }
+ };
+ Object.keys(vpAccessors).forEach(function (k) { def(global, k, { get: vpAccessors[k], set: function () {}, enumerable: true }); });
+-global.devicePixelRatio = 1;
++accessor(global, 'devicePixelRatio', function () { return ns.viewport()[6]; });
+ global.screen = {
+-	get width() { return ns.viewport()[2]; }, get height() { return ns.viewport()[3]; },
+-	get availWidth() { return ns.viewport()[2]; }, get availHeight() { return ns.viewport()[3]; },
++	get width() { return ns.viewport()[7]; }, get height() { return ns.viewport()[8]; },
++	get availWidth() { return ns.viewport()[7]; }, get availHeight() { return ns.viewport()[8]; },
+ 	colorDepth: 24, pixelDepth: 24,
+ 	orientation: { type: 'landscape-primary', angle: 0, addEventListener: function () {}, removeEventListener: function () {} }
+ };
+@@ -2878,15 +2878,37 @@
+ 	toJSON: function () { return {}; }
+ };
+ 
++var observedMediaQueries = new Set();
+ function MediaQueryList(q) {
+ 	EventTarget.call(this);
+ 	this.media = q;
+-	this.onchange = null;
++	this.__ns_matches = ns.mediaMatches(q);
++	this.__ns_onchange = null;
+ }
+ MediaQueryList.prototype = Object.create(EventTarget.prototype);
+ Object.defineProperty(MediaQueryList.prototype, 'matches', { get: function () { return ns.mediaMatches(this.media); } });
+-MediaQueryList.prototype.addListener = function () {};
+-MediaQueryList.prototype.removeListener = function () {};
++function observeMediaQuery(query) {
++	var listeners = query.__ns_listeners.change;
++	if (typeof query.onchange === 'function' || (listeners && listeners.length)) {
++		if (!observedMediaQueries.has(query)) query.__ns_matches = query.matches;
++		observedMediaQueries.add(query);
++	} else observedMediaQueries.delete(query);
++}
++accessor(MediaQueryList.prototype, 'onchange', function () { return this.__ns_onchange; }, function (value) {
++	this.__ns_onchange = typeof value === 'function' ? value : null;
++	observeMediaQuery(this);
++});
++MediaQueryList.prototype.addEventListener = function (type, listener, options) {
++	EventTarget.prototype.addEventListener.call(this, type, listener, options);
++	observeMediaQuery(this);
++};
++MediaQueryList.prototype.removeEventListener = function (type, listener, options) {
++	EventTarget.prototype.removeEventListener.call(this, type, listener, options);
++	observeMediaQuery(this);
++};
++MediaQueryList.prototype.addListener = function (listener) { this.addEventListener('change', listener); };
++MediaQueryList.prototype.removeListener = function (listener) { this.removeEventListener('change', listener); };
++mkEventClass('MediaQueryListEvent', [['matches', false], ['media', '']]);
+ global.MediaQueryList = MediaQueryList;
+ global.matchMedia = function (q) { return new MediaQueryList(toStr(q)); };
+ 
+@@ -3352,6 +3374,18 @@
+ 	offsetLeft: { value: 0 }, offsetTop: { value: 0 }, pageLeft: { get: function () { return scrollX; } },
+ 	pageTop: { get: function () { return scrollY; } }, scale: { value: 1 }
+ });
++global.addEventListener('resize', function () {
++	var changes = [];
++	observedMediaQueries.forEach(function (query) {
++		var matches = query.matches;
++		if (matches !== query.__ns_matches) {
++			query.__ns_matches = matches;
++			changes.push([query, new MediaQueryListEvent('change', { matches: matches, media: query.media })]);
++		}
++	});
++	changes.forEach(function (change) { change[0].dispatchEvent(change[1]); });
++	global.visualViewport.dispatchEvent(new Event('resize'));
++});
+ global.speechSynthesis = { speak: function () {}, cancel: function () {}, getVoices: function () { return []; }, addEventListener: function () {} };
+ global.Notification = function () {};
+ global.Notification.permission = 'denied';
+--- a/netsurf/desktop/textinput.c
++++ b/netsurf/desktop/textinput.c
+@@ -68,10 +68,10 @@
+ 
+ 	if (clip != NULL) {
+ 		cr = *clip;
+-		cr.x0 += pos_x;
+-		cr.y0 += pos_y;
+-		cr.x1 += pos_x;
+-		cr.y1 += pos_y;
++		cr.x0 = cr.x0 * bw->scale + pos_x;
++		cr.y0 = cr.y0 * bw->scale + pos_y;
++		cr.x1 = cr.x1 * bw->scale + pos_x;
++		cr.y1 = cr.y1 * bw->scale + pos_y;
+ 		crp = &cr;
+ 	}
+ 
+@@ -118,4 +118,3 @@
+ 
+ 	return content_keypress(focus->current_content, key);
+ }
+-
+--- a/netsurf/content/handlers/html/html.c
++++ b/netsurf/content/handlers/html/html.c
+@@ -1073,6 +1073,8 @@
+ void html_cancel_script_activity(hlcache_handle *handle)
+ {
+ 	html_content *htmlc = (html_content *) hlcache_handle_get_content(handle);
++	if (htmlc != NULL)
++		html_resize_event_cancel(htmlc);
+ 	if (htmlc != NULL && htmlc->jsthread != NULL)
+ 		js_closethread(htmlc->jsthread);
+ }
+@@ -1120,6 +1122,46 @@
+  * Reformat a CONTENT_HTML to a new width.
+  */
+ 
++static void html_fire_resize_cb(void *data)
++{
++	html_content *html = data;
++	content_status status;
++
++	html->resize_event_pending = false;
++	if (!html->resize_event_dirty || html->aborted || html->bw == NULL ||
++			html->jsthread == NULL || html->document == NULL)
++		return;
++	if (html->rebuild_pending)
++		return;
++	status = content__get_status(&html->base);
++	if ((status != CONTENT_STATUS_READY && status != CONTENT_STATUS_DONE) ||
++			html->base.locked || html->reflowing ||
++			html->box_conversion_context != NULL) {
++		if (guit->misc->schedule(40, html_fire_resize_cb, html) == NSERROR_OK)
++			html->resize_event_pending = true;
++		return;
++	}
++	html->resize_event_dirty = false;
++	js_fire_event(html->jsthread, "resize", html->document, NULL);
++}
++
++void html_resize_event_cancel(html_content *html)
++{
++	guit->misc->schedule(-1, html_fire_resize_cb, html);
++	html->resize_event_pending = false;
++	html->resize_event_dirty = false;
++}
++
++void html_resize_event_schedule(html_content *html)
++{
++	if (!html->resize_event_dirty || html->resize_event_pending ||
++			html->rebuild_pending || html->aborted || html->bw == NULL ||
++			html->jsthread == NULL)
++		return;
++	if (guit->misc->schedule(0, html_fire_resize_cb, html) == NSERROR_OK)
++		html->resize_event_pending = true;
++}
++
+ static void html_reformat(struct content *c, int width, int height)
+ {
+ 	html_content *htmlc = (html_content *) c;
+@@ -1127,15 +1169,25 @@
+ 	uint64_t ms_before;
+ 	uint64_t ms_after;
+ 	uint64_t ms_interval;
++	css_fixed viewport_width;
++	css_fixed viewport_height;
++	bool viewport_changed;
+ 
+ 	nsu_getmonotonic_ms(&ms_before);
+ 
+ 	htmlc->reflowing = true;
+ 
+-	htmlc->unit_len_ctx.viewport_width = css_unit_device2css_px(
++	viewport_width = css_unit_device2css_px(
+ 			INTTOFIX(width), htmlc->unit_len_ctx.device_dpi);
+-	htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(
++	viewport_height = css_unit_device2css_px(
+ 			INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
++	viewport_changed = htmlc->had_initial_layout &&
++			(htmlc->media.width != viewport_width ||
++			 htmlc->media.height != viewport_height);
++	htmlc->media.width = viewport_width;
++	htmlc->media.height = viewport_height;
++	htmlc->unit_len_ctx.viewport_width = viewport_width;
++	htmlc->unit_len_ctx.viewport_height = viewport_height;
+ 	htmlc->unit_len_ctx.root_style = htmlc->layout->style;
+ 
+ 	layout_document(htmlc, width, height);
+@@ -1168,6 +1220,11 @@
+ 		ms_interval = nsoption_uint(min_reflow_period) * 10;
+ 	}
+ 	c->reformat_time = ms_after + ms_interval;
++	if (viewport_changed) {
++		htmlc->resize_event_dirty = true;
++		html_rebuild_schedule(htmlc);
++	}
++	html_resize_event_schedule(htmlc);
+ }
+ 
+ 
+@@ -1307,6 +1364,7 @@
+ 	 * so we destroy the JS thread.
+ 	 */
+ 	html_rebuild_cancel(html);
++	html_resize_event_cancel(html);
+ 	guit->misc->schedule(-1, html_fire_load_cb, html);
+ 
+ 	if (html->jsthread != NULL) {
+@@ -1435,6 +1493,8 @@
+ {
+ 	html_content *htmlc = (html_content *) c;
+ 	nserror ret = NSERROR_OK;
++
++	html_resize_event_cancel(htmlc);
+ 
+ 	selection_clear(htmlc->sel, false);
+ 
+--- a/netsurf/content/handlers/html/private.h
++++ b/netsurf/content/handlers/html/private.h
+@@ -215,6 +215,8 @@
+ 
+ 	/** A box tree rebuild is scheduled */
+ 	bool rebuild_pending;
++	bool resize_event_pending;
++	bool resize_event_dirty;
+ 	/** Stylesheets changed since the selection context was made */
+ 	bool rebuild_styles_changed;
+ 	/** Earliest time for the next rebuild (rate limiting) */
+@@ -236,6 +238,9 @@
+ 	unsigned int shadow_css_count;
+ 
+ } html_content;
++
++void html_resize_event_cancel(html_content *html);
++void html_resize_event_schedule(html_content *html);
+ 
+ /**
+  * Render padding and margin box outlines in html_redraw().
+--- a/netsurf/content/handlers/html/rebuild.c
++++ b/netsurf/content/handlers/html/rebuild.c
+@@ -208,6 +208,7 @@
+ 	struct box *old_contents;
+ 	dom_node *html = NULL;
+ 	dom_node *focus_node = NULL;
++	dom_node *selection_node = NULL;
+ 	nserror err;
+ 	uint64_t t0, t1;
+ 	content_status status;
+@@ -249,6 +250,11 @@
+ 			c->focus_owner.textarea != NULL &&
+ 			c->focus_owner.textarea->node != NULL) {
+ 		focus_node = dom_node_ref(c->focus_owner.textarea->node);
++	}
++	if (c->selection_type == HTML_SELECTION_TEXTAREA &&
++			c->selection_owner.textarea != NULL &&
++			c->selection_owner.textarea->node != NULL) {
++		selection_node = dom_node_ref(c->selection_owner.textarea->node);
+ 	}
+ 	c->drag_type = HTML_DRAG_NONE;
+ 	c->drag_owner.no_owner = true;
+@@ -289,6 +295,8 @@
+ 		imagemap_extract(c);
+ 		if (focus_node != NULL)
+ 			dom_node_unref(focus_node);
++		if (selection_node != NULL)
++			dom_node_unref(selection_node);
+ 		dom_node_unref(html);
+ 		return;
+ 	}
+@@ -313,6 +321,14 @@
+ 		}
+ 		dom_node_unref(focus_node);
+ 	}
++	if (selection_node != NULL) {
++		struct box *selection_box = box_for_node(selection_node);
++		if (selection_box != NULL && selection_box->gadget != NULL) {
++			c->selection_type = HTML_SELECTION_TEXTAREA;
++			c->selection_owner.textarea = selection_box;
++		}
++		dom_node_unref(selection_node);
++	}
+ 
+ 	dom_node_unref(html);
+ 

@@ -1,0 +1,484 @@
+--- a/netsurf/content/handlers/html/private.h
++++ b/netsurf/content/handlers/html/private.h
+@@ -124,6 +124,13 @@
+ 
+ 	/** Whether an initial layout has been done */
+ 	bool had_initial_layout;
++	/** Geometry-only conversion while parsing; does not start object fetches. */
++	bool script_layout;
++	/** Initial display conversion has dispatched DOMContentLoaded. */
++	bool initial_box_conversion_started;
++	/** Parser-blocking classic script waiting for preceding stylesheets. */
++	dom_node *style_waiting_script;
++	bool style_script_resume_pending;
+ 
+ 	/** Whether scripts are enabled for this content */
+ 	bool enable_scripting;
+@@ -270,6 +277,12 @@
+  * \param htmlc Content to convert
+  */
+ void html_finish_conversion(html_content *htmlc);
++
++/** Lay out the current parsing tree without publishing READY/load events. */
++void html_layout_for_script(html_content *htmlc);
++
++/** Resume a parser-blocking script after its stylesheet dependencies settle. */
++void html_script_resume_after_styles(html_content *htmlc);
+ 
+ /**
+  * Dispatch the window load event (once) after the page is done.
+--- a/netsurf/content/handlers/html/rebuild.h
++++ b/netsurf/content/handlers/html/rebuild.h
+@@ -12,6 +12,7 @@
+ #define NETSURF_HTML_REBUILD_H
+ 
+ #include <stdbool.h>
++#include "utils/errors.h"
+ 
+ struct html_content;
+ struct dom_node;
+@@ -38,6 +39,9 @@
+  */
+ void html_rebuild_flush(struct html_content *c);
+ 
++/** Replace a provisional parsing tree with the normal resource-bearing tree. */
++nserror html_rebuild_initial(struct html_content *c, bool measure);
++
+ /**
+  * Could a mutation of this node change what is rendered?
+  */
+--- a/netsurf/content/handlers/html/rebuild.c
++++ b/netsurf/content/handlers/html/rebuild.c
+@@ -58,11 +58,13 @@
+ #include "html/object.h"
+ #include "html/css.h"
+ #include "html/rebuild.h"
++#include "html/form_internal.h"
+ 
+ /** minimum debounce before rebuilding (ms) */
+ #define REBUILD_DELAY_MS 40
+ 
+ static void html_rebuild_cb(void *p);
++static nserror html_rebuild_tree(html_content *c, bool initial, bool measure);
+ 
+ static int rebuild_suppressed;
+ 
+@@ -80,13 +82,16 @@
+ 	uint64_t now;
+ 	int delay;
+ 
+-	if (c == NULL || c->aborted || !c->had_initial_layout ||
++	if (c == NULL || c->aborted || c->layout == NULL ||
+ 			c->frameset != NULL || rebuild_suppressed > 0)
+ 		return;
+ 	if (c->rebuild_pending)
+ 		return;
+ 
+ 	c->rebuild_pending = true;
++	/* While parsing, only a synchronous geometry read consumes this dirt. */
++	if (!c->had_initial_layout)
++		return;
+ 
+ 	/* rate limit: stay idle for at least twice the last rebuild's
+ 	 * duration so script-driven animation cannot starve the UI */
+@@ -112,11 +117,33 @@
+ /* exported interface documented in html/rebuild.h */
+ void html_rebuild_flush(html_content *c)
+ {
+-	if (c != NULL && c->rebuild_pending && !c->base.locked &&
+-			c->box_conversion_context == NULL && !c->reflowing) {
++	if (c == NULL || c->aborted || c->document == NULL ||
++			c->box_conversion_context != NULL || c->reflowing ||
++			c->script_layout || rebuild_suppressed > 0)
++		return;
++	if (content__get_status(&c->base) == CONTENT_STATUS_LOADING &&
++			!c->had_initial_layout) {
++		if (c->layout == NULL || c->rebuild_pending || c->rebuild_styles_changed)
++			html_rebuild_initial(c, true);
++		return;
++	}
++	if (c->rebuild_pending && !c->base.locked) {
+ 		guit->misc->schedule(-1, html_rebuild_cb, c);
+ 		html_rebuild_cb(c);
+ 	}
++}
++
++nserror html_rebuild_initial(html_content *c, bool measure)
++{
++	if (c->aborted || c->box_conversion_context != NULL || c->reflowing)
++		return NSERROR_INVALID;
++	if (c->select_ctx == NULL) {
++		nserror err = html_css_new_selection_context(c, &c->select_ctx);
++		if (err != NSERROR_OK)
++			return err;
++	}
++	html_get_dimensions(c);
++	return html_rebuild_tree(c, true, measure);
+ }
+ 
+ /* exported interface documented in html/rebuild.h */
+@@ -162,6 +189,13 @@
+ static void html_rebuild_forget_boxes(struct box *box)
+ {
+ 	for (; box != NULL; box = box->next) {
++		/* Provisional orphan widgets not handed to a new box are owned
++		 * solely by this tree; talloc does not free form controls. */
++		if (!(box->flags & CLONE) && box->gadget != NULL && box->gadget->form == NULL &&
++		    box->gadget->box == box) {
++			form_free_control(box->gadget);
++			box->gadget = NULL;
++		}
+ 		if (box->node != NULL && box_for_node(box->node) == box) {
+ 			void *old = NULL;
+ 			dom_node_set_user_data(box->node,
+@@ -199,9 +233,8 @@
+ 	}
+ }
+ 
+-static void html_rebuild_cb(void *p)
+-{
+-	html_content *c = p;
++static nserror html_rebuild_tree(html_content *c, bool initial, bool measure)
++{
+ 	int *old_bctx;
+ 	struct box *old_layout;
+ 	struct content_html_iframe *old_iframes;
+@@ -215,21 +248,20 @@
+ 
+ 	c->rebuild_pending = false;
+ 
+-	if (c->aborted || c->layout == NULL || c->document == NULL)
+-		return;
++	if (c->aborted || c->document == NULL || (!initial && c->layout == NULL))
++		return NSERROR_INVALID;
+ 
+ 	status = content__get_status(&c->base);
+-	if ((status != CONTENT_STATUS_READY && status != CONTENT_STATUS_DONE) ||
+-	    c->base.locked || c->box_conversion_context != NULL ||
+-	    c->reflowing) {
++	if ((!initial && ((status != CONTENT_STATUS_READY && status != CONTENT_STATUS_DONE) ||
++	    c->base.locked)) || c->box_conversion_context != NULL || c->reflowing) {
+ 		/* not a good time; try again shortly */
+ 		html_rebuild_schedule(c);
+-		return;
++		return NSERROR_INVALID;
+ 	}
+ 
+ 	if (dom_document_get_document_element(c->document, (void *)&html) !=
+ 			DOM_NO_ERR || html == NULL)
+-		return;
++		return NSERROR_DOM;
+ 
+ 	nsu_getmonotonic_ms(&t0);
+ 
+@@ -278,7 +310,9 @@
+ 	c->num_objects = 0;
+ 	imagemap_destroy(c);
+ 
++	c->script_layout = measure;
+ 	err = dom_to_box_sync(html, c);
++	c->script_layout = false;
+ 	if (err != NSERROR_OK || c->layout == NULL ||
+ 			c->layout == old_layout) {
+ 		NSLOG(netsurf, ERROR, "box tree rebuild failed");
+@@ -298,7 +332,7 @@
+ 		if (selection_node != NULL)
+ 			dom_node_unref(selection_node);
+ 		dom_node_unref(html);
+-		return;
++		return err != NSERROR_OK ? err : NSERROR_BOX_CONVERT;
+ 	}
+ 
+ 	/* hand iframe browser windows over to the new boxes */
+@@ -333,13 +367,23 @@
+ 	dom_node_unref(html);
+ 
+ 	/* lay out and redraw */
+-	content__reformat(&c->base, false, c->base.available_width,
+-			c->base.available_height);
+-	content__request_redraw(&c->base, 0, 0, c->base.width,
+-			c->base.height);
++	if (measure) {
++		html_layout_for_script(c);
++	} else if (!initial) {
++		content__reformat(&c->base, false, c->base.available_width,
++				c->base.available_height);
++		content__request_redraw(&c->base, 0, 0, c->base.width,
++				c->base.height);
++	}
+ 
+ 	nsu_getmonotonic_ms(&t1);
+ 	c->rebuild_next_ms = t1 + 2 * (t1 - t0);
+ 	NSLOG(netsurf, INFO, "box tree rebuilt in %u ms",
+ 			(unsigned)(t1 - t0));
+-}
++	return NSERROR_OK;
++}
++
++static void html_rebuild_cb(void *p)
++{
++	html_rebuild_tree(p, false, false);
++}
+--- a/netsurf/content/handlers/html/html.c
++++ b/netsurf/content/handlers/html/html.c
+@@ -364,8 +364,8 @@
+ 	css_fixed device_dpi = nscss_screen_dpi;
+ 	unsigned f_size;
+ 	unsigned f_min;
+-	unsigned w;
+-	unsigned h;
++	unsigned w = 0;
++	unsigned h = 0;
+ 	union content_msg_data msg_data = {
+ 		.getdims = {
+ 			.viewport_width = &w,
+@@ -418,7 +418,7 @@
+ 	 * NetSurf has no concept of dynamically changing documents, so this
+ 	 * would break badly.
+ 	 */
+-	if (htmlc->select_ctx != NULL) {
++	if (htmlc->initial_box_conversion_started) {
+ 		/* a stylesheet arrived or changed after the document was
+ 		 * laid out: restyle and rebuild */
+ 		htmlc->rebuild_styles_changed = true;
+@@ -426,6 +426,12 @@
+ 		return;
+ 	}
+ 
++	/* A parser-time geometry read may have made a provisional context. */
++	if (htmlc->select_ctx != NULL) {
++		css_select_ctx_destroy(htmlc->select_ctx);
++		htmlc->select_ctx = NULL;
++		htmlc->rebuild_styles_changed = true;
++	}
+ 	/* create new css selection context */
+ 	error = html_css_new_selection_context(htmlc, &htmlc->select_ctx);
+ 	if (error != NSERROR_OK) {
+@@ -433,6 +439,8 @@
+ 		content_set_error(&htmlc->base);
+ 		return;
+ 	}
++
++	htmlc->initial_box_conversion_started = true;
+ 
+ 	/* fire a simple event named load at the Document's Window
+ 	 * object, but with its target set to the Document object (and
+@@ -463,7 +471,16 @@
+ 	 * (after dimensions so font-face media queries evaluate right) */
+ 	html_webfont_start(htmlc);
+ 
+-	error = dom_to_box(html, htmlc, html_box_convert_done, &htmlc->box_conversion_context);
++	if (htmlc->layout != NULL) {
++		/* Reuse the provisional tree's ownership/replacement machinery;
++		 * only this final conversion starts normal object fetches. */
++		error = html_rebuild_initial(htmlc, false);
++		if (error == NSERROR_OK)
++			html_box_convert_done(htmlc, true);
++	} else {
++		error = dom_to_box(html, htmlc, html_box_convert_done,
++				&htmlc->box_conversion_context);
++	}
+ 	if (error != NSERROR_OK) {
+ 		NSLOG(netsurf, INFO, "box conversion failed");
+ 		dom_node_unref(html);
+@@ -1210,7 +1227,8 @@
+ 	selection_reinit(htmlc->sel);
+ 
+ 	htmlc->reflowing = false;
+-	htmlc->had_initial_layout = true;
++	if (!htmlc->script_layout)
++		htmlc->had_initial_layout = true;
+ 
+ 	/* calculate next reflow time at three times what it took to reflow */
+ 	nsu_getmonotonic_ms(&ms_after);
+@@ -1225,6 +1243,22 @@
+ 		html_rebuild_schedule(htmlc);
+ 	}
+ 	html_resize_event_schedule(htmlc);
++}
++
++
++/* exported interface documented in html/private.h */
++void html_layout_for_script(html_content *htmlc)
++{
++	/* Do not publish READY, destroy the parser, or dispatch resize/load.
++	 * Geometry reads need a layout of the current DOM, not event reentry. */
++	int width = FIXTOINT(css_unit_css2device_px(htmlc->media.width,
++			htmlc->unit_len_ctx.device_dpi));
++	int height = FIXTOINT(css_unit_css2device_px(htmlc->media.height,
++			htmlc->unit_len_ctx.device_dpi));
++	htmlc->script_layout = true;
++	html_reformat(&htmlc->base, width, height);
++	htmlc->script_layout = false;
++	htmlc->had_initial_layout = false;
+ }
+ 
+ 
+--- a/netsurf/content/handlers/html/dom_event.c
++++ b/netsurf/content/handlers/html/dom_event.c
+@@ -712,7 +712,7 @@
+ 			return;
+ 		}
+ 		/* the rendered document changed after layout */
+-		if (htmlc->had_initial_layout &&
++		if (htmlc->layout != NULL &&
+ 		    html_rebuild_node_matters((dom_node *)node)) {
+ 			struct box *nb = box_for_node((dom_node *)node);
+ 			/* form value synchronisation redraws the control
+--- a/netsurf/content/handlers/html/object.c
++++ b/netsurf/content/handlers/html/object.c
+@@ -726,7 +726,7 @@
+ 	nserror error;
+ 
+ 	/* If we've already been aborted, don't bother attempting the fetch */
+-	if (c->aborted)
++	if (c->aborted || c->script_layout)
+ 		return true;
+ 
+ 	/* During a box tree rebuild, reuse the object the old tree had for
+--- a/netsurf/content/handlers/html/css.c
++++ b/netsurf/content/handlers/html/css.c
+@@ -155,6 +155,13 @@
+ 		break;
+ 	}
+ 
++	html_script_resume_after_styles(parent);
++
++	if (parent->select_ctx != NULL &&
++	    (event->type == CONTENT_MSG_DONE || event->type == CONTENT_MSG_ERROR)) {
++		parent->rebuild_styles_changed = true;
++		html_rebuild_schedule(parent);
++	}
+ 	if (parent->had_initial_layout) {
+ 		/* A ready dynamic stylesheet must restyle the existing document
+ 		 * without waiting for unrelated images/scripts to finish. The
+--- a/netsurf/content/handlers/html/forms.c
++++ b/netsurf/content/handlers/html/forms.c
+@@ -555,8 +555,23 @@
+ 	    previous_box->gadget->node == node &&
+ 	    (previous_box->gadget->type == GADGET_TEXTAREA ||
+ 	     previous_box->gadget->type == GADGET_TEXTBOX ||
+-	     previous_box->gadget->type == GADGET_PASSWORD))
++	     previous_box->gadget->type == GADGET_PASSWORD)) {
++		/* Parser-time geometry can create a widget before the final form
++		 * list exists. Preserve it, and attach it to that list now. */
++		struct form_control *gadget = previous_box->gadget;
++		if (gadget->form == NULL && forms != NULL) {
++			dom_html_form_element *owner = NULL;
++			if (gadget->type == GADGET_TEXTAREA)
++				dom_html_text_area_element_get_form((void *)node, &owner);
++			else
++				dom_html_input_element_get_form((void *)node, &owner);
++			if (owner != NULL) {
++				form_add_control(find_form(forms, owner), gadget);
++				dom_node_unref(owner);
++			}
++		}
+ 		return previous_box->gadget;
++	}
+ 
+ 	/* Step one, see if we already have a control */
+ 	for (f = forms; f != NULL; f = f->prev) {
+--- a/netsurf/content/handlers/html/script.c
++++ b/netsurf/content/handlers/html/script.c
+@@ -34,6 +34,8 @@
+ #include "utils/log.h"
+ #include "utils/messages.h"
+ #include "netsurf/content.h"
++#include "netsurf/misc.h"
++#include "desktop/gui_internal.h"
+ #include "javascript/js.h"
+ #include "content/content_protected.h"
+ #include "content/content_factory.h"
+@@ -44,6 +46,50 @@
+ #include "html/private.h"
+ 
+ typedef bool (script_handler_t)(struct jsthread *jsthread, const uint8_t *data, size_t size, const char *name);
++
++static bool html_script_styles_pending(html_content *c)
++{
++	for (unsigned int i = 0; i < c->stylesheet_count; i++) {
++		struct html_stylesheet *s = &c->stylesheets[i];
++		if (s->unused) continue;
++		if (s->modified) return true;
++		if (s->sheet != NULL &&
++		    content_get_status(s->sheet) != CONTENT_STATUS_DONE &&
++		    content_get_status(s->sheet) != CONTENT_STATUS_ERROR)
++			return true;
++	}
++	return false;
++}
++
++static void html_style_script_resume_cb(void *pw)
++{
++	html_content *c = pw;
++	dom_node *node = c->style_waiting_script;
++	dom_hubbub_error err;
++	c->style_script_resume_pending = false;
++	if (node == NULL || html_script_styles_pending(c)) return;
++	c->style_waiting_script = NULL;
++	c->base.active--;
++	if (c->aborted || c->parser == NULL) {
++		dom_node_unref(node);
++		return;
++	}
++	err = html_process_script(c, node);
++	dom_node_unref(node);
++	/* A synchronous external script now owns the parser pause. */
++	if (err == DOM_HUBBUB_OK && c->parser != NULL && !c->aborted)
++		dom_hubbub_parser_pause(c->parser, false);
++	if (html_can_begin_conversion(c))
++		html_begin_conversion(c);
++}
++
++void html_script_resume_after_styles(html_content *c)
++{
++	if (c->style_waiting_script != NULL && !c->style_script_resume_pending &&
++	    !c->aborted && !html_script_styles_pending(c) &&
++	    guit->misc->schedule(0, html_style_script_resume_cb, c) == NSERROR_OK)
++		c->style_script_resume_pending = true;
++}
+ 
+ 
+ static script_handler_t *select_script_handler(content_type ctype)
+@@ -743,6 +789,28 @@
+ 					return DOM_HUBBUB_OK;
+ 				}
+ 			}
++			/* Classic parser scripts wait for preceding active sheets.
++			 * DOM-inserted scripts remain synchronous at their mutation
++			 * checkpoint; module/defer/async scripts keep their own queues. */
++			if ((flags & DOM_HTML_SCRIPT_ELEMENT_FLAG_PARSER_INSERTED) &&
++			    !dom_string_caseless_lwc_isequal(mimetype, corestring_lwc_module) &&
++			    !dom_string_caseless_lwc_isequal(mimetype, corestring_lwc_importmap) &&
++			    html_script_styles_pending(c)) {
++				bool async = false, defer = false;
++				if (src != NULL) {
++					dom_element_has_attribute(node, corestring_dom_async, &async);
++					dom_element_has_attribute(node, corestring_dom_defer, &defer);
++				}
++				if (!async && !defer) {
++					if (c->style_waiting_script == NULL) {
++						c->style_waiting_script = dom_node_ref(node);
++						c->base.active++;
++					}
++					dom_string_unref(src);
++					dom_string_unref(mimetype);
++					return DOM_HUBBUB_HUBBUB_ERR | HUBBUB_PAUSED;
++				}
++			}
+ 			flags |= DOM_HTML_SCRIPT_ELEMENT_FLAG_ALREADY_STARTED;
+ 			dom_html_script_element_set_flags((dom_html_script_element *)node, flags);
+ 		}
+@@ -788,6 +856,11 @@
+ nserror html_script_free(html_content *html)
+ {
+ 	unsigned int i;
++	if (html->style_script_resume_pending)
++		guit->misc->schedule(-1, html_style_script_resume_cb, html);
++	html->style_script_resume_pending = false;
++	dom_node_unref(html->style_waiting_script);
++	html->style_waiting_script = NULL;
+ 	while (html->pending_dom_scripts != NULL) {
+ 		struct html_pending_dom_script *item = html->pending_dom_scripts;
+ 		html->pending_dom_scripts = item->next;

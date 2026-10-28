@@ -58,7 +58,7 @@ static const struct board_builtin board_builtins[]={
 static void board_ui_labels(lv_obj_t *object,cJSON *list,bool *truncated)
 {
   if(!object||!lv_obj_is_visible(object)||lv_obj_check_type(object,&lv_textarea_class))return;
-  if(lv_obj_check_type(object,&lv_label_class)){
+  if(lv_obj_has_class(object,&lv_label_class)){
     if(cJSON_GetArraySize(list)>=64){*truncated=true;return;}
     const char *text=object==portal_code?"[pairing code hidden]":lv_label_get_text(object);
     char bounded[193];strlcpy(bounded,text,sizeof(bounded));

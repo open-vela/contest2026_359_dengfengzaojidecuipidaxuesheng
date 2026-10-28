@@ -24,12 +24,13 @@ struct glass_grok {
   pthread_t worker;pthread_mutex_t lock;pthread_cond_t wake;
   lv_image_dsc_t images[2];unsigned char *pixels[2];
   char path[96];struct grok_entry entries[GROK_STATES];
-  unsigned side,bytes,period,current,epoch,front,next_frame,states,action;
+  unsigned side,bytes,period,current,requested,epoch,front,next_frame,states,action;
   unsigned job_slot,job_id,job_frame,job_epoch,result_epoch,result_frame;
   uint32_t due,last_tick,turn_id,settled_at,polled_at,retry_at;
   uint64_t read_us,max_read_us;unsigned displayed,reads,errors,seeks,ticks;
   int error;bool thread_started,quit,pending,busy,ready,initialized;
   bool reduced,settled,celebrating,manual,active;
+  bool ambient,mood_armed,mood_active;unsigned mood_index;uint32_t mood_at;
   bool gaze_enabled,black,job_gaze,suspended;
   int gaze_x,gaze_y,job_gaze_x,job_gaze_y;
   struct grok_gaze_scratch *gaze_scratch;
@@ -38,6 +39,7 @@ struct glass_grok {
   uint64_t bank_checked_us;
   unsigned sd_reads,cache_hits;
   size_t cache_bytes;
+  const char *loading_text,*unavailable_text;
 };
 static struct glass_grok *instances[8]; /* UI thread only. */
 static const unsigned ids[GROK_STATES]={0,1,2,3,4,5,6,7,10,11,12,13,14,15,16,17,18,19,20,21,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51};
@@ -142,6 +144,32 @@ static void grok_select_id(struct glass_grok *b,unsigned id)
 {
   id=grok_normalize(id);if(id!=b->current||b->action){b->current=id;b->action=0;b->epoch++;b->next_frame=0;b->due=lv_tick_get();b->retry_at=0;grok_wake(b);}
 }
+/* Keep the requested service state separate from its idle presentation.
+ * Repeated idle polls must not restart a mood or reset its deadline. */
+static void grok_request_id(struct glass_grok *b,unsigned id)
+{
+  id=grok_normalize(id);
+  if(id!=b->requested){b->requested=id;b->mood_armed=b->mood_active=false;grok_select_id(b,id);}
+  else if(id!=2||!b->ambient||b->action)grok_select_id(b,id);
+}
+static void grok_poll_mood(struct glass_grok *b,uint32_t now)
+{
+  static const unsigned moods[]={3,10,19,14,4,16};
+  if(!b->ambient||b->reduced||b->requested!=2||b->action){
+    b->mood_armed=b->mood_active=false;
+    if(b->requested==2&&!b->action&&b->current!=2)grok_select_id(b,2);
+    return;
+  }
+  if(!b->mood_armed){b->mood_armed=true;b->mood_at=now+6000;return;}
+  if((int32_t)(now-b->mood_at)<0)return;
+  b->mood_active=!b->mood_active;
+  if(b->mood_active){
+    grok_select_id(b,moods[b->mood_index++%(sizeof(moods)/sizeof(*moods))]);
+    b->mood_at=now+4000;
+  }else{
+    grok_select_id(b,2);b->mood_at=now+6000+(b->mood_index%3)*977;
+  }
+}
 static void grok_poll_state(struct glass_grok *b,uint32_t now)
 {
   if(b->manual||(now-b->polled_at<250&&b->polled_at))return;
@@ -152,7 +180,7 @@ static void grok_poll_state(struct glass_grok *b,uint32_t now)
     if(!b->settled){b->settled_at=now;b->settled=true;b->celebrating=true;}
     if(!b->celebrating||now-b->settled_at>=2500){emotion=2;b->celebrating=false;}
   }
-  grok_select_id(b,emotion);b->polled_at=now;
+  grok_request_id(b,emotion);b->polled_at=now;
 }
 static void grok_tick(lv_timer_t *timer)
 {
@@ -160,7 +188,7 @@ static void grok_tick(lv_timer_t *timer)
   b->ticks++;
   if(!grok_visible(b)){b->suspended=true;lv_timer_pause(timer);return;}
   grok_wake(b);
-  if(now-b->last_tick>500)b->due=now;b->last_tick=now;grok_poll_state(b,now);
+  if(now-b->last_tick>500)b->due=now;b->last_tick=now;grok_poll_state(b,now);grok_poll_mood(b,now);
   pthread_mutex_lock(&b->lock);
   if(b->ready&&(b->result_epoch!=b->epoch||(int32_t)(now-b->due)>=0)){
     if(b->result_epoch==b->epoch){
@@ -172,7 +200,7 @@ static void grok_tick(lv_timer_t *timer)
         if(b->action==42&&b->next_frame>=30){b->action=0;b->epoch++;b->next_frame=0;}
       }else{
         if(!b->retry_at)fprintf(stderr,"[grok] SD asset unavailable (%d): %s\n",b->error,b->path);
-        b->retry_at=now+5000;lv_label_set_text(b->notice,"小球素材未就绪");lv_obj_remove_flag(b->notice,LV_OBJ_FLAG_HIDDEN);
+        b->retry_at=now+5000;lv_label_set_text(b->notice,b->unavailable_text?b->unavailable_text:"小球素材未就绪");lv_obj_remove_flag(b->notice,LV_OBJ_FLAG_HIDDEN);
       }
     }
     b->ready=false;
@@ -207,7 +235,7 @@ static struct glass_grok *grok_create(lv_obj_t *parent,int width,unsigned style,
   if(!parent||!font||width<1||width>1024)return NULL;
   struct glass_grok *b=calloc(1,sizeof(*b));if(!b)return NULL;
   pthread_mutex_init(&b->lock,NULL);pthread_cond_init(&b->wake,NULL);
-  b->side=style==0?64:128;b->bytes=b->side*b->side*3;b->period=100;b->current=2;b->epoch=1;b->active=true;b->states=style>=5?42:32;
+  b->side=style==0?64:128;b->bytes=b->side*b->side*3;b->period=100;b->current=b->requested=2;b->epoch=1;b->active=true;b->states=style>=5?42:32;
   const char *name=style==0?"mini-white":style==4||style==2?"home-black":style==5?"app-white":style==6?"app-black":"home-white";
   snprintf(b->path,sizeof(b->path),GROK_ASSET_ROOT "/%s.gbs",name);
   b->root=lv_obj_create(parent);if(!b->root){pthread_cond_destroy(&b->wake);pthread_mutex_destroy(&b->lock);free(b);return NULL;}
@@ -252,7 +280,8 @@ bool glass_grok_geometry(struct glass_grok *b,int x,int y,int w,int h,int diamet
   lv_obj_set_pos(b->image,(w-image_side)/2,(h-image_side)/2);return true;
 }
 lv_obj_t *glass_grok_root(struct glass_grok *b){return b?b->root:NULL;}
-void glass_grok_select(struct glass_grok *b,unsigned id){if(b){b->manual=true;grok_select_id(b,id);}}
+void glass_grok_select(struct glass_grok *b,unsigned id){if(b){b->manual=true;grok_request_id(b,id);}}
+void glass_grok_set_ambient(struct glass_grok *b,bool enabled){if(b){b->ambient=enabled;b->mood_armed=b->mood_active=false;grok_select_id(b,b->requested);grok_wake(b);}}
 bool glass_grok_gaze(struct glass_grok *b,int x,int y)
 {
   if(!b||b->states!=42)return false;
@@ -271,6 +300,12 @@ void glass_grok_set_active(struct glass_grok *b,bool active){if(b&&b->active!=ac
 void glass_grok_refresh(struct glass_grok *b){if(b)grok_tick(b->timer);}
 void glass_grok_follow_chat(struct glass_grok *b,bool follow){if(b){b->manual=!follow;b->polled_at=0;grok_wake(b);}}
 void glass_grok_set_reduced_motion(struct glass_grok *b,bool reduced){if(b&&b->reduced!=reduced){b->reduced=reduced;grok_wake(b);}}
+void glass_grok_set_notice_text(struct glass_grok *b,const char *loading,const char *unavailable)
+{
+  if(!b)return;
+  b->loading_text=loading;b->unavailable_text=unavailable;
+  if(b->notice)lv_label_set_text(b->notice,b->retry_at?unavailable:loading);
+}
 void glass_grok_set_obscured_by(struct glass_grok *b,lv_obj_t *o){if(b){b->overlay=o;grok_wake(b);}}
 unsigned glass_grok_current(const struct glass_grok *b){return b?b->current:2;}
 bool glass_grok_ready(const struct glass_grok *b){return b&&b->initialized;}

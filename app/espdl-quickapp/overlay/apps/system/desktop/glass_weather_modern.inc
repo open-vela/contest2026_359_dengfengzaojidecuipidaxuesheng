@@ -187,8 +187,8 @@ static void glass_weather_detail_update(const struct glass_weather_snapshot *wea
   weather_scene_update(&g_weather_detail.scene,weather,night);
   weather_frost_update();
   const struct glass_weather_data *data=&weather->data;
-  weather_text(g_weather_detail.location,weather->valid&&data->location[0]?data->location:"当地天气");
-  weather_text(g_weather_detail.summary,weather->valid&&data->condition[0]?data->condition:"天气暂不可用");
+  weather_text(g_weather_detail.location,weather->valid&&data->location[0]?data->location:glass_tr("当地天气"));
+  weather_text(g_weather_detail.summary,weather->valid&&data->condition[0]?glass_tr(data->condition):glass_tr("天气暂不可用"));
   char temperature[12];
   if(weather->valid&&data->temperature!=-999)snprintf(temperature,sizeof(temperature),"%d",data->temperature);
   else strcpy(temperature,"--");
@@ -203,22 +203,22 @@ static void glass_weather_detail_update(const struct glass_weather_snapshot *wea
   char buffer[96];
   if(air_valid)snprintf(buffer,sizeof(buffer),"%d",data->aqi);else strcpy(buffer,"--");
   weather_text(g_weather_detail.aqi,buffer);
-  weather_text(g_weather_detail.category,air_valid&&data->category[0]?data->category:"暂无数据");
+  weather_text(g_weather_detail.category,air_valid&&data->category[0]?glass_tr(data->category):glass_tr("暂无数据"));
   if(air_changed)lv_obj_set_style_text_color(g_weather_detail.category,lv_color_hex(weather_air_colors[level]),0);
   if(weather->valid&&data->humidity>=0)snprintf(buffer,sizeof(buffer),"%d%%",data->humidity);else strcpy(buffer,"--%");
   weather_text(g_weather_detail.humidity,buffer);
   weather_text(g_weather_detail.humidity_hint,
-    !weather->valid||data->humidity<0?"暂无湿度数据":data->humidity<30?"偏干燥":data->humidity>60?"偏潮湿":"舒适");
+    !weather->valid||data->humidity<0?glass_tr("暂无湿度数据"):data->humidity<30?glass_tr("偏干燥"):data->humidity>60?glass_tr("偏潮湿"):glass_tr("舒适"));
   if(weather->valid&&data->pm25>=0)snprintf(buffer,sizeof(buffer),"%d",data->pm25);else strcpy(buffer,"--");
   weather_text(g_weather_detail.pm25,buffer);
-  if(weather->valid)snprintf(buffer,sizeof(buffer),"报告时间 · %s",data->report_time[0]?data->report_time:"未提供");
-  else strcpy(buffer,"等待首次天气报告");
+  if(weather->valid)snprintf(buffer,sizeof(buffer),glass_tr("报告时间 · %s"),data->report_time[0]?data->report_time:glass_tr("未提供"));
+  else strcpy(buffer,glass_tr("等待首次天气报告"));
   weather_text(g_weather_detail.report,buffer);
   weather_text(g_weather_detail.status,weather->state==WEATHER_READY&&!stale&&weather->valid?
-    "按网络位置定位 · 每小时自动更新":weather_status(weather,stale));
-  const char *state=weather->state==WEATHER_FETCHING?"更新中":weather->state==WEATHER_WAIT_NET?(weather->valid?"离线缓存":"等待联网"):
-    weather->state==WEATHER_WAIT_TIME?"等待校时":weather->state==WEATHER_FAILED?"更新失败":
-    stale?"待更新":weather->valid?"已更新":"暂无数据";
+    glass_tr("按网络位置定位 · 每小时自动更新"):weather_status(weather,stale));
+  const char *state=weather->state==WEATHER_FETCHING?glass_tr("更新中"):weather->state==WEATHER_WAIT_NET?(weather->valid?glass_tr("离线缓存"):glass_tr("等待联网")):
+    weather->state==WEATHER_WAIT_TIME?glass_tr("等待校时"):weather->state==WEATHER_FAILED?glass_tr("更新失败"):
+    stale?glass_tr("待更新"):weather->valid?glass_tr("已更新"):glass_tr("暂无数据");
   weather_text(g_weather_detail.data_state,state);
   if(dot_changed)lv_obj_set_style_bg_color(g_weather_detail.state_dot,
     lv_color_hex(weather->valid&&weather->state==WEATHER_READY&&!stale?0xa7e2c1:0xf1d29f),0);
@@ -228,7 +228,7 @@ static void glass_weather_detail_update(const struct glass_weather_snapshot *wea
 static void glass_weather_refresh_clicked(lv_event_t *e)
 {
   LV_UNUSED(e);glass_weather_refresh();
-  if(g_weather_detail.status)lv_label_set_text(g_weather_detail.status,"已请求刷新 · 距上次请求至少一分钟");
+  if(g_weather_detail.status)lv_label_set_text(g_weather_detail.status,glass_tr("已请求刷新 · 距上次请求至少一分钟"));
 }
 
 static lv_obj_t *weather_page_button(lv_obj_t *parent,const char *text,
@@ -248,21 +248,22 @@ static lv_obj_t *weather_page_button(lv_obj_t *parent,const char *text,
 
 static void glass_weather_open(lv_event_t *e)
 {
-  LV_UNUSED(e);lv_obj_t *card=panel_card("当地天气");if(!card)return;
+  LV_UNUSED(e);lv_obj_t *card=panel_card(glass_tr("当地天气"));if(!card)return;
   detail_page(card);memset(&g_weather_detail,0,sizeof(g_weather_detail));
   g_weather_detail.root=card;
+  glass_navigation_register(glass_weather_open,false,0);
   g_weather_detail.data=calloc(1,sizeof(*g_weather_detail.data));
   g_weather_home.deferred=true;
   lv_obj_add_event_cb(card,glass_weather_detail_deleted,LV_EVENT_DELETE,NULL);
   weather_scene_attach_page(&g_weather_detail.scene,card,1024,GLASS_CONTENT_HEIGHT);
-  detail_text(card,"天气",32,25,120,20,0xffffff);
+  detail_text(card,glass_tr("天气"),32,25,120,20,0xffffff);
   g_weather_detail.state_dot=glass_box(card,584,38,6,6,0xa7e2c1,3);
   lv_obj_remove_flag(g_weather_detail.state_dot,LV_OBJ_FLAG_CLICKABLE);
   g_weather_detail.data_state=detail_text(card,"",600,31,100,14,0xe1edf5);
-  weather_page_button(card,"刷新天气",716,18,132,glass_weather_refresh_clicked);
-  weather_page_button(card,"返回桌面",864,18,128,panel_hide);
+  weather_page_button(card,glass_tr("刷新天气"),716,18,132,glass_weather_refresh_clicked);
+  weather_page_button(card,glass_tr("返回桌面"),864,18,128,panel_hide);
 
-  g_weather_detail.location=detail_text(card,"当地天气",32,86,560,34,0xffffff);
+  g_weather_detail.location=detail_text(card,glass_tr("当地天气"),32,86,560,34,0xffffff);
   /* Production already owns a 128px number face under the legacy font72 name. */
   g_weather_detail.temperature=glass_number(card,"--",24,123,342,true,0xffffff);
   if(!g_glass.font72)lv_obj_set_style_text_font(g_weather_detail.temperature,home_font(64),0);
@@ -277,17 +278,17 @@ static void glass_weather_open(lv_event_t *e)
   lv_obj_set_style_bg_opa(metrics,LV_OPA_TRANSP,0);
   lv_obj_remove_flag(metrics,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(metrics,weather_frost_draw,LV_EVENT_DRAW_MAIN,NULL);
-  detail_text(metrics,"空气质量 · AQI",24,24,270,14,0xe1edf5);
+  detail_text(metrics,glass_tr("空气质量 · AQI"),24,24,270,14,0xe1edf5);
   g_weather_detail.aqi=detail_text(metrics,"--",24,58,270,34,0xffffff);
   g_weather_detail.category=detail_text(metrics,"",24,113,270,14,0xa7e2c1);
-  detail_text(metrics,"相对湿度",346,24,270,14,0xe1edf5);
+  detail_text(metrics,glass_tr("相对湿度"),346,24,270,14,0xe1edf5);
   g_weather_detail.humidity=detail_text(metrics,"--%",346,58,270,34,0xffffff);
   g_weather_detail.humidity_hint=detail_text(metrics,"",346,113,270,14,0xe1edf5);
   detail_text(metrics,"PM2.5",668,24,270,14,0xe1edf5);
   g_weather_detail.pm25=detail_text(metrics,"--",668,58,270,34,0xffffff);
-  detail_text(metrics,"微克 / 立方米",668,113,270,14,0xe1edf5);
+  detail_text(metrics,glass_tr("微克 / 立方米"),668,113,270,14,0xe1edf5);
   g_weather_detail.report=detail_text(card,"",32,531,760,14,0xc2d4e2);
-  lv_obj_t *unit=detail_text(card,"温度单位 · 摄氏度",800,531,192,14,0xc2d4e2);
+  lv_obj_t *unit=detail_text(card,glass_tr("温度单位 · 摄氏度"),800,531,192,14,0xc2d4e2);
   lv_obj_set_style_text_align(unit,LV_TEXT_ALIGN_RIGHT,0);
   struct glass_weather_snapshot weather;glass_weather_get(&weather);
   struct timespec now;clock_gettime(CLOCK_MONOTONIC,&now);

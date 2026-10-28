@@ -1,0 +1,300 @@
+--- a/libsvgtiny/include/svgtiny.h
++++ b/libsvgtiny/include/svgtiny.h
+@@ -34,6 +34,9 @@
+ 
+ struct svgtiny_diagram {
+ 	int width, height;
++	/* Natural dimensions do not change with the embedding viewport.
++	 * Negative values mean absent/auto/percentage; zero remains explicit. */
++	float natural_width, natural_height, natural_ratio;
+ 
+ 	struct svgtiny_shape *shape;
+ 	unsigned int shape_count;
+--- a/libsvgtiny/src/svgtiny.c
++++ b/libsvgtiny/src/svgtiny.c
+@@ -1103,6 +1103,35 @@
+ #undef SVGTINY_STRING_ACTION2
+ 
+ 	/* get graphic dimensions */
++	/* Keep natural sizing separate from the concrete viewport used to
++	 * draw the image. Percentages and auto provide no natural dimension. */
++	diagram->natural_width = diagram->natural_height = -1;
++	diagram->natural_ratio = 0;
++	{
++		struct svgtiny_parse_internal_operation ops[] = {
++			{ state->interned_width, SVGTIOP_NATURAL_LENGTH, NULL,
++				&diagram->natural_width },
++			{ state->interned_height, SVGTIOP_NATURAL_LENGTH, NULL,
++				&diagram->natural_height },
++			{ NULL, SVGTIOP_NONE, NULL, NULL }
++		};
++		dom_string *view_box = NULL;
++		struct svgtiny_transformation_matrix tm = {1, 0, 0, 1, 0, 0};
++		svgtiny_parse_attributes(svg, state, ops);
++		svgtiny_parse_inline_style(svg, state, ops);
++		if (diagram->natural_width >= 0 && diagram->natural_height > 0) {
++			diagram->natural_ratio = diagram->natural_width /
++					diagram->natural_height;
++		} else if (dom_element_get_attribute(svg, state->interned_viewBox,
++				&view_box) == DOM_NO_ERR && view_box != NULL) {
++			if (svgtiny_parse_viewbox(dom_string_data(view_box),
++					dom_string_byte_length(view_box), 1, 1, &tm) ==
++					svgtiny_OK && isfinite(tm.a) && isfinite(tm.d) &&
++					tm.a > 0 && tm.d > 0)
++				diagram->natural_ratio = tm.d / tm.a;
++		}
++		if (view_box != NULL) dom_string_unref(view_box);
++	}
+ 	state->viewport_width = viewport_width;
+ 	state->viewport_height = viewport_height;
+ 	svgtiny_parse_position_attributes(svg, *state, &x, &y, &width, &height);
+--- a/libsvgtiny/src/svgtiny_parse.c
++++ b/libsvgtiny/src/svgtiny_parse.c
+@@ -1056,6 +1056,25 @@
+ 	case SVGTIOP_OFFSET:
+ 		res = svgtiny_parse_offset(value, value_len, styleop->value);
+ 		break;
++	case SVGTIOP_NATURAL_LENGTH: {
++		const char *end = value + value_len;
++		float number;
++		while (end > value && (*(end - 1) == ' ' ||
++				*(end - 1) == '\t' || *(end - 1) == '\r' ||
++				*(end - 1) == '\n')) end--;
++		if ((end - value == 4 && memcmp(value, "auto", 4) == 0) ||
++				(end > value && *(end - 1) == '%')) {
++			*((float *)styleop->value) = -1;
++			break;
++		}
++		res = svgtiny_parse_number(value, &end, &number);
++		if (res != svgtiny_OK) break;
++		res = svgtiny_parse_length(value, value_len, 0, &parse_len);
++		if (res == svgtiny_OK && parse_len >= 0 &&
++				(parse_len > 0 || number == 0))
++			*((float *)styleop->value) = parse_len;
++		break;
++	}
+ 	}
+ 	return res;
+ }
+--- a/libsvgtiny/src/svgtiny_internal.h
++++ b/libsvgtiny/src/svgtiny_internal.h
+@@ -84,6 +84,7 @@
+ 		SVGTIOP_COLOR,
+ 		SVGTIOP_LENGTH,
+ 		SVGTIOP_INTLENGTH,
++		SVGTIOP_NATURAL_LENGTH,
+ 		SVGTIOP_OFFSET,
+ 	} operation;
+ 	void *param;
+--- a/netsurf/content/handlers/image/svg.c
++++ b/netsurf/content/handlers/image/svg.c
+@@ -35,6 +35,7 @@
+ #include "netsurf/content.h"
+ #include "content/content_protected.h"
+ #include "content/content_factory.h"
++#include "content/hlcache.h"
+ 
+ #include "image/svg.h"
+ 
+@@ -46,6 +47,22 @@
+ 	int current_width;
+ 	int current_height;
+ } svg_content;
++
++static const content_handler svg_content_handler;
++static void svg_reformat(struct content *c, int width, int height);
++
++bool svg_get_intrinsic_size(struct hlcache_handle *handle,
++		int *width, int *height, float *ratio)
++{
++	struct content *c = hlcache_handle_get_content(handle);
++	struct svgtiny_diagram *diagram;
++	if (c == NULL || c->handler != &svg_content_handler) return false;
++	diagram = ((svg_content *)c)->diagram;
++	*width = diagram->natural_width < 0 ? -1 : diagram->natural_width + .5f;
++	*height = diagram->natural_height < 0 ? -1 : diagram->natural_height + .5f;
++	*ratio = diagram->natural_ratio;
++	return true;
++}
+ 
+ 
+ 
+@@ -108,6 +125,9 @@
+ 
+ static bool svg_convert(struct content *c)
+ {
++	/* Discover natural dimensions before READY asks the embedding layout
++	 * for a viewport. A zero-sized first layout must not erase the ratio. */
++	svg_reformat(c, 300, 150);
+ 	/*c->title = malloc(100);
+ 	if (c->title)
+ 		snprintf(c->title, 100, messages_get("svgTitle"),
+@@ -177,6 +197,8 @@
+ 	nserror res;
+ 
+ 	assert(diagram);
++	if (svg->base.width <= 0 || svg->base.height <= 0 ||
++			width <= 0 || height <= 0) return true;
+ 
+ 	transform[0] = (float) width / (float) svg->base.width;
+ 	transform[1] = 0;
+@@ -303,6 +325,7 @@
+ 	   const struct redraw_context *ctx)
+ {
+ 	svg_content *svg = (svg_content *)c;
++	if (data->width <= 0 || data->height <= 0) return true;
+ 
+ 	if ((data->width <= 0) && (data->height <= 0)) {
+ 		/* No point trying to plot SVG if it does not occupy a valid
+--- a/netsurf/content/handlers/image/svg.h
++++ b/netsurf/content/handlers/image/svg.h
+@@ -25,4 +25,9 @@
+ 
+ nserror svg_init(void);
+ 
++struct hlcache_handle;
++/* Return SVG natural dimensions (-1 if absent) and ratio (0 if absent). */
++bool svg_get_intrinsic_size(struct hlcache_handle *handle,
++		int *width, int *height, float *ratio);
++
+ #endif
+--- a/netsurf/content/handlers/html/layout.c
++++ b/netsurf/content/handlers/html/layout.c
+@@ -72,6 +72,7 @@
+ #include "css/css_fx.h"
+ #include "html/canvas.h"
+ #include "html/table.h"
++#include "image/svg.h"
+ 
+ /** Array of per-side access functions for computed style margins. */
+ const css_len_func margin_funcs[4] = {
+@@ -153,10 +154,43 @@
+ 		const struct gui_layout_table *font_func,
+ 		const html_content *content);
+ 
++/* SVG has optional natural dimensions and a separate natural ratio. The
++ * concrete drawing viewport is not an intrinsic contribution to HTML. */
++static bool layout_svg_dimensions(struct box *box, int *width, int *height)
++{
++	int nw, nh;
++	float ratio;
++	if (box->object == NULL || !svg_get_intrinsic_size(box->object,
++			&nw, &nh, &ratio)) return false;
++	if (*width == AUTO && *height == AUTO) {
++		*width = nw;
++		*height = nh;
++		if (nw < 0 && nh < 0) {
++			*width = 300;
++			*height = 150;
++			if (ratio > 0) {
++				if (ratio > 2) *height = 300 / ratio + .5f;
++				else *width = 150 * ratio + .5f;
++			}
++		} else if (nw < 0) {
++			*width = ratio > 0 ? nh * ratio + .5f : 300;
++		} else if (nh < 0) {
++			*height = ratio > 0 ? nw / ratio + .5f : 150;
++		}
++	} else if (*width == AUTO) {
++		*width = ratio > 0 ? *height * ratio + .5f : (nw >= 0 ? nw : 300);
++	} else if (*height == AUTO) {
++		*height = ratio > 0 ? *width / ratio + .5f : (nh >= 0 ? nh : 150);
++	}
++	return true;
++}
++
+ /** intrinsic width of a replaced box's object or media element */
+ static int layout_intrinsic_width(struct box *box)
+ {
+ 	int w = 0, h = 0;
++	int sw = AUTO, sh = AUTO;
++	if (layout_svg_dimensions(box, &sw, &sh)) return sw;
+ 
+ 	if (box->object != NULL)
+ 		return content_get_width(box->object);
+@@ -171,6 +205,8 @@
+ static int layout_intrinsic_height(struct box *box)
+ {
+ 	int w = 0, h = 0;
++	int sw = AUTO, sh = AUTO;
++	if (layout_svg_dimensions(box, &sw, &sh)) return sh;
+ 
+ 	if (box->object != NULL)
+ 		return content_get_height(box->object);
+@@ -204,6 +240,26 @@
+ {
+ 	assert(box->object != NULL || box_has_intrinsic(box));
+ 	assert(width != NULL && height != NULL);
++	{
++		bool auto_width = *width == AUTO, auto_height = *height == AUTO;
++		if (layout_svg_dimensions(box, width, height)) {
++			int before_width = *width, before_height = *height;
++			if (auto_width || auto_height) {
++				if (min_width > 0) *width = max(*width, min_width);
++				if (max_width >= 0) *width = min(*width, max_width);
++				if (auto_height && before_width > 0)
++					*height = (int)((float)*width * before_height / before_width + .5f);
++			}
++			if (auto_width && auto_height) {
++				before_height = *height;
++				if (min_height > 0) *height = max(*height, min_height);
++				if (max_height >= 0) *height = min(*height, max_height);
++				if (before_height > 0)
++					*width = (int)((float)*height * *width / before_height + .5f);
++			}
++			return;
++		}
++	}
+ 
+ 	if (*width == AUTO && *height == AUTO) {
+ 		/* No given dimensions */
+@@ -757,7 +813,7 @@
+ 
+ 		/* height */
+ 		htype = css_computed_height(b->style, &value, &unit);
+-		if (htype == CSS_HEIGHT_SET) {
++		if (htype == CSS_HEIGHT_SET && unit != CSS_UNIT_PCT) {
+ 			height = FIXTOINT(css_unit_len2device_px(
+ 					b->style,
+ 					&content->unit_len_ctx,
+@@ -1012,7 +1068,26 @@
+ 			min = html_get_box_tree(block->object)->min_width;
+ 			max = html_get_box_tree(block->object)->max_width;
+ 		} else {
+-			min = max = content_get_width(block->object);
++			int object_width = AUTO, object_height = AUTO;
++			if (htype == CSS_HEIGHT_SET && hunit != CSS_UNIT_PCT)
++				object_height = FIXTOINT(css_unit_len2device_px(block->style,
++						&content->unit_len_ctx, height, hunit));
++			else if (htype == CSS_HEIGHT_SET && hunit == CSS_UNIT_PCT &&
++					block->parent && block->parent->style) {
++				css_fixed ph;
++				css_unit pu;
++				if (css_computed_height(block->parent->style, &ph, &pu) ==
++						CSS_HEIGHT_SET && pu != CSS_UNIT_PCT)
++					object_height = FPCT_OF_INT_TOINT(height,
++						FIXTOINT(css_unit_len2device_px(block->parent->style,
++							&content->unit_len_ctx, ph, pu)));
++			}
++			layout_get_object_dimensions(block, &object_width, &object_height,
++					INT_MIN, INT_MAX, INT_MIN, INT_MAX);
++			min = max = object_width;
++			/* A cyclic percentage has zero min-content contribution;
++			 * max-content still uses the natural size/ratio. */
++			if (wtype == CSS_WIDTH_SET && wunit == CSS_UNIT_PCT) min = 0;
+ 		}
+ 
+ 		block->flags |= HAS_HEIGHT;
+@@ -2414,7 +2489,11 @@
+ 	      hlcache_handle_get_url(block->object), block->width);
+ 
+ 	if (content_can_reformat(block->object)) {
+-		content_reformat(block->object, false, block->width, 1);
++		int sw = block->width, sh = block->height;
++		if (layout_svg_dimensions(block, &sw, &sh))
++			content_reformat(block->object, false, sw, sh);
++		else
++			content_reformat(block->object, false, block->width, 1);
+ 	} else {
+ 		/* Non-HTML objects */
+ 		/* this case handled already in

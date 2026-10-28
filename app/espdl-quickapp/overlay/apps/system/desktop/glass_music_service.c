@@ -6,9 +6,11 @@
 #include <limits.h>
 #include "glass_portal.h"
 #include "glass_music_pcm.h"
+#include "glass_device_controls.h"
 #include "glass_music_duration.h"
 #include "glass_music_lyrics.h"
 #include "glass_music_cache.h"
+#include "glass_music_audio_cache.h"
 #include "qpk_storage.h"
 #include <cJSON.h>
 #include <errno.h>
@@ -32,7 +34,7 @@
 #define PREFILL (48 * 1024)
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t wake = PTHREAD_COND_INITIALIZER;
-static struct music_snapshot state = {.volume = 40};
+static struct music_snapshot state;
 static bool search_started, player_started, want_play, want_pause, want_search, want_favorite;
 static bool want_lyrics;
 static struct music_song pending_lyrics;
@@ -42,6 +44,7 @@ static enum music_lyrics_state lyrics_state;
 static char current_cover[1024];
 static bool player_active;
 static unsigned play_generation, search_generation;
+static unsigned seek_revision, seek_position_ms;
 static struct music_song pending_song, pending_favorite;
 static char pending_query[128];
 static uint64_t result_deadline, pending_result_deadline;
@@ -409,13 +412,18 @@ struct stream {
   bool done, abort;
   int error;
   const char *url;
+  unsigned seek;
+  struct music_audio_cache cache;
 };
 
 static bool stream_cancelled(void *ctx)
 {
   struct stream *s = ctx;
   pthread_mutex_lock(&s->mutex); bool abort = s->abort; pthread_mutex_unlock(&s->mutex);
-  return abort || transfer_cancelled(&s->transfer);
+  pthread_mutex_lock(&lock);
+  bool stale = s->seek != seek_revision;
+  pthread_mutex_unlock(&lock);
+  return abort || stale || transfer_cancelled(&s->transfer);
 }
 
 static void stream_wait(struct stream *s)
@@ -429,6 +437,7 @@ static void stream_wait(struct stream *s)
 static int stream_sink(void *ctx, const unsigned char *data, size_t size)
 {
   struct stream *s = ctx;
+  music_audio_cache_append(&s->cache, data, size);
   while (size) {
     if (stream_cancelled(s)) return -ECANCELED;
     pthread_mutex_lock(&s->mutex);
@@ -449,9 +458,21 @@ static void *network_worker(void *ctx)
 {
   struct stream *s = ctx;
   pthread_setname_np(pthread_self(), "music_net");
-  int ret = !strncmp(s->url,MUSIC_SD_ROOT,sizeof(MUSIC_SD_ROOT)-1)?
-    music_sd_stream(s->url,stream_sink,s,stream_cancelled):
-    music_http_get(s->url, stream_sink, s, stream_cancelled, NULL);
+  bool local = !strncmp(s->url, MUSIC_SD_ROOT, sizeof(MUSIC_SD_ROOT)-1);
+  FILE *cached = local ? NULL : music_audio_cache_open(s->url);
+  int ret = 0;
+  if (cached) {
+    unsigned char bytes[4096]; size_t got;
+    while (!ret && (got = fread(bytes, 1, sizeof(bytes), cached)))
+      ret = stream_sink(s, bytes, got);
+    if (!ret && ferror(cached)) ret = -EIO;
+    fclose(cached);
+  } else {
+    if (!local) music_audio_cache_begin(&s->cache, s->url);
+    ret = local ? music_sd_stream(s->url, stream_sink, s, stream_cancelled) :
+      music_http_get(s->url, stream_sink, s, stream_cancelled, NULL);
+    music_audio_cache_finish(&s->cache, !ret && !stream_cancelled(s));
+  }
   pthread_mutex_lock(&s->mutex);
   s->error = ret; s->done = true;
   pthread_cond_broadcast(&s->condition);
@@ -468,10 +489,12 @@ static int spawn(pthread_t *thread, void *(*entry)(void *), void *arg, size_t st
   return ret ? -ret : 0;
 }
 
-static int play_stream(struct music_song *song, unsigned generation)
+static int play_stream(struct music_song *song, unsigned generation,
+                       unsigned seek, unsigned target_ms)
 {
   struct stream s = {.transfer = {.generation = generation},
-    .mutex = PTHREAD_MUTEX_INITIALIZER, .condition = PTHREAD_COND_INITIALIZER, .url = song->url};
+    .mutex = PTHREAD_MUTEX_INITIALIZER, .condition = PTHREAD_COND_INITIALIZER,
+    .url = song->url, .seek = seek};
   s.ring = malloc(RING_CAP);
   unsigned char *input = malloc(32768);
   mp3dec_t *decoder = calloc(1, sizeof(*decoder));
@@ -484,18 +507,21 @@ static int play_stream(struct music_song *song, unsigned generation)
   ret = spawn(&network, network_worker, &s, 32768);
   if (ret) goto done;
   network_started = true;
-  size_t buffered = 0, skipped = 0; unsigned volume = 0;
+  size_t buffered = 0, skipped = 0;
   bool prefilled = false, duration_checked = false;
+  bool rebuffering = false;
+  uint64_t decoded = 0, base_samples = 0;
   while (!stream_cancelled(&s)) {
     pthread_mutex_lock(&lock);
-    bool pause = want_pause; unsigned desired_volume = state.volume;
+    bool pause = want_pause;
     pthread_mutex_unlock(&lock);
-    if (pause != paused) {
+    if (pause != paused && !rebuffering) {
       /* A pause may arrive while the track is still loading, before PCM open. */
       if (pcm.fd >= 0) { ret = music_pcm_pause(&pcm, pause); if (ret) break; }
       paused = pause;
     }
-    if (paused) { usleep(20000); continue; }
+    /* Decode silently to a seek target even when the user paused playback. */
+    if (pause && !target_ms) { usleep(20000); continue; }
     pthread_mutex_lock(&s.mutex);
     if (!prefilled && s.used < PREFILL && !s.done) { stream_wait(&s); pthread_mutex_unlock(&s.mutex); continue; }
     prefilled = true;
@@ -509,8 +535,31 @@ static int play_stream(struct music_song *song, unsigned generation)
     pthread_cond_broadcast(&s.condition);
     bool eof = s.done && !s.used;
     int network_error = s.error;
-    if (buffered < 16384 && !eof) { stream_wait(&s); pthread_mutex_unlock(&s.mutex); continue; }
+    /* Keep complete MP3 lookahead, but never block a running DMA queue on a
+     * fixed 16 KiB network read. Pause before starvation and refill with
+     * hysteresis, preserving the decoder reservoir and all queued samples. */
+    if (buffered < (rebuffering ? 24576u : 4096u) && !eof) {
+      pthread_mutex_unlock(&s.mutex);
+      if (pcm.fd >= 0 && !paused) {
+        ret = music_pcm_pause(&pcm, true); if (ret) break;
+        paused = true;
+      }
+      rebuffering = true;
+      pthread_mutex_lock(&lock);
+      if (generation == play_generation && seek == seek_revision) {
+        state.state = want_pause ? MUSIC_PAUSED : MUSIC_LOADING; state.revision++;
+      }
+      pthread_mutex_unlock(&lock);
+      pthread_mutex_lock(&s.mutex);
+      if (!s.done) stream_wait(&s);
+      pthread_mutex_unlock(&s.mutex); continue;
+    }
     pthread_mutex_unlock(&s.mutex);
+    rebuffering = false;
+    if (paused && !pause && pcm.fd >= 0) {
+      ret = music_pcm_pause(&pcm, false); if (ret) break;
+      paused = false;
+    }
     if (!buffered) { ret = network_error; break; }
     mp3dec_frame_info_t info = {0};
     int frames = mp3dec_decode_frame(decoder, input, buffered, samples, &info);
@@ -521,7 +570,7 @@ static int play_stream(struct music_song *song, unsigned generation)
         info.frame_bytes - info.frame_offset, info.hz);
       duration_checked = true;
       pthread_mutex_lock(&lock);
-      if (generation == play_generation) { state.duration_ms = duration; state.revision++; }
+      if (generation == play_generation && seek == seek_revision) { state.duration_ms = duration; state.revision++; }
       pthread_mutex_unlock(&lock);
     }
     if (info.frame_bytes) { memmove(input, input+info.frame_bytes, buffered-info.frame_bytes); buffered -= info.frame_bytes; }
@@ -529,19 +578,37 @@ static int play_stream(struct music_song *song, unsigned generation)
     else { ret = -EINVAL; break; }
     if (!frames) { skipped += info.frame_bytes; if (skipped > 1024*1024) { ret = -EINVAL; break; } continue; }
     skipped = 0;
+    uint64_t target = (uint64_t)target_ms * info.hz / 1000;
+    unsigned trim = target > decoded ? (target - decoded > (unsigned)frames ?
+      (unsigned)frames : (unsigned)(target - decoded)) : 0;
+    decoded += frames;
+    if (trim == (unsigned)frames) continue;
+    if (target_ms) {
+      base_samples = target;
+      target_ms = 0;
+      if (pause) {
+        /* Retain this decoded frame until resume; do not start audible DMA. */
+        while (!stream_cancelled(&s)) {
+          pthread_mutex_lock(&lock); pause = want_pause; pthread_mutex_unlock(&lock);
+          if (!pause) break;
+          usleep(20000);
+        }
+        if (stream_cancelled(&s)) break;
+      }
+    }
     if (pcm.fd < 0) {
-      ret = music_pcm_open(&pcm, info.hz, desired_volume);
+      /* The shared PCM writer applies the master speaker gain. A second
+       * music-specific codec gain would attenuate the same setting twice. */
+      ret = music_pcm_open(&pcm, info.hz, 100);
       if (ret) break;
-      volume = desired_volume;
     }
     if (pcm.rate != (unsigned)info.hz) { ret = -EINVAL; break; }
-    if (volume != desired_volume) { ret = music_pcm_volume(&pcm, desired_volume); if (ret) break; volume = desired_volume; }
-    ret = music_pcm_write(&pcm, samples, frames, info.channels);
+    ret = music_pcm_write(&pcm, samples + trim * info.channels, frames - trim, info.channels);
     if (ret) break;
     pthread_mutex_lock(&lock);
-    if (generation == play_generation) {
+    if (generation == play_generation && seek == seek_revision) {
       state.state = want_pause ? MUSIC_PAUSED : MUSIC_PLAYING;
-      state.position_ms = (uint64_t)pcm.played_samples * 1000 / pcm.rate;
+      state.position_ms = (base_samples + pcm.played_samples) * 1000 / pcm.rate;
       state.revision++;
     }
     pthread_mutex_unlock(&lock);
@@ -549,12 +616,12 @@ static int play_stream(struct music_song *song, unsigned generation)
   if (!ret && !stream_cancelled(&s) && pcm.fd >= 0) {
     ret = music_pcm_drain(&pcm);
     pthread_mutex_lock(&lock);
-    if(generation==play_generation && !ret) {
-      state.position_ms=(uint64_t)pcm.played_samples*1000/pcm.rate;state.revision++;
+    if(generation==play_generation && seek==seek_revision && !ret) {
+      state.position_ms=(base_samples+pcm.played_samples)*1000/pcm.rate;state.revision++;
     }
     pthread_mutex_unlock(&lock);
   }
-  if (!ret && pcm.fd < 0) ret = -ENODATA;
+  if (!ret && pcm.fd < 0) ret = target_ms && decoded ? 0 : -ENODATA;
 done:
   pthread_mutex_lock(&s.mutex); s.abort = true; pthread_cond_broadcast(&s.condition); pthread_mutex_unlock(&s.mutex);
   music_pcm_close(&pcm);
@@ -587,9 +654,17 @@ static void *player_worker(void *unused)
       pending_lyrics=song;lyrics_generation=generation;want_lyrics=true;
       lyrics_state=MUSIC_LYRICS_LOADING;pthread_cond_broadcast(&wake);
     }
-    pthread_mutex_unlock(&lock);
-    if (!ret && current) ret = play_stream(&song, generation);
-    pthread_mutex_lock(&lock);
+    if (!ret && current) {
+      while (generation == play_generation) {
+        unsigned seek = seek_revision, target = seek_position_ms;
+        pthread_mutex_unlock(&lock);
+        ret = play_stream(&song, generation, seek, target);
+        pthread_mutex_lock(&lock);
+        if (seek == seek_revision) break;
+      }
+    }
+    /* Completion and the last seek check share the command lock, so a seek
+     * accepted at EOF cannot be overwritten by an older completion. */
     if (generation == play_generation) {
       state.state = ret ? MUSIC_ERROR : MUSIC_ENDED; state.error = ret;
       if (!ret) state.duration_ms = state.position_ms;
@@ -630,7 +705,7 @@ void glass_music_now_playing(struct music_now_playing *out)
   memcpy(out->cover_url,current_cover,sizeof(out->cover_url));out->track_id=play_generation;
   out->revision=state.revision;out->state=state.state;
   out->position_ms=state.position_ms;out->duration_ms=state.duration_ms;
-  out->volume=state.volume;out->pause_requested=want_pause;
+  out->volume=glass_speaker_volume();out->pause_requested=want_pause;
   out->favorite=glass_music_is_favorite(&state,&state.current);
   out->can_skip=state.favorite_count>0;out->lyrics_state=lyrics_state;
   int index=music_lrc_index(lyrics,state.position_ms);
@@ -680,7 +755,7 @@ int glass_music_skip(int direction)
 }
 
 void glass_music_get(struct music_snapshot *out)
-{ pthread_mutex_lock(&lock); *out = state; pthread_mutex_unlock(&lock); }
+{ pthread_mutex_lock(&lock); *out = state; out->volume=glass_speaker_volume(); pthread_mutex_unlock(&lock); }
 
 int glass_music_search(const char *query)
 {
@@ -697,6 +772,7 @@ static void music_queue_locked(const struct music_song *song, uint64_t deadline)
   clear_lyrics_locked();
   pending_result_deadline = deadline;
   pending_song = *song; state.current = *song; play_generation++; want_play = true; want_pause = false;
+  seek_position_ms = 0; seek_revision++;
   state.state = MUSIC_LOADING; state.position_ms = 0; state.duration_ms = 0; state.error = 0; state.revision++;
   pthread_cond_broadcast(&wake);
 }
@@ -737,6 +813,7 @@ void glass_music_toggle(void)
   } else if (state.current.name[0]) {
     clear_lyrics_locked();
     pending_song = state.current; play_generation++; want_play = true; want_pause = false;
+    seek_position_ms = 0; seek_revision++;
     pending_result_deadline = 0;
     state.state = MUSIC_LOADING; state.error = 0; state.position_ms = 0; state.duration_ms = 0; state.revision++;
     pthread_cond_broadcast(&wake);
@@ -752,6 +829,26 @@ int glass_music_set_paused(bool paused)
   }
   want_pause = paused;
   if (state.state != MUSIC_LOADING) state.state = paused ? MUSIC_PAUSED : MUSIC_PLAYING;
+  state.revision++;
+  pthread_cond_broadcast(&wake);
+  pthread_mutex_unlock(&lock);
+  return 0;
+}
+
+int glass_music_seek(unsigned track_id, unsigned position_ms)
+{
+  pthread_mutex_lock(&lock);
+  if (track_id != play_generation) {
+    pthread_mutex_unlock(&lock); return -ESTALE;
+  }
+  if (!state.duration_ms || (state.state != MUSIC_PLAYING &&
+      state.state != MUSIC_PAUSED && state.state != MUSIC_LOADING)) {
+    pthread_mutex_unlock(&lock); return -EAGAIN;
+  }
+  if (position_ms >= state.duration_ms) position_ms = state.duration_ms - 1;
+  seek_position_ms = position_ms; seek_revision++;
+  state.position_ms = position_ms;
+  state.state = want_pause ? MUSIC_PAUSED : MUSIC_LOADING;
   state.revision++;
   pthread_cond_broadcast(&wake);
   pthread_mutex_unlock(&lock);
@@ -788,7 +885,7 @@ int glass_music_stop_wait(unsigned timeout_ms)
 }
 
 void glass_music_volume(unsigned volume)
-{ pthread_mutex_lock(&lock); state.volume = volume > 100 ? 100 : volume; state.revision++; pthread_mutex_unlock(&lock); }
+{ pthread_mutex_lock(&lock); glass_speaker_volume_set(volume > 100 ? 100 : volume); state.revision++; pthread_mutex_unlock(&lock); }
 
 int glass_music_favorite(const struct music_song *song)
 {

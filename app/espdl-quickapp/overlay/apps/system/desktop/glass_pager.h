@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #pragma once
 #include "glass_motion_hooks.h"
+#include "glass_input_guard.h"
 #include <lvgl/lvgl.h>
 #include <stdlib.h>
 
@@ -79,6 +80,7 @@ static inline void glass_pager_update_window(lv_obj_t *root,unsigned current,
       slot->owner=pager;slot->hit=lv_button_create(root);lv_obj_remove_style_all(slot->hit);
       lv_obj_set_pos(slot->hit,8+i*24,0);lv_obj_set_size(slot->hit,24,40);
       lv_obj_remove_flag(slot->hit,LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_EVENT_BUBBLE);
+      glass_input_guard_install(slot->hit);
       lv_obj_add_event_cb(slot->hit,glass_pager_clicked,LV_EVENT_CLICKED,slot);
       slot->mark=lv_obj_create(slot->hit);lv_obj_remove_style_all(slot->mark);
       lv_obj_remove_flag(slot->mark,LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);

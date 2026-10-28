@@ -1,0 +1,581 @@
+--- a/libdom/src/core/node.h
++++ b/libdom/src/core/node.h
+@@ -261,6 +261,11 @@
+ 		(dom_node_internal **) (c))
+ 
+ /* Following are some helper functions */
++/* Detached subtree transfer preserves node identities and pending ownership. */
++void _dom_node_adopt_owner(dom_node_internal *node, struct dom_document *doc);
++dom_exception _dom_node_clone_for_document(dom_node_internal *node, bool deep,
++		struct dom_document *doc, dom_node_operation operation,
++		dom_node_internal **result);
+ dom_exception _dom_node_copy_internal(dom_node_internal *old, 
+ 		dom_node_internal *new);
+ #define dom_node_copy_internal(o, n) _dom_node_copy_internal( \
+--- a/libdom/src/core/node.c
++++ b/libdom/src/core/node.c
+@@ -741,6 +741,48 @@
+ 	return false;
+ }
+ 
++/* Keep the old document alive while transferring its pending nodes. The
++ * subtree, attributes and associated template fragments keep their identity. */
++void _dom_node_adopt_owner(dom_node_internal *node, dom_document *doc)
++{
++	dom_document *old = node->owner;
++	dom_node_internal *child;
++	bool pending;
++	if (old != NULL)
++		dom_node_ref(old);
++	if (old != doc) {
++		pending = node->pending_list.prev != &node->pending_list;
++		if (pending)
++			_dom_node_remove_pending(node);
++		node->owner = doc;
++		if (pending || (old == NULL && node->parent == NULL))
++			_dom_node_mark_pending(node);
++	}
++	if (node->type == DOM_ELEMENT_NODE) {
++		_dom_element_adopt_attributes((dom_element *)node, doc);
++		if (dom_html_element_is_template((dom_node *)node)) {
++			dom_document_fragment *content =
++				((dom_html_element *)node)->template_content;
++			if (content != NULL)
++				_dom_node_adopt_owner((dom_node_internal *)content, doc);
++		}
++	}
++	for (child = node->first_child; child != NULL; child = child->next)
++		_dom_node_adopt_owner(child, doc);
++	if (old != doc) {
++		dom_user_data *ud = node->user_data;
++		while (ud != NULL) {
++			dom_user_data *next = ud->next;
++			if (ud->handler != NULL)
++				ud->handler(DOM_NODE_ADOPTED, ud->key, ud->data,
++						(dom_node *)node, NULL);
++			ud = next;
++		}
++	}
++	if (old != NULL)
++		dom_node_unref(old);
++}
++
+ dom_exception _dom_node_insert_before(dom_node_internal *node,
+ 		dom_node_internal *new_child, dom_node_internal *ref_child,
+ 		dom_node_internal **result)
+@@ -748,14 +790,6 @@
+ 	dom_exception err;
+ 	assert(node != NULL);
+ 	
+-	/* Ensure that new_child and node are owned by the same document */
+-	if ((new_child->type == DOM_DOCUMENT_TYPE_NODE && 
+-			new_child->owner != NULL && 
+-			new_child->owner != node->owner) ||
+-			(new_child->type != DOM_DOCUMENT_TYPE_NODE &&
+-			new_child->owner != node->owner))
+-		return DOM_WRONG_DOCUMENT_ERR;
+-
+ 	/* Ensure node isn't read only */
+ 	if (_dom_node_readonly(node))
+ 		return DOM_NO_MODIFICATION_ALLOWED_ERR;
+@@ -778,6 +812,13 @@
+ 	if (new_child->type != DOM_DOCUMENT_FRAGMENT_NODE && 
+ 			!_dom_node_permitted_child(node, new_child))
+ 		return DOM_HIERARCHY_REQUEST_ERR;
++	/* Validate a fragment before detachment/adoption mutates either tree. */
++	if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
++		dom_node_internal *c;
++		for (c = new_child->first_child; c != NULL; c = c->next)
++			if (!_dom_node_permitted_child(node, c))
++				return DOM_HIERARCHY_REQUEST_ERR;
++	}
+ 
+ 	/* Attempting to insert a node before itself is a NOP */
+ 	if (new_child == ref_child) {
+@@ -785,6 +826,13 @@
+ 		*result = new_child;
+ 
+ 		return DOM_NO_ERR;
++	}
++	if (new_child->owner != node->owner) {
++		dom_node *adopted = NULL;
++		err = dom_document_adopt_node(node->owner, new_child, &adopted);
++		if (err != DOM_NO_ERR)
++			return err;
++		dom_node_unref(adopted);
+ 	}
+ 
+ 	/* If new_child is already in the tree and 
+@@ -803,12 +851,6 @@
+ 	/* If new_child is a DocumentFragment, insert its children.
+ 	 * Otherwise, insert new_child */
+ 	if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
+-		/* Test the children of the docment fragment can be appended */
+-		dom_node_internal *c = new_child->first_child;
+-		for (; c != NULL; c = c->next)
+-			if (!_dom_node_permitted_child(node, c))
+-				return DOM_HIERARCHY_REQUEST_ERR;
+-
+ 		if (new_child->first_child != NULL) {
+ 			err = _dom_node_attach_range(new_child->first_child,
+ 					new_child->last_child, 
+@@ -823,6 +865,7 @@
+ 			new_child->first_child = NULL;
+ 			new_child->last_child = NULL;
+ 		}
++		_dom_node_mark_pending(new_child);
+ 	} else {
+ 		err = _dom_node_attach(new_child, 
+ 				node, 
+@@ -896,10 +939,6 @@
+ 			new_child->type == DOM_ELEMENT_NODE))
+ 		return DOM_NOT_SUPPORTED_ERR;
+ 
+-	/* Ensure that new_child and node are owned by the same document */
+-	if (new_child->owner != node->owner)
+-		return DOM_WRONG_DOCUMENT_ERR;
+-
+ 	/* Ensure node isn't read only */
+ 	if (_dom_node_readonly(node))
+ 		return DOM_NO_MODIFICATION_ALLOWED_ERR;
+@@ -942,6 +981,14 @@
+ 
+ 		return DOM_NO_ERR;
+ 	}
++	if (new_child->owner != node->owner) {
++		dom_node *adopted = NULL;
++		dom_exception err = dom_document_adopt_node(node->owner,
++				new_child, &adopted);
++		if (err != DOM_NO_ERR)
++			return err;
++		dom_node_unref(adopted);
++	}
+ 
+ 	/* If new_child is already in the tree and 
+ 	 * its parent isn't read only, remove it */
+@@ -958,6 +1005,8 @@
+ 
+ 	/* Perform the replacement */
+ 	_dom_node_replace(old_child, new_child);
++	if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE)
++		_dom_node_mark_pending(new_child);
+ 
+ 	/* Sort out the return value */
+ 	dom_node_ref(old_child);
+@@ -1122,6 +1171,14 @@
+ dom_exception _dom_node_clone_node(dom_node_internal *node, bool deep,
+ 		dom_node_internal **result)
+ {
++	return _dom_node_clone_for_document(node, deep, NULL,
++			DOM_NODE_CLONED, result);
++}
++
++dom_exception _dom_node_clone_for_document(dom_node_internal *node, bool deep,
++		struct dom_document *doc, dom_node_operation operation,
++		dom_node_internal **result)
++{
+ 	dom_node_internal *n, *child;
+ 	dom_exception err;
+ 	dom_user_data *ud;
+@@ -1136,13 +1193,19 @@
+ 	err = dom_node_copy(node, &n);
+ 	if (err != DOM_NO_ERR) {
+ 		return err;
++	}
++	if (doc != NULL)
++		_dom_node_adopt_owner(n, doc);
++	if (node->type == DOM_ATTRIBUTE_NODE) {
++		deep = true;
++		_dom_attr_set_specified((dom_attr *)n, true);
+ 	}
+ 
+ 	if (deep) {
+ 		child = node->first_child;
+ 		while (child != NULL) {
+ 			dom_node_internal *cc, *r;
+-			err = dom_node_clone_node(child, deep, (void *) &cc);
++			err = _dom_node_clone_for_document(child, deep, doc, operation, &cc);
+ 			if (err != DOM_NO_ERR) {
+ 				dom_node_unref(n);
+ 				return err;
+@@ -1172,7 +1235,7 @@
+ 		if (err == DOM_NO_ERR) {
+ 			for (child = source->base.first_child; child != NULL; child = child->next) {
+ 				dom_node_internal *cc = NULL, *r = NULL;
+-				err = dom_node_clone_node(child, true, (void *)&cc);
++				err = _dom_node_clone_for_document(child, true, doc, operation, &cc);
+ 				if (err == DOM_NO_ERR)
+ 					err = dom_node_append_child(target, cc, (void *)&r);
+ 				dom_node_unref(r);
+@@ -1194,7 +1257,7 @@
+ 	ud = node->user_data;
+ 	while (ud != NULL) {
+ 		if (ud->handler != NULL)
+-			ud->handler(DOM_NODE_CLONED, ud->key, ud->data, 
++			ud->handler(operation, ud->key, ud->data, 
+ 					(dom_node *) node, (dom_node *) n);
+ 		ud = ud->next;
+ 	}
+--- a/libdom/src/core/document.c
++++ b/libdom/src/core/document.c
+@@ -60,10 +60,6 @@
+ /*----------------------------------------------------------------------*/
+ 
+ /* Internally used helper functions */
+-static dom_exception dom_document_dup_node(dom_document *doc, 
+-		dom_node *node, bool deep, dom_node **result, 
+-		dom_node_operation opt);
+-
+ 
+ /*----------------------------------------------------------------------*/
+ 
+@@ -677,10 +673,14 @@
+ dom_exception _dom_document_import_node(dom_document *doc,
+ 		dom_node *node, bool deep, dom_node **result)
+ {
+-	/* TODO: The DOM_INVALID_CHARACTER_ERR exception */
+-
+-	return dom_document_dup_node(doc, node, deep, result,
+-			DOM_NODE_IMPORTED);
++	dom_node_internal *n = (dom_node_internal *)node;
++	*result = NULL;
++	if (n->type == DOM_DOCUMENT_NODE)
++		return DOM_NOT_SUPPORTED_ERR;
++	if (_dom_node_readonly_owner(&doc->base))
++		return DOM_NO_MODIFICATION_ALLOWED_ERR;
++	return _dom_node_clone_for_document(n, deep, doc, DOM_NODE_IMPORTED,
++			(dom_node_internal **)result);
+ }
+ 
+ /**
+@@ -1076,12 +1076,7 @@
+  * the responsibility of the caller to unref the node once it has
+  * finished with it.
+  *
+- * @note: The spec said adoptNode may be light weight than the importNode
+- *	  because the former need no Node creation. But in our implementation
+- *	  this can't be ensured. Both adoptNode and importNode create new
+- *	  nodes using the importing/adopting document's resource manager. So,
+- *	  generally, the adoptNode and importNode call the same function
+- *	  dom_document_dup_node.
++ * Adoption preserves the original nodes and their event targets.
+  */
+ dom_exception _dom_document_adopt_node(dom_document *doc,
+ 		dom_node *node, dom_node **result)
+@@ -1093,43 +1088,31 @@
+ 	
+ 	*result = NULL;
+ 
+-	if (n->type == DOM_DOCUMENT_NODE ||
+-			n->type == DOM_DOCUMENT_TYPE_NODE) {
++	if (n->type == DOM_DOCUMENT_NODE) {
+ 		return DOM_NOT_SUPPORTED_ERR;		
+ 	}
+-
+-	if (n->type == DOM_ENTITY_NODE ||
+-			n->type == DOM_NOTATION_NODE ||
+-			n->type == DOM_PROCESSING_INSTRUCTION_NODE ||
+-			n->type == DOM_TEXT_NODE ||
+-			n->type == DOM_CDATA_SECTION_NODE ||
+-			n->type == DOM_COMMENT_NODE) {
+-		*result = NULL;
+-		return DOM_NO_ERR;
+-	}
+-
+-	/* Support XML when necessary */
+-	if (n->type == DOM_ENTITY_REFERENCE_NODE) {
++	if (n->type == DOM_ENTITY_NODE || n->type == DOM_NOTATION_NODE ||
++			n->type == DOM_ENTITY_REFERENCE_NODE) {
+ 		return DOM_NOT_SUPPORTED_ERR;
+ 	}
+-
+-	err = dom_document_dup_node(doc, node, true, result, DOM_NODE_ADOPTED);
+-	if (err != DOM_NO_ERR) {
+-		*result = NULL;
+-		return err;
+-	}
++	if (_dom_node_readonly_owner(&doc->base) || _dom_node_readonly_owner(n))
++		return DOM_NO_MODIFICATION_ALLOWED_ERR;
++	if (n->type != DOM_DOCUMENT_TYPE_NODE && _dom_node_readonly(n))
++		return DOM_NO_MODIFICATION_ALLOWED_ERR;
+ 
+ 	parent = n->parent;
+ 	if (parent != NULL) {
+-		err = dom_node_remove_child(parent, node, (void *) &tmp);
+-		if (err != DOM_NO_ERR) {
+-			dom_node_unref(*result);
+-			*result = NULL;
++		if (n->type == DOM_ATTRIBUTE_NODE)
++			err = dom_element_remove_attribute_node(parent, node, (void *)&tmp);
++		else
++			err = dom_node_remove_child(parent, node, (void *) &tmp);
++		if (err != DOM_NO_ERR)
+ 			return err;
+-		}
+                 dom_node_unref(tmp);
+ 	}
+-
++	_dom_node_adopt_owner(n, doc);
++	dom_node_ref(node);
++	*result = node;
+ 	return DOM_NO_ERR;
+ }
+ 
+@@ -1420,94 +1403,6 @@
+ }
+ 
+ /**
+- * Duplicate a Node
+- *
+- * \param doc     The documen
+- * \param node    The node to duplicate
+- * \param deep    Whether to make a deep copy
+- * \param result  The returned node
+- * \param opt     Whether this is adopt or import operation
+- * \return DOM_NO_ERR on success, appropriate dom_exception on failure.
+- */
+-dom_exception dom_document_dup_node(dom_document *doc, dom_node *node,
+-		bool deep, dom_node **result, dom_node_operation opt)
+-{
+-	dom_node_internal *n = (dom_node_internal *) node;
+-	dom_node_internal *ret;
+-	dom_exception err;
+-	dom_node_internal *child, *r;
+-	dom_user_data *ud;
+-
+-	if (_dom_node_readonly_owner(&doc->base) || _dom_node_readonly(n))
+-		return DOM_NO_MODIFICATION_ALLOWED_ERR;
+-	
+-	if (n->type == DOM_DOCUMENT_NODE ||
+-			n->type == DOM_DOCUMENT_TYPE_NODE)
+-		return DOM_NOT_SUPPORTED_ERR;
+-
+-	err = dom_node_copy(node, &ret);
+-	if (err != DOM_NO_ERR)
+-		return err;
+-
+-	if (n->type == DOM_ATTRIBUTE_NODE) {
+-		_dom_attr_set_specified((dom_attr *) node, true);
+-		deep = true;
+-	}
+-
+-	if (n->type == DOM_ENTITY_REFERENCE_NODE) {
+-		deep = false;
+-	}
+-
+-	if (n->type == DOM_ELEMENT_NODE) {
+-		/* Specified attributes are copyied but not default attributes,
+-		 * if the document object hold all the default attributes, we 
+-		 * have nothing to do here */
+-	}
+-
+-	if (opt == DOM_NODE_ADOPTED && (n->type == DOM_ENTITY_NODE ||
+-			n->type == DOM_NOTATION_NODE)) {
+-		/* We did not support XML now */
+-		return DOM_NOT_SUPPORTED_ERR;
+-	}
+-
+-	if (deep == true) {
+-		child = ((dom_node_internal *) node)->first_child;
+-		while (child != NULL) {
+-			err = dom_document_import_node(doc, child, deep,
+-					(void *) &r);
+-			if (err != DOM_NO_ERR) {
+-				dom_node_unref(ret);
+-				return err;
+-			}
+-
+-			err = dom_node_append_child(ret, r, (void *) &r);
+-			if (err != DOM_NO_ERR) {
+-				dom_node_unref(ret);
+-				dom_node_unref(r);
+-				return err;
+-			}
+-			dom_node_unref(r);
+-
+-			child = child->next;
+-		}
+-	}
+-
+-	/* Call the dom_user_data_handlers */
+-	ud = n->user_data;
+-	while (ud != NULL) {
+-		if (ud->handler != NULL) {
+-			ud->handler(opt, ud->key, ud->data, node, 
+-					(dom_node *) ret);
+-		}
+-		ud = ud->next;
+-	}
+-
+-	*result = (dom_node *) ret;
+-
+-	return DOM_NO_ERR;
+-}
+-
+-/**
+  * Try to destroy the document. 
+  *
+  * \param doc  The instance of Document
+--- a/libdom/src/core/element.h
++++ b/libdom/src/core/element.h
+@@ -40,6 +40,9 @@
+ 	lwc_string **classes;
+ 	uint32_t n_classes;
+ };
++
++void _dom_element_adopt_attributes(struct dom_element *element,
++		struct dom_document *doc);
+ 
+ dom_exception _dom_element_create(struct dom_document *doc,
+ 		dom_string *name, dom_string *namespace,
+--- a/libdom/src/core/element.c
++++ b/libdom/src/core/element.c
+@@ -58,6 +58,18 @@
+ 	struct dom_string *name;
+ 	struct dom_string *namespace;
+ } dom_attr_list;
++
++void _dom_element_adopt_attributes(struct dom_element *element,
++		struct dom_document *doc)
++{
++	dom_attr_list *first = element->attributes, *entry = first;
++	if (entry == NULL)
++		return;
++	do {
++		_dom_node_adopt_owner((dom_node_internal *)entry->attr, doc);
++		entry = (dom_attr_list *)entry->list.next;
++	} while (entry != first);
++}
+ 
+ 
+ /**
+@@ -2427,4 +2439,3 @@
+ 	return p1 == p2;
+ }
+ /*------------------ End of namednodemap functions -----------------------*/
+-
+--- a/netsurf/content/handlers/css/select.c
++++ b/netsurf/content/handlers/css/select.c
+@@ -223,7 +223,14 @@
+ 		break;
+ 
+ 	case DOM_NODE_IMPORTED:
++		/* Import makes a new node. The source still owns its live cache. */
++		break;
+ 	case DOM_NODE_ADOPTED:
++		error = css_libcss_node_data_handler(&selection_handler,
++				CSS_NODE_MODIFIED, NULL, src, NULL, data);
++		if (error != CSS_OK)
++			NSLOG(netsurf, INFO, "Failed to invalidate adopted node data.");
++		break;
+ 	case DOM_NODE_DELETED:
+ 		error = css_libcss_node_data_handler(&selection_handler,
+ 				CSS_NODE_DELETED,
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -2343,6 +2343,29 @@
+ 	return ret;
+ }
+ 
++static JSValue doc_transferNode(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv, int adopt)
++{
++	struct jsthread *t = qjs_thread(ctx);
++	dom_node *doc = qjs_this_node(ctx, this_val), *source, *result = NULL;
++	dom_node_type type;
++	dom_exception exc;
++	if (t == NULL || doc == NULL ||
++	    dom_node_get_node_type(doc, &type) != DOM_NO_ERR || type != DOM_DOCUMENT_NODE)
++		return JS_ThrowTypeError(ctx, "Document receiver required");
++	if (argc < 1 || (source = qjs_this_node(ctx, argv[0])) == NULL)
++		return JS_ThrowTypeError(ctx, "Node argument required");
++	if (adopt)
++		exc = dom_document_adopt_node((dom_document *)doc, source, &result);
++	else
++		exc = dom_document_import_node((dom_document *)doc, source,
++			argc > 1 && JS_ToBool(ctx, argv[1]), &result);
++	if (exc != DOM_NO_ERR)
++		return qjs_throw_dom_exception(ctx, exc);
++	qjs_flush_dom_scripts(ctx);
++	return qjs_wrap_and_unref(t, result);
++}
++
+ static JSValue
+ doc_write(JSContext *ctx, JSValueConst this_val,
+ 	  int argc, JSValueConst *argv)
+@@ -2405,6 +2428,8 @@
+ 	JS_CFUNC_DEF("createDocumentFragment", 0,
+ 		     doc_createDocumentFragment),
+ 	JS_CFUNC_DEF("createEvent", 1, doc_createEvent),
++	JS_CFUNC_MAGIC_DEF("importNode", 1, doc_transferNode, 0),
++	JS_CFUNC_MAGIC_DEF("adoptNode", 1, doc_transferNode, 1),
+ 	JS_CFUNC_DEF("write", 1, doc_write),
+ 	JS_CFUNC_DEF("writeln", 1, doc_writeln),
+ 	JS_CFUNC_DEF("querySelector", 1, el_querySelector),
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -2266,16 +2266,45 @@
+ 	if (n && n.nodeType === 11) { var a = []; for (var c = n.firstChild; c; c = c.nextSibling) a.push(c); return a; }
+ 	return n ? [n] : [];
+ }
++function transferRemovals(nodes) {
++	var removals = [];
++	if (!observers.length) return removals;
++	nodes.forEach(function (n) {
++		var p = n.parentNode, last = removals[removals.length - 1];
++		if (!p) return;
++		if (last && last.target === p && last.next === n) {
++			last.removed.push(n); last.next = n.nextSibling;
++		} else {
++			removals.push({ target: p, removed: [n], previous: n.previousSibling, next: n.nextSibling });
++		}
++	});
++	return removals;
++}
++function queueTransferRemovals(removals) {
++	removals.forEach(function (r) {
++		queueMutation('childList', r.target, { removed: r.removed, previous: r.previous, next: r.next });
++	});
++}
++wrapMutator(DocP, 'adoptNode', function (orig, args) {
++	var removals = transferRemovals(args[0] ? [args[0]] : []);
++	var result = orig.apply(this, args);
++	queueTransferRemovals(removals);
++	return result;
++});
+ [NodeP, ElementP, DocP].forEach(function (P) {
+ 	wrapMutator(P, 'appendChild', function (orig, args) {
+ 		var added = fragKids(args[0]);
++		var removals = transferRemovals(added);
+ 		var r = orig.apply(this, args);
++		queueTransferRemovals(removals);
+ 		queueMutation('childList', this, { added: added });
+ 		return r;
+ 	});
+ 	wrapMutator(P, 'insertBefore', function (orig, args) {
+ 		var added = fragKids(args[0]);
++		var removals = transferRemovals(added);
+ 		var r = orig.apply(this, args);
++		queueTransferRemovals(removals);
+ 		queueMutation('childList', this, { added: added, next: args[1] || null });
+ 		return r;
+ 	});
+@@ -2286,7 +2315,9 @@
+ 	});
+ 	wrapMutator(P, 'replaceChild', function (orig, args) {
+ 		var added = fragKids(args[0]);
++		var removals = transferRemovals(added);
+ 		var r = orig.apply(this, args);
++		queueTransferRemovals(removals);
+ 		queueMutation('childList', this, { added: added, removed: [args[1]] });
+ 		return r;
+ 	});
+@@ -3943,8 +3974,6 @@
+ 		createDocumentType: function (n) { return { nodeType: 10, name: n }; } };
+ });
+ method(DocP, 'createElementNS', function (nsURI, qname) { return this.createElement(String(qname).replace(/^.*:/, '')); });
+-method(DocP, 'importNode', function (n, deep) { return n.cloneNode(!!deep); });
+-method(DocP, 'adoptNode', function (n) { if (n.parentNode) n.parentNode.removeChild(n); return n; });
+ method(DocP, 'elementFromPoint', function () { return null; });
+ method(DocP, 'elementsFromPoint', function () { return []; });
+ method(DocP, 'caretRangeFromPoint', function () { return null; });

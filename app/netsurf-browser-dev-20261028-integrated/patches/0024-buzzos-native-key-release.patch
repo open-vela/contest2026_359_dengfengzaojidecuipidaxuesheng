@@ -1,0 +1,49 @@
+--- a/netsurf/content/handlers/html/interaction.c
++++ b/netsurf/content/handlers/html/interaction.c
+@@ -1741,6 +1741,34 @@
+ }
+ 
+ 
++/* The BuzzOS desktop already delivers physical key releases. Keep these
++ * separate from html_keypress so editing and implicit submit happen once. */
++bool html_key_release(struct content *c, uint32_t key)
++{
++	html_content *html = (html_content *)c;
++	dom_node *target = NULL;
++
++	if (html->focus_type == HTML_FOCUS_CONTENT) {
++		struct hlcache_handle *object = html->focus_owner.content->object;
++		if (object != NULL && content_get_type(object) == CONTENT_HTML)
++			return html_key_release(hlcache_handle_get_content(object), key);
++		return false;
++	}
++	if (html->focus_type == HTML_FOCUS_TEXTAREA &&
++	    html->focus_owner.textarea != NULL)
++		target = html->focus_owner.textarea->node;
++	if (target == NULL && html->layout != NULL)
++		target = html->layout->node;
++	if (target == NULL)
++		return false;
++
++	dom_node_ref(target);
++	(void)fire_dom_keyboard_event(corestring_dom_keyup,
++			target, true, true, key);
++	dom_node_unref(target);
++	return true;
++}
++
+ /**
+  * Callback for in-page scrollbars.
+  */
+--- a/netsurf/content/handlers/html/interaction.h
++++ b/netsurf/content/handlers/html/interaction.h
+@@ -69,6 +69,9 @@
+ 
+ bool html_keypress(struct content *c, uint32_t key);
+ 
++/** Dispatch a physical key release without repeating the editing action. */
++bool html_key_release(struct content *c, uint32_t key);
++
+ 
+ void html_overflow_scroll_callback(void *client_data,
+ 		struct scrollbar_msg_data *scrollbar_data);

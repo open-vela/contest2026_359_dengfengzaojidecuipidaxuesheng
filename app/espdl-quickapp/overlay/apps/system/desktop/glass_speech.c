@@ -103,6 +103,17 @@ static void speech_stop(uint32_t request)
   pthread_mutex_unlock(&speech_lock);
 }
 void glass_speech_stop(void){speech_stop(0);}
+bool glass_speech_yield_background(void)
+{
+  pthread_mutex_lock(&speech_lock);
+  bool yielding=speech.active && speech.background_wake;
+  if(yielding){
+    atomic_store(&speech_cancel,true);
+    speech.wake_ready=false;speech.phase=SPEECH_STOPPING;speech.revision++;
+  }
+  pthread_mutex_unlock(&speech_lock);
+  return yielding;
+}
 void glass_speech_clear_cache(void)
 {
 #ifndef GLASS_ESP_TTS
@@ -432,7 +443,7 @@ static int speech_start_mode_ungated(const char *text,bool probe,bool wake_only,
   struct speech_job *job=calloc(1,sizeof(*job));if(!job){free(copy);return -ENOMEM;}job->text=copy;job->probe=probe;job->wake_only=wake_only;job->nano=nano;
   pthread_mutex_lock(&speech_lock);
   bool handoff=!background&&speech.active&&(wake_only||speech.background_wake);
-  if((speech.active&&!handoff)||(music_pcm_session_active()&&!handoff&&!wake_only)){pthread_mutex_unlock(&speech_lock);free(copy);free(job);return -EBUSY;}
+  if((background&&music_pcm_foreground_pending())||(speech.active&&!handoff)||(music_pcm_session_active()&&!handoff&&!wake_only)){pthread_mutex_unlock(&speech_lock);free(copy);free(job);return -EBUSY;}
   if(handoff){
     if(speech_pending){free(speech_pending->text);free(speech_pending);}
     speech_pending=job;speech_pending_cancelled=false;atomic_store(&speech_cancel,true);

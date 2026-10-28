@@ -1,0 +1,803 @@
+--- a/netsurf/content/handlers/html/box.h
++++ b/netsurf/content/handlers/html/box.h
+@@ -95,7 +95,8 @@
+ 	CONVERT_CHILDREN = 1 << 11,  /* wanted children converting */
+ 	IS_REPLACED = 1 << 12,	/* box is a replaced element */
+ 	CONTENTS_BOX = 1 << 13,	/* display: contents; not in the tree */
+-	FLEX_HEIGHT_DEFINITE = 1 << 14 /* definite used height after flex stretch */
++	FLEX_HEIGHT_DEFINITE = 1 << 14, /* definite used height after flex stretch */
++	FIXED_VIEWPORT = 1 << 15 /* fixed containing block is the viewport */
+ } box_flags;
+ 
+ 
+@@ -236,6 +237,14 @@
+ 	 * Last child box, or NULL.
+ 	 */
+ 	struct box *last;
++
++	/* Paint links are rebuilt from layout order, independently of the clip.
++	 * Positioned z:auto groups share their ancestor's real stacking context. */
++	struct box *stack_owner, *stack_head, *stack_tail, *stack_next, *paint_next;
++	bool stack_context, paint_has_fixed;
++	int32_t stack_z;
++	struct box *position_container;
++	int fixed_x, fixed_y; /* viewport padding-edge coordinates */
+ 
+ 	/**
+ 	 * Parent box, or NULL.
+--- a/netsurf/content/handlers/html/box_inspect.h
++++ b/netsurf/content/handlers/html/box_inspect.h
+@@ -32,6 +32,16 @@
+  * \param  y    updated to y coordinate
+  */
+ void box_coords(struct box *box, int *x, int *y);
++
++struct html_content;
++bool box_viewport_fixed(const struct box *box);
++bool box_establishes_position_container(const struct box *box);
++void box_document_coords(const struct html_content *html, struct box *box,
++		int *x, int *y);
++void box_prepare_paint_order(struct box *root);
++/* Descendant clip in a stacking context's untransformed coordinate space. */
++void box_stacking_clip(struct box *box, struct box *root,
++		int root_x, int root_y, float scale, struct rect *clip);
+ 
+ /* Supported CSS transforms from layout document coordinates to paint
+  * coordinates, including ancestors. Layout metrics remain untransformed. */
+@@ -72,7 +82,7 @@
+  *	}
+  * \endcode
+  */
+-struct box *box_at_point(const css_unit_ctx *unit_len_ctx, struct box *box, const int x, const int y, int *box_x, int *box_y);
++struct box *box_at_point(const struct html_content *html, struct box *box, const int x, const int y, int *box_x, int *box_y);
+ 
+ 
+ /**
+--- a/netsurf/content/handlers/html/box_inspect.c
++++ b/netsurf/content/handlers/html/box_inspect.c
+@@ -24,6 +24,8 @@
+ 
+ #include <stdio.h>
+ #include <math.h>
++#include <strings.h>
++#include <ctype.h>
+ #include <dom/dom.h>
+ 
+ #include "utils/utils.h"
+@@ -31,11 +33,13 @@
+ #include "utils/errors.h"
+ #include "netsurf/types.h"
+ #include "netsurf/content.h"
++#include "netsurf/browser_window.h"
+ #include "netsurf/mouse.h"
+ #include "css/utils.h"
+ #include "css/css_fx.h"
+ #include "css/dump.h"
+ #include "desktop/scrollbar.h"
++#include "desktop/browser_private.h"
+ 
+ #include "html/private.h"
+ #include "html/box.h"
+@@ -550,20 +554,193 @@
+ /* Exported function documented in html/box.h */
+ void box_coords(struct box *box, int *x, int *y)
+ {
+-	*x = box->x;
+-	*y = box->y;
+-	while (box->parent) {
++	*x = box->flags & FIXED_VIEWPORT ? box->fixed_x : box->x;
++	*y = box->flags & FIXED_VIEWPORT ? box->fixed_y : box->y;
++	while (box->parent && !(box->flags & FIXED_VIEWPORT)) {
+ 		if (box_is_float(box)) {
+ 			assert(box->float_container);
+ 			box = box->float_container;
+ 		} else {
+ 			box = box->parent;
+ 		}
+-		*x += box->x - scrollbar_get_offset(box->scroll_x);
+-		*y += box->y - scrollbar_get_offset(box->scroll_y);
+-	}
+-}
+-
++		*x += (box->flags & FIXED_VIEWPORT ? box->fixed_x : box->x) -
++			scrollbar_get_offset(box->scroll_x);
++		*y += (box->flags & FIXED_VIEWPORT ? box->fixed_y : box->y) -
++			scrollbar_get_offset(box->scroll_y);
++	}
++}
++
++
++bool box_viewport_fixed(const struct box *box)
++{
++	for (; box; box = box->parent)
++		if (box->flags & FIXED_VIEWPORT) return true;
++	return false;
++}
++
++static void box_document_scroll(const html_content *html, int *sx, int *sy)
++{
++	*sx = *sy = 0;
++	if (html->bw) {
++		browser_window_script_get_scroll(html->bw, sx, sy);
++		if (html->bw->window) {
++			float scale = browser_window_get_scale(html->bw);
++			if (scale > 0) { *sx /= scale; *sy /= scale; }
++		}
++	}
++}
++
++void box_document_coords(const html_content *html, struct box *box,
++		int *x, int *y)
++{
++	box_coords(box, x, y);
++	if (box_viewport_fixed(box)) {
++		int sx, sy;
++		box_document_scroll(html, &sx, &sy);
++		*x += sx; *y += sy;
++	}
++}
++
++/* Clip only at/above an out-of-flow box's containing block. Intervening
++ * overflow ancestors do not clip viewport-fixed or escaped absolute boxes. */
++void box_stacking_clip(struct box *box, struct box *root,
++		int root_x, int root_y, float scale, struct rect *clip)
++{
++	struct box *p = box->parent;
++	int rx, ry;
++	if (box->flags & FIXED_VIEWPORT) return;
++	if (box->position_container) p = box->position_container;
++	box_coords(root, &rx, &ry);
++	for (; p && p != root; p = p->parent) {
++		int x, y;
++		if (!p->style) continue;
++		box_coords(p, &x, &y);
++		x = (root_x + x - rx) * scale;
++		y = (root_y + y - ry) * scale;
++		if (css_computed_overflow_x(p->style) != CSS_OVERFLOW_VISIBLE) {
++			clip->x0 = max(clip->x0, x);
++			clip->x1 = min(clip->x1, x + (p->padding[LEFT] + p->width + p->padding[RIGHT]) * scale);
++		}
++		if (css_computed_overflow_y(p->style) != CSS_OVERFLOW_VISIBLE) {
++			clip->y0 = max(clip->y0, y);
++			clip->y1 = min(clip->y1, y + (p->padding[TOP] + p->height + p->padding[BOTTOM]) * scale);
++		}
++	}
++}
++
++static bool box_stack_entry(struct box *box, bool *context, int32_t *z)
++{
++	struct plot_layer effects;
++	uint8_t position, z_type;
++	bool positioned, flex_item;
++	*context = false; *z = 0;
++	if (!box->style || box->type == BOX_TEXT || box->type == BOX_BR ||
++			box->type == BOX_INLINE_END || box->type == BOX_INLINE_CONTAINER ||
++			(box->type == BOX_INLINE && !box->object)) return false;
++	position = css_computed_position(box->style);
++	positioned = position != CSS_POSITION_STATIC;
++	flex_item = box->parent && (box->parent->type == BOX_FLEX ||
++			box->parent->type == BOX_INLINE_FLEX);
++	z_type = css_computed_z_index(box->style, z);
++	if (!positioned && !flex_item) *z = 0;
++	*context = ((positioned || flex_item) && z_type == CSS_Z_INDEX_SET) ||
++			position == CSS_POSITION_FIXED ||
++			box_establishes_position_container(box) ||
++			cssfx_layer_effects(box->style, &effects);
++	return positioned || *context;
++}
++
++static bool box_raw_non_none(const struct box *box, enum css_properties_e prop)
++{
++	const char *raw = box->style ? cssfx_raw(box->style, prop) : NULL;
++	if (!raw) return false;
++	while (isspace((unsigned char)*raw)) raw++;
++	if (strncasecmp(raw, "none", 4) != 0) return true;
++	raw += 4;
++	while (isspace((unsigned char)*raw)) raw++;
++	return *raw != '\0';
++}
++
++bool box_establishes_position_container(const struct box *box)
++{
++	return box_raw_non_none(box, CSS_PROP_TRANSFORM) ||
++		box_raw_non_none(box, CSS_PROP_FILTER);
++}
++
++static void box_stack_collect(struct box *box, struct box *owner)
++{
++	struct box *c;
++	box->stack_head = box->stack_tail = box->stack_next = box->paint_next = NULL;
++	box->stack_owner = NULL;
++	box->paint_has_fixed = (box->flags & FIXED_VIEWPORT) != 0;
++	if (box != owner && box_stack_entry(box, &box->stack_context, &box->stack_z)) {
++		box->stack_owner = owner;
++		if (owner->stack_tail) owner->stack_tail->stack_next = box;
++		else owner->stack_head = box;
++		owner->stack_tail = box;
++		if (box->stack_context) owner = box;
++	} else if (box != owner) {
++		box->stack_context = false;
++	}
++	for (c = box->children; c; c = c->next) {
++		box_stack_collect(c, owner);
++		box->paint_has_fixed |= c->paint_has_fixed;
++	}
++}
++
++static struct box *box_stack_sort(struct box *head)
++{
++	struct box *slow, *fast, *right, *left, *result = NULL, **tail = &result;
++	if (!head || !head->stack_next) return head;
++	slow = head; fast = head->stack_next;
++	while (fast && fast->stack_next) {
++		slow = slow->stack_next; fast = fast->stack_next->stack_next;
++	}
++	right = slow->stack_next; slow->stack_next = NULL;
++	left = box_stack_sort(head); right = box_stack_sort(right);
++	while (left && right) {
++		if (left->stack_z <= right->stack_z) {
++			*tail = left; left = left->stack_next;
++		} else { *tail = right; right = right->stack_next; }
++		tail = &(*tail)->stack_next;
++	}
++	*tail = left ? left : right;
++	return result;
++}
++
++static void box_stack_sort_tree(struct box *box)
++{
++	struct box *c;
++	if (box->stack_context) box->stack_head = box_stack_sort(box->stack_head);
++	for (c = box->children; c; c = c->next) box_stack_sort_tree(c);
++}
++
++static void box_paint_link(struct box *box, struct box **tail)
++{
++	struct box *c;
++	if (*tail) (*tail)->paint_next = box;
++	*tail = box;
++	if (box->stack_context)
++		for (c = box->stack_head; c && c->stack_z < 0; c = c->stack_next)
++			box_paint_link(c, tail);
++	for (c = box->children; c; c = c->next)
++		if (!c->stack_owner && !box_is_float(c)) box_paint_link(c, tail);
++	for (c = box->float_children; c; c = c->next_float)
++		if (!c->stack_owner) box_paint_link(c, tail);
++	if (box->stack_context)
++		for (c = box->stack_head; c; c = c->stack_next)
++			if (c->stack_z >= 0) box_paint_link(c, tail);
++}
++
++void box_prepare_paint_order(struct box *root)
++{
++	struct box *tail = NULL;
++	root->stack_context = true;
++	box_stack_collect(root, root);
++	box_stack_sort_tree(root);
++	box_paint_link(root, &tail);
++	if (tail) tail->paint_next = NULL;
++}
+ 
+ /* Exported function documented in html/box.h */
+ void box_bounds(struct box *box, struct rect *r)
+@@ -608,39 +785,54 @@
+ 
+ /* Exported function documented in html/box.h */
+ struct box *
+-box_at_point(const css_unit_ctx *unit_len_ctx,
+-	     struct box *box,
+-	     const int x, const int y,
+-	     int *box_x, int *box_y)
+-{
+-	bool skip_children;
+-	bool physically;
+-
++box_at_point(const html_content *html, struct box *box,
++		const int x, const int y, int *box_x, int *box_y)
++{
++	const css_unit_ctx *unit_len_ctx = &html->unit_len_ctx;
+ 	assert(box);
+-
+-	skip_children = false;
+-	while ((box = box_next_xy(box, box_x, box_y, skip_children))) {
++	if (!box->parent) box_prepare_paint_order(box);
++	while ((box = box->paint_next)) {
++		bool physically, clipped = false;
+ 		float k, dx, dy, px, py;
++		int bx, by, sx = 0, sy = 0;
+ 		box_document_transform(unit_len_ctx, box, &k, &dx, &dy);
+-		if (k == 0) { skip_children = true; continue; }
+-		px = (x - dx) / k - *box_x;
+-		py = (y - dy) / k - *box_y;
++		if (k == 0) continue;
++		const char *pointer = box->style ? cssfx_raw(box->style, CSS_PROP_POINTER_EVENTS) : NULL;
++		if (pointer && strcasecmp(pointer, "none") == 0) continue;
++		if (box_viewport_fixed(box)) box_document_scroll(html, &sx, &sy);
++		box_coords(box, &bx, &by);
++		px = (x - sx - dx) / k - bx;
++		py = (y - sy - dy) / k - by;
+ 		if (!isfinite(px) || !isfinite(py) || fabsf(px) > 100000000 ||
+-				fabsf(py) > 100000000) { skip_children = true; continue; }
+-		if (box_contains_point(unit_len_ctx, box, (int)floorf(px), (int)floorf(py),
+-				       &physically)) {
+-			*box_x -= scrollbar_get_offset(box->scroll_x);
+-			*box_y -= scrollbar_get_offset(box->scroll_y);
+-
+-			if (physically)
+-				return box;
+-
+-			skip_children = false;
+-		} else {
+-			skip_children = true;
+-		}
+-	}
+-
++				fabsf(py) > 100000000) continue;
++		if (!box_contains_point(unit_len_ctx, box, floorf(px), floorf(py), &physically) ||
++				!physically) continue;
++		struct box *ancestor = box->parent;
++		if (box->flags & FIXED_VIEWPORT) ancestor = NULL;
++		else if (box->position_container) ancestor = box->position_container;
++		for (; ancestor; ancestor = ancestor->parent) {
++			int ax, ay, asx = 0, asy = 0;
++			float ak, adx, ady, apx, apy;
++			if (!ancestor->style || !ancestor->parent) continue;
++			box_coords(ancestor, &ax, &ay);
++			box_document_transform(unit_len_ctx, ancestor, &ak, &adx, &ady);
++			if (ak == 0) { clipped = true; break; }
++			if (box_viewport_fixed(ancestor)) box_document_scroll(html, &asx, &asy);
++			apx = (x - asx - adx) / ak - ax;
++			apy = (y - asy - ady) / ak - ay;
++			if ((css_computed_overflow_x(ancestor->style) != CSS_OVERFLOW_VISIBLE &&
++				(apx < 0 || apx >= ancestor->padding[LEFT] + ancestor->width + ancestor->padding[RIGHT])) ||
++				(css_computed_overflow_y(ancestor->style) != CSS_OVERFLOW_VISIBLE &&
++				(apy < 0 || apy >= ancestor->padding[TOP] + ancestor->height + ancestor->padding[BOTTOM]))) {
++				clipped = true; break;
++			}
++			if (ancestor->flags & FIXED_VIEWPORT) break;
++		}
++		if (clipped) continue;
++		*box_x = bx + sx - scrollbar_get_offset(box->scroll_x);
++		*box_y = by + sy - scrollbar_get_offset(box->scroll_y);
++		return box;
++	}
+ 	return NULL;
+ }
+ 
+--- a/netsurf/content/handlers/html/box_manipulate.c
++++ b/netsurf/content/handlers/html/box_manipulate.c
+@@ -135,6 +135,12 @@
+ 	box->prev = NULL;
+ 	box->children = NULL;
+ 	box->last = NULL;
++	box->stack_owner = box->stack_head = box->stack_tail = NULL;
++	box->stack_next = box->paint_next = NULL;
++	box->stack_context = box->paint_has_fixed = false;
++	box->stack_z = 0;
++	box->position_container = NULL;
++	box->fixed_x = box->fixed_y = 0;
+ 	box->parent = NULL;
+ 	box->inline_end = NULL;
+ 	box->float_children = NULL;
+@@ -350,4 +356,3 @@
+ 	return NSERROR_OK;
+ }
+ 
+-
+--- a/netsurf/content/handlers/html/layout.c
++++ b/netsurf/content/handlers/html/layout.c
+@@ -4816,6 +4816,7 @@
+ 	struct box_border *border = box->border;
+ 	int available_width = containing_block->width;
+ 	int space;
++	box->position_container = containing_block;
+ 
+ 	assert(box->type == BOX_BLOCK || box->type == BOX_TABLE ||
+ 			box->type == BOX_INLINE_BLOCK ||
+@@ -5162,6 +5163,11 @@
+ 	      containing_block->height);
+ 
+ 	box->y = top + margin[TOP] + border[TOP].width - cy;
++	if (box->flags & FIXED_VIEWPORT) {
++		box->fixed_x = box->x + cx;
++		box->fixed_y = box->y + cy;
++		box->position_container = NULL;
++	}
+ 	if (containing_block->type == BOX_BLOCK ||
+ 			containing_block->type == BOX_INLINE_BLOCK ||
+ 			containing_block->type == BOX_TABLE_CELL) {
+@@ -5192,7 +5198,7 @@
+ layout_position_absolute(struct box *box,
+ 			 struct box *containing_block,
+ 			 int cx, int cy,
+-			 html_content *content)
++			 html_content *content, struct box *viewport)
+ {
+ 	struct box *c;
+ 
+@@ -5205,14 +5211,29 @@
+ 						CSS_POSITION_ABSOLUTE ||
+ 				 css_computed_position(c->style) ==
+ 						CSS_POSITION_FIXED)) {
+-			if (!layout_absolute(c, containing_block,
+-					cx, cy, content))
++			struct box *cb = containing_block;
++			int pcx = cx, pcy = cy;
++			c->flags &= ~FIXED_VIEWPORT;
++			if (css_computed_position(c->style) == CSS_POSITION_FIXED) {
++				struct box *p;
++				cb = viewport;
++				/* A transform or filter establishes a fixed containing block;
++				 * position:relative alone does not. */
++				for (p = c->parent; p; p = p->parent) {
++					if (box_establishes_position_container(p)) { cb = p; break; }
++				}
++				pcx = pcy = 0;
++				for (p = c->parent; p && p != cb; p = p->parent) {
++					pcx += p->x; pcy += p->y;
++				}
++				if (cb == viewport) c->flags |= FIXED_VIEWPORT;
++			}
++			if (!layout_absolute(c, cb, pcx, pcy, content)) return false;
++			if (!layout_position_absolute(c, c, 0, 0, content, viewport))
+ 				return false;
+-			if (!layout_position_absolute(c, c, 0, 0, content))
+-				return false;
+-		} else if (c->style && css_computed_position(c->style) ==
+-				CSS_POSITION_RELATIVE) {
+-			if (!layout_position_absolute(c, c, 0, 0, content))
++		} else if (c->style && (css_computed_position(c->style) ==
++				CSS_POSITION_RELATIVE || box_establishes_position_container(c))) {
++			if (!layout_position_absolute(c, c, 0, 0, content, viewport))
+ 				return false;
+ 		} else {
+ 			int px, py;
+@@ -5239,7 +5260,7 @@
+ 				py = c->y;
+ 			}
+ 			if (!layout_position_absolute(c, containing_block,
+-					cx + px, cy + py, content))
++					cx + px, cy + py, content, viewport))
+ 				return false;
+ 		}
+ 	}
+@@ -5646,6 +5667,7 @@
+ 	bool ret;
+ 	struct box *doc = content->layout;
+ 	const struct gui_layout_table *font_func = content->font_func;
++	struct box viewport = { .type = BOX_BLOCK, .width = width, .height = height, .style = doc->style };
+ 
+ 	NSLOG(layout, DEBUG, "Doing layout to %ix%i of %s",
+ 			width, height, nsurl_access(content_get_url(
+@@ -5686,7 +5708,7 @@
+ 	}
+ 
+ 	layout_lists(content, doc);
+-	layout_position_absolute(doc, doc, 0, 0, content);
++	layout_position_absolute(doc, doc, 0, 0, content, &viewport);
+ 	layout_position_relative(&content->unit_len_ctx, doc, doc, 0, 0);
+ 
+ 	layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
+--- a/netsurf/content/handlers/html/redraw.c
++++ b/netsurf/content/handlers/html/redraw.c
+@@ -1373,7 +1373,7 @@
+ 
+ 	for (c = box->children; c; c = c->next) {
+ 
+-		if (c->type != BOX_FLOAT_LEFT && c->type != BOX_FLOAT_RIGHT)
++		if (!c->stack_owner && c->type != BOX_FLOAT_LEFT && c->type != BOX_FLOAT_RIGHT)
+ 			if (!html_redraw_box(html, c,
+ 					x_parent + box->x -
+ 					scrollbar_get_offset(box->scroll_x),
+@@ -1384,7 +1384,7 @@
+ 				return false;
+ 	}
+ 	for (c = box->float_children; c; c = c->next_float)
+-		if (!html_redraw_box(html, c,
++		if (!c->stack_owner && !html_redraw_box(html, c,
+ 				x_parent + box->x -
+ 				scrollbar_get_offset(box->scroll_x),
+ 				y_parent + box->y -
+@@ -1502,6 +1502,32 @@
+  *
+  * x, y, clip_[xy][01] are in target coordinates.
+  */
++
++static bool html_redraw_stacking(const html_content *html, struct box *box,
++		int x_parent, int y_parent, const struct rect *clip, float scale,
++		colour background, const struct redraw_context *ctx, bool negative)
++{
++	struct box *c;
++	int rx, ry;
++	if (!box->stack_context) return true;
++	box_document_coords(html, box, &rx, &ry);
++	for (c = box->stack_head; c; c = c->stack_next) {
++		int cx, cy;
++		struct rect inherited = *clip;
++		if ((c->stack_z < 0) != negative) continue;
++		if ((c->flags & FIXED_VIEWPORT) && ctx->html_viewport_clip)
++			inherited = *ctx->html_viewport_clip;
++		box_document_coords(html, c, &cx, &cy);
++		box_stacking_clip(c, box, x_parent + box->x, y_parent + box->y,
++				scale, &inherited);
++		if (inherited.x0 >= inherited.x1 || inherited.y0 >= inherited.y1) continue;
++		if (!html_redraw_box(html, c,
++				x_parent + box->x + cx - rx - c->x,
++				y_parent + box->y + cy - ry - c->y,
++				&inherited, scale, background, ctx)) return false;
++	}
++	return ctx->plot->clip(ctx, clip) == NSERROR_OK;
++}
+ 
+ static bool html_redraw_box_contents(const html_content *html,
+ 		struct box *box,
+@@ -1644,8 +1670,8 @@
+ 	}
+ 
+ 	/* return if the rectangle is completely outside the clip rectangle */
+-	if (clip->y1 < r.y0 || r.y1 < clip->y0 ||
+-			clip->x1 < r.x0 || r.x1 < clip->x0)
++	if (!box->paint_has_fixed && (clip->y1 < r.y0 || r.y1 < clip->y0 ||
++			clip->x1 < r.x0 || r.x1 < clip->x0))
+ 		return true;
+ 
+ 	/*if the rectangle is under the page bottom but it can fit in a page,
+@@ -1672,8 +1698,12 @@
+ 		if ((ctx->plot->group_start) &&
+ 		    (ctx->plot->group_start(ctx, "hidden box") != NSERROR_OK))
+ 			return false;
+-		if (!html_redraw_box_children(html, box, x_parent, y_parent,
+-				&r, scale, current_background_color, ctx))
++		if (!html_redraw_stacking(html, box, x_parent, y_parent, clip, scale,
++				current_background_color, ctx, true) ||
++		    !html_redraw_box_children(html, box, x_parent, y_parent,
++				clip, scale, current_background_color, ctx) ||
++		    !html_redraw_stacking(html, box, x_parent, y_parent, clip, scale,
++				current_background_color, ctx, false))
+ 			return false;
+ 		return ((!ctx->plot->group_end) || (ctx->plot->group_end(ctx) == NSERROR_OK));
+ 	}
+@@ -2140,6 +2170,11 @@
+ 		}
+ 	}
+ 
++	/* Negative contexts paint after this context's background/border,
++	 * before its in-flow contents. Nonnegative groups paint afterwards. */
++	if (!html_redraw_stacking(html, box, x_parent, y_parent, &r, scale,
++			current_background_color, ctx, true)) return false;
++
+ 	/* text decoration */
+ 	if ((box->type != BOX_TEXT) &&
+ 	    box->style &&
+@@ -2279,6 +2314,9 @@
+ 			box->type == BOX_TABLE_CELL || box->type == BOX_INLINE)
+ 		if (ctx->plot->clip(ctx, clip) != NSERROR_OK)
+ 			return false;
++
++	if (!html_redraw_stacking(html, box, x_parent, y_parent, &r, scale,
++			current_background_color, ctx, false)) return false;
+ 
+ 	/* list marker */
+ 	if (box->list_marker) {
+@@ -2438,6 +2476,8 @@
+ 	if (area.y0 < clip->y0) area.y0 = clip->y0;
+ 	if (area.x1 > clip->x1) area.x1 = clip->x1;
+ 	if (area.y1 > clip->y1) area.y1 = clip->y1;
++	if (box->paint_has_fixed && ctx->html_viewport_clip)
++		area = *ctx->html_viewport_clip;
+ 	if (area.x0 >= area.x1 || area.y0 >= area.y1)
+ 		return true;
+ 
+@@ -2483,6 +2523,9 @@
+ {
+ 	html_content *html = (html_content *) c;
+ 	struct box *box;
++	struct redraw_context html_ctx = *ctx;
++	html_ctx.html_viewport_clip = clip;
++	ctx = &html_ctx;
+ 	bool result = true;
+ 	bool select, select_only;
+ 	plot_style_t pstyle_fill_bg = {
+@@ -2492,6 +2535,7 @@
+ 
+ 	box = html->layout;
+ 	assert(box);
++	box_prepare_paint_order(box);
+ 
+ 	/* The select menu needs special treating because, when opened, it
+ 	 * reaches beyond its layout box.
+--- a/netsurf/content/handlers/html/interaction.c
++++ b/netsurf/content/handlers/html/interaction.c
+@@ -685,7 +685,7 @@
+ 		      int x, int y,
+ 		      struct mouse_action_state *man)
+ {
+-	struct box *box;
++	struct box *box, *hit, *candidate;
+ 	int box_x = 0;
+ 	int box_y = 0;
+ 
+@@ -697,6 +697,11 @@
+ 	/* search the box tree for a link, imagemap, form control, or
+ 	 * box with scrollbars
+ 	 */
++	box = hit = html->layout;
++	while ((candidate = box_at_point(html, box, x, y, &box_x, &box_y))) {
++		box = candidate;
++		if (box_visible(candidate)) hit = candidate;
++	}
+ 	box = html->layout;
+ 
+ 	/* Consider the margins of the html page now */
+@@ -823,8 +828,19 @@
+ 		}
+ 
+ 	next_box:
+-		/* iterate to next box */
+-		box = box_at_point(&html->unit_len_ctx, box, x, y, &box_x, &box_y);
++		/* Follow the target's ancestors, preserving inherited link/widget
++		 * state without considering obscured sibling boxes. */
++		if (box == hit) box = NULL;
++		else {
++			struct box *child = hit;
++			while (child && child->parent != box) child = child->parent;
++			box = child;
++			if (box) {
++				box_document_coords(html, box, &box_x, &box_y);
++				box_x -= scrollbar_get_offset(box->scroll_x);
++				box_y -= scrollbar_get_offset(box->scroll_y);
++			}
++		}
+ 	} while (box != NULL);
+ 
+ 	/* use of box_x, box_y, or content below this point is probably a
+--- a/netsurf/content/handlers/html/html.c
++++ b/netsurf/content/handlers/html/html.c
+@@ -1635,7 +1635,7 @@
+ 	struct box *next;
+ 	int box_x = 0, box_y = 0;
+ 
+-	while ((next = box_at_point(&html->unit_len_ctx, box, x, y,
++	while ((next = box_at_point(html, box, x, y,
+ 			&box_x, &box_y)) != NULL) {
+ 		box = next;
+ 
+@@ -1719,7 +1719,7 @@
+ 
+ 	/* TODO: invert order; visit deepest box first */
+ 
+-	while ((next = box_at_point(&html->unit_len_ctx, box, x, y,
++	while ((next = box_at_point(html, box, x, y,
+ 			&box_x, &box_y)) != NULL) {
+ 		box = next;
+ 
+@@ -1868,7 +1868,7 @@
+ 	int box_x = 0, box_y = 0;
+ 
+ 	/* Scan box tree for boxes that can handle drop */
+-	while ((next = box_at_point(&html->unit_len_ctx, box, x, y,
++	while ((next = box_at_point(html, box, x, y,
+ 			&box_x, &box_y)) != NULL) {
+ 		box = next;
+ 
+--- a/netsurf/include/netsurf/plotters.h
++++ b/netsurf/include/netsurf/plotters.h
+@@ -80,6 +80,8 @@
+ 	 *  plot operations without using a global.
+ 	 */
+ 	void *priv;
++	/** Current HTML viewport clip, set locally by html_redraw. */
++	const struct rect *html_viewport_clip;
+ };
+ 
+ 
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_native.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_native.c
+@@ -24,6 +24,7 @@
+  */
+ 
+ #include <stdbool.h>
++#include <math.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -182,12 +183,60 @@
+ 	for (i = 0; i < 12; i++) {
+ 		if (visual && i < 4) {
+ 			float value = v[i] * factor + (i == 0 ? dx : i == 1 ? dy : 0);
++			if (i < 2 && box_viewport_fixed(box)) {
++				int vx, vy, docx, docy;
++				box_coords(box, &vx, &vy);
++				box_document_coords(t->htmlc, box, &docx, &docy);
++				value += i == 0 ? docx - vx : docy - vy;
++			}
+ 			JS_SetPropertyUint32(ctx, arr, i, JS_NewFloat64(ctx, value));
+ 		} else {
+ 			JS_SetPropertyUint32(ctx, arr, i, JS_NewInt32(ctx, v[i]));
+ 		}
+ 	}
+ 	return arr;
++}
++
++static JSValue nat_elements_at_point(JSContext *ctx, JSValueConst this_val,
++		int argc, JSValueConst *argv)
++{
++	struct jsthread *t = nat_thread(ctx);
++	JSValue array = JS_NewArray(ctx);
++	double x, y;
++	int sx = 0, sy = 0, width, height, bx = 0, by = 0;
++	uint32_t count = 0;
++	struct box *box, *hit;
++	if (argc < 2 || !t || !t->htmlc || !t->bw) return array;
++	if (JS_ToFloat64(ctx, &x, argv[0]) < 0 || JS_ToFloat64(ctx, &y, argv[1]) < 0) {
++		JS_FreeValue(ctx, array); return JS_EXCEPTION;
++	}
++	if (!isfinite(x) || !isfinite(y)) return array;
++	nat_flush_layout(t);
++	if (!t->htmlc->layout) return array;
++	browser_window_get_dimensions(t->bw, &width, &height);
++	browser_window_script_get_scroll(t->bw, &sx, &sy);
++	if (t->bw->window) {
++		float scale = browser_window_get_scale(t->bw);
++		if (scale > 0) { width /= scale; height /= scale; sx /= scale; sy /= scale; }
++	}
++	if (x < 0 || y < 0 || x >= width || y >= height) return array;
++	box = t->htmlc->layout;
++	while ((hit = box_at_point(t->htmlc, box, x + sx, y + sy, &bx, &by))) {
++		dom_node *node = hit->node;
++		dom_node_type type;
++		box = hit;
++		if (!box_visible(hit) || !node) continue;
++		if (dom_node_get_node_type(node, &type) != DOM_NO_ERR) continue;
++		if (type != DOM_ELEMENT_NODE) {
++			/* Text fragments hit their parent element. */
++			if (dom_node_get_parent_node(node, &node) != DOM_NO_ERR || !node) continue;
++			JS_SetPropertyUint32(ctx, array, count++, qjs_dom_wrap_node(t, node));
++			dom_node_unref(node);
++		} else JS_SetPropertyUint32(ctx, array, count++, qjs_dom_wrap_node(t, node));
++	}
++	/* The document element is the viewport fallback. JS reverses and
++	 * de-duplicates this bottom-to-top native list. */
++	return array;
+ }
+ 
+ /** __ns.viewport() -> [scrollX, scrollY, width, height, docW, docH, scale, deviceW, deviceH] */
+@@ -1646,6 +1695,7 @@
+ 	JS_CFUNC_DEF("inputChecked", 1, nat_input_checked),
+ 	JS_CFUNC_DEF("setInputChecked", 2, nat_set_input_checked),
+ 	JS_CFUNC_DEF("rect", 1, nat_rect),
++	JS_CFUNC_DEF("elementsAtPoint", 2, nat_elements_at_point),
+ 	JS_CFUNC_DEF("viewport", 0, nat_viewport),
+ 	JS_CFUNC_DEF("scrollTo", 2, nat_scroll_to),
+ 	JS_CFUNC_DEF("elementScroll", 3, nat_element_scroll),
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -4036,8 +4036,26 @@
+ 		createDocument: function () { return ns.parseDocument(''); },
+ 		createDocumentType: function (n) { return { nodeType: 10, name: n }; } };
+ });
+-method(DocP, 'elementFromPoint', function () { return null; });
+-method(DocP, 'elementsFromPoint', function () { return []; });
++method(DocP, 'elementsFromPoint', function (x, y) {
++	if (arguments.length < 2) throw new TypeError('Two coordinates are required');
++	x = Number(x); y = Number(y);
++	if (!Number.isFinite(x) || !Number.isFinite(y)) throw new TypeError('Coordinates must be finite');
++	if (this !== document) return [];
++	var boxes = ns.elementsAtPoint(x, y), result = [];
++	for (var i = boxes.length - 1; i >= 0; i--) {
++		var element = boxes[i];
++		if (result.indexOf(element) < 0) result.push(element);
++	}
++	var viewport = ns.viewport();
++	if (x >= 0 && y >= 0 && x < viewport[2] && y < viewport[3] &&
++		this.documentElement && result.indexOf(this.documentElement) < 0)
++		result.push(this.documentElement);
++	return result;
++});
++method(DocP, 'elementFromPoint', function (x, y) {
++	if (arguments.length < 2) throw new TypeError('Two coordinates are required');
++	return this.elementsFromPoint(x, y)[0] || null;
++});
+ method(DocP, 'caretRangeFromPoint', function () { return null; });
+ method(DocP, 'getSelection', function () { return global.getSelection(); });
+ method(DocP, 'execCommand', function () { return false; });

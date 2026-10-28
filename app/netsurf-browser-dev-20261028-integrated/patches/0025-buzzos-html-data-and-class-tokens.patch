@@ -1,0 +1,196 @@
+--- a/netsurf/content/handlers/javascript/quickjs/runtime.js
++++ b/netsurf/content/handlers/javascript/quickjs/runtime.js
+@@ -1169,34 +1169,81 @@
+ /* ------------------------------------------------------------------ */
+ /* classList, dataset, style */
+ 
+-function DOMTokenList(el, attr) { this._el = el; this._attr = attr; }
++function tokenString(value) {
++	if (typeof value === 'symbol') throw new TypeError('Expected a DOMString');
++	return String(value);
++}
++function validToken(token) {
++	if (token === '') throw new DOMException('The token must not be empty', 'SyntaxError');
++	if (/[ \t\n\r\f]/.test(token)) throw new DOMException('The token contains whitespace', 'InvalidCharacterError');
++	return token;
++}
++function tokenArguments(args) {
++	/* Web IDL converts the complete sequence before the operation mutates it. */
++	var tokens = Array.prototype.map.call(args, tokenString);
++	tokens.forEach(validToken);
++	return tokens;
++}
++function tokenIndex(key) {
++	return typeof key === 'string' && /^(0|[1-9][0-9]*)$/.test(key) && Number(key) < 4294967295;
++}
++function DOMTokenList(el, attr) {
++	this._el = el; this._attr = attr;
++	return new Proxy(this, {
++		get: function (target, key, receiver) {
++			return tokenIndex(key) ? target._get()[Number(key)] : Reflect.get(target, key, receiver);
++		},
++		has: function (target, key) { return tokenIndex(key) ? Number(key) < target.length : Reflect.has(target, key); },
++		set: function (target, key, value, receiver) {
++			return tokenIndex(key) ? false : Reflect.set(target, key, value, receiver);
++		},
++		ownKeys: function (target) {
++			var keys = target._get().map(function (v, i) { return String(i); });
++			return keys.concat(Reflect.ownKeys(target).filter(function (k) { return keys.indexOf(k) < 0; }));
++		},
++		defineProperty: function (target, key, descriptor) {
++			return tokenIndex(key) ? false : Reflect.defineProperty(target, key, descriptor);
++		},
++		getOwnPropertyDescriptor: function (target, key) {
++			if (!tokenIndex(key)) return Reflect.getOwnPropertyDescriptor(target, key);
++			var value = target._get()[Number(key)];
++			return value === undefined ? undefined : { value: value, writable: false, enumerable: true, configurable: true };
++		}
++	});
++}
+ DOMTokenList.prototype = {
+ 	_get: function () {
+ 		var v = this._el.getAttribute(this._attr);
+-		return v ? v.split(/\s+/).filter(Boolean) : [];
++		return v ? v.split(/[ \t\n\r\f]+/).filter(function (t, i, a) { return t !== '' && a.indexOf(t) === i; }) : [];
+ 	},
+-	_set: function (a) { this._el.setAttribute(this._attr, a.join(' ')); },
++	_set: function (a) {
++		if (a.length || this._el.hasAttribute(this._attr)) this._el.setAttribute(this._attr, a.join(' '));
++	},
+ 	get length() { return this._get().length; },
+ 	get value() { return toStr(this._el.getAttribute(this._attr)); },
+-	set value(v) { this._el.setAttribute(this._attr, v); },
+-	item: function (i) { return this._get()[i] || null; },
+-	contains: function (t) { return this._get().indexOf(String(t)) >= 0; },
++	set value(v) { this._el.setAttribute(this._attr, tokenString(v)); },
++	item: function (i) { if (!arguments.length) throw new TypeError('An index is required'); return this._get()[i >>> 0] || null; },
++	contains: function (t) {
++		if (!arguments.length) throw new TypeError('A token is required');
++		return this._get().indexOf(tokenString(t)) >= 0;
++	},
+ 	add: function () {
+-		var a = this._get(), changed = false;
+-		for (var i = 0; i < arguments.length; i++) {
+-			var t = String(arguments[i]);
+-			if (a.indexOf(t) < 0) { a.push(t); changed = true; }
++		var tokens = tokenArguments(arguments), a = this._get();
++		for (var i = 0; i < tokens.length; i++) {
++			var t = tokens[i];
++			if (a.indexOf(t) < 0) a.push(t);
+ 		}
+-		if (changed || !this._el.hasAttribute(this._attr)) this._set(a);
++		this._set(a);
+ 	},
+ 	remove: function () {
+-		var rm = Array.prototype.map.call(arguments, String);
++		var rm = tokenArguments(arguments);
+ 		var a = this._get();
+ 		var b = a.filter(function (x) { return rm.indexOf(x) < 0; });
+-		if (b.length !== a.length) this._set(b);
++		this._set(b);
+ 	},
+ 	toggle: function (t, force) {
+-		t = String(t);
++		if (!arguments.length) throw new TypeError('A token is required');
++		t = validToken(tokenString(t));
+ 		var has = this.contains(t);
+ 		if (force === undefined) force = !has;
+ 		if (force && !has) this.add(t);
+@@ -1204,9 +1251,13 @@
+ 		return !!force;
+ 	},
+ 	replace: function (a, b) {
+-		var l = this._get(), i = l.indexOf(String(a));
++		if (arguments.length < 2) throw new TypeError('Two tokens are required');
++		a = tokenString(a); b = tokenString(b);
++		if (a === '' || b === '') throw new DOMException('The token must not be empty', 'SyntaxError');
++		validToken(a); validToken(b);
++		var l = this._get(), i = l.indexOf(a);
+ 		if (i < 0) return false;
+-		l[i] = String(b);
++		l[i] = b;
+ 		this._set(l.filter(function (x, j) { return l.indexOf(x) === j; }));
+ 		return true;
+ 	},
+@@ -1219,9 +1270,15 @@
+ };
+ DOMTokenList.prototype[Symbol.iterator] = function () { return this._get()[Symbol.iterator](); };
+ global.DOMTokenList = DOMTokenList;
+-accessor(ElementP, 'classList', function () { return new DOMTokenList(this, 'class'); },
++var tokenListCache = new WeakMap();
++function elementTokenList(element, attribute) {
++	var lists = tokenListCache.get(element);
++	if (!lists) { lists = Object.create(null); tokenListCache.set(element, lists); }
++	return lists[attribute] || (lists[attribute] = new DOMTokenList(element, attribute));
++}
++accessor(ElementP, 'classList', function () { return elementTokenList(this, 'class'); },
+ 	function (v) { this.setAttribute('class', v); });
+-accessor(ElementP, 'relList', function () { return new DOMTokenList(this, 'rel'); });
++accessor(ElementP, 'relList', function () { return elementTokenList(this, 'rel'); });
+ 
+ function camelToKebab(s) {
+ 	if (s === 'cssFloat') return 'float';
+@@ -1232,26 +1289,51 @@
+ 	if (s === 'float') return 'cssFloat';
+ 	return s.replace(/^-(webkit|moz|ms)-/, '$1-').replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
+ }
++var datasetCache = new WeakMap();
++function dataAttribute(key) {
++	return 'data-' + key.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); });
++}
++function dataProperty(name) {
++	return name.slice(5).replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
++}
+ accessor(ElementP, 'dataset', function () {
++	var cached = datasetCache.get(this);
++	if (cached) return cached;
+ 	var el = this;
+-	return new Proxy({}, {
++	function attribute(key) { return typeof key === 'string' && !/-[a-z]/.test(key) ? dataAttribute(key) : null; }
++	var map = new Proxy({}, {
+ 		get: function (t, k) {
+-			if (typeof k !== 'string') return undefined;
+-			var v = el.getAttribute('data-' + camelToKebab(k));
+-			return v === null ? undefined : v;
++			var name = attribute(k), v = name === null ? null : el.getAttribute(name);
++			return v === null ? Reflect.get(t, k) : v;
+ 		},
+-		set: function (t, k, v) { el.setAttribute('data-' + camelToKebab(String(k)), String(v)); return true; },
+-		deleteProperty: function (t, k) { el.removeAttribute('data-' + camelToKebab(String(k))); return true; },
+-		has: function (t, k) { return el.hasAttribute('data-' + camelToKebab(String(k))); },
+-		ownKeys: function () {
+-			return el.getAttributeNames().filter(function (n) { return n.indexOf('data-') === 0; })
+-				.map(function (n) { return kebabToCamel(n.slice(5)); });
++		set: function (t, k, v) {
++			if (typeof k === 'symbol') return Reflect.set(t, k, v);
++			v = tokenString(v);
++			if (/-[a-z]/.test(k)) throw new DOMException('Invalid data property name', 'SyntaxError');
++			var name = dataAttribute(k);
++			if (/[ \t\n\r\f\0\/=>]/.test(name)) throw new DOMException('Invalid attribute name', 'InvalidCharacterError');
++			el.setAttribute(name, v); return true;
++		},
++		deleteProperty: function (t, k) {
++			var name = attribute(k);
++			if (name !== null && el.hasAttribute(name)) el.removeAttribute(name);
++			return Reflect.deleteProperty(t, k);
++		},
++		has: function (t, k) {
++			var name = attribute(k);
++			return (name !== null && el.hasAttribute(name)) || Reflect.has(t, k);
++		},
++		ownKeys: function (t) {
++			var keys = el.getAttributeNames().filter(function (n) { return n.indexOf('data-') === 0 && !/[A-Z]/.test(n.slice(5)); }).map(dataProperty);
++			return keys.concat(Reflect.ownKeys(t).filter(function (k) { return keys.indexOf(k) < 0; }));
+ 		},
+ 		getOwnPropertyDescriptor: function (t, k) {
+-			var v = el.getAttribute('data-' + camelToKebab(String(k)));
+-			return v === null ? undefined : { value: v, enumerable: true, configurable: true, writable: true };
++			var name = attribute(k), v = name === null ? null : el.getAttribute(name);
++			return v === null ? Reflect.getOwnPropertyDescriptor(t, k) : { value: v, enumerable: true, configurable: true, writable: true };
+ 		}
+ 	});
++	datasetCache.set(this, map);
++	return map;
+ });
+ 
+ function parseStyleText(text) {

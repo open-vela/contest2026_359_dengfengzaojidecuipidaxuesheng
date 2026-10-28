@@ -1,0 +1,30 @@
+--- a/libdom/include/dom/core/document.h
++++ b/libdom/include/dom/core/document.h
+@@ -269,7 +269,7 @@
+ 			dom_document_import_node(doc, node, deep, result);
+ }
+ #define dom_document_import_node(d, n, deep, r) dom_document_import_node( \
+-		(dom_document *) (d), (dom_node *) (n), (bool) deep, \
++		(dom_document *) (d), (dom_node *) (n), (bool) (deep), \
+ 		(dom_node **) (r))
+ 
+ static inline dom_exception dom_document_create_element_ns(
+--- a/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
++++ b/netsurf/content/handlers/javascript/quickjs/qjs_dom.c
+@@ -2350,6 +2350,7 @@
+ 	dom_node *doc = qjs_this_node(ctx, this_val), *source, *result = NULL;
+ 	dom_node_type type;
+ 	dom_exception exc;
++	bool deep = argc > 1 && JS_ToBool(ctx, argv[1]);
+ 	if (t == NULL || doc == NULL ||
+ 	    dom_node_get_node_type(doc, &type) != DOM_NO_ERR || type != DOM_DOCUMENT_NODE)
+ 		return JS_ThrowTypeError(ctx, "Document receiver required");
+@@ -2359,7 +2360,7 @@
+ 		exc = dom_document_adopt_node((dom_document *)doc, source, &result);
+ 	else
+ 		exc = dom_document_import_node((dom_document *)doc, source,
+-			argc > 1 && JS_ToBool(ctx, argv[1]), &result);
++			deep, &result);
+ 	if (exc != DOM_NO_ERR)
+ 		return qjs_throw_dom_exception(ctx, exc);
+ 	qjs_flush_dom_scripts(ctx);

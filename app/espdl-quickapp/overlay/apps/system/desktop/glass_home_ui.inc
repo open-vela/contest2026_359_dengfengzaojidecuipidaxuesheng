@@ -5,6 +5,7 @@
  */
 #include "glass_icons.h"
 #include "glass_motion.h"
+#include "glass_heading.h"
 
 static lv_font_t *g_home_font12;
 static lv_font_t *g_home_font14;
@@ -72,6 +73,14 @@ static lv_obj_t *home_text(lv_obj_t *parent, const char *text,
   return label;
 }
 
+static lv_obj_t *home_heading(lv_obj_t *parent,const char *text,
+                              int x,int y,int w,int size,uint32_t color)
+{
+  lv_obj_t *label=home_text(parent,text,x,y,w,size,color);
+  lv_obj_set_style_text_font(label,glass_heading_font(size,home_font(size)),0);
+  return label;
+}
+
 static lv_obj_t *home_icon(lv_obj_t *parent, const char *symbol,
                            int x, int y, int size, uint32_t color)
 {
@@ -110,7 +119,7 @@ static void glass_home_devices_paint(void)
           lv_obj_remove_flag(g_glass.device_rows[i], LV_OBJ_FLAG_HIDDEN);
           lv_label_set_text(g_glass.device_names[i], g_home_devices.rows[i].name);
           lv_label_set_text(g_glass.device_states[i], g_home_devices.rows[i].state);
-          lv_label_set_text(g_glass.device_pins[i], g_home_devices.rows[i].pinned ? "固定" : "常用");
+          lv_label_set_text(g_glass.device_pins[i], g_home_devices.rows[i].pinned ? glass_tr("固定") : glass_tr("常用"));
         }
     }
   if (g_home_devices.count) lv_obj_add_flag(g_glass.device_empty, LV_OBJ_FLAG_HIDDEN);
@@ -133,12 +142,15 @@ static lv_obj_t *home_button(lv_obj_t *parent, const char *text,
   glass_motion_button(button);
   lv_obj_set_style_bg_opa(button, LV_OPA_40, LV_STATE_DISABLED);
   lv_obj_remove_flag(button, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
+  glass_input_guard_install(button);
   if (callback) lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, data);
   if (text && text[0])
     {
       int offset = symbol ? 27 : 0;
       lv_obj_t *label = home_text(button, text, offset, 0,
         w - offset - 6, 14, color);
+      lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
+      lv_obj_set_height(label,lv_obj_get_style_text_font(label,0)->line_height);
       lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
       lv_obj_align(label, LV_ALIGN_LEFT_MID, offset, 0);
     }
@@ -191,17 +203,19 @@ static void home_vision_mode(lv_event_t *event)
   unsigned mode = (unsigned)(uintptr_t)lv_event_get_user_data(event);
   launch_builtin_espdl_qapp(NULL);
   if (qpk_runtime_select_espdl_mode(mode) < 0)
-    show_toast("识别页面未就绪，请重新打开");
+    show_toast(glass_tr("识别页面未就绪，请重新打开"));
 }
 
 /* Improve dashboard reading sizes without changing fonts in other pages. */
 static void home_reading_style(lv_obj_t *object)
 {
-  if(lv_obj_check_type(object,&lv_label_class)){
+  if(lv_obj_has_class(object,&lv_label_class)){
     const lv_font_t *font=lv_obj_get_style_text_font(object,0);
     if(font==home_font(12))lv_obj_set_style_text_font(object,home_font(14),0);
     else if(font==home_font(14)&&lv_obj_check_type(lv_obj_get_parent(object),&lv_button_class))
       lv_obj_set_style_text_font(object,home_font(16),0);
+    if(lv_obj_check_type(lv_obj_get_parent(object),&lv_button_class))
+      lv_obj_set_height(object,lv_obj_get_style_text_font(object,0)->line_height);
   }
   for(unsigned i=0;i<lv_obj_get_child_count(object);i++)home_reading_style(lv_obj_get_child(object,i));
 }
@@ -210,6 +224,7 @@ static void home_reading_style(lv_obj_t *object)
 static void glass_home_finish(void)
 {
   home_reading_style(g_glass.home);
+  glass_motion_enter(g_glass.home,false,0);
 }
 
 /* A retained view of the same player used by the Music application. The
@@ -284,11 +299,11 @@ static void home_music_refresh(void)
   bool track_changed=!g_home_music.valid||strcmp(g_home_music.name,now.name);
   if(track_changed){
     snprintf(g_home_music.name,sizeof(g_home_music.name),"%s",now.name);
-    lv_label_set_text(g_home_music.title,now.name[0]?now.name:"听见喜欢的声音");
+    lv_label_set_text(g_home_music.title,now.name[0]?now.name:glass_tr("听见喜欢的声音"));
   }
   if(track_changed||strcmp(g_home_music.singer,now.artist)){
     snprintf(g_home_music.singer,sizeof(g_home_music.singer),"%s",now.artist);
-    lv_label_set_text(g_home_music.artist,now.artist[0]?now.artist:now.name[0]?"未知歌手":"搜索好歌，收藏你的热爱");
+    lv_label_set_text(g_home_music.artist,now.artist[0]?now.artist:now.name[0]?glass_tr("未知歌手"):glass_tr("搜索好歌，收藏你的热爱"));
   }
   if(track_changed||strcmp(g_home_music.record,now.album)){
     snprintf(g_home_music.record,sizeof(g_home_music.record),"%s",now.album);
@@ -298,10 +313,10 @@ static void home_music_refresh(void)
   else {lv_obj_add_state(g_home_music.next,LV_STATE_DISABLED);lv_obj_add_state(g_home_music.previous,LV_STATE_DISABLED);}
   if(track_changed||g_home_music.seconds!=seconds||g_home_music.duration!=duration||
      g_home_music.state!=now.state||g_home_music.paused!=paused){
-    const char *state=now.state==MUSIC_ERROR?"播放失败":now.state==MUSIC_LOADING?(paused?"已暂停":"正在加载"):
-      now.state==MUSIC_PLAYING?(paused?"已暂停":"正在播放"):now.state==MUSIC_PAUSED?"已暂停":
-      now.state==MUSIC_ENDED?"播放结束":now.state==MUSIC_STOPPED?"已停止":"等待播放";
-    lv_label_set_text(g_home_music.status,now.name[0]?state:"等待播放");
+    const char *state=now.state==MUSIC_ERROR?glass_tr("播放失败"):now.state==MUSIC_LOADING?(paused?glass_tr("已暂停"):glass_tr("正在加载")):
+      now.state==MUSIC_PLAYING?(paused?glass_tr("已暂停"):glass_tr("正在播放")):now.state==MUSIC_PAUSED?glass_tr("已暂停"):
+      now.state==MUSIC_ENDED?glass_tr("播放结束"):now.state==MUSIC_STOPPED?glass_tr("已停止"):glass_tr("等待播放");
+    lv_label_set_text(g_home_music.status,now.name[0]?state:glass_tr("等待播放"));
     lv_label_set_text_fmt(g_home_music.elapsed,"%02u:%02u",seconds/60,seconds%60);
     if(now.duration_ms)lv_label_set_text_fmt(g_home_music.duration_label,"%02u:%02u",duration/60,duration%60);
     else lv_label_set_text(g_home_music.duration_label,now.name[0]?"--:--":"00:00");
@@ -331,7 +346,7 @@ static void home_music_next(lv_event_t *event)
   LV_UNUSED(event);
   struct music_now_playing now;glass_music_now_playing(&now);
   if(!now.can_skip)return;
-  if(glass_music_skip(1))show_toast("暂无可播放的下一首");
+  if(glass_music_skip(1))show_toast(glass_tr("暂无可播放的下一首"));
   home_music_refresh();
 }
 
@@ -340,7 +355,7 @@ static void home_music_previous(lv_event_t *event)
   LV_UNUSED(event);
   struct music_now_playing now;glass_music_now_playing(&now);
   if(!now.can_skip)return;
-  if(glass_music_skip(-1))show_toast("暂无可播放的上一首");
+  if(glass_music_skip(-1))show_toast(glass_tr("暂无可播放的上一首"));
   home_music_refresh();
 }
 
@@ -368,13 +383,14 @@ static void glass_rebuild(void)
   /* Persistent rail. All icons come from the same authored outline family. */
   const char *symbols[] = {GLASS_ICON_GRID, GLASS_ICON_CAMERA, LV_SYMBOL_HOME,
                           GLASS_ICON_SPARKLES, LV_SYMBOL_AUDIO, GLASS_ICON_ELLIPSIS};
-  const char *names[] = {"桌面", "相机", "家居", "AI", "影音", "应用"};
+  const char *names[] = {glass_tr("桌面"), glass_tr("相机"), glass_tr("家居"), "AI", glass_tr("影音"), glass_tr("应用")};
   lv_event_cb_t callbacks[] = {panel_hide, launch_builtin_camera_qapp,
     glass_homeassistant, glass_chat_open, glass_music, qpk_clicked};
   for (unsigned i = 0; i < 6; i++)
     {
-      lv_obj_t *item = glass_box(root, 20, 52 + i * 80, 68, 72,
+      lv_obj_t *item = glass_box(root, 20, 12 + i * 80, 68, 72,
                                 i ? background : paper, 17);
+      if(i==0)lv_obj_add_state(item,LV_STATE_CHECKED);
       lv_obj_t *icon = home_icon(item, symbols[i], 0, 0, 20, i ? muted : accent);
       lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 12);
       label = home_text(item, names[i], 0, 47, 68, 12, i ? muted : accent);
@@ -388,7 +404,7 @@ static void glass_rebuild(void)
   const uint32_t music_muted=light?0x697680:0xa9b8c3;
   const uint32_t music_accent=light?0x38596c:0xa9c6d7;
   const uint32_t music_paper=light?0xf7f8fa:0x21272d;
-  lv_obj_t *card = home_card(root, 0, 108, 52, 567, 272, music_paper);
+  lv_obj_t *card = home_card(root, 0, 108, 12, 567, 280, music_paper);
   lv_obj_set_style_radius(card,24,0);
   g_home_music.root=card;
   lv_obj_add_event_cb(card,home_music_deleted,LV_EVENT_DELETE,NULL);
@@ -398,7 +414,7 @@ static void glass_rebuild(void)
   lv_obj_remove_flag(sleeve,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_t *note=home_icon(sleeve,GLASS_ICON_HEADPHONES,0,0,32,light?0x8b7e9e:0xb1a6c3);
   lv_obj_set_pos(note,70,104);
-  lv_obj_t *hint=home_text(sleeve,"暂无封面",26,156,120,12,light?0x8b7e9e:0xb1a6c3);
+  lv_obj_t *hint=home_text(sleeve,glass_tr("暂无封面"),26,156,120,12,light?0x8b7e9e:0xb1a6c3);
   lv_obj_set_style_text_align(hint,LV_TEXT_ALIGN_CENTER,0);
   g_home_music.cover.host=sleeve;g_home_music.cover.owner=GLASS_COVER_HOME;
   glass_clickable(sleeve,glass_music,NULL);
@@ -432,7 +448,7 @@ static void glass_rebuild(void)
   lv_obj_set_style_bg_opa(open,LV_OPA_TRANSP,0);
   lv_obj_set_style_bg_opa(open,LV_OPA_10,LV_STATE_PRESSED);
   lv_obj_set_style_radius(open,22,0);
-  label = home_text(card, "听见喜欢的声音", 244, 64, 291, 34, music_ink);
+  label = home_heading(card, glass_tr("听见喜欢的声音"), 244, 64, 291, 34, music_ink);
   g_home_music.title=label;
   lv_obj_set_height(label,44);
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
@@ -483,19 +499,19 @@ static void glass_rebuild(void)
   g_home_music.valid=false;home_music_refresh();
 
   /* City and current conditions sit on a retained native sky illustration. */
-  card = home_card(root, 3, 693, 52, 307, 272, 0x244765);
+  card = home_card(root, 3, 693, 12, 307, 280, 0x244765);
   memset(&g_weather_home,0,sizeof(g_weather_home));
   g_weather_home.data=calloc(1,sizeof(*g_weather_home.data));
   lv_obj_add_event_cb(card,weather_home_deleted,LV_EVENT_DELETE,NULL);
-  weather_scene_attach(&g_weather_home.scene,card,307,272,true);
-  g_weather_home.city = home_text(card,"当地天气",22,18,222,20,0xffffff);
+  weather_scene_attach(&g_weather_home.scene,card,307,280,true);
+  g_weather_home.city = home_heading(card,glass_tr("当地天气"),22,18,222,20,0xffffff);
   lv_obj_t *weather_more = home_button(card,NULL,GLASS_ICON_ARROW_NE,
     252,7,44,0xffffff,0xe8f3ff,glass_weather_open,NULL);
   lv_obj_set_style_bg_opa(weather_more,LV_OPA_TRANSP,0);
   g_glass.temperature = home_text(card,"--°",20,51,168,64,0xffffff);
-  g_glass.weather_condition = home_text(card,"等待联网",23,126,255,16,0xffffff);
-  g_weather_home.status = home_text(card,"连接网络后更新",23,155,264,12,0xe1edf7);
-  g_glass.widget_title = home_text(card,"空气质量",22,197,130,12,0xd1e2ef);
+  g_glass.weather_condition = home_text(card,glass_tr("等待联网"),23,126,255,16,0xffffff);
+  g_weather_home.status = home_text(card,glass_tr("连接网络后更新"),23,155,264,12,0xe1edf7);
+  g_glass.widget_title = home_text(card,glass_tr("空气质量"),22,197,130,12,0xd1e2ef);
   g_glass.widget_value = home_text(card,"--",22,217,93,28,0xffffff);
   g_glass.air = home_text(card,"AQI",110,231,40,12,0xd1e2ef);
   g_glass.widget_badge = glass_box(card,22,250,136,20,0x244765,0);
@@ -503,39 +519,41 @@ static void glass_rebuild(void)
   /* The AQI category shares the title row so all text fits the 272px card. */
   lv_obj_set_pos(g_glass.widget_badge,88,197);
   lv_obj_set_size(g_glass.widget_badge,68,20);
-  g_glass.widget_category = home_text(g_glass.widget_badge,"暂无数据",0,0,68,12,0xc0edce);
+  g_glass.widget_category = home_text(g_glass.widget_badge,glass_tr("暂无数据"),0,0,68,12,0xc0edce);
   lv_obj_set_style_text_align(g_glass.widget_category,LV_TEXT_ALIGN_RIGHT,0);
   lv_obj_t *vertical = glass_box(card,171,201,1,51,0xffffff,0);
   lv_obj_set_style_bg_opa(vertical,35,0);
   lv_obj_remove_flag(vertical, LV_OBJ_FLAG_CLICKABLE);
-  home_text(card,"湿度",191,197,42,12,0xd1e2ef);
+  home_text(card,glass_i18n_language()==GLASS_LANGUAGE_EN?"RH":glass_tr("湿度"),191,197,42,12,0xd1e2ef);
   g_glass.humidity = home_text(card,"--%",191,217,100,28,0xffffff);
-  g_glass.humidity_status = home_text(card,"暂无数据",233,197,56,12,0xd1e2ef);
+  g_glass.humidity_status = home_text(card,glass_tr("暂无数据"),233,197,56,12,0xd1e2ef);
   lv_obj_set_style_text_align(g_glass.humidity_status,LV_TEXT_ALIGN_RIGHT,0);
   /* The selectable widget retains its existing semantic updater. */
-  g_glass.widget_hint = home_text(card, "等待联网", 0, 0, 260, 12, muted);
+  g_glass.widget_hint = home_text(card, glass_tr("等待联网"), 0, 0, 260, 12, muted);
   lv_obj_add_flag(g_glass.widget_hint, LV_OBJ_FLAG_HIDDEN);
   glass_clickable(card, glass_widget_open, NULL);
 
   /* Bottom cards share geometry, typography and 44 px touch targets. */
-  card = home_card(root, 1, 108, 342, 285, 178, light ? 0xe9e2f2 : 0x302a3e);
+  card = home_card(root, 1, 108, 310, 285, 192, light ? 0xe9e2f2 : 0x302a3e);
   lv_obj_set_style_text_color(card,lv_color_hex(ink),0);
   struct glass_grok *home_ball=glass_grok_create_pixel(card,285,!g_desktop.light_theme,zh_font);
+  glass_grok_set_notice_text(home_ball,glass_tr("加载小球…"),glass_tr("小球素材未就绪"));
+  glass_grok_set_ambient(home_ball,true);
   glass_grok_set_reduced_motion(home_ball,g_glass.reduced_motion);
   glass_grok_set_obscured_by(home_ball,g_desktop.panel);
   home_arrow(card, glass_chat_open);
-  home_rule(card,21,89,243,accent);
-  home_text(card,"AI 助手",21,95,100,20,ink);
-  label=home_text(card,"文字 · 语音",128,98,136,12,muted);
+  home_rule(card,21,99,243,accent);
+  home_heading(card,glass_tr("AI 助手"),21,105,100,20,ink);
+  label=home_text(card,glass_tr("文字 · 语音"),128,108,136,12,muted);
   lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_RIGHT,0);
-  home_button(card, "开始对话", GLASS_ICON_CHAT, 21, 121, 143,
+  home_button(card, glass_tr("开始对话"), GLASS_ICON_CHAT, 21, 135, 143,
     light ? 0xf7f4fa : 0x3d354a, accent, home_chat_input, NULL);
-  home_button(card, NULL, GLASS_ICON_MIC, 171, 121, 44,
+  home_button(card, NULL, GLASS_ICON_MIC, 171, 135, 44,
     light ? 0xf7f4fa : 0x3d354a, accent, home_chat_input, (void *)1);
   glass_clickable(card, glass_chat_open, NULL);
 
-  card = home_card(root, 2, 411, 342, 285, 178, light ? 0xe0ebe6 : 0x26372f);
-  home_text(card, "智能家居", 21, 18, 200, 20, ink);
+  card = home_card(root, 2, 411, 310, 285, 192, light ? 0xe0ebe6 : 0x26372f);
+  home_heading(card, glass_tr("智能家居"), 21, 18, 200, 20, ink);
   home_arrow(card, glass_homeassistant);
   for (unsigned i = 0; i < 2; i++)
     {
@@ -548,43 +566,39 @@ static void glass_rebuild(void)
       g_glass.device_states[i] = home_text(row, "", 10, 23, 220, 12, muted);
       g_glass.device_pins[i] = home_text(row, "", 203, 5, 32, 12, green);
     }
-  g_glass.device_empty = home_text(card, "进入米家 HA 同步设备", 21, 83, 243, 14, muted);
-  home_text(card, "固定优先 · 常用补齐", 21, 151, 243, 12, muted);
+  g_glass.device_empty = home_text(card, glass_tr("进入米家 HA 同步设备"), 21, 83, 243, 14, muted);
+  home_text(card, glass_tr("固定优先 · 常用补齐"), 21, 165, 243, 12, muted);
   /* Keep telemetry consumers separate from the shortcuts' visible labels. */
   g_glass.devices = home_text(card, "-- / --", 0, 0, 145, 14, ink);
-  g_glass.sync = home_text(card, "尚未同步", 0, 0, 122, 12, muted);
+  g_glass.sync = home_text(card, glass_tr("尚未同步"), 0, 0, 122, 12, muted);
   lv_obj_add_flag(g_glass.devices, LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(g_glass.sync, LV_OBJ_FLAG_HIDDEN);
   g_home_devices_painted = ~g_home_devices.revision;
   glass_clickable(card, glass_homeassistant, NULL);
 
-  card = home_card(root, 4, 714, 342, 286, 178, light ? 0xe3e7f0 : 0x29313f);
+  card = home_card(root, 4, 714, 310, 286, 192, light ? 0xe3e7f0 : 0x29313f);
   home_icon(card, GLASS_ICON_FACE, 25, 20, 20, blue);
   home_arrow(card, launch_builtin_camera_qapp);
-  home_text(card, "相机与识别", 21, 60, 245, 20, ink);
-  home_text(card, "共用相机，切换不同任务", 21, 90, 245, 12, muted);
+  home_heading(card, glass_tr("相机与识别"), 21, 60, 245, 20, ink);
+  home_text(card, glass_tr("共用相机，切换不同任务"), 21, 90, 245, 12, muted);
   uint32_t chip = light ? 0xf5f6fa : 0x354154;
-  home_button(card, "拍摄", NULL, 21, 121, 61, chip, blue, launch_builtin_camera_qapp, NULL);
-  home_button(card, "人脸跟随", NULL, 88, 121, 103, chip, blue, home_vision_mode, (void *)1);
-  home_button(card, "分类", NULL, 197, 121, 65, chip, blue, home_vision_mode, NULL);
+  home_button(card, glass_tr("拍摄"), NULL, 21, 135, 61, chip, blue, launch_builtin_camera_qapp, NULL);
+  home_button(card, glass_tr("人脸跟随"), NULL, 88, 135, 103, chip, blue, home_vision_mode, (void *)1);
+  home_button(card, glass_tr("分类"), NULL, 197, 135, 65, chip, blue, home_vision_mode, NULL);
   glass_clickable(card, launch_builtin_camera_qapp, NULL);
 
-  home_text(root, "VelaDesk", 108, 541, 190, 12, muted);
-  lv_obj_t *files = home_button(root, "文件", LV_SYMBOL_DIRECTORY,
-    739, 524, 73, background, muted, glass_system_page_open, (void *)1);
-  lv_obj_t *pet = home_button(root, "桌宠", GLASS_ICON_FISH,
-    817, 524, 73, background, muted, launch_builtin_dafeiyu_qapp, NULL);
-  lv_obj_t *portal = home_button(root, "扫码配置", GLASS_ICON_QR,
-    895, 524, 105, background, muted, glass_portal_open, NULL);
+  home_text(root, "VelaDesk", 108, 528, 190, 12, muted);
+  lv_obj_t *files = home_button(root, glass_tr("文件"), LV_SYMBOL_DIRECTORY,
+    739, 514, 73, background, muted, glass_files_open, NULL);
+  lv_obj_t *pet = home_button(root, glass_tr("桌宠"), GLASS_ICON_FISH,
+    817, 514, 73, background, muted, launch_builtin_dafeiyu_qapp, NULL);
+  lv_obj_t *portal = home_button(root, glass_tr("扫码配置"), GLASS_ICON_QR,
+    895, 514, 105, background, muted, glass_portal_open, NULL);
   lv_obj_set_style_bg_opa(files, LV_OPA_TRANSP, 0);
   lv_obj_set_style_bg_opa(pet, LV_OPA_TRANSP, 0);
   lv_obj_set_style_bg_opa(portal, LV_OPA_TRANSP, 0);
-  /* Reclaim the old date/settings header band while keeping card sizes. */
-  for(unsigned i=0;i<lv_obj_get_child_count(root);i++){
-    lv_obj_t *child=lv_obj_get_child(root,i);
-    int y=lv_obj_get_style_y(child,0);
-    if(y>=52)lv_obj_set_y(child,y-40);
-  }
+  /* Explicit coordinates fill the 568px content area below the status bar.
+   * Do not shift children after construction: that also moves the footer. */
   glass_update(NULL);
   glass_home_finish();
 }

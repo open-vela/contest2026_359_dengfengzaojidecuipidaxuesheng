@@ -17,12 +17,14 @@
 ## 2. 先认识这台设备
 
 - 系统：NuttX；界面：LVGL；脚本：QuickJS。这里没有浏览器 DOM，也不是 Node.js、微信小程序或标准 Quick App 的完整实现。
-- 物理屏幕是 1024 × 600。普通快应用有系统标题栏，内容区通常是 1024 × 536。实际尺寸只能以 `ui.getSize()` 返回的值为准。
+- 物理屏幕是 1024 × 600。普通快应用使用统一框架，不再叠加系统顶部标题栏。没有额外分类或辅助功能时自动隐藏侧栏，内容区通常是 1024 × 512，底部预留返回区域；有侧栏时内容区通常是 860 × 568。返回按钮由宿主统一放在左下角。实际尺寸只能以 `ui.getSize()` 返回的值为准，布局使用内容区相对坐标，不硬编码物理屏幕尺寸。
 - 一个应用由 UTF-8 `manifest.json` 和 UTF-8 `app.js` 组成，入口按全局脚本执行，使用 `JS_EVAL_TYPE_GLOBAL`。
 - 不需要也不能运行 npm、Vite、Webpack、HTML、CSS、Vue、React、`.ux`、TypeScript 或 JSX。不要生成 `import`、`export`、`require` 或需要额外文件的程序。
 - 脚本没有 `window`、`document`、`localStorage`、`fetch`、`XMLHttpRequest`、`WebSocket`、Node `fs`/`process`、`setTimeout` 或 `requestAnimationFrame`。
 - 可以使用 ECMAScript 的普通对象、数组、字符串、函数、`Math`、`JSON`、`Date` 和同步运算。日期依赖设备时间；未校时的时候不要把日期展示为可靠的时间服务。
 - 当前生成器接收一个完整脚本；名字上限 47 个 UTF-8 字节。一个汉字通常占 3 字节，不是“47 个汉字”。
+
+设计带有分类、筛选、设置、历史等额外功能的应用时，必须先用 `ui.sidebar()` 声明这些入口，再调用 `ui.getSize()` 构建内容。不要在内容区重复生成相同导航。计数、录音、游戏等当前页面的主要操作保留在内容区；没有辅助入口时不要为了标题而创建空侧栏。
 
 ## 3. 工具与固定工作流
 
@@ -133,6 +135,7 @@ const contentWidth = W - margin * 2;
 
 | API | 参数和行为 |
 | --- | --- |
+| `ui.sidebar([{label, onClick}, ...])` | 在创建内容控件和读取尺寸之前声明分类、设置等辅助入口，最多 8 项；框架自动整合到左侧栏；无额外入口时不调用或传空数组，侧栏自动隐藏；返回按钮不放入数组，由宿主管理。返回值为按钮 handle 数组 |
 | `ui.getSize()` | 返回 `{width, height}`，是内容区尺寸 |
 | `ui.isVisible()` | 页面未隐藏且未被完整不透明的顶层页面遮挡时返回 true；可据此延后绘制，网络、录音及请求完成处理仍应继续。兼容旧固件时先检查该方法是否存在 |
 | `ui.background(color)` | 设置内容区背景色 |
@@ -149,6 +152,7 @@ const contentWidth = W - margin * 2;
 | `ui.setHidden(handle, hidden)` | 隐藏或显示；`ui.hide(handle)` / `ui.show(handle)` 是简写 |
 | `ui.remove(handle)` | 删除控件及它的事件绑定，释放对应资源；不是整页重置 |
 | `ui.setStyle(handle, style)` | 只支持下表列出的字段；不是 CSS |
+| `ui.onBack(callback)` | 注册一个系统返回回调；每次左右边缘返回调用一次，返回 `true` 表示已退出应用内部一层，`false` 交由桌面退出应用；底边上滑直接回桌面，不调用此回调 |
 | `ui.onSwipe(callback)` | 注册或替换一个手势回调，参数是 `left/right/up/down` 字符串；必须传函数 |
 | `ui.onTouch(callback)` | 注册或替换一个内容区触摸回调；必须传函数；参数格式见下一节 |
 

@@ -29,7 +29,7 @@ static void workspace_send(const char *prompt)
 static void workspace_bounds(lv_obj_t *object)
 {
   if(!object||!lv_obj_is_visible(object))return;
-  if(lv_obj_has_flag(object,LV_OBJ_FLAG_CLICKABLE)&&!lv_obj_check_type(object,&lv_label_class)){
+  if(lv_obj_has_flag(object,LV_OBJ_FLAG_CLICKABLE)&&!lv_obj_has_class(object,&lv_label_class)){
     lv_area_t area;lv_obj_get_coords(object,&area);
     assert(area.x1>=0&&area.x2<1024&&area.y1>=0&&area.y2<600);
   }

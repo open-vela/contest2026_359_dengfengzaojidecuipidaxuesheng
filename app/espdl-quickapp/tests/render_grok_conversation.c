@@ -212,7 +212,7 @@ extern void review_wake_fixture(bool),review_speech_replace_fixture(void);
 extern void review_voice_phase_fixture(enum glass_voice_phase);
 static bool label_present(lv_obj_t *root,const char *text)
 {
-  if(lv_obj_check_type(root,&lv_label_class)&&!strcmp(lv_label_get_text(root),text))return true;
+  if(lv_obj_has_class(root,&lv_label_class)&&!strcmp(lv_label_get_text(root),text))return true;
   for(unsigned i=0;i<lv_obj_get_child_count(root);i++)if(label_present(lv_obj_get_child(root,i),text))return true;
   return false;
 }

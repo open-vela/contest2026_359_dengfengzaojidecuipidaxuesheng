@@ -88,8 +88,9 @@ static void *qpk_camera_usb_thread(pthread_addr_t arg)
       bool prepared = controls.zoom==100 && !qpk_video_selected() && !photo_needs_frame;
       started = qpk_usb_preview_now();
       if (prepared) {
-        struct camera_reference_rect view=camera_reference_output(QPK_CAMERA_BAR_LEFT,controls.aspect);
-        struct camera_reference_rect crop=camera_frame_crop(QPK_CAMERA_BAR_LEFT,QPK_CAMERA_RAW_HEIGHT,
+        struct camera_reference_rect view=camera_reference_output(QPK_CAMERA_BAR_LEFT,
+          mode.width,mode.height,controls.zoom,controls.aspect);
+        struct camera_reference_rect crop=camera_reference_crop(QPK_CAMERA_BAR_LEFT,
           mode.width,mode.height,controls.zoom,controls.aspect);
         struct qpk_mjpeg_view options={.canvas_width=QPK_CAMERA_BAR_LEFT,.canvas_height=QPK_CAMERA_RAW_HEIGHT,
           .stride=QPK_CAMERA_RAW_WIDTH,.width=view.w,.height=view.h,.crop_x=crop.x,.crop_y=crop.y,

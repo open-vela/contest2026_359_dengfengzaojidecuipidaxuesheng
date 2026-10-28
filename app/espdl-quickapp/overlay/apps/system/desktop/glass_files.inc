@@ -29,6 +29,20 @@ static lv_obj_t *g_files_input;
 static lv_obj_t *g_files_shell;
 static lv_obj_t *g_files_title;
 static lv_obj_t *g_files_auxiliary;
+static bool g_files_return_apps;
+static void glass_files_open(lv_event_t *e);
+static void glass_files_storage(lv_event_t *e);
+static void glass_files_cancel(lv_event_t *e);
+static void glass_files_up(lv_event_t *e);
+static void glass_files_cancel_calls(void);
+static void glass_files_stop(void);
+static void glass_files_back(lv_event_t *e)
+{
+  if(g_files_auxiliary&&!lv_obj_has_flag(g_files_auxiliary,LV_OBJ_FLAG_HIDDEN)){glass_files_cancel(e);return;}
+  if(g_files_pending){glass_files_cancel_calls();glass_files_stop();}
+  if(strcmp(g_files_path,g_files_root)){glass_files_up(e);return;}
+  if(g_files_return_apps)glass_apps(e);else panel_hide(e);
+}
 struct files_tile {
   lv_obj_t *button,*name,*image,*type;
   unsigned revision,pressed_revision;
@@ -41,6 +55,7 @@ static struct
   lv_obj_t *path;
   lv_obj_t *error;
   lv_obj_t *footer;
+  lv_obj_t *back;
   lv_obj_t *device;
   lv_obj_t *sdcard;
   lv_obj_t *up;
@@ -49,7 +64,9 @@ static struct
   lv_obj_t *paste;
   lv_obj_t *note;
   struct files_tile tiles[GLASS_FILE_PAGE_SIZE];
+  bool has_next;
 } g_files_browser;
+static struct glass_swipe_tracker g_files_drag;
 static int g_files_operation;
 static char g_files_clipboard[GLASS_FILE_PATH_CAP];
 static bool g_files_clipboard_move;
@@ -158,6 +175,7 @@ static void glass_files_closed(lv_event_t *e)
   g_files_title = NULL;
   g_files_auxiliary = NULL;
   memset(&g_files_browser, 0, sizeof(g_files_browser));
+  g_files_drag.tracking=false;
 }
 
 static lv_obj_t *glass_files_card(const char *title)
@@ -167,20 +185,25 @@ static lv_obj_t *glass_files_card(const char *title)
   glass_files_list_clear();
   if (!g_files_shell)
     {
+      bool from_apps=g_desktop.apps_page;
       g_files_shell = panel_card(title);
       if (!g_files_shell) return NULL;
-      g_files_title = lv_obj_get_child(g_files_shell, 0);
+      g_files_return_apps=from_apps;
+      glass_navigation_register(glass_files_open,from_apps,0);
+      detail_page(g_files_shell);
+      lv_obj_t *back=detail_sidebar(g_files_shell,glass_tr("文件"),LV_SYMBOL_DIRECTORY,glass_files_back);
+      g_files_browser.back=back;
+      lv_label_set_text(lv_obj_get_child(back,0),from_apps?glass_tr("返回应用"):glass_tr("返回桌面"));
+      g_desktop.page_back=glass_files_back;
+      g_files_browser.device=detail_nav(g_files_shell,glass_tr("设备存储"),LV_SYMBOL_DIRECTORY,104,140,glass_files_storage,(void *)GLASS_FILES_ROOT);
+      g_files_browser.sdcard=detail_nav(g_files_shell,glass_tr("SD 卡"),LV_SYMBOL_SD_CARD,156,140,glass_files_storage,(void *)GLASS_FILES_SDCARD_ROOT);
+      glass_sidebar_item(g_files_browser.device,!strcmp(g_files_root,GLASS_FILES_ROOT));
+      glass_sidebar_item(g_files_browser.sdcard,!strcmp(g_files_root,GLASS_FILES_SDCARD_ROOT));
+      g_files_title = detail_text(g_files_shell,title,216,26,784,28,detail_ink());
       lv_obj_set_size(g_files_shell,1024,GLASS_CONTENT_HEIGHT);
       lv_obj_align(g_files_shell,LV_ALIGN_TOP_LEFT,0,0);
       lv_obj_set_style_radius(g_files_shell,0,0);lv_obj_set_style_border_width(g_files_shell,0,0);
       lv_obj_set_style_bg_color(g_files_shell,lv_color_hex(detail_canvas()),0);
-      lv_obj_set_pos(g_files_title,24,20);lv_obj_set_style_text_color(g_files_title,lv_color_hex(detail_ink()),0);
-      lv_obj_t *close=lv_obj_get_child(g_files_shell,1);
-      lv_obj_set_size(close,76,40);lv_obj_align(close,LV_ALIGN_TOP_RIGHT,-24,14);
-      lv_obj_set_style_bg_color(close,lv_color_hex(detail_soft()),0);lv_obj_set_style_shadow_width(close,0,0);
-      lv_obj_t *close_text=lv_obj_get_child(close,0);lv_label_set_text(close_text,"关闭");
-      lv_obj_set_style_text_font(close_text,home_font(14),0);
-      lv_obj_set_style_text_color(close_text,lv_color_hex(detail_ink()),0);
       lv_obj_add_event_cb(g_files_shell, glass_files_closed, LV_EVENT_DELETE, NULL);
     }
   g_files_input = NULL;
@@ -190,11 +213,13 @@ static lv_obj_t *glass_files_card(const char *title)
     {
       g_files_auxiliary = lv_obj_create(g_files_shell);
       lv_obj_remove_style_all(g_files_auxiliary);
-      lv_obj_set_size(g_files_auxiliary, lv_pct(100), lv_pct(100));
+      lv_obj_set_pos(g_files_auxiliary,192,0);
+      lv_obj_set_size(g_files_auxiliary,832,GLASS_CONTENT_HEIGHT);
       lv_obj_remove_flag(g_files_auxiliary, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
     }
   else lv_obj_clean(g_files_auxiliary);
   lv_obj_remove_flag(g_files_auxiliary, LV_OBJ_FLAG_HIDDEN);
+  lv_label_set_text(lv_obj_get_child(g_files_browser.back,0),glass_tr("返回目录"));
   return g_files_auxiliary;
 }
 
@@ -275,7 +300,7 @@ static void files_tile_guard(lv_event_t *e)
   struct files_tile *tile=lv_event_get_user_data(e);
   lv_event_code_t code=lv_event_get_code(e);
   if(code==LV_EVENT_PRESSED){tile->pressed=true;tile->pressed_revision=tile->revision;}
-  else if(code==LV_EVENT_SHORT_CLICKED||code==LV_EVENT_LONG_PRESSED){
+  if(code==LV_EVENT_SHORT_CLICKED||code==LV_EVENT_LONG_PRESSED){
     bool stale=tile->pressed&&tile->pressed_revision!=tile->revision;
     tile->pressed=false;
     if(stale||!lv_obj_get_user_data(tile->button)||lv_obj_has_flag(tile->button,LV_OBJ_FLAG_HIDDEN))
@@ -283,9 +308,24 @@ static void files_tile_guard(lv_event_t *e)
   }else if(code==LV_EVENT_PRESS_LOST)tile->pressed=false;
 }
 
+static void files_grid_pointer(lv_event_t *e)
+{
+  lv_dir_t direction=glass_swipe_direction(e,&g_files_drag);
+  int delta=direction==LV_DIR_LEFT||direction==LV_DIR_TOP?1:
+            direction==LV_DIR_RIGHT||direction==LV_DIR_BOTTOM?-1:0;
+  if(!delta)return;
+  /* Release-based recognition also accepts slow drags. Tile guards consume
+   * the resulting short click, including swipes at either page boundary. */
+  if(g_files_pending)return;
+  unsigned page=g_files_page;
+  if(delta>0){if(!g_files_browser.has_next||page==UINT_MAX)return;page++;}
+  else {if(!page)return;page--;}
+  glass_files_page(NULL,page);
+}
+
 static void files_tile_set(size_t index,const struct glass_file_entry *entry)
 {
-  const int width=232,height=96,gap=16;
+  const int width=184,height=96,gap=16;
   const struct files_design *design=entry->directory?NULL:files_design(entry->name);
   struct files_tile *tile=&g_files_browser.tiles[index];
   tile->revision++;
@@ -293,6 +333,7 @@ static void files_tile_set(size_t index,const struct glass_file_entry *entry)
     tile->button=files_button(g_files_browser.list,entry->name,
       (index%4)*(width+gap),(index/4)*(height+gap),width,detail_paper(),NULL,NULL);
     lv_obj_set_height(tile->button,height);
+    lv_obj_add_flag(tile->button,LV_OBJ_FLAG_PRESS_LOCK|LV_OBJ_FLAG_GESTURE_BUBBLE|LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_set_style_bg_color(tile->button,lv_color_hex(detail_paper()),0);
     lv_obj_set_style_radius(tile->button,12,0);
     lv_obj_add_event_cb(tile->button,files_tile_guard,LV_EVENT_ALL,tile);
@@ -314,13 +355,14 @@ static void files_tile_set(size_t index,const struct glass_file_entry *entry)
   lv_obj_set_pos(tile->image,entry->directory?16:20,12);
   /* LONG_DOT can temporarily replace filename bytes with dots. */
   lv_label_set_text(tile->name,entry->name);
-  const char *type=entry->directory?"文件夹":design->label;
+  const char *type=entry->directory?glass_tr("文件夹"):design->label;
   if(lv_label_get_text(tile->type)!=type)lv_label_set_text_static(tile->type,type);
   lv_obj_set_user_data(tile->button,(void *)entry);
   lv_obj_remove_flag(tile->button,LV_OBJ_FLAG_HIDDEN);
 }
 static void files_pager_update(bool has_next)
 {
+  g_files_browser.has_next=has_next;
   unsigned first=g_files_page>3?g_files_page-3:0;
   unsigned last=g_files_page+(has_next&&g_files_page<UINT_MAX?1:0);
   glass_pager_update_window(g_files_browser.pager,g_files_page,first,last-first+1,true);
@@ -333,14 +375,14 @@ static void glass_files_list_ready(struct glass_file_job *job,
   size_t shown=result?result->count:0;
   if(shown>GLASS_FILE_PAGE_SIZE)shown=GLASS_FILE_PAGE_SIZE;
   for(size_t i=0;i<shown;i++)files_tile_set(i,&result->entries[i]);
-  if(!shown)files_list_note(result?"目录为空":"目录无法读取");
+  if(!shown)files_list_note(result?glass_tr("目录为空"):glass_tr("目录无法读取"));
   /* Only known reachable pages are shown; counting dots never scans SD. */
   files_pager_update(result&&result->has_next);
   char footer[160];
   if(result&&!result->space_error)
-    snprintf(footer,sizeof(footer),"%u 项 · 可用 %llu MiB · 长按管理",
+    snprintf(footer,sizeof(footer),glass_tr("%u 项 · 可用 %llu MiB · 长按管理"),
              (unsigned)shown,(unsigned long long)(result->free_bytes/(1024*1024)));
-  else snprintf(footer,sizeof(footer),"%u 项 · 长按管理",(unsigned)shown);
+  else snprintf(footer,sizeof(footer),glass_tr("%u 项 · 长按管理"),(unsigned)shown);
   lv_label_set_text(g_files_browser.footer,footer);
   lv_label_set_text(g_files_browser.error,g_files_error);
 }
@@ -362,7 +404,7 @@ static void glass_files_complete(const struct glass_file_status *status)
     g_files_error[0]=0;g_files_list_error=false;
   }
   if (status->cleanup_error)
-    snprintf(g_files_error, sizeof(g_files_error), "%s (%d)，清理失败 (%d)",
+    snprintf(g_files_error, sizeof(g_files_error), glass_tr("%s (%d)，清理失败 (%d)"),
              strerror(error), error, status->cleanup_error);
   if (action == GLASS_FILE_LIST)
     {
@@ -482,12 +524,12 @@ static void glass_files_copy_start(void *unused)
   if (snprintf(target, sizeof(target), "%s/%s", g_files_path, name + 1) >=
       (int)sizeof(target))
     { glass_files_error(ENAMETOOLONG); glass_files_render(NULL); return; }
-  lv_obj_t *card = glass_files_card(g_files_clipboard_move ? "移动文件" : "复制文件");
+  lv_obj_t *card = glass_files_card(g_files_clipboard_move ? glass_tr("移动文件") : glass_tr("复制文件"));
   if (!card) return;
-  glass_text(card, target, 24, 80, 850, 20, theme_primary());
-  g_files_copy_status = glass_text(card, "0 bytes", 24, 140, 850, 20, theme_secondary());
+  glass_text(card, target, 24, 80, 784, 20, theme_primary());
+  g_files_copy_status = glass_text(card, "0 bytes", 24, 140, 784, 20, theme_secondary());
   g_files_copy_bytes = 0;
-  files_button(card, "取消", 24, 200, 100, theme_surface(), glass_files_cancel, NULL);
+  files_button(card, glass_tr("取消"), 24, 200, 100, theme_surface(), glass_files_cancel, NULL);
   glass_files_begin(g_files_clipboard_move ? GLASS_FILE_MOVE : GLASS_FILE_COPY,
                     g_files_path, g_files_clipboard, NULL);
 }
@@ -577,29 +619,29 @@ static void glass_files_apply(lv_event_t *e)
 static void glass_files_dialog_async(void *unused)
 {
   LV_UNUSED(unused);
-  lv_obj_t *card = glass_files_card(g_files_operation == 1 ? "新建目录" :
-                            g_files_operation == 2 ? "重命名" : "确认删除");
+  lv_obj_t *card = glass_files_card(g_files_operation == 1 ? glass_tr("新建目录") :
+                            g_files_operation == 2 ? glass_tr("重命名") : glass_tr("确认删除"));
   if (!card) return;
   glass_text(card, g_files_operation == 1 ? g_files_path : g_files_selected,
-             24, 72, 850, 20, theme_secondary());
+             24, 72, 784, 20, theme_secondary());
   if (g_files_operation != 3)
     {
       g_files_input = lv_textarea_create(card);      glass_input_style(g_files_input);
       lv_obj_set_pos(g_files_input, 24, 110);
-      lv_obj_set_size(g_files_input, 640, 48);
+      lv_obj_set_size(g_files_input, 560, 48);
       lv_textarea_set_one_line(g_files_input, true);
       lv_textarea_set_max_length(g_files_input, GLASS_FILE_NAME_CAP - 1);
       const char *name = strrchr(g_files_selected, '/');
       if (g_files_operation == 2 && name) lv_textarea_set_text(g_files_input, name + 1);
       lv_obj_t *keyboard = lv_keyboard_create(card);
       glass_keyboard_style(keyboard);
-      lv_obj_set_size(keyboard, 850, 230);
+      lv_obj_set_size(keyboard, 784, 230);
       lv_obj_align(keyboard, LV_ALIGN_TOP_LEFT, 24, 210);
       lv_keyboard_set_textarea(keyboard, g_files_input);
       glass_ime_attach(keyboard, zh_font(20), true, theme_primary(), theme_surface(), theme_accent());
     }
-  files_button(card, "取消", 680, 110, 90, theme_surface(), glass_files_cancel, NULL);
-  files_button(card, "确认", 780, 110, 90, theme_surface(), glass_files_apply, NULL);
+  files_button(card, glass_tr("取消"), 600, 110, 90, theme_surface(), glass_files_cancel, NULL);
+  files_button(card, glass_tr("确认"), 704, 110, 90, theme_surface(), glass_files_apply, NULL);
 }
 
 static void glass_files_dialog(lv_event_t *e)
@@ -612,50 +654,50 @@ static void glass_files_dialog(lv_event_t *e)
 
 static void glass_files_details_ready(const struct glass_file_result *result)
 {
-  lv_obj_t *card = glass_files_card("文件详情");
+  lv_obj_t *card = glass_files_card(glass_tr("文件详情"));
   if (!card) return;
   files_material(card,g_files_selected,result->directory,24,70);
-  lv_obj_t *filename=glass_text(card,g_files_selected,84,72,916,20,theme_primary());
+  lv_obj_t *filename=glass_text(card,g_files_selected,84,72,724,20,theme_primary());
   lv_obj_set_height(filename,28);
-  files_button(card, "返回", 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
-  files_button(card, "重命名", 140, 110, 120, theme_surface(), glass_files_dialog, (void *)2);
-  files_button(card, "删除", 280, 110, 100, theme_surface(), glass_files_dialog, (void *)3);
+  files_button(card, glass_tr("返回"), 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
+  files_button(card, glass_tr("重命名"), 140, 110, 120, theme_surface(), glass_files_dialog, (void *)2);
+  files_button(card, glass_tr("删除"), 280, 110, 100, theme_surface(), glass_files_dialog, (void *)3);
   char size[64];
   snprintf(size, sizeof(size), "%llu bytes", (unsigned long long)result->size);
-  glass_text(card, size, 410, 118, 200, 20, theme_secondary());
+  glass_text(card, size, 400, 118, 150, 20, theme_secondary());
   if (!result->directory)
     {
-      files_button(card, "复制", 630, 110, 100, theme_surface(), glass_files_copy_choose, NULL);
-      files_button(card, "移动", 750, 110, 100, theme_surface(), glass_files_copy_choose, (void *)1);
+      files_button(card, glass_tr("复制"), 572, 110, 100, theme_surface(), glass_files_copy_choose, NULL);
+      files_button(card, glass_tr("移动"), 688, 110, 100, theme_surface(), glass_files_copy_choose, (void *)1);
       if(result->binary) {
-        lv_obj_t *preview=glass_box(card,24,170,976,GLASS_CONTENT_HEIGHT-194,detail_paper(),14);
-        files_material(preview,g_files_selected,false,468,60);
-        lv_obj_t *type=glass_text(preview,files_type(g_files_selected),48,114,880,20,detail_ink());
+        lv_obj_t *preview=glass_box(card,24,170,784,GLASS_CONTENT_HEIGHT-194,detail_paper(),14);
+        files_material(preview,g_files_selected,false,372,60);
+        lv_obj_t *type=glass_text(preview,files_type(g_files_selected),48,114,688,20,detail_ink());
         lv_obj_set_style_text_align(type,LV_TEXT_ALIGN_CENTER,0);
-        lv_obj_t *note=glass_text(preview,"此文件不提供文本预览",48,160,880,16,detail_ink());
+        lv_obj_t *note=glass_text(preview,glass_tr("此文件不提供文本预览"),48,160,688,16,detail_ink());
         lv_obj_set_style_text_align(note,LV_TEXT_ALIGN_CENTER,0);
-        note=glass_text(preview,"可使用上方操作管理文件",48,196,880,14,detail_muted());
+        note=glass_text(preview,glass_tr("可使用上方操作管理文件"),48,196,688,14,detail_muted());
         lv_obj_set_style_text_align(note,LV_TEXT_ALIGN_CENTER,0);
       } else {
         lv_obj_t *preview=lv_textarea_create(card);glass_input_style(preview);
-        lv_obj_set_pos(preview,24,170);lv_obj_set_size(preview,976,GLASS_CONTENT_HEIGHT-222);
+        lv_obj_set_pos(preview,24,170);lv_obj_set_size(preview,784,GLASS_CONTENT_HEIGHT-222);
         lv_textarea_set_text(preview,result->preview);
         lv_obj_remove_flag(preview,LV_OBJ_FLAG_CLICKABLE);
       }
       if (result->truncated && !result->binary)
-        glass_text(card, "仅预览前 2048 字节", 24, GLASS_CONTENT_HEIGHT-42, 976, 14, theme_secondary());
+        glass_text(card, glass_tr("仅预览前 2048 字节"), 24, GLASS_CONTENT_HEIGHT-42, 784, 14, theme_secondary());
     }
 }
 
 static void glass_files_details(void *unused)
 {
   LV_UNUSED(unused);
-  lv_obj_t *card = glass_files_card("文件详情");
+  lv_obj_t *card = glass_files_card(glass_tr("文件详情"));
   if (!card) return;
-  lv_obj_t *filename=glass_text(card,g_files_selected,24,72,976,20,theme_primary());
+  lv_obj_t *filename=glass_text(card,g_files_selected,24,72,784,20,theme_primary());
   lv_obj_set_height(filename,28);
-  files_button(card, "返回", 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
-  glass_text(card, "正在读取", 24, 170, 850, 20, theme_secondary());
+  files_button(card, glass_tr("返回"), 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
+  glass_text(card, glass_tr("正在读取"), 24, 170, 784, 20, theme_secondary());
   glass_files_begin(GLASS_FILE_DETAILS, NULL, g_files_selected, NULL);
 }
 
@@ -718,7 +760,7 @@ static int glass_files_image_read(const char *path, uint8_t **data, size_t *size
 static void glass_files_image(void *unused)
 {
   LV_UNUSED(unused);
-  lv_obj_t *card = glass_files_card("图片查看");
+  lv_obj_t *card = glass_files_card(glass_tr("图片查看"));
   if (card == NULL) return;
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
   local_album_view(card,home_font(16),g_files_selected,glass_files_cancel);
@@ -755,17 +797,17 @@ static void glass_files_image(void *unused)
     {
       free(pixels);
       char message[64];
-      snprintf(message, sizeof(message), "无法显示该图片：%s (%d)", strerror(error), error);
-      glass_text(card, message, 24, 170, 850, 20, theme_secondary());
-      files_button(card, "返回", 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
+      snprintf(message, sizeof(message), glass_tr("无法显示该图片：%s (%d)"), strerror(error), error);
+      glass_text(card, message, 24, 170, 784, 20, theme_secondary());
+      files_button(card, glass_tr("返回"), 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
       return;
     }
   lv_obj_t *canvas = lv_canvas_create(card);
   if (canvas == NULL)
     {
       free(pixels);
-      glass_text(card, "内存不足，无法显示该图片", 24, 170, 850, 20, theme_secondary());
-      files_button(card, "返回", 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
+      glass_text(card, glass_tr("内存不足，无法显示该图片"), 24, 170, 784, 20, theme_secondary());
+      files_button(card, glass_tr("返回"), 24, 110, 100, theme_surface(), glass_files_cancel, NULL);
       return;
     }
   g_files_image_pixels = pixels;
@@ -775,12 +817,12 @@ static void glass_files_image(void *unused)
   lv_obj_remove_flag(canvas, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(canvas, glass_files_image_deleted, LV_EVENT_DELETE, NULL);
   /* Floating footer keeps a way back for images that fill the whole card. */
-  files_button(card, "返回", (int)limit_w - 124, (int)limit_h - 60, 100,
+  files_button(card, glass_tr("返回"), (int)limit_w - 124, (int)limit_h - 60, 100,
                theme_surface(), glass_files_cancel, NULL);
   if (scale)
     {
       char note[64];
-      snprintf(note, sizeof(note), "%u x %u · 已缩放显示", canvas_w, canvas_h);
+      snprintf(note, sizeof(note), glass_tr("%u x %u · 已缩放显示"), canvas_w, canvas_h);
       glass_text(card, note, 24, (int)limit_h - 52, 320, 20, theme_secondary());
     }
 #endif
@@ -820,31 +862,27 @@ static void glass_files_render(void *unused)
   glass_files_stop();
   if (!g_files_browser.card)
     {
-      lv_obj_t *card = glass_files_card("文件管理");
+      lv_obj_t *card = glass_files_card(glass_tr("文件管理"));
       if (!card) return;
       g_files_browser.card = card;
       /* The first content container becomes the retained browser view. */
       g_files_auxiliary = NULL;
       lv_obj_set_style_radius(card, 0, 0);
-      g_files_browser.path = glass_text(card, "", 24, 76, 976, 16, theme_primary());
-      g_files_browser.device = files_button(card, "设备存储", 24, 108, 128,
-                                            theme_surface(), glass_files_storage,
-                                            (void *)GLASS_FILES_ROOT);
-      g_files_browser.sdcard = files_button(card, "SD 卡", 164, 108, 100,
-                                            theme_surface(), glass_files_storage,
-                                            (void *)GLASS_FILES_SDCARD_ROOT);
-      g_files_browser.up = glass_files_icon(card, LV_SYMBOL_UP, 280, 108, glass_files_up, NULL);
-      glass_files_icon(card, LV_SYMBOL_REFRESH, 340, 108, glass_files_refresh, NULL);
-      files_button(card, "新建目录", 400, 108, 130, theme_surface(), glass_files_dialog, (void *)1);
-      g_files_browser.error = glass_text(card, "", 554, 118, 446, 16, theme_secondary());
-      g_files_browser.cancel = files_button(card, "取消", 756, GLASS_CONTENT_HEIGHT-62, 96, theme_surface(), glass_files_clipboard_clear, NULL);
-      g_files_browser.paste = files_button(card, "粘贴", 864, GLASS_CONTENT_HEIGHT-62, 136, theme_surface(), glass_files_paste, NULL);
-      g_files_browser.list = glass_box(card, 24, 164, 976, GLASS_CONTENT_HEIGHT-244, detail_canvas(), 0);
-      lv_obj_add_flag(g_files_browser.list, LV_OBJ_FLAG_SCROLLABLE);
-      lv_obj_set_scroll_dir(g_files_browser.list, LV_DIR_VER);
-      lv_obj_set_style_bg_color(g_files_browser.list,lv_color_hex(detail_muted()),LV_PART_SCROLLBAR);
-      lv_obj_set_style_bg_opa(g_files_browser.list,LV_OPA_30,LV_PART_SCROLLBAR);
-      lv_obj_set_style_width(g_files_browser.list,3,LV_PART_SCROLLBAR);
+      g_files_browser.path = glass_text(card, "", 24, 76, 784, 16, theme_primary());
+      g_files_browser.up = glass_files_icon(card, LV_SYMBOL_UP, 24, 108, glass_files_up, NULL);
+      glass_files_icon(card, LV_SYMBOL_REFRESH, 84, 108, glass_files_refresh, NULL);
+      files_button(card, glass_tr("新建目录"), 144, 108, 130, theme_surface(), glass_files_dialog, (void *)1);
+      g_files_browser.error = glass_text(card, "", 554, 118, 230, 16, theme_secondary());
+      g_files_browser.cancel = files_button(card, glass_tr("取消"), 564, GLASS_CONTENT_HEIGHT-62, 96, theme_surface(), glass_files_clipboard_clear, NULL);
+      g_files_browser.paste = files_button(card, glass_tr("粘贴"), 672, GLASS_CONTENT_HEIGHT-62, 136, theme_surface(), glass_files_paste, NULL);
+      g_files_browser.list = glass_box(card, 24, 164, 784, GLASS_CONTENT_HEIGHT-244, detail_canvas(), 0);
+      /* A page is a fixed 4x3 grid. Swipes select pages, not elastic scroll. */
+      lv_obj_remove_flag(g_files_browser.list,LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_SCROLL_ELASTIC|
+        LV_OBJ_FLAG_SCROLL_MOMENTUM|LV_OBJ_FLAG_GESTURE_BUBBLE);
+      lv_obj_add_flag(g_files_browser.list,LV_OBJ_FLAG_PRESS_LOCK);
+      lv_obj_set_scroll_dir(g_files_browser.list,LV_DIR_NONE);
+      lv_obj_set_scrollbar_mode(g_files_browser.list,LV_SCROLLBAR_MODE_OFF);
+      lv_obj_add_event_cb(g_files_browser.list,files_grid_pointer,LV_EVENT_ALL,NULL);
       g_files_browser.pager=glass_pager_create(card,detail_soft(),detail_ink(),detail_muted(),glass_files_page,NULL);
       if(g_files_browser.pager)lv_obj_align(g_files_browser.pager,LV_ALIGN_BOTTOM_MID,0,-20);
       g_files_browser.footer=glass_text(card,"",24,GLASS_CONTENT_HEIGHT-48,350,14,theme_secondary());
@@ -856,18 +894,21 @@ static void glass_files_render(void *unused)
       lv_obj_add_flag(g_files_auxiliary, LV_OBJ_FLAG_HIDDEN);
     }
   lv_obj_remove_flag(g_files_browser.card, LV_OBJ_FLAG_HIDDEN);
-  lv_label_set_text(g_files_title, "文件管理");
+  lv_label_set_text(g_files_title, glass_tr("文件管理"));
+  lv_label_set_text(lv_obj_get_child(g_files_browser.back,0),strcmp(g_files_path,g_files_root)?glass_tr("返回上级"):g_files_return_apps?glass_tr("返回应用"):glass_tr("返回桌面"));
   lv_label_set_text(g_files_browser.path, g_files_path);
   lv_label_set_text(g_files_browser.error, g_files_error);
   bool sdcard = !strcmp(g_files_root, GLASS_FILES_SDCARD_ROOT);
-  lv_obj_set_style_bg_color(g_files_browser.device,lv_color_hex(sdcard?detail_soft():detail_paper()),0);
-  lv_obj_set_style_bg_color(g_files_browser.sdcard,lv_color_hex(sdcard?detail_paper():detail_soft()),0);
-  lv_obj_set_style_text_color(lv_obj_get_child(g_files_browser.device, 0),
-                              lv_color_hex(detail_ink()), 0);
-  lv_obj_set_style_text_color(lv_obj_get_child(g_files_browser.sdcard, 0),
-                              lv_color_hex(detail_ink()), 0);
+  lv_obj_t *volumes[]={g_files_browser.device,g_files_browser.sdcard};
+  for(unsigned i=0;i<2;i++){
+    bool active=i==(unsigned)sdcard;glass_sidebar_item(volumes[i],active);
+    for(unsigned n=0;n<lv_obj_get_child_count(volumes[i]);n++){
+      lv_obj_t *child=lv_obj_get_child(volumes[i],n);
+      if(lv_obj_has_class(child,&lv_label_class))lv_obj_set_style_text_color(child,lv_color_hex(active?detail_accent():detail_ink()),0);
+    }
+  }
   lv_label_set_text(lv_obj_get_child(g_files_browser.paste, 0),
-                    g_files_clipboard_move ? "移到此处" : "粘贴");
+                    g_files_clipboard_move ? glass_tr("移到此处") : glass_tr("粘贴"));
   if (g_files_clipboard[0])
     {
       lv_obj_remove_flag(g_files_browser.cancel, LV_OBJ_FLAG_HIDDEN);
@@ -884,7 +925,7 @@ static void glass_files_render(void *unused)
   /* Reuse tile widgets while the browser remains open. */
   glass_files_list_reset();
   lv_obj_scroll_to_y(g_files_browser.list, 0, LV_ANIM_OFF);
-  files_list_note("正在读取目录");
+  files_list_note(glass_tr("正在读取目录"));
   glass_pager_set_enabled(g_files_browser.pager,false);
   lv_label_set_text(g_files_browser.footer, "");
   glass_files_begin(GLASS_FILE_LIST, g_files_path, NULL, NULL);

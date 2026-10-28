@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include <nuttx/config.h>
 #include "glass_music_pcm.h"
+#include "glass_device_controls.h"
 #ifdef GLASS_LOCAL_SPEECH
 #include "glass_speech.h"
 #endif
@@ -20,6 +21,33 @@ extern void board_music_amplifier(bool enabled);
  * all completed; RESERVE alone cannot serialize the surrounding teardown. */
 static pthread_mutex_t g_pcm_session_lock = PTHREAD_MUTEX_INITIALIZER;
 static atomic_bool g_pcm_session_active;
+static atomic_uint g_pcm_foreground_waiters;
+/* Keep the established music startup level after unifying the controls. */
+static atomic_uint g_speaker_volume = 40;
+static atomic_uint g_pcm_block_frames;
+static atomic_uint g_pcm_rate, g_pcm_codec_volume, g_pcm_applied_master;
+static atomic_uint g_pcm_input_peak, g_pcm_output_peak, g_pcm_written_frames;
+static atomic_uint g_pcm_empty, g_pcm_last_submit_us, g_pcm_max_submit_gap_us;
+
+void music_pcm_status(void)
+{
+  printf("AUDIO_PCM rate=%u block_frames=%u codec=%u master=%u applied=%u input_peak=%u output_peak=%u frames=%u empty=%u max_submit_gap_us=%u\n",
+    atomic_load(&g_pcm_rate),atomic_load(&g_pcm_block_frames),atomic_load(&g_pcm_codec_volume),atomic_load(&g_speaker_volume),
+    atomic_load(&g_pcm_applied_master),atomic_load(&g_pcm_input_peak),atomic_load(&g_pcm_output_peak),
+    atomic_load(&g_pcm_written_frames),atomic_load(&g_pcm_empty),atomic_load(&g_pcm_max_submit_gap_us));
+}
+
+unsigned glass_speaker_volume(void)
+{
+  return atomic_load(&g_speaker_volume);
+}
+
+int glass_speaker_volume_set(unsigned percent)
+{
+  if (percent > 100) return -EINVAL;
+  atomic_store(&g_speaker_volume, percent);
+  return 0;
+}
 
 int music_pcm_session_lock(void)
 {
@@ -56,7 +84,12 @@ void music_pcm_session_unlock(void)
 
 bool music_pcm_session_active(void)
 {
-  return atomic_load(&g_pcm_session_active);
+  return atomic_load(&g_pcm_session_active) || music_pcm_foreground_pending();
+}
+
+bool music_pcm_foreground_pending(void)
+{
+  return atomic_load(&g_pcm_foreground_waiters) != 0;
 }
 
 static int pcm_message(struct music_pcm *pcm)
@@ -88,12 +121,18 @@ static int pcm_message(struct music_pcm *pcm)
 int music_pcm_volume(struct music_pcm *pcm, unsigned volume)
 {
   if (pcm->fd < 0) return -ENODEV;
+  /* ES8311 DAC 0xbf is unity. The lower half's 29*ln(volume*10)
+   * curve reaches it at 75%; 100% requests +4.5 dB and clips loud PCM.
+   * The system master supplies attenuation without codec overdrive. */
+  unsigned hardware=volume>75?75:volume;
   struct audio_caps_desc_s caps = {0};
   caps.caps.ac_len = sizeof(caps.caps);
   caps.caps.ac_type = AUDIO_TYPE_FEATURE;
   caps.caps.ac_format.hw = AUDIO_FU_VOLUME;
-  caps.caps.ac_controls.hw[0] = (volume > 100 ? 100 : volume) * 10;
-  return ioctl(pcm->fd, AUDIOIOC_CONFIGURE, (unsigned long)&caps) < 0 ? -errno : 0;
+  caps.caps.ac_controls.hw[0] = hardware * 10;
+  if (ioctl(pcm->fd, AUDIOIOC_CONFIGURE, (unsigned long)&caps) < 0) return -errno;
+  atomic_store(&g_pcm_codec_volume, hardware);
+  return 0;
 }
 
 static int pcm_open(struct music_pcm *pcm, unsigned rate, unsigned volume, bool nonblocking)
@@ -133,14 +172,21 @@ static int pcm_open(struct music_pcm *pcm, unsigned rate, unsigned volume, bool 
   struct ap_buffer_info_s info = {0};
   if (ioctl(pcm->fd, AUDIOIOC_GETBUFFERINFO, (unsigned long)&info) < 0) { ret = -errno; goto fail; }
   if (info.nbuffers < MUSIC_PCM_BUFFERS) { ret = -ENOBUFS; goto fail; }
+  pcm->rate = rate;
   for (unsigned i = 0; i < MUSIC_PCM_BUFFERS; i++) {
-    struct audio_buf_desc_s desc = {.numbytes = MUSIC_PCM_FRAMES * 4, .u.pbuffer = &pcm->buffers[i]};
+    struct audio_buf_desc_s desc = {.numbytes = MUSIC_PCM_BLOCK_FRAMES(rate) * 4, .u.pbuffer = &pcm->buffers[i]};
     int allocated = ioctl(pcm->fd, AUDIOIOC_ALLOCBUFFER, (unsigned long)&desc);
     if (allocated != sizeof(desc) || !pcm->buffers[i]) { ret = allocated < 0 ? -errno : -ENOMEM; goto fail; }
   }
   pcm->rate = rate;
   ret = music_pcm_volume(pcm, volume);
   if (ret) goto fail;
+  atomic_store(&g_pcm_rate,rate);
+  atomic_store(&g_pcm_block_frames,MUSIC_PCM_BLOCK_FRAMES(rate));
+  atomic_store(&g_pcm_written_frames,0);
+  atomic_store(&g_pcm_empty,0);
+  atomic_store(&g_pcm_last_submit_us,0);
+  atomic_store(&g_pcm_max_submit_gap_us,0);
   printf("[music] PCM opened rate=%u mono volume=%u\n", rate, volume);
   return 0;
 fail:
@@ -153,6 +199,46 @@ int music_pcm_open(struct music_pcm *pcm, unsigned rate, unsigned volume)
 int music_pcm_try_open(struct music_pcm *pcm, unsigned rate, unsigned volume)
 { return pcm_open(pcm, rate, volume, true); }
 
+int music_pcm_foreground_open(struct music_pcm *pcm, unsigned rate,
+                             unsigned volume, unsigned timeout_ms,
+                             bool (*cancelled)(void *), void *opaque)
+{
+  if (!pcm || rate < 8000 || rate > 48000 || timeout_ms > 5000)
+    return -EINVAL;
+  if (cancelled && cancelled(opaque)) return -ECANCELED;
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  uint64_t started = (uint64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+  uint64_t deadline = started + timeout_ms;
+  /* Publish intent before cancellation. The wake service must not reacquire
+   * the session between capture teardown and the video worker taking it. */
+  atomic_fetch_add(&g_pcm_foreground_waiters, 1);
+  bool yielding = false;
+#ifdef GLASS_LOCAL_SPEECH
+  yielding = glass_speech_yield_background();
+#endif
+  int ret;
+  for (;;) {
+    if (cancelled && cancelled(opaque)) { ret = -ECANCELED; break; }
+    ret = music_pcm_try_open(pcm, rate, volume);
+    if (ret != -EBUSY || !yielding) break;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if ((uint64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000 >= deadline) {
+      ret = -ETIMEDOUT;
+      break;
+    }
+    usleep(10000);
+  }
+  /* Successful open publishes session_active before the pending intent goes
+   * away. Failed/cancelled opens leave no suppression behind. */
+  atomic_fetch_sub(&g_pcm_foreground_waiters, 1);
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  printf("[audio-handoff] background=%u result=%d elapsed_ms=%llu\n",
+         yielding, ret, (unsigned long long)((uint64_t)now.tv_sec * 1000 +
+         now.tv_nsec / 1000000 - started));
+  return ret;
+}
+
 static int pcm_submit(struct music_pcm *pcm, unsigned index, unsigned frames)
 {
   struct ap_buffer_s *buffer = pcm->buffers[index];
@@ -164,6 +250,13 @@ static int pcm_submit(struct music_pcm *pcm, unsigned index, unsigned frames)
   buffer->nbytes = padded * 4; buffer->curbyte = 0; buffer->flags = 0;
   struct audio_buf_desc_s desc = {.numbytes = buffer->nbytes, .u.buffer = buffer};
   pcm->submitted_samples[index] = frames;
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC,&now);
+  unsigned us=(unsigned)((uint64_t)now.tv_sec*1000000u+now.tv_nsec/1000);
+  unsigned previous=atomic_exchange(&g_pcm_last_submit_us,us);
+  if(previous&&us-previous>atomic_load(&g_pcm_max_submit_gap_us))
+    atomic_store(&g_pcm_max_submit_gap_us,us-previous);
+  if(pcm->started&&!pcm->pending)atomic_fetch_add(&g_pcm_empty,1);
   if (ioctl(pcm->fd, AUDIOIOC_ENQUEUEBUFFER, (unsigned long)&desc) < 0) return -errno;
   pcm->queued[index] = true; pcm->pending++;
   pcm->staged_frames = 0;
@@ -186,11 +279,14 @@ int music_pcm_write(struct music_pcm *pcm, const int16_t *samples, unsigned fram
       int ret = pcm_message(pcm);
       if (ret) return ret;
     }
-    unsigned available = MUSIC_PCM_FRAMES - pcm->staged_frames;
+    unsigned capacity = MUSIC_PCM_BLOCK_FRAMES(pcm->rate);
+    unsigned available = capacity - pcm->staged_frames;
     unsigned chunk = frames > available ? available : frames;
     pcm->staged_index = index;
     struct ap_buffer_s *buffer = pcm->buffers[index];
     int16_t *out = (int16_t *)buffer->samp + pcm->staged_frames * 2;
+    unsigned master = glass_speaker_volume();
+    unsigned input_peak=0,output_peak=0;
     /* The I2S peripheral transfers two 16-bit slots per frame. Writing one
      * mono sample per frame let the DAC consume two samples per clock, which
      * played everything at double speed with aliasing. Duplicate the sample
@@ -198,10 +294,19 @@ int music_pcm_write(struct music_pcm *pcm, const int16_t *samples, unsigned fram
     for (unsigned i = 0; i < chunk; i++) {
       int16_t value = channels == 1 ? samples[i] :
         (int16_t)(((int32_t)samples[i*2] + samples[i*2+1]) / 2);
+      unsigned peak=value<0?-(int32_t)value:value;
+      if(peak>input_peak)input_peak=peak;
+      value = (int16_t)((int32_t)value * (int32_t)master / 100);
+      peak=value<0?-(int32_t)value:value;
+      if(peak>output_peak)output_peak=peak;
       out[i*2] = value; out[i*2+1] = value;
     }
+    atomic_store(&g_pcm_input_peak,input_peak);
+    atomic_store(&g_pcm_output_peak,output_peak);
+    atomic_store(&g_pcm_applied_master,master);
+    atomic_fetch_add(&g_pcm_written_frames,chunk);
     pcm->staged_frames += chunk;
-    if (pcm->staged_frames == MUSIC_PCM_FRAMES) {
+    if (pcm->staged_frames == capacity) {
       int ret = pcm_submit(pcm, index, pcm->staged_frames);
       if (ret) return ret;
     }

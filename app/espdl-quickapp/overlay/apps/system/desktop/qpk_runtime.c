@@ -32,15 +32,21 @@
 #include "qpk_espdl.h"
 #include <lvgl/lvgl.h>
 #include "glass_ui_visibility.h"
+#include "glass_i18n.h"
 #include <quickjs.h>
 
 #include "qpk_runtime.h"
+#include "browser/browser_native_host.h"
+static const char *ov_browser_entry;
+#include "glass_input_guard.h"
+#include "glass_app_frame.h"
 #include "glass_app_controls.h"
 #include "qpk_app_theme.h"
 #include "qpk_security.h"
 #include "qpk_error_text.h"
 #include "glass_ime.h"
 #include "glass_icons.h"
+#include "glass_heading.h"
 #include "qpk_storage.h"
 #include "qpk_photo_store.h"
 #include "qpk_limits.h"
@@ -204,6 +210,7 @@ struct qpk_runtime_s
   int widget_hint;
   struct qpk_event_s *events;
   struct qpk_event_s swipe_event;
+  struct qpk_event_s back_event;
   JSValue touch_event;
   bool touch_used;
   bool touch_test_active;
@@ -211,6 +218,7 @@ struct qpk_runtime_s
   lv_obj_t *input_shade;
   lv_obj_t *input_textarea;
   JSValue input_callback;
+  bool input_notify_cancel;
   qpk_font_cb_t font_cb;
   qpk_message_cb_t toast_cb;
   qpk_message_cb_t dialog_cb;
@@ -554,14 +562,14 @@ static void qpk_camera_reference_prepare_frame(uint16_t *pixels,unsigned source_
                                                 unsigned image_width,unsigned image_height,unsigned aspect)
 {
   unsigned style=qpk_camera_style();
-  struct camera_reference_rect view=camera_reference_output(source_width,aspect);
+  struct camera_reference_rect view=camera_reference_output(source_width,image_width,image_height,zoom,aspect);
   const unsigned width=view.w,height=view.h,top=view.y;
-  struct camera_reference_rect crop=camera_frame_crop(source_width,600,image_width,image_height,zoom,aspect);
+  struct camera_reference_rect crop=camera_reference_crop(source_width,image_width,image_height,zoom,aspect);
   unsigned crop_width=crop.w,crop_height=crop.h,crop_x=crop.x,crop_y=crop.y;
   for(unsigned y=0;y<crop_height;y++)
     memmove(pixels+y*1024,pixels+(crop_y+y)*1024+crop_x,crop_width*sizeof(uint16_t));
-  /* A bounded 1140-byte map removes division from the per-pixel loop. */
-  uint16_t columns[570];
+  /* A bounded map removes division from the per-pixel loop. */
+  uint16_t columns[CAMERA_REFERENCE_VIEW_WIDTH];
   for(unsigned x=0;x<width;x++)columns[x]=x*crop_width/width;
   if(crop_width>=width&&crop_height>=height){
     for(unsigned y=0;y<height;y++){
@@ -596,13 +604,13 @@ static int qpk_camera_bar_draw(uint16_t *pixels,unsigned source_width,const stru
   int zoom_index=camera_reference_zoom_index(zoom);
   bool filters=qpk_camera_filters_open();
   unsigned aspect=state.aspect;
-  struct camera_reference_rect output=camera_reference_output(source_width,aspect);
+  struct camera_reference_rect output=camera_reference_output(source_width,image_width,image_height,zoom,aspect);
   if (!prepared) qpk_camera_reference_prepare_frame(pixels,source_width,zoom,image_width,image_height,aspect);
   else {
     struct camera_reference_rect view=output;
     unsigned width=view.w,height=view.h,top=view.y;
     for(unsigned y=0;y<600;y++)if(y<top||y>=top+height)
-      memset(pixels+y*1024+CAMERA_REFERENCE_VIEW_LEFT,0,width*sizeof(*pixels));
+      memset(pixels+y*1024+view.x,0,width*sizeof(*pixels));
   }
   int status=qpk_camera_bar_status();
   for(int y=0;y<600;y++){
@@ -1323,6 +1331,24 @@ static JSValue js_ui_on_swipe(JSContext *context, JSValueConst this_value,
   g_qpk.swipe_event.used = true;
   return JS_UNDEFINED;
 }
+static JSValue js_ui_on_back(JSContext *context, JSValueConst this_value,
+                              int argc, JSValueConst *argv)
+{
+  (void)this_value;
+  if (argc < 1 || !JS_IsFunction(context, argv[0]))
+    {
+      return JS_ThrowTypeError(context, "back handler must be a function");
+    }
+
+  if (g_qpk.back_event.used)
+    {
+      JS_FreeValue(context, g_qpk.back_event.function);
+    }
+
+  g_qpk.back_event.function = JS_DupValue(context, argv[0]);
+  g_qpk.back_event.used = true;
+  return JS_UNDEFINED;
+}
 
 static JSValue js_ui_text(JSContext *context, JSValueConst this_value,
                           int argc, JSValueConst *argv)
@@ -1364,6 +1390,8 @@ static JSValue js_ui_text(JSContext *context, JSValueConst this_value,
     lv_obj_set_style_text_font(label, glass_icon_font(64), 0);
   else if (qpk_arg_int(context, argc, argv, 5, 0) == 3)
     lv_obj_set_style_text_font(label, glass_icon_font(32), 0);
+  else if(size>=24&&size<=40)
+    lv_obj_set_style_text_font(label,glass_heading_font(size,lv_obj_get_style_text_font(label,0)),0);
 
   handle = qpk_add_widget(label, QPK_WIDGET_LABEL);
   JS_FreeCString(context, text);
@@ -1706,6 +1734,9 @@ static JSValue js_ui_set_style(JSContext *context, JSValueConst this_value,
       if (present[9] && values[9] > 0)
         lv_obj_set_style_text_font(label, glass_icon_font(values[9] == 2 ? 64 :
                                                        values[9] == 3 ? 32 : 24), 0);
+      if((present[5]||present[9])&&g_qpk.widget_types[handle - 1]==QPK_WIDGET_BUTTON&&
+         !strchr(lv_label_get_text(label),'\n'))
+        lv_obj_set_height(label,lv_obj_get_style_text_font(label,0)->line_height);
       if (present[6] || present[15]) lv_obj_set_style_text_align(label,
         present[15] && values[15] ? LV_TEXT_ALIGN_RIGHT :
         present[6] && values[6] ? LV_TEXT_ALIGN_CENTER : LV_TEXT_ALIGN_LEFT, 0);
@@ -1968,6 +1999,10 @@ static JSValue js_ui_set_opacity(JSContext *context,
     }
 
   lv_obj_set_style_opa(g_qpk.widgets[handle - 1], (lv_opa_t)opacity, 0);
+  /* Explicit layer opacity applies to interaction states too. In particular,
+   * transparent camera hit targets must stay invisible when disabled/pressed. */
+  lv_obj_set_style_opa(g_qpk.widgets[handle - 1], (lv_opa_t)opacity, LV_STATE_DISABLED);
+  lv_obj_set_style_opa(g_qpk.widgets[handle - 1], (lv_opa_t)opacity, LV_STATE_PRESSED);
   return JS_UNDEFINED;
 }
 
@@ -2059,7 +2094,8 @@ static void qpk_input_finish(bool submit)
 {
   JSContext *context = g_qpk.context;
   JSValue callback;
-  JSValue argument = JS_UNDEFINED;
+  JSValue argument = JS_NULL;
+  bool notify_cancel = g_qpk.input_notify_cancel;
   JSValue result;
 
   if (context == NULL || g_qpk.input_shade == NULL)
@@ -2076,11 +2112,12 @@ static void qpk_input_finish(bool submit)
 
   JS_FreeValue(context, g_qpk.input_callback);
   g_qpk.input_callback = JS_UNDEFINED;
+  g_qpk.input_notify_cancel = false;
   lv_obj_delete(g_qpk.input_shade);
   g_qpk.input_shade = NULL;
   g_qpk.input_textarea = NULL;
 
-  if (submit)
+  if (submit || notify_cancel)
     {
       result = qpk_call_args(callback, QPK_HANG_BUDGET, 1, &argument);
       JS_FreeValue(context, result);
@@ -2125,6 +2162,7 @@ static lv_obj_t *qpk_input_button(lv_obj_t *parent, const char *text,
   lv_obj_set_style_shadow_width(button, 0, 0);
   lv_obj_set_style_transform_width(button, 0, LV_STATE_PRESSED);
   lv_obj_set_style_transform_height(button, 0, LV_STATE_PRESSED);
+  glass_input_guard_install(button);
   lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, NULL);
   if(desktop_motion_button)desktop_motion_button(button);
   label = lv_label_create(button);
@@ -2337,6 +2375,9 @@ static JSValue js_prompt_input(JSContext *context,
   lv_obj_add_event_cb(keyboard, qpk_input_submit, LV_EVENT_READY, NULL);
   lv_obj_add_event_cb(keyboard, qpk_input_cancel, LV_EVENT_CANCEL, NULL);
   g_qpk.input_callback = JS_DupValue(context, argv[1]);
+  JSValue notify_value = JS_GetPropertyStr(context, argv[0], "notifyCancel");
+  g_qpk.input_notify_cancel = JS_ToBool(context, notify_value) > 0;
+  JS_FreeValue(context, notify_value);
   lv_obj_move_foreground(g_qpk.input_shade);
 
   if (converted_title != NULL)
@@ -2571,6 +2612,7 @@ static JSValue js_ui_button(JSContext *context, JSValueConst this_value,
 
   lv_obj_set_width(label, lv_pct(100));
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+  if(!strchr(text,'\n'))lv_obj_set_height(label,lv_obj_get_style_text_font(label,0)->line_height);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_center(label);
   binding->function = JS_DupValue(context, argv[5]);
@@ -2584,6 +2626,7 @@ static JSValue js_ui_button(JSContext *context, JSValueConst this_value,
       return JS_ThrowOutOfMemory(context);
     }
 
+  glass_input_guard_install(button);
   if (lv_obj_add_event_cb(button, qpk_event_clicked, LV_EVENT_CLICKED, binding) == NULL)
     {
       lv_obj_delete(button);
@@ -2618,6 +2661,60 @@ static const char *qpk_message_arg(JSContext *context, int argc,
 
   *holder = JS_UNDEFINED;
   return JS_ToCString(context, argv[0]);
+}
+
+
+/* Declare navigation before building content; empty menus keep full width. */
+static JSValue js_ui_sidebar(JSContext *context,JSValueConst this_value,int argc,JSValueConst *argv)
+{
+  (void)this_value;
+  if(argc<1||JS_IsArray(context,argv[0])!=1)return JS_ThrowTypeError(context,"sidebar requires an array");
+  if(g_qpk.widget_serial)return JS_ThrowTypeError(context,"call sidebar before getSize and content widgets");
+  lv_obj_t *rail=lv_obj_get_user_data(g_qpk.root);
+  if(!rail)return JS_ThrowTypeError(context,"sidebar requires the application frame");
+  JSValue length=JS_GetPropertyStr(context,argv[0],"length");uint32_t count=0;
+  int valid=JS_ToUint32(context,&count,length);JS_FreeValue(context,length);
+  if(valid<0)return JS_EXCEPTION;
+  if(count>8)return JS_ThrowRangeError(context,"sidebar supports at most eight entries");
+  JSValue labels[8],handlers[8],result=JS_UNDEFINED;int32_t handles[8]={0};
+  for(unsigned i=0;i<8;i++)labels[i]=handlers[i]=JS_UNDEFINED;
+  for(unsigned i=0;i<count;i++){
+    JSValue item=JS_GetPropertyUint32(context,argv[0],i);
+    labels[i]=JS_GetPropertyStr(context,item,"label");handlers[i]=JS_GetPropertyStr(context,item,"onClick");
+    JS_FreeValue(context,item);
+    if(!JS_IsString(labels[i])||!JS_IsFunction(context,handlers[i])){
+      JS_ThrowTypeError(context,"sidebar entries require label and onClick");goto failed;
+    }
+    const char *label=JS_ToCString(context,labels[i]);if(!label)goto failed;
+    bool bounded=label[0]&&strlen(label)<=80;JS_FreeCString(context,label);
+    if(!bounded){JS_ThrowRangeError(context,"sidebar label must contain 1 to 80 UTF-8 bytes");goto failed;}
+  }
+  glass_app_frame_navigation(g_qpk.root,count);
+  result=JS_NewArray(context);if(JS_IsException(result))goto failed;
+  struct glass_app_palette p=glass_app_palette(g_qpk.primary_color<0x888888);
+  for(unsigned i=0;i<count;i++){
+    JSValue args[]={labels[i],JS_NewInt32(context,12),JS_NewInt32(context,88+52*i),
+      JS_NewInt32(context,140),JS_NewInt32(context,44),handlers[i],JS_NewUint32(context,i?p.paper:p.soft)};
+    JSValue handle=js_ui_button(context,JS_UNDEFINED,7,args);
+    if(JS_IsException(handle))goto failed;
+    JS_ToInt32(context,&handles[i],handle);
+    lv_obj_t *button=g_qpk.widgets[handles[i]-1];lv_obj_set_parent(button,rail);
+    lv_obj_remove_flag(button,LV_OBJ_FLAG_EVENT_BUBBLE);lv_obj_set_style_pad_all(button,0,0);
+    lv_obj_t *caption=lv_obj_get_child(button,0);
+    if(g_qpk.font_cb)lv_obj_set_style_text_font(caption,g_qpk.font_cb(14),0);
+    lv_obj_set_width(caption,116);lv_obj_set_style_text_align(caption,LV_TEXT_ALIGN_LEFT,0);
+    lv_obj_align(caption,LV_ALIGN_LEFT_MID,12,0);
+    lv_obj_add_event_cb(button,glass_app_frame_select,LV_EVENT_SHORT_CLICKED,NULL);
+    JS_SetPropertyUint32(context,result,i,handle);
+  }
+  for(unsigned i=0;i<8;i++){JS_FreeValue(context,labels[i]);JS_FreeValue(context,handlers[i]);}
+  return result;
+failed:
+  for(unsigned i=0;i<8;i++){
+    if(handles[i])lv_obj_delete(g_qpk.widgets[handles[i]-1]);
+    JS_FreeValue(context,labels[i]);JS_FreeValue(context,handlers[i]);
+  }
+  JS_FreeValue(context,result);glass_app_frame_navigation(g_qpk.root,0);return JS_EXCEPTION;
 }
 
 static JSValue js_prompt_toast(JSContext *context,
@@ -2854,6 +2951,15 @@ static JSValue js_set_timeout(JSContext *context,
  * A long computation therefore completes in slices instead of being cut off
  * by the interactive deadline.
  */
+static JSValue js_system_translate(JSContext *context,JSValueConst this_value,int argc,JSValueConst *argv)
+{
+  (void)this_value;
+  if(argc<1)return JS_NewString(context,"");
+  const char *source=JS_ToCString(context,argv[0]);if(!source)return JS_EXCEPTION;
+  JSValue result=JS_NewString(context,glass_tr(source));
+  JS_FreeCString(context,source);return result;
+}
+
 static JSValue js_system_yield(JSContext *context, JSValueConst this_value,
                                int argc, JSValueConst *argv)
 {
@@ -4267,9 +4373,13 @@ static void qpk_install_api(JSContext *context)
                     JS_NewCFunction(context, js_ui_panel, "panel", 7));
   JS_SetPropertyStr(context, object, "button",
                     JS_NewCFunction(context, js_ui_button, "button", 7));
+  JS_SetPropertyStr(context, object, "sidebar",
+                    JS_NewCFunction(context, js_ui_sidebar, "sidebar", 1));
   JS_SetPropertyStr(context, object, "onTouch",
                     JS_NewCFunction(context, js_ui_on_touch,
                                     "onTouch", 1));
+  JS_SetPropertyStr(context, object, "onBack",
+                    JS_NewCFunction(context, js_ui_on_back, "onBack", 1));
   JS_SetPropertyStr(context, object, "onSwipe",
                     JS_NewCFunction(context, js_ui_on_swipe,
                                     "onSwipe", 1));
@@ -4341,6 +4451,7 @@ static void qpk_install_api(JSContext *context)
   JS_SetPropertyStr(context, object, "input",
                     JS_NewCFunction(context, js_prompt_input,
                                     "input", 2));
+  JS_SetPropertyStr(context, object, "cancelNotification", JS_TRUE);
   JS_SetPropertyStr(context, global, "prompt", object);
 
   object = JS_NewObject(context);
@@ -4356,6 +4467,8 @@ static void qpk_install_api(JSContext *context)
     JSValue camera = JS_NewObject(context);
     JSValue homeassistant = JS_NewObject(context);
     JSValue desktop = JS_NewObject(context);
+    JS_SetPropertyStr(context,system,"language",JS_NewString(context,glass_i18n_code()));
+    JS_SetPropertyStr(context,system,"translate",JS_NewCFunction(context,js_system_translate,"translate",1));
 
     qpk_dl_install(context, system);
     qpk_hw_install(context, system);
@@ -4431,6 +4544,7 @@ static void qpk_install_api(JSContext *context)
                           unavailable);
       }
 #endif
+    (void)ov_browser_native_install(context, system, g_qpk.root, g_qpk.package, ov_browser_entry);
     qpk_pet_bind(context, system);
     JS_SetPropertyStr(context, global, "system", system);
   }
@@ -4505,6 +4619,7 @@ int qpk_runtime_launch(lv_obj_t *root, const char *name,
   strlcpy(g_qpk.name, name ? name : "Quick App", sizeof(g_qpk.name));
   g_qpk.volume=qpk_volume_from_filename(filename);
   strlcpy(g_qpk.package, package ? package : "", sizeof(g_qpk.package));
+  ov_browser_entry = filename;
   g_qpk.ha_config_access = qpk_builtin_ha_origin(package, filename);
   qpk_video_authorize(package&&filename&&!strcmp(package,"com.openvela.camera.preview")&&!strcmp(filename,"builtin:/camera/app.js"));
 #ifdef CONFIG_SYSTEM_HASS
@@ -4598,6 +4713,7 @@ int qpk_runtime_launch(lv_obj_t *root, const char *name,
 
 void qpk_runtime_stop(void)
 {
+  ov_browser_native_stop();
   pthread_mutex_lock(&g_camera_lock);g_camera_ui_action=0;pthread_mutex_unlock(&g_camera_lock);
   qpk_hw_release(g_qpk_hardware); g_qpk_hardware = NULL;
   int i;
@@ -4626,6 +4742,8 @@ void qpk_runtime_stop(void)
 
   if (g_qpk.context != NULL)
     {
+      lv_obj_t *rail=g_qpk.root?lv_obj_get_user_data(g_qpk.root):NULL;
+      if(rail)while(lv_obj_get_child_count(rail)>2)lv_obj_delete(lv_obj_get_child(rail,2));
       /* Retired pages may outlive their JS runtime during a page handoff.
        * Remove their listeners before releasing callbacks or reusing slots.
        */
@@ -4669,6 +4787,8 @@ void qpk_runtime_stop(void)
       for (struct qpk_event_s *binding = g_qpk.events; binding; binding = binding->next)
         if (binding->used) qpk_event_release(g_qpk.context, binding);
 
+      if (g_qpk.back_event.used)
+        JS_FreeValue(g_qpk.context, g_qpk.back_event.function);
       if (g_qpk.swipe_event.used)
         {
           JS_FreeValue(g_qpk.context, g_qpk.swipe_event.function);
@@ -4874,4 +4994,19 @@ int qpk_runtime_open_ha_device(const char *server, const char *entity)
 bool qpk_runtime_running(void)
 {
   return g_qpk.context != NULL;
+}
+
+/* The shell calls this after pointer dispatch, on the LVGL thread. */
+bool qpk_runtime_back(void)
+{
+  JSContext *context = g_qpk.context;
+  if (!context) return false;
+  if (g_qpk.input_shade) { qpk_input_finish(false); return true; }
+  if (!g_qpk.back_event.used) return false;
+  JSValue callback = JS_DupValue(context, g_qpk.back_event.function);
+  JSValue result = qpk_call_args(callback, QPK_HANG_BUDGET, 0, NULL);
+  bool handled = JS_IsException(result) || JS_ToBool(context, result) > 0;
+  JS_FreeValue(context, result);
+  JS_FreeValue(context, callback);
+  return handled;
 }
