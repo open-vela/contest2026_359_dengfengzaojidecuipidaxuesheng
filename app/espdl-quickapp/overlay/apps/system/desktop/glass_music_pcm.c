@@ -15,6 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 extern void board_music_amplifier(bool enabled);
+extern int glass_local_voice_yield_model(unsigned) __attribute__((weak));
 
 /* The board has one ES8311 codec and one shared I2S DMA engine. Keep a
  * session exclusively owned until STOP, buffer release, and MQ teardown have
@@ -51,6 +52,7 @@ int glass_speaker_volume_set(unsigned percent)
 
 int music_pcm_session_lock(void)
 {
+  if(glass_local_voice_yield_model){int yielded=glass_local_voice_yield_model(3000);if(yielded)return yielded;}
   int ret;
 #ifdef GLASS_LOCAL_SPEECH
   glass_speech_stop();
@@ -213,6 +215,8 @@ int music_pcm_foreground_open(struct music_pcm *pcm, unsigned rate,
   /* Publish intent before cancellation. The wake service must not reacquire
    * the session between capture teardown and the video worker taking it. */
   atomic_fetch_add(&g_pcm_foreground_waiters, 1);
+  if(glass_local_voice_yield_model){int yielded=glass_local_voice_yield_model(timeout_ms);
+    if(yielded){atomic_fetch_sub(&g_pcm_foreground_waiters,1);return yielded;}}
   bool yielding = false;
 #ifdef GLASS_LOCAL_SPEECH
   yielding = glass_speech_yield_background();

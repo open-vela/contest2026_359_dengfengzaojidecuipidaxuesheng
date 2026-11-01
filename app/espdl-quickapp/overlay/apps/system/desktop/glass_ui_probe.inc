@@ -6,6 +6,7 @@
 #include <sys/ioctl.h>
 #include <nuttx/video/fb.h>
 #include "glass_device_controls.h"
+#include "qpk_hardware.h"
 #ifdef GLASS_VIDEO_BLIT
 #include "glass_video_blit.h"
 #endif
@@ -118,6 +119,15 @@ static void desktop_ui_probe_tree(lv_obj_t *object, unsigned parent)
   if (input) return;
   for (uint32_t i = 0; i < lv_obj_get_child_count(object); i++)
     desktop_ui_probe_tree(lv_obj_get_child(object, i), id);
+}
+
+static void desktop_ui_probe_icons(lv_obj_t *object)
+{
+  if(!object||!lv_obj_is_visible(object))return;
+  char line[256];
+  if(glass_icon_diagnose(object,line,sizeof(line))>0)desktop_ui_probe_print("%s",line);
+  for(unsigned i=0;i<lv_obj_get_child_count(object);i++)
+    desktop_ui_probe_icons(lv_obj_get_child(object,i));
 }
 
 static bool desktop_ui_probe_click(lv_obj_t *object, const char *text)
@@ -454,7 +464,18 @@ static void desktop_ui_probe_service(void)
     }
   else
     {
-      if (!strcmp(command,"render-metrics-reset")) {
+      if (!strcmp(command,"icon-status")) {
+        lv_obj_update_layout(g_desktop.screen);
+        lv_obj_t *root=g_desktop.current_card?g_desktop.current_card:g_desktop.screen;
+        desktop_ui_probe_print("ICON_ROOT visible=%u children=%u\n",root&&lv_obj_is_visible(root),root?lv_obj_get_child_count(root):0);
+        desktop_ui_probe_icons(root);
+      }
+      else if (!strcmp(command,"recorder-status")) {
+        char status[384];
+        if (qpk_audio_recording_status(status, sizeof(status)) >= 0)
+          desktop_ui_probe_print("%s", status);
+      }
+      else if (!strcmp(command,"render-metrics-reset")) {
         glass_ui_metrics_reset();desktop_ui_probe_print("UI_RENDER_METRICS_RESET\n");
       }
       else if (!strcmp(command,"render-metrics")) {
@@ -691,7 +712,7 @@ static int desktop_ui_probe_request(const char *command)
     "audio-status", "music", "music-status", "music-metadata-status", "music-pv-demo", "music-pv-status", "font-status", "music-language-demo", "music-lyrics-status", "music-play-result", "music-toggle", "music-stop", "current", "apps", "about", "environment", "hello", "2048", "ouo", "ha", "dropdown", "grok-status",
     "files-new", "light", "dark", "audit", "frame", "frame-free", "wifi-scan", "ble-scan", "dialog",
     "recovery", "recovery-start", "recovery-stop", "recovery-status",
-    "ha-settings", "ha-address", "ha-status", "render-metrics", "render-metrics-reset", "toast", "camera-start", "camera-photo", "camera-mode",
+    "ha-settings", "ha-address", "ha-status", "icon-status", "recorder-status", "render-metrics", "render-metrics-reset", "toast", "camera-start", "camera-photo", "camera-mode",
     "espdl", "espdl-start", "espdl-stop", "espdl-classify", "espdl-photo", "speech", "speech-listen", "speech-probe", "speech-nano-scalar", "speech-nano-pie", "speech-nano-play", "speech-start", "speech-stop", "speech-status",
     "voice", "voice-tap", "voice-end", "voice-status", "wake-mini-status",
     "navigation-status", "app-back", "edge-back", "portal", "portal-status",

@@ -12,9 +12,6 @@
 
 ## 构建与集成入口
 
-当前 P4 rev3.2 的三份准备输入、离线校验与完整参数入口见 [构建复现资料](../docs/P4_BUILD_REPRO_2026-10-27.md)。先运行 `prepare_p4_repro_inputs.py`，再使用 `build_p4_repro.py`；`export_p4_repro_inputs.py` 用于维护者导出匹配输入，不能用任意旧基线冒充本锁定快照。
-
-
 官方 ESP-TTS、AI 家居操控与实板回归见
 [完整流程](../app/espdl-quickapp/speech/esp-tts/WORKFLOW.md)。完整 v3 构建启用语音后默认使用
 ESP-TTS；`verify_esp_tts.py` 检查依赖、音频回归和实际镜像，`deploy_esp_tts_device.py`

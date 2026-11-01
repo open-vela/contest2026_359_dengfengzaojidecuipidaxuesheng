@@ -9,8 +9,14 @@
 struct glass_status_network
 {
   bool wifi, wired, joining;
+  bool wired_link; /* Physical carrier; may still be waiting for IPv4. */
   bool rssi_valid;
   int rssi_dbm;
 };
 /* Unknown capacity is -1. Never estimates a battery percentage from uptime. */
 void glass_status_power_read(int *percent, bool *charging);
+
+/* Permanent desktop worker; UI reads only an atomic readiness snapshot. */
+int glass_status_storage_start(void);
+bool glass_status_storage_ready(void);
+uint32_t glass_status_storage_epoch(void);

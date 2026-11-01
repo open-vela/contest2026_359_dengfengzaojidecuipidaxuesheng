@@ -43,6 +43,9 @@ def main():
     p.add_argument('--cache',type=Path,required=True)
     p.add_argument('--desktop-source',type=Path,help='Optional immutable desktop source snapshot, including its runtime header')
     p.add_argument('--prepare-only',action='store_true')
+    p.add_argument('--build-only',action='store_true',help='Build a native harness without starting it')
+    p.add_argument('--safe-event-dispatch',action='store_true',help='Use the prepared LVGL event-vector relocation repair')
+    p.add_argument('--local-voice',action='store_true',help='Review the offline native voice app with inert model/audio fixtures')
     p.add_argument('--harness-source',type=Path,help='Optional focused native page harness')
     p.add_argument('--png-prefix',default='',help='Convert only the matching native captures; all pages still run under sanitizers')
     p.add_argument('--ble-central-limit',type=int,choices=[2,8],default=2,help='Offline BLE snapshot capacity; never changes a controller')
@@ -84,6 +87,9 @@ def main():
     (work/'netutils/netlib.h').write_text('#pragma once\n#include <netinet/in.h>\nint netlib_get_ipv4addr(const char*,struct in_addr*);\n')
     # Do not compile boot networking, workers or device CLI entry points.
     main=(desktop/'desktop_main.c').read_text().split('#include "glass_ui_probe.inc"')[0]
+    # Reset diagnostics live in the excluded device CLI, not the host UI.
+    for header in ('sys/boardctl.h','nuttx/arch.h'):
+        main=main.replace('#include <'+header+'>','')
     main=main.replace('#include "../bilibili_live/', '#include "')
     (work/'production_desktop.inc').write_text(main)
     (work/'production_board_ui_labels.inc').write_text(
@@ -173,11 +179,13 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
       'hass_portal.h','hass_service.h','glass_music.h','glass_lock_photo.h','glass_chat.h','glass_ime.h',
       'glass_device_controls.h','glass_weather.h','glass_settings_service.h','glass_file_service.h','glass_system_monitor.h','glass_voice.h','glass_pinyin.h',
       'glass_ble.h','glass_ble_central.h','glass_status.h','glass_speech.h','qpk_espdl.h','desktop_worker.h','pet_engine.h','pet_lvgl.h','qpk_mjpeg.h']
-    skip={'glass_ime_attach','glass_ime_commit','glass_ime_commit_tree','glass_ime_start_voice','glass_ime_set_target',
+    skip={'glass_ime_attach','glass_ime_commit','glass_ime_commit_tree','glass_ime_start_voice','glass_ime_set_target','glass_ime_set_voice_enabled',
           'desktop_motion_button','qpk_mjpeg_create','qpk_mjpeg_destroy','qpk_mjpeg_probe','qpk_mjpeg_preview_limits',
           'qpk_mjpeg_frame_size','qpk_mjpeg_decode','qpk_mjpeg_decode_region','qpk_mjpeg_decode_view','qpk_mjpeg_decode_preview','qpk_mjpeg_decode_still','qpk_mjpeg_decode_still_fit'}
+    if a.local_voice:headers+=['glass_local_voice.h']
     mocks=['#include <stdlib.h>\n#include <string.h>\n#include <stdio.h>\n#include <errno.h>\n#include <netinet/in.h>\n#include "glass_icons.h"']
     mocks += [f'#include "{name}"' for name in headers]
+    if a.local_voice:mocks.append('bool music_pcm_session_active(void){return false;}')
     prototypes={}
     for header in headers:
         text=(work/header).read_text()
@@ -191,6 +199,9 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
             if not ret:continue
             prototypes[name]=(ret,args)
     custom=repo/'app/espdl-quickapp/tests/all_ui_services.c'
+    if a.local_voice:
+        error=function((desktop/'glass_local_voice.c').read_text(),'glass_local_voice_error')
+        (work/'local_voice_error_production.inc').write_text('#define glass_local_voice_error review_production_local_voice_error\n'+error+'\n#undef glass_local_voice_error\n')
     custom_text=custom.read_text() if custom.exists() else ''
     for name,(ret,args) in prototypes.items():
         if re.search(r'\b'+name+r'\s*\(',custom_text):continue
@@ -206,6 +217,22 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
       '-I'+str(repo/'app/bilibili_live'),'-I'+str(apps/'graphics/lvgl'),
       '-I'+str(apps/'netutils/cjson/cJSON'),'-I'+str(cache),'-DLV_CONF_INCLUDE_SIMPLE']
     objects=sorted(cache.glob('lvgl-*.o'),key=lambda x:int(x.stem.split('-')[-1]))
+    if a.local_voice:flags+=['-DGLASS_LOCAL_VOICE','-DGLASS_LOCAL_SPEECH']
+    if a.safe_event_dispatch:
+        from prepare_lvgl_event_dispatch import apply
+        original=apps/'graphics/lvgl/lvgl/src/misc/lv_event.c'
+        prepared=out/'prepared-lvgl'
+        repaired=prepared/'graphics/lvgl/lvgl/src/misc/lv_event.c'
+        repaired.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(original,repaired)
+        receipt=apply(prepared)
+        symbols=subprocess.check_output(['nm','-A','-g','--defined-only',*map(str,objects)],text=True)
+        found=re.search(r'^(.+\.o):[0-9a-f]+ T lv_event_send$',symbols,re.M)
+        if not found:raise RuntimeError('Missing cached LVGL event dispatcher')
+        objects.remove(Path(found[1]))
+        fixed_object=out/'lv_event_fixed.o'
+        subprocess.run(['gcc',*flags,'-I'+str(original.parent),'-c',str(repaired),'-o',str(fixed_object)],check=True)
+        objects.append(fixed_object)
+        (out/'event-dispatch-repair.json').write_text(json.dumps(receipt,indent=2))
     qjs=apps/'interpreters/quickjs/quickjs'
     qjsflags=['-std=gnu11','-O1','-g','-fwrapv','-D_GNU_SOURCE','-DCONFIG_BIGNUM',
       '-DCONFIG_VERSION="'+(qjs/'VERSION').read_text().strip()+'"','-I'+str(qjs),'-pthread',
@@ -236,7 +263,11 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
         result=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         print('\n'.join((out/'compile.log').read_text().splitlines()[:110]));raise SystemExit(result.returncode)
-    subprocess.run([str(out/'render-all-ui'),str(apps/'system/desktop/AlibabaPuHuiTi-3-55-Regular.otf'),str(out)],check=True)
+    native_command=[str(out/'render-all-ui'),str(apps/'system/desktop/AlibabaPuHuiTi-3-55-Regular.otf'),str(out)]
+    (out/'native-command.json').write_text(json.dumps(native_command))
+    if a.build_only:
+        print('NATIVE_UI_BUILD_OK',out/'render-all-ui');return
+    subprocess.run(native_command,check=True)
     captures=[out/Path(row['file']).with_suffix('.rgb565') for row in json.loads((out/'screens.json').read_text()) if row['id'].startswith(a.png_prefix)]
     with ProcessPoolExecutor(max_workers=4) as pool:list(pool.map(png565,captures))
     tracked=sources+[repo/'tools/render_all_ui.py',repo/'app/espdl-quickapp/tests/all_ui_fixture.js',desktop/'desktop_main.c',desktop/'qpk_runtime.c']+list(desktop.glob('*.inc'))+[desktop/'glass_file_types.h',desktop/'glass_pager.h',desktop/'glass_speech_level.h',desktop/'glass_grok_gaze.h',desktop/'glass_chat_markup.h',desktop/'glass_chat.h']

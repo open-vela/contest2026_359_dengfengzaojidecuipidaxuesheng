@@ -232,7 +232,7 @@ static lv_obj_t *glass_files_icon(lv_obj_t *parent, const char *symbol,
   lv_obj_set_size(button, 48, 40);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);
   lv_obj_set_style_bg_color(button,lv_color_hex(detail_soft()),0);lv_obj_set_style_radius(button,10,0);
   lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, data);
-  lv_obj_t *label = lv_label_create(button);
+  lv_obj_t *label = glass_icon_create(button);
   lv_obj_set_style_text_font(label, glass_icon_font(24), 0);
   lv_obj_set_style_text_color(label, lv_color_hex(theme_primary()), 0);
   lv_label_set_text(label, symbol);

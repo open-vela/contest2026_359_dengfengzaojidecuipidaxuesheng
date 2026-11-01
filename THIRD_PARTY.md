@@ -4,6 +4,16 @@ This file records the third-party source material used by the ESP32-P4
 overlay. It does not replace the license files shipped by the corresponding
 upstream projects.
 
+## Google Material Symbols Rounded
+
+- Source: https://github.com/google/material-design-icons, revision `10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7`.
+- 113 symbols, outlined and filled variants (226 SVGs); Apache License 2.0.
+- Original SVGs, license and per-file SHA-256 records: `materials/material-symbols/`.
+- Adaptations: normalized 24-unit geometry, compound-path component grouping,
+  two-color active states, finite state-triggered LVGL animations, and six raster sizes.
+- Microsoft's AnimatedIcon documentation supplies state-design guidance; no Microsoft
+  animation asset, WinUI code or Lottie runtime is included.
+
 ## CherryUSB board interface classes
 
 - Source: https://github.com/cherry-embedded/CherryUSB, tag `v1.6.1`, commit `c9625ffa773ad10b8824d1b5361bca2ccc1f3d1e`.
@@ -184,3 +194,32 @@ separately from this P1 provenance record.
 - `album_png.c` enables decoding only, supplies bounded allocation and converts
   RGBA to RGB565 in the album worker. HEIC/AVIF recognition does not include
   those codecs or imply playback support.
+
+
+## Local voice adapters
+
+- The user-supplied EdgeIdiot SFT2, V2 acoustic/vocoder checkpoint, and Edge
+  Impulse deployment retain their own provenance and original notices. The
+  runtime exporters do not assign a new license to these trained weights.
+- Edge Impulse MFCC/EON and its bundled TensorFlow Lite Micro/FFT sources are
+  compiled from the supplied SDK. The prepared `wake-sdk/original` tree stays
+  unchanged; externalization is confined to a generated copy and a private
+  NuttX float-overload compatibility header. Upstream file notices are retained.
+- The SD Chinese pronunciation tables use pypinyin 0.55.0. Its original MIT
+  notice is included as `notices/pypinyin-LICENSE.txt` in the resource package.
+- The custom Llama, tokenizer, and V2 C kernels are repository-native code;
+  numerical references use the original supplied Python models. The Zipformer
+  evaluation includes a repository-native experimental C graph/fbank/greedy
+  runtime under `app/espdl-quickapp/experimental`. It is not linked into the
+  accepted candidate 7 firmware and is not claimed as board ASR acceptance.
+- The fixed Chinese Zipformer 14M source archive SHA-256 is
+  `2cbd71b640d9c37d3784f29367333a4577b0398b62e9deeed418170b081cba8b`.
+  Its original model README declares Apache-2.0 and points to the upstream
+  csukuangfj Hugging Face model. Experimental mixed-precision assets retain
+  that provenance, original model README and Apache license text.
+- Independent C fbank and greedy-search implementations follow the documented
+  behavior of kaldi-native-fbank and sherpa-onnx (Apache-2.0, Xiaomi Corporation
+  and Kaldi authors). No upstream implementation source is vendored into this
+  runtime. Host comparison uses kaldi-native-fbank 1.22.5 and sherpa-onnx 2.0.1;
+  their native runtime libraries are host-only reference dependencies, not
+  firmware components. Reference links are in experimental/ASR-SOURCES.txt.

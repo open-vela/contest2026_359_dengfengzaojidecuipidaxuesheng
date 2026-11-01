@@ -60,7 +60,7 @@ static lv_obj_t *chat_ui_cards_build(const struct chat_turn *turn,int y)
     lv_obj_remove_flag(box,LV_OBJ_FLAG_CLICKABLE);
     lv_obj_t *badge=glass_box(box,14,16,44,44,card->on?warm_bg:g_chat_ui.sidebar,22);
     lv_obj_remove_flag(badge,LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_t *glyph=lv_label_create(badge);
+    lv_obj_t *glyph=glass_icon_create(badge);
     lv_obj_set_style_text_font(glyph,glass_icon_font(24),0);
     lv_obj_set_style_text_color(glyph,lv_color_hex(card->on?warm:g_chat_ui.secondary),0);
     lv_label_set_text(glyph,chat_card_icon(card->kind));lv_obj_center(glyph);

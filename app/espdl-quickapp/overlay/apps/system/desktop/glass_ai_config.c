@@ -3,6 +3,9 @@
 #include "glass_chat.h"
 #include "glass_voice.h"
 #include "qpk_espdl.h"
+#ifdef GLASS_LOCAL_VOICE
+#include "glass_local_voice.h"
+#endif
 #ifdef GLASS_LOCAL_SPEECH
 #include "glass_speech.h"
 #endif
@@ -43,6 +46,9 @@ int glass_ai_config_begin(unsigned timeout_ms)
       /* Admission is closed before cancellation; all accepted starters have
        * published their ownership. Never hold config_lock while draining. */
       glass_chat_cancel();glass_voice_cancel();qpk_dl_cancel();
+#ifdef GLASS_LOCAL_VOICE
+      glass_local_voice_cancel_from(GLV_CANCEL_CONFIG);
+#endif
 #ifdef GLASS_LOCAL_SPEECH
       glass_speech_stop();
 #endif
@@ -51,6 +57,9 @@ int glass_ai_config_begin(unsigned timeout_ms)
     if(cancelled&&ui_ready){
       struct qpk_dl_result dl;qpk_dl_status(&dl);
       bool quiet=glass_chat_config_idle()&&glass_voice_config_idle()&&!dl.busy;
+#ifdef GLASS_LOCAL_VOICE
+      quiet=quiet&&glass_local_voice_config_idle();
+#endif
 #ifdef GLASS_LOCAL_SPEECH
       struct speech_snapshot speech;glass_speech_get(&speech);quiet=quiet&&!speech.active;
 #endif

@@ -1,4 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
+/* Resolve against the current page: callbacks never retain a sibling widget
+ * pointer across theme/font/language rebuilds. */
+static lv_obj_t *glass_settings_find_symbol(lv_obj_t *root,const char *symbol)
+{
+  if(!root)return NULL;
+  if(lv_obj_has_class(root,&lv_label_class)&&!strcmp(lv_label_get_text(root),symbol))return root;
+  for(unsigned i=0;i<lv_obj_get_child_count(root);i++){
+    lv_obj_t *found=glass_settings_find_symbol(lv_obj_get_child(root,i),symbol);
+    if(found)return found;
+  }
+  return NULL;
+}
+static void glass_settings_play_symbol(const char *symbol)
+{glass_icon_play(glass_settings_find_symbol(g_desktop.current_card,symbol));}
+static void glass_settings_control_feedback(lv_event_t *event)
+{
+  if(lv_obj_has_state(lv_event_get_target(event),LV_STATE_DISABLED))return;
+  glass_settings_play_symbol(lv_event_get_user_data(event));
+}
+static void glass_settings_bind_feedback(lv_obj_t *control,const char *symbol,lv_event_code_t code)
+{lv_obj_add_event_cb(control,glass_settings_control_feedback,code,(void *)symbol);}
+
 static unsigned glass_language_requested;
 static bool glass_language_pending;
 static void glass_language_apply_async(void *unused)
@@ -6,6 +28,7 @@ static void glass_language_apply_async(void *unused)
   LV_UNUSED(unused);glass_language_pending=false;
   int result=glass_i18n_set_language(glass_language_requested);
   glass_language_refresh();
+  glass_settings_play_symbol(GLASS_ICON_SPARKLES);
   if(result<0)show_toast(glass_tr("语言已切换，选择未能保存到 SD 卡"));
 }
 static void glass_language_selected(lv_event_t *event)
@@ -30,7 +53,7 @@ static void glass_global_font_control_deleted(lv_event_t *event)
 
 static void glass_settings(lv_event_t *e)
 {
-  LV_UNUSED(e);glass_preferences_update();
+  const bool user_entry=e!=NULL;glass_preferences_update();
   glass_navigation_capture_settings();
   lv_obj_t *card=panel_card(glass_tr("控制面板"));if(!card)return;
   g_desktop.settings_page=true;g_desktop.page_back=NULL;
@@ -64,6 +87,7 @@ static void glass_settings(lv_event_t *e)
   lv_slider_set_value(brightness,g_screen_brightness,LV_ANIM_OFF);
   lv_obj_add_event_cb(brightness,glass_brightness_preview,LV_EVENT_VALUE_CHANGED,value);
   lv_obj_add_event_cb(brightness,glass_brightness_preview,LV_EVENT_PRESS_LOST,value);
+  glass_settings_bind_feedback(brightness,GLASS_ICON_SUN,LV_EVENT_VALUE_CHANGED);
 #ifdef GLASS_PWM_BACKLIGHT
   lv_label_set_text_fmt(value,"%d%%",g_screen_brightness);
   lv_obj_add_event_cb(brightness,glass_brightness_changed,LV_EVENT_VALUE_CHANGED,value);
@@ -97,6 +121,7 @@ static void glass_settings(lv_event_t *e)
   lv_obj_set_style_border_color(volume,lv_color_hex(detail_accent()),LV_PART_KNOB);
   lv_obj_set_style_shadow_width(volume,0,LV_PART_KNOB);
   lv_obj_add_event_cb(volume,glass_speaker_changed,LV_EVENT_VALUE_CHANGED,value);
+  glass_settings_bind_feedback(volume,LV_SYMBOL_VOLUME_MAX,LV_EVENT_VALUE_CHANGED);
   detail_text(audio,glass_tr("统一扬声器输出 · 0% 静音"),24,126,336,12,detail_muted());
 
   lv_obj_t *appearance=detail_tile(card,216,274,784,292);
@@ -112,6 +137,7 @@ static void glass_settings(lv_event_t *e)
   lv_obj_set_style_bg_opa(sw,LV_OPA_COVER,LV_PART_INDICATOR|LV_STATE_CHECKED);
   if(g_desktop.light_theme)lv_obj_add_state(sw,LV_STATE_CHECKED);
   lv_obj_add_event_cb(sw,theme_changed,LV_EVENT_VALUE_CHANGED,NULL);
+  glass_settings_bind_feedback(sw,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
   detail_text(appearance,glass_tr("减少动效"),24,136,260,16,detail_ink());
   sw=lv_switch_create(appearance);g_glass.motion_switch=sw;
   glass_control_switch_style(sw);
@@ -122,6 +148,7 @@ static void glass_settings(lv_event_t *e)
   lv_obj_set_style_bg_opa(sw,LV_OPA_COVER,LV_PART_INDICATOR|LV_STATE_CHECKED);
   if(g_glass.reduced_motion)lv_obj_add_state(sw,LV_STATE_CHECKED);
   lv_obj_add_event_cb(sw,glass_motion_changed,LV_EVENT_VALUE_CHANGED,NULL);
+  glass_settings_bind_feedback(sw,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
   glass_box(appearance,396,72,1,180,detail_line(),0);
   detail_text(appearance,glass_tr("主视觉配色"),24,196,120,14,detail_muted());
   const uint32_t colors[]={0x77658f,0xb77860,0x498d82};
@@ -132,6 +159,7 @@ static void glass_settings(lv_event_t *e)
     lv_obj_set_style_border_color(choice,lv_color_hex(g_desktop.light_theme?0xffffff:0xe0d7ee),0);
     lv_obj_set_style_border_opa(choice,LV_OPA_COVER,0);
     if(g_glass.palette==i){lv_obj_t *check=home_icon(choice,LV_SYMBOL_OK,0,0,20,0xffffff);lv_obj_center(check);}
+    glass_settings_bind_feedback(choice,GLASS_ICON_SPARKLES,LV_EVENT_CLICKED);
   }
   detail_text(appearance,glass_tr("桌面小组件"),420,72,300,14,detail_muted());
   lv_obj_t *dropdown=lv_dropdown_create(appearance);g_glass.widget_dropdown=dropdown;
@@ -151,6 +179,7 @@ static void glass_settings(lv_event_t *e)
   lv_obj_set_style_bg_color(list,lv_color_hex(detail_paper()),0);
   lv_obj_set_style_radius(list,12,0);
   lv_obj_add_event_cb(dropdown,glass_widget_select,LV_EVENT_VALUE_CHANGED,NULL);
+  glass_settings_bind_feedback(dropdown,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
 
   detail_text(appearance,glass_tr("全局字体"),420,164,300,14,detail_muted());
   dropdown=lv_dropdown_create(appearance);g_glass.global_font_dropdown=dropdown;
@@ -175,6 +204,7 @@ static void glass_settings(lv_event_t *e)
   lv_obj_set_style_bg_opa(list,LV_OPA_20,LV_PART_SELECTED|LV_STATE_CHECKED);
   lv_obj_set_style_text_color(list,lv_color_hex(detail_ink()),LV_PART_SELECTED|LV_STATE_CHECKED);
   lv_obj_add_event_cb(dropdown,glass_global_font_selected,LV_EVENT_VALUE_CHANGED,NULL);
+  glass_settings_bind_feedback(dropdown,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
   lv_obj_add_event_cb(dropdown,glass_global_font_control_deleted,LV_EVENT_DELETE,NULL);
   detail_text(appearance,glass_tr("桌面、应用与歌词统一使用"),420,240,340,12,detail_muted());
 
@@ -192,6 +222,7 @@ static void glass_settings(lv_event_t *e)
   lv_obj_set_style_bg_color(list,lv_color_hex(detail_paper()),0);
   lv_obj_set_style_text_color(list,lv_color_hex(detail_ink()),0);
   lv_obj_add_event_cb(dropdown,glass_language_selected,LV_EVENT_VALUE_CHANGED,NULL);
+  glass_settings_bind_feedback(dropdown,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
   lv_obj_add_event_cb(dropdown,glass_language_deleted,LV_EVENT_DELETE,NULL);
-
+  if(user_entry)glass_settings_play_symbol(GLASS_ICON_SLIDERS);
 }

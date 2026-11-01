@@ -35,7 +35,7 @@ static size_t chat_result_voice(const struct chat_result_snapshot *r,char *out,s
 }
 static lv_obj_t *chat_result_label(lv_obj_t *p,const char *text,int x,int y,int w,int h,int font,uint32_t color)
 {
-  lv_obj_t *o=lv_label_create(p);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
+  lv_obj_t *o=glass_icon_create(p);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
   lv_obj_set_style_text_font(o,zh_font(font),0);lv_obj_set_style_text_color(o,lv_color_hex(color),0);
   lv_label_set_long_mode(o,LV_LABEL_LONG_DOT);lv_label_set_text(o,text);return o;
 }

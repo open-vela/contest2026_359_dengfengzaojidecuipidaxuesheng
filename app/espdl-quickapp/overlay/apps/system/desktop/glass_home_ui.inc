@@ -84,7 +84,7 @@ static lv_obj_t *home_heading(lv_obj_t *parent,const char *text,
 static lv_obj_t *home_icon(lv_obj_t *parent, const char *symbol,
                            int x, int y, int size, uint32_t color)
 {
-  lv_obj_t *label = lv_label_create(parent);
+  lv_obj_t *label = glass_icon_create(parent);
   lv_label_set_text(label, symbol);
   lv_obj_set_style_text_font(label, glass_icon_font(size), 0);
   lv_obj_set_style_text_color(label, lv_color_hex(color), 0);

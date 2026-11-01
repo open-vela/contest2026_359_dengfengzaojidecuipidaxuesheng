@@ -65,7 +65,7 @@ int portal_safe_path(const char *root,const char *relative,char *out,size_t cap,
 }
 int portal_public_path(const char *relative,char *out,size_t cap)
 {
-  mkdir(PORTAL_DATA_ROOT "/files",0700);
+  if(!relative || !out || !cap) return -EINVAL;
   if(!strcmp(relative,"files") || !strncmp(relative,"files/",6))
     return portal_safe_path(PORTAL_DATA_ROOT "/files",relative+5+!!relative[5],out,cap,false);
   if(!strcmp(relative,"data") || !strncmp(relative,"data/",5))
@@ -73,6 +73,18 @@ int portal_public_path(const char *relative,char *out,size_t cap)
   if(!strcmp(relative,"sdcard") || !strncmp(relative,"sdcard/",7))
     return portal_safe_path("/sdcard",relative+6+!!relative[6],out,cap,false);
   return -EINVAL;
+}
+/* Resolving a GET path must not create an internal Flash directory, including
+ * while browsing SD. Retain the legacy files/ root's first-write behavior only
+ * for explicit mutations, after the normal path/link checks succeeded. */
+int portal_public_write_path(const char *relative,char *out,size_t cap)
+{
+  int ret=portal_public_path(relative,out,cap);
+  if(!ret && (!strcmp(relative,"files") || !strncmp(relative,"files/",6))) {
+    if(mkdir(PORTAL_DATA_ROOT "/files",0700)<0 && errno!=EEXIST) return -errno;
+    ret=portal_public_path(relative,out,cap);
+  }
+  return ret;
 }
 int portal_remove_tree(const char *path)
 {
