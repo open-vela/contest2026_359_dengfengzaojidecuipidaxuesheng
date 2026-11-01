@@ -55,6 +55,17 @@ def main():
     p.add_argument('--l2-kb',type=int,choices=[256,512],default=256,help='P4 L2 cache experiment; 512 KiB uses 128-byte lines')
     p.add_argument('--speech-runtime',type=Path,help='Prepared, verified speech runtime directory (SD models, no flash fallback)')
     p.add_argument('--esp-tts-prepared',type=Path,help='Pinned ESP-TTS libraries/voice; use as the normal Chinese speech backend')
+    p.add_argument('--local-voice-sdk',type=Path,help='Prepared SD-externalized EI SDK; enable the independent offline voice app')
+    p.add_argument('--local-asr-evaluation',action='store_true',help='Include fixed Zipformer C runtime and worker-only SD sample gate; microphone ASR stays unready')
+    p.add_argument('--local-asr-microphone',action='store_true',help='Enable RAM-only microphone -> Zipformer -> local dialogue pipeline (requires ASR evaluation)')
+    p.add_argument('--local-q4-pie',action='store_true',help='Include opt-in Q4/A16 PIE backend; default remains scalar, runtime selftest required')
+    p.add_argument('--local-tts-pie',action='store_true',help='Experimental native V2 W8A16 vocoder; weights stay on SD, selftest per request')
+    p.add_argument('--local-tts-int8',action='store_true',help='Default-off W8A8 vocoder diagnostic; no-play benchmark only, quality not accepted')
+    p.add_argument('--local-sha-hw',action='store_true',help='Opt-in P4 hardware SHA model verification with per-request known-answer selftest')
+    p.add_argument('--local-tts-parallel',action='store_true',help='Opt-in bounded dual-core FP32 acoustic/upsample operators')
+    p.add_argument('--local-tts-fma',action='store_true',help='Default-off diagnostic FMA upsample; requires parallel dispatcher')
+    p.add_argument('--sd-read-diagnostics',action='store_true',help='Log failed SD SPI token waits with actual ticks and poll count; no retries or clock changes')
+    p.add_argument('--local-session-guard',action='store_true',help='Track FAT mutations/mounts and SPI block writes for safe retained local-model sessions')
     p.add_argument('--tts-backend',choices=['esp-tts','sanotts'],default='esp-tts',help='Chinese speech backend when --speech-runtime is enabled (default: official esp-tts)')
     p.add_argument('--offline-inputs',action='store_true',help='Do not download missing official ESP-TTS inputs')
     p.add_argument('--esp-tts-storage',choices=['sd','flash'],default='sd',help='Official voice storage (default: verified SD asset, preserving the 12 MB firmware / 4 MB data layout)')
@@ -85,6 +96,16 @@ def main():
     if not a.ethernet_share and (a.share_forward_slots!=4 or a.share_net_stats):
         p.error('Forwarding diagnostics require --ethernet-share')
     if a.esp_tts_prepared and not a.speech_runtime:p.error('--esp-tts-prepared requires --speech-runtime')
+    if a.local_voice_sdk and not a.speech_runtime:p.error('--local-voice-sdk requires --speech-runtime for shared audio ownership')
+    if a.local_asr_evaluation and not a.local_voice_sdk:p.error('--local-asr-evaluation requires --local-voice-sdk')
+    if a.local_asr_microphone and not a.local_asr_evaluation:p.error('--local-asr-microphone requires --local-asr-evaluation')
+    if a.local_q4_pie and not a.local_voice_sdk:p.error('--local-q4-pie requires --local-voice-sdk')
+    if a.local_tts_pie and not a.local_voice_sdk:p.error('--local-tts-pie requires --local-voice-sdk')
+    if a.local_tts_int8 and not a.local_tts_pie:p.error('--local-tts-int8 requires --local-tts-pie')
+    if a.local_session_guard and not a.local_voice_sdk:p.error('--local-session-guard requires --local-voice-sdk')
+    if a.local_sha_hw and not a.local_voice_sdk:p.error('--local-sha-hw requires --local-voice-sdk')
+    if a.local_tts_parallel and not a.local_voice_sdk:p.error('--local-tts-parallel requires --local-voice-sdk')
+    if a.local_tts_fma and not a.local_tts_parallel:p.error('--local-tts-fma requires --local-tts-parallel')
     if a.esp_tts_prepared and a.tts_backend!='esp-tts':p.error('--esp-tts-prepared conflicts with --tts-backend sanotts')
     base=a.baseline.resolve();root=a.workspace.resolve();out=a.output.resolve()
     if root==base or base in root.parents: p.error('Use an isolated workspace outside baseline')
@@ -119,6 +140,18 @@ def main():
     def source_inputs():
         files=[f for folder in [repo/'app/bilibili_live',overlay]
                for f in folder.rglob('*') if f.is_file()]+radio_sources
+        if a.local_asr_evaluation:
+            files.extend(f for f in (repo/'app/espdl-quickapp/experimental').iterdir() if f.name.startswith('local_asr') and f.suffix in ('.c','.h'))
+        if a.local_q4_pie:
+            files.extend(repo/'app/espdl-quickapp/experimental'/n for n in ('local_q4_pie.c','local_q4_pie.h','local_q4_dot_p4.S'))
+        if a.local_tts_pie:
+            files.extend(repo/'app/espdl-quickapp/experimental'/n for n in ('local_tts_pie.c','local_tts_pie.h','local_tts_dot_p4.S'))
+        if a.local_tts_int8:
+            files.extend(repo/'app/espdl-quickapp/experimental'/n for n in ('local_tts_int8.c','local_tts_int8.h','local_tts_int8_dot_p4.S','local_tts_int8_policy.c','local_tts_int8_policy.h'))
+        if a.local_sha_hw:
+            files.extend(repo/'app/espdl-quickapp/experimental'/n for n in ('local_sha_hw.c','local_sha_hw.h'))
+        if a.local_tts_parallel:
+            files.extend(repo/'app/espdl-quickapp/experimental'/n for n in ('local_tts_parallel.c','local_tts_parallel.h'))
         return {str(f.relative_to(repo)):hashlib.sha256(f.read_bytes()).hexdigest()
                 for f in files}
     copied_source_hashes=source_inputs()
@@ -163,6 +196,10 @@ def main():
     video_blit_sources=prepare_video_blit(root/'apps',a.video_blit)
     from prepare_lvgl_event_dispatch import apply as prepare_lvgl_event_dispatch
     lvgl_event_sources=prepare_lvgl_event_dispatch(root/'apps')
+    from prepare_sd_read_diagnostics import apply as prepare_sd_read_diagnostics
+    sd_read_diagnostics=prepare_sd_read_diagnostics(root/'nuttx',a.sd_read_diagnostics)
+    from prepare_local_session_guard import apply as prepare_local_session_guard
+    local_session_guard=prepare_local_session_guard(root/'nuttx',a.local_session_guard)
     from protect_p4_display_flash import restore as restore_display_flash
     display_flash_sources={'enabled':False,'rejected_cache_off_irq_removed':
                           restore_display_flash(root/'nuttx')}
@@ -174,6 +211,10 @@ def main():
     if a.psram_xip:
         from prepare_p4_psram_xip import apply as prepare_psram_xip
         psram_xip_sources=prepare_psram_xip(root/'nuttx')
+    from prepare_p4_reset_display import apply as prepare_reset_display
+    reset_display_sources=prepare_reset_display(root/'nuttx')
+    from prepare_p4_safe_reset import apply as prepare_safe_reset
+    safe_reset_sources=prepare_safe_reset(root/'nuttx')
     from prepare_openvela_exec_pool import apply as prepare_browser_pool
     browser_pool_sources=prepare_browser_pool(root/'nuttx')
     for path in browser_pool_sources:
@@ -190,9 +231,66 @@ def main():
     video_framebuffer_sources=prepare_video_framebuffer(root/'nuttx',a.video_blit)
     backlight_sources={'implementation':'screen_pwm LEDC PWM0','enabled':a.lcd_backlight}
     make=make.split('# BEGIN OPTIONAL LOCAL SPEECH')[0].rstrip()+'\n'
+    if 'CFLAGS += -DGLASS_SAFE_RESET' not in make:
+        make+='\nCFLAGS += -DGLASS_SAFE_RESET\n'
     if a.speech_runtime:
         prepared=a.speech_runtime.resolve()
         make+='\n# BEGIN OPTIONAL LOCAL SPEECH\nCFLAGS += -DGLASS_LOCAL_SPEECH -DQPK_DL_SD_ONLY\n'
+    if a.local_voice_sdk:
+        make='GLASS_LOCAL_VOICE = 1\n'+make+'\nCFLAGS += -DGLASS_LOCAL_VOICE\n'
+    if a.local_asr_evaluation:
+        experimental=repo/'app/espdl-quickapp/experimental'
+        for name in ('local_asr','local_asr_graph','local_asr_fbank','local_asr_ops'):
+            for suffix in ('.c','.h'):shutil.copy2(experimental/(name+suffix),desktop_make.parent/(name+suffix))
+        block='\nCFLAGS += -DGLV_ASR_EVALUATION\nCSRCS += glass_local_asr.c local_asr.c local_asr_graph.c local_asr_fbank.c local_asr_ops.c\n'
+        if a.local_asr_microphone:
+            block+='CFLAGS += -DGLV_ASR_MICROPHONE\nCSRCS += glass_local_capture.c glass_local_capture_device.c\n'
+        for name in ('local_asr','local_asr_graph','local_asr_fbank','local_asr_ops'):
+            block+=name+'.c_CFLAGS += -O2 -ffp-contract=off\n'
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate desktop application source-rule expansion')
+        make=make.replace(anchor,block+'\n'+anchor,1)
+    if a.local_q4_pie:
+        for name in ('local_q4_pie.c','local_q4_pie.h','local_q4_dot_p4.S'):
+            shutil.copy2(repo/'app/espdl-quickapp/experimental'/name,desktop_make.parent/name)
+        block='\nCFLAGS += -DGLV_Q4_PIE\nCSRCS += local_q4_pie.c\nASRCS += local_q4_dot_p4.S\nlocal_q4_pie.c_CFLAGS += -O2 -ffp-contract=off\n'
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate Q4 PIE application source-rule expansion')
+        make=make.replace(anchor,block+'\n'+anchor,1)
+    if a.local_tts_pie:
+        if not a.local_voice_sdk:raise RuntimeError('TTS PIE requires --local-voice-sdk')
+        for name in ('local_tts_pie.c','local_tts_pie.h','local_tts_dot_p4.S'):
+            shutil.copy2(repo/'app/espdl-quickapp/experimental'/name,desktop_make.parent/name)
+        block='\nCFLAGS += -DGLV_TTS_PIE\nCSRCS += local_tts_pie.c\nASRCS += local_tts_dot_p4.S\nlocal_tts_pie.c_CFLAGS += -O2 -ffp-contract=off\n'
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate TTS PIE application source-rule expansion')
+        make=make.replace(anchor,block+'\n'+anchor,1)
+    if a.local_tts_int8:
+        for name in ('local_tts_int8.c','local_tts_int8.h','local_tts_int8_dot_p4.S','local_tts_int8_policy.c','local_tts_int8_policy.h'):
+            shutil.copy2(repo/'app/espdl-quickapp/experimental'/name,desktop_make.parent/name)
+        block='\nCFLAGS += -DGLV_TTS_INT8\nCSRCS += local_tts_int8.c local_tts_int8_policy.c\nASRCS += local_tts_int8_dot_p4.S\nlocal_tts_int8.c_CFLAGS += -O2 -ffp-contract=off\n'
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate INT8 diagnostic source-rule expansion')
+        make=make.replace(anchor,block+'\n'+anchor,1)
+
+    if a.local_sha_hw:
+        for name in ('local_sha_hw.c','local_sha_hw.h'):
+            shutil.copy2(repo/'app/espdl-quickapp/experimental'/name,desktop_make.parent/name)
+        block='\nCFLAGS += -DGLV_SHA_HW\nCSRCS += local_sha_hw.c\nlocal_sha_hw.c_CFLAGS += -O2\n'
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate hardware SHA application source-rule expansion')
+        make=make.replace(anchor,block+'\n'+anchor,1)
+    if a.local_tts_parallel:
+        for name in ('local_tts_parallel.c','local_tts_parallel.h'):
+            shutil.copy2(repo/'app/espdl-quickapp/experimental'/name,desktop_make.parent/name)
+        block='\nCFLAGS += -DGLV_TTS_PARALLEL\nCSRCS += local_tts_parallel.c\nlocal_tts_parallel.c_CFLAGS += -O2 -ffp-contract=off\n'
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate parallel TTS application source-rule expansion')
+        make=make.replace(anchor,block+'\n'+anchor,1)
+    if a.local_tts_fma:
+        anchor='include $(APPDIR)/Application.mk'
+        if make.count(anchor)!=1:raise RuntimeError('Cannot locate FMA diagnostic application rules')
+        make=make.replace(anchor,'CFLAGS += -DGLV_TTS_FMA\n'+anchor,1)
     if desktop_make.read_text()!=make:desktop_make.write_text(make)
     if a.video_blit:
         with desktop_make.open('a') as file:file.write('\nCFLAGS += -DGLASS_VIDEO_BLIT\n')
@@ -213,6 +311,13 @@ def main():
     # pool bounded (48 KiB payload) and leave internal RAM for DMA/threads.
     for name,value in [('ESP32P4_FLASH_AUTO_SUSPEND','y' if a.flash_auto_suspend_jedec else 'n'),('ESPRESSIF_STORAGE_MTD_OFFSET',hex(data_offset)),('ESPRESSIF_STORAGE_MTD_SIZE',hex(data_size)),('LIBM','y'),('LIBM_TOOLCHAIN','n'),('LIBM_NONE','n'),('NET_BROADCAST','y'),('SYSTEM_BILIBILI_LIVE','y'),('PTHREAD_MUTEX_TYPES','y'),('NSH_DISABLE_DATE','n'),
                        ('ESP32P4_PSRAM_XIP','y' if a.psram_xip else 'n'),
+                       ('ESPRESSIF_SHA_ACCELERATOR','y' if a.local_sha_hw else 'n'),
+                         # The 59 Mijia masks fit as raw A8. Preserve the
+                         # deployed decoder path without per-frame RLE loads.
+                         ('LV_USE_RLE','n'),('LV_BIN_DECODER_RAM_LOAD','n'),
+                         # NuttX's image allocator refuses all A8 decode
+                         # buffers when its image cache is disabled (size 0).
+                         ('LV_CACHE_DEF_SIZE','262144'),
                        ('ESP32P4_LCD_BACKLIGHT','n'),
                        ('OV_BROWSER_TEXT_POOL','y'),('MODULE','y'),('LIBC_ARCH_ELF','y'),('LIBC_ELF','y'),
                        ('LIBC_LOCALE','y'),('LIBC_LOCALE_CHINESE','y'),
@@ -293,6 +398,8 @@ def main():
         libs.append(Path(subprocess.check_output([str(tc/'riscv32-esp-elf-g++'),*abi,'-print-file-name='+name],text=True).strip()))
     run(['make','olddefconfig',cross],cwd=root/'nuttx')
     config=cfg.read_text()
+    if a.local_sha_hw and 'CONFIG_ESPRESSIF_SHA_ACCELERATOR=y\n' not in config:
+        raise RuntimeError('Requested hardware SHA disabled by Kconfig')
     if a.ble_connections is not None and f'CONFIG_NIMBLE_BLE_MAX_CONN={a.ble_connections}\n' not in config:
         raise RuntimeError('Requested NimBLE connection capacity disabled by Kconfig')
     if a.factory_header:
@@ -323,6 +430,18 @@ def main():
                   f'CONFIG_ESPRESSIF_CACHE_L2_CACHE_SIZE={hex(a.l2_kb*1024)}',
                   f'CONFIG_ESPRESSIF_CACHE_L2_CACHE_LINE_SIZE={64 if a.l2_kb==256 else 128}']:
         if value not in config:raise RuntimeError('Unexpected v3 configuration: '+value)
+    # Capture final kernel preparation after every transform, before any
+    # compilation. A linker file may be shared by XIP, reset and exec-pool
+    # preparation; individual transform receipts can describe earlier stages.
+    prepared_kernel_names=(set(psram_xip_sources)|set(safe_reset_sources)|
+        set(reset_display_sources['prepared_sha256'])|set(video_framebuffer_sources)|
+        {sd_read_diagnostics['source']}|set(local_session_guard['sources']))
+    prepared_kernel_sources={name:hashlib.sha256((root/'nuttx'/name).read_bytes()).hexdigest()
+                             for name in sorted(prepared_kernel_names)}
+    sd_read_diagnostics['sha256']=prepared_kernel_sources[sd_read_diagnostics['source']]
+    for receipt in [psram_xip_sources,safe_reset_sources,
+                    reset_display_sources['prepared_sha256']]:
+        for name in receipt:receipt[name]=prepared_kernel_sources[name]
     clean_stamp=root/'bilibili-clean.txt'
     # NuttX's imported chip sources do not always regenerate header dependencies.
     # A struct/extern change must not leave an old ISR in libarch.a.
@@ -339,6 +458,8 @@ def main():
     headers.update(hashlib.sha256((repo/'tools/prepare_p4_flash_suspend.py').read_bytes()).digest())
     headers.update(hashlib.sha256((repo/'tools/prepare_p4_scanout_reload.py').read_bytes()).digest())
     if a.psram_xip:headers.update(hashlib.sha256((repo/'tools/prepare_p4_psram_xip.py').read_bytes()).digest())
+    for name in ['prepare_p4_safe_reset.py','prepare_p4_reset_display.py']:
+        headers.update(hashlib.sha256((repo/'tools'/name).read_bytes()).digest())
     config_hash=hashlib.sha256((config+'\nspeech='+str(bool(a.speech_runtime))+'\nesp_tts='+str(bool(a.esp_tts_prepared))+'\nvoice_storage='+a.esp_tts_storage+'\nheaders='+headers.hexdigest()).encode()).hexdigest()
     if not clean_stamp.exists() or clean_stamp.read_text().strip()!=config_hash:
         run(['make','clean',cross],cwd=root/'nuttx');clean_stamp.write_text(config_hash+'\n')
@@ -353,6 +474,13 @@ def main():
         speech_libraries=[archive]+[Path(path) for path in speech_compile['link_libraries']]
         libs=['--start-group',*speech_libraries,*libs,'--end-group']
     from build_integrated_browser_loader import build as build_browser_loader
+    if a.local_voice_sdk:
+        wake_output=out/'local-wake'
+        run(['python3',repo/'tools/local_voice/build_wake.py','--sdk',a.local_voice_sdk.resolve(),
+             '--output',wake_output,'--external','--archive-only','--apps',root/'apps','--toolchain',tc,
+             '--wrapper',repo/'app/espdl-quickapp/overlay/apps/system/desktop/glass_local_wake.cpp'])
+        if not libs or libs[0]!='--start-group':raise RuntimeError('Local voice requires grouped speech libraries')
+        libs.insert(1,wake_output/'liblocalwake.a')
     browser_loader=build_browser_loader(root,out,env)
     libs=[browser_loader,*libs]
     run(['make',f'-j{a.jobs}',cross,f'ESPCLAW_TLS_CFLAGS={includes}','EXTRA_LIBS='+' '.join(map(str,libs))],cwd=root/'nuttx')
@@ -364,12 +492,18 @@ def main():
     ble_capacity=audit_nimble_capacity(root/'apps',root/'nuttx',
         tc/'riscv32-esp-elf-gcc',out/'nimble-capacity',out/'nuttx.elf')
     def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
+    for name,digest in prepared_kernel_sources.items():
+        if sha(root/'nuttx'/name)!=digest:
+            raise RuntimeError('Prepared kernel source changed during build: '+name)
     nm=subprocess.check_output([str(tc/'riscv32-esp-elf-nm'),'-C',str(out/'nuttx.elf')],text=True)
     for symbol in ['bili_live_show','bili_flv_run','glass_https_tls_ops','WelsCreateDecoder',
                    'qpk_photo_store_initialize','esp_camera_display_frame','esp_camera_flash_end',
                    'c6_softap_start','c6net_trial_connect','glass_network_recovery_start',
                    'dhcpd_runtime_status','esp_hosted_rpc_c6_ota']:
         if symbol not in nm:raise RuntimeError('Missing linked symbol '+symbol)
+    for symbol in ['esp_safe_reset_entry','esp_safe_reset_status','esp_mipi_dsi_reset_prepare']:
+        if not re.search(r'\b'+symbol+r'$',nm,re.M):
+            raise RuntimeError('Missing safe-reset symbol '+symbol)
     if re.search(r'\besp_display_flash_isr_enter$',nm,re.M):
         raise RuntimeError('Rejected cache-off IRQ experiment is still linked')
     if a.flash_auto_suspend_jedec:
@@ -400,6 +534,10 @@ def main():
     metadata={'native_browser':{'enabled':True,'reserved_pool_bytes':0x300000,'loader_sha256':sha(browser_loader),'pool_sources':{str(path.relative_to(root/'nuttx')):sha(path) for path in browser_pool_sources},'webclient_sha256':sha(webclient)},'camera_timing':camera_timing_sources,
               'lvgl_event_dispatch':{'sources':lvgl_event_sources,
                 'tool_sha256':sha(repo/'tools/prepare_lvgl_event_dispatch.py')},
+              'sd_read_diagnostics':{**sd_read_diagnostics,
+                'tool_sha256':sha(repo/'tools/prepare_sd_read_diagnostics.py')},
+              'local_session_guard':{**local_session_guard,
+                'tool_sha256':sha(repo/'tools/prepare_local_session_guard.py')},
               'hardware_jpeg':{'enabled':a.hardware_jpeg,
                 'sdk_sources':{name:sha(root/'nuttx/arch/risc-v/src/esp32p4/esp-hal-3rdparty'/name)
                   for name in ['components/esp_hal_jpeg/jpeg_hal.c',
@@ -425,6 +563,10 @@ def main():
                                         'network_statistics':a.share_net_stats,
                                         'sdio_clock_or_scheduler_changed':False},
               'psram_xip':{'enabled':a.psram_xip,'sources':psram_xip_sources,'tool_sha256':sha(repo/'tools/prepare_p4_psram_xip.py')},
+              'safe_reset':{'enabled':True,'sources':safe_reset_sources,
+                            'tool_sha256':sha(repo/'tools/prepare_p4_safe_reset.py'),
+                            'display':reset_display_sources,'board_tested':False},
+              'prepared_kernel_sources':prepared_kernel_sources,
               'display_flash':display_flash_sources,
               'scanout_reload':{'enabled':a.dsi_flash_reload,'sources':scanout_reload_sources},
               'scanout_reload_tool_sha256':sha(repo/'tools/prepare_p4_scanout_reload.py'),
@@ -445,6 +587,31 @@ def main():
               'sha256':{name:sha(out/name) for name in ['nuttx.bin','nuttx.elf','resolved.config']},
               'reused_libraries':{str(lib):sha(Path(lib)) for lib in libs if Path(lib).is_file()},
               'source_sha256':copied_source_hashes,
+              'local_asr':{'evaluation_enabled':a.local_asr_evaluation,'microphone_enabled':a.local_asr_microphone,'plan_abi':'GLA1-1','tokens_abi':'GLT1-1','microphone_ready':False,'board_tested':False},
+              'local_q4_pie':{'included':a.local_q4_pie,'default_bits':0,'selftest_required':True,'board_tested':False},
+              'local_tts_pie':{'included':a.local_tts_pie,'activation_bits':16,'weight_bits':8,'selftest_required':True,'board_tested':False,'batch_default':True,'guarded_reciprocal':True,'polyphase_upsample':True,'dot_unroll':4,'interleaved_output_positions':4,'bitwise_finite':True,'fused_mac_load':True},
+              'local_sha_hw':{'enabled':a.local_sha_hw,'driver':'NuttX esp_sha256','known_answer_selftest_per_request':True,
+                'sources':{name:sha(root/'nuttx'/name) for name in [
+                  'arch/risc-v/src/common/espressif/esp_sha.c',
+                  'arch/risc-v/src/common/espressif/esp_sha.h',
+                  'arch/risc-v/src/common/espressif/Make.defs',
+                  'arch/risc-v/src/common/espressif/Kconfig',
+                  'arch/risc-v/src/esp32p4/esp-hal-3rdparty/components/esp_hal_security/sha_hal.c',
+                  'arch/risc-v/src/esp32p4/esp-hal-3rdparty/components/esp_hal_security/include/hal/sha_hal.h',
+                  'arch/risc-v/src/esp32p4/esp-hal-3rdparty/components/esp_hal_security/esp32p4/include/hal/sha_ll.h']}
+                if a.local_sha_hw else {}},
+              'local_tts_parallel':{'enabled':a.local_tts_parallel,'default_enabled':True,'stack_bytes':65536,'stack_charge':131072,
+                'cpu0_owner_cpu1_helper':False,'dynamic_owner_helper_opposite':True,'helper_priority_below_desktop':True,'mlp_time_slices':True,'fallback_diagnostics':True,'native_tested':False},
+              'local_tts_clauses':{'included':a.local_tts_pie,'default_enabled':a.local_tts_pie,'target_normalized_chars':12,'maximum_parts':128,'sequential_playback':True,'per_clause_peak_gain':True,'legacy_control':True},
+              'local_tts_quantization':{'included':a.local_tts_pie,'default_enabled':a.local_tts_pie,'exact_guarded_integer_rounding':True,'weight_quantization_changed':False},
+              'local_tts_int8':{'enabled':a.local_tts_int8,'default_enabled':False,'benchmark_only':True,'activation_bits':8,'weight_bits':8,'accumulation_bits':32,'intermediate_fp32':True,'affine':True,'policy_on_sd':True,'mixed_precision':True,'full_row_reduction_diagnostic':True,'affine_input_unroll':4,'integer_input_rounding':True,'reduction_default_enabled':False,'quality_accepted':False,'native_tested':False},
+              'local_tts_weight_lut':{'enabled':a.local_tts_pie,'default_enabled':False,'entries':256,'minimum_columns':256,'key':'raw Q8 code','peak':'RNE positive-scale endpoint','workspace_reused':True,'extra_allocation_bytes':0,'rounding':'RNE only'},
+              'local_tts_pie_parallel':{'enabled':bool(a.local_tts_pie and a.local_tts_parallel),'default_enabled':bool(a.local_tts_pie and a.local_tts_parallel),'context_probe':True,'shared_readonly_weights':True,'disjoint_time_tiles':True},
+              'local_tts_profile':{'enabled':a.local_tts_pie,'default_coarse':a.local_tts_pie,'batch_clock_calls_full':6,'batch_clock_calls_coarse':0,'cancellation_cadence_unchanged':True},
+              'local_tts_input':{'enabled':bool(a.local_tts_pie and a.local_tts_parallel),'default_enabled':bool(a.local_tts_pie and a.local_tts_parallel),'minimum_samples':65536,'scope':'FP32 input peak scan and W16 quantization; unchanged PIE dot kernel'},
+              'local_tts_windows':{'enabled':a.local_tts_pie,'default_enabled':a.local_tts_pie,'necessary_live_allocation_floor':True,'bench_only_cap_kib':4096,'default_cap_kib':0,'keeps_existing_failure_retry':True},
+              'local_tts_io':{'q8_bulk_rows':bool(a.local_voice_sdk),'default_bulk':False,'max_row_bytes':4096,'extra_workspace_bytes':0,'scope':'TTS-only; volatile idle switch'},
+              'local_tts_fma':{'enabled':a.local_tts_fma,'default_enabled':False,'scope':'packed vocoder upsample only','one_rounding':True,'packed_allocation_failure':'reject','native_tested':False},
               'backlight':backlight_sources,
               'video_blit':{'enabled':a.video_blit,'lvgl_sources':video_blit_sources,
                             'framebuffer_sources':{name:sha(root/'nuttx'/name) for name in video_framebuffer_sources},

@@ -3,6 +3,7 @@
 #include "qpk_hardware.h"
 #include "qpk_storage.h"
 #include "qpk_audio_store.h"
+#include "qpk_mono_input.h"
 #include "glass_music_pcm.h"
 #include "glass_music.h"
 #include <errno.h>
@@ -88,6 +89,37 @@ static int finish_file(int fd, const char *temporary, const char *path, uint32_t
   return ret;
 }
 
+static uint64_t record_clock_ms(void)
+{
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (uint64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+/* Read-only signal/timing counters, never PCM or microphone content. No
+ * periodic console writes in the capture worker: unplugging USB must not
+ * block recording. Each atomic observation may be one RX buffer apart.
+ */
+static struct
+{
+  atomic_uint active, ms, left, right, peak, slot, switches;
+  atomic_uint left_zero_ms, both_zero_ms, input_gap_ms, write_ms;
+  atomic_int error;
+} g_record_input;
+
+int qpk_audio_recording_status(char *buffer, size_t size)
+{
+  if (!buffer || !size) return -EINVAL;
+  return snprintf(buffer, size,
+    "RECORDER_INPUT active=%u ms=%u left=%u right=%u peak=%u channel=%u switches=%u left_zero_ms=%u both_zero_ms=%u input_gap_max_ms=%u write_max_ms=%u error=%d\n",
+    atomic_load(&g_record_input.active), atomic_load(&g_record_input.ms),
+    atomic_load(&g_record_input.left), atomic_load(&g_record_input.right),
+    atomic_load(&g_record_input.peak), atomic_load(&g_record_input.slot),
+    atomic_load(&g_record_input.switches), atomic_load(&g_record_input.left_zero_ms),
+    atomic_load(&g_record_input.both_zero_ms), atomic_load(&g_record_input.input_gap_ms),
+    atomic_load(&g_record_input.write_ms), atomic_load(&g_record_input.error));
+}
+
 static int record_clip_stream(const char *path, const cJSON *a, cJSON *out, struct qpk_hw_progress *progress,
                               qpk_pcm_sink_t sink,void *cookie)
 {
@@ -96,6 +128,8 @@ static int record_clip_stream(const char *path, const cJSON *a, cJSON *out, stru
   uint64_t target = duration ? (uint64_t)duration * RECORD_RATE / 1000 * 2 : UINT32_MAX - 44;
   int fd = -1, file = -1, ret = 0;
   bool reserved = false, registered = false, started = false, session_locked = false;
+  bool status_started = false;
+  struct qpk_mono_input input = {0};
   mqd_t mq = (mqd_t)-1;
   struct ap_buffer_s *buffers[RECORD_BUFFERS] = {0};
   unsigned char mono[RECORD_BYTES / 2], header[44];
@@ -112,6 +146,15 @@ static int record_clip_stream(const char *path, const cJSON *a, cJSON *out, stru
   ret = music_pcm_session_lock();
   if (ret) goto done;
   session_locked = true;
+  if (!sink) {
+    atomic_store(&g_record_input.ms, 0);
+    atomic_store(&g_record_input.left, 0); atomic_store(&g_record_input.right, 0);
+    atomic_store(&g_record_input.peak, 0); atomic_store(&g_record_input.slot, 0);
+    atomic_store(&g_record_input.switches, 0); atomic_store(&g_record_input.left_zero_ms, 0);
+    atomic_store(&g_record_input.both_zero_ms, 0); atomic_store(&g_record_input.input_gap_ms, 0);
+    atomic_store(&g_record_input.write_ms, 0); atomic_store(&g_record_input.error, 0);
+    atomic_store(&g_record_input.active, 1); status_started = true;
+  }
   fd = open("/dev/audio/pcm_in0", O_RDWR);
   if (fd < 0) { ret = -errno; goto done; }
   if (ioctl(fd, AUDIOIOC_RESERVE, 0) < 0) {
@@ -151,6 +194,9 @@ static int record_clip_stream(const char *path, const cJSON *a, cJSON *out, stru
     if (ioctl(fd, AUDIOIOC_ENQUEUEBUFFER, (uintptr_t)&b) < 0) { ret = -errno; goto done; }
   }
   unsigned silent_waits = 0;
+  uint64_t last_input_ms = record_clock_ms(), max_input_gap = 0;
+  uint64_t max_write_ms = 0;
+  uint64_t left_zero_frames = 0, both_zero_frames = 0;
   while (used < target && !atomic_load(&progress->finish)) {
     if (atomic_load(&progress->cancel)) { ret = -ECANCELED; break; }
     struct timespec until; clock_gettime(CLOCK_REALTIME, &until);
@@ -167,9 +213,17 @@ static int record_clip_stream(const char *path, const cJSON *a, cJSON *out, stru
     bool known = false;
     for (unsigned i = 0; i < record_buffers; i++) if (b == buffers[i]) { known = true; break; }
     if (!known || !b->nbytes || b->nbytes > RECORD_BYTES || b->nbytes % 4) { ret = -EIO; break; }
+    uint64_t received_ms = record_clock_ms();
+    if (received_ms - last_input_ms > max_input_gap)
+      max_input_gap = received_ms - last_input_ms;
+    last_input_ms = received_ms;
     silent_waits = 0; unsigned count = 0, peak = 0;
     uint64_t room = target > used ? target - used : 0;
-    for (unsigned i = 0; i < b->nbytes && (uint64_t)count + 2 <= room; i += 4) {
+    if (!sink) {
+      size_t capacity = room < sizeof(mono) ? room : sizeof(mono);
+      count = qpk_mono_input_decode(&input, b->samp, b->nbytes, mono, capacity, &settle);
+      peak = input.peak;
+    } else for (unsigned i = 0; i < b->nbytes && (uint64_t)count + 2 <= room; i += 4) {
       if (settle) { settle--; continue; }
       int value = (int16_t)rd16(b->samp + i); unsigned magnitude = value < 0 ? -value : value;
       if (magnitude > peak) peak = magnitude;
@@ -184,9 +238,24 @@ static int record_clip_stream(const char *path, const cJSON *a, cJSON *out, stru
     struct audio_buf_desc_s next = {.numbytes = b->nbytes, .u.buffer = b};
     if (ioctl(fd, AUDIOIOC_ENQUEUEBUFFER, (uintptr_t)&next) < 0) { ret = -errno; break; }
     if (used > UINT32_MAX - 44 - count) { ret = -EFBIG; break; }
+    uint64_t write_started = record_clock_ms();
     ret = count?(sink?sink(cookie,mono,count):write_all(file,mono,count)):0; if (ret) break;
+    uint64_t write_ms = record_clock_ms() - write_started;
+    if (write_ms > max_write_ms) max_write_ms = write_ms;
     used += count;
     atomic_store(&progress->bytes, used); atomic_store(&progress->elapsed_ms, (uint64_t)used * 1000 / (RECORD_RATE * 2)); atomic_store(&progress->peak, peak);
+    if (!sink && count) {
+      uint64_t elapsed_ms = (uint64_t)used * 1000 / (RECORD_RATE * 2);
+      left_zero_frames = input.left_peak ? 0 : left_zero_frames + count / 2;
+      both_zero_frames = input.left_peak || input.right_peak ? 0 : both_zero_frames + count / 2;
+      atomic_store(&g_record_input.ms, elapsed_ms);
+      atomic_store(&g_record_input.left, input.left_peak); atomic_store(&g_record_input.right, input.right_peak);
+      atomic_store(&g_record_input.peak, peak); atomic_store(&g_record_input.slot, input.slot);
+      atomic_store(&g_record_input.switches, input.switches);
+      atomic_store(&g_record_input.left_zero_ms, left_zero_frames * 1000 / RECORD_RATE);
+      atomic_store(&g_record_input.both_zero_ms, both_zero_frames * 1000 / RECORD_RATE);
+      atomic_store(&g_record_input.input_gap_ms, max_input_gap); atomic_store(&g_record_input.write_ms, max_write_ms);
+    }
     if (used >= target || atomic_load(&progress->finish) || atomic_load(&progress->cancel)) break;
   }
 done:
@@ -202,6 +271,10 @@ done:
   if (atomic_load(&progress->cancel)) ret = -ECANCELED;
   if (!ret && !used) ret = -ENODATA;
   if (file >= 0) ret = finish_file(file, temporary, path, used, RECORD_RATE, 1, ret);
+  if (status_started) {
+    atomic_store(&g_record_input.error, ret);
+    atomic_store(&g_record_input.active, 0);
+  }
   if (!ret&&out) { cJSON_AddNumberToObject(out, "bytes", used); cJSON_AddNumberToObject(out, "sampleRate", RECORD_RATE); cJSON_AddNumberToObject(out, "channels", 1); }
   return ret;
 }

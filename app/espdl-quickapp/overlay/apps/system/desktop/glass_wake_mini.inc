@@ -186,6 +186,29 @@ static void wake_mini_service(void)
   uint32_t now=lv_tick_get();
   struct speech_snapshot speech;glass_speech_get(&speech);
   struct glass_voice_snapshot voice;glass_voice_get(&voice);
+#ifdef GLASS_LOCAL_VOICE
+  if(!glass_local_voice_wake_enabled()){
+    if(speech.active&&speech.background_wake)glass_speech_stop_request(speech.request);
+    g_wake_mini.event=speech.wake_event;wake_mini_hide();return;
+  }
+  if(glass_local_voice_wake_selected()){
+    /* Local wake never enters the cloud capture/assistant mailbox below. */
+    wake_mini_hide();
+    if(speech.wake_event&&speech.wake_event!=g_wake_mini.event){
+      if(wake_mini_clock()-speech.wake_ms<=1500&&qpk_runtime_camera_busy())return;
+      g_wake_mini.event=speech.wake_event;
+      if(wake_mini_clock()-speech.wake_ms<=1500){
+        chat_ball_stop();glass_local_voice_woke();
+      }
+    }
+    if(!glass_local_voice_wake_ready()){
+      if(speech.active&&speech.background_wake)glass_speech_stop_request(speech.request);return;
+    }
+    if(voice.active||speech.active||music_pcm_session_active()||(int32_t)(now-g_wake_mini.retry_at)<0)return;
+    int ret=glass_speech_background_wake(&g_wake_mini.request);
+    g_wake_mini.retry_at=now+(ret?10000:1500);return;
+  }
+#endif
   bool ball_page=chat_ball_is_present();
   if(ball_page){
     if(g_wake_mini.turn&&(g_wake_mini.visible||g_wake_mini.result_pending))chat_ball_show_result(g_wake_mini.turn);

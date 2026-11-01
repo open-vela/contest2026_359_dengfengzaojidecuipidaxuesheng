@@ -276,8 +276,7 @@ static int c6net_txpoll(FAR struct net_driver_s *dev)
       dev->d_len = 0;
       /* A flat-buffer poll restarts its connection scan after every packet.
        * Release the network lock between bounded bursts, even if a socket
-       * keeps producing data. Keep the notification for the next pass.
-       */
+       * keeps producing data. Keep the notification for the next pass. */
 
       if (priv->tx_budget != 0 && --priv->tx_budget == 0)
         {

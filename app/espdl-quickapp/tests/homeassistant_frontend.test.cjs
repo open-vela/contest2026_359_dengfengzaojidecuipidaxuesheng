@@ -8,6 +8,66 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname,
   '../overlay/apps/system/desktop/homeassistant/app.js'), 'utf8');
 const englishCatalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../i18n/en.json'),'utf8'));
+const deviceMotionDesign=JSON.parse(source.match(/const deviceIconMotions = (.*);/)[1]);
+
+test('running icon follows observed power and stops on unavailable state',()=>{
+  const options={states:[{entity_id:'light.desk',state:'on',attributes:{friendly_name:'Desk',supported_color_modes:['brightness']}}]};
+  const r=boot(1024,536,options);
+  for(let i=0;i<40;i++)r.tick();
+  const lamp=()=>[...r.textValues].find(([id,text])=>!r.hidden.get(id)&&text===String.fromCharCode(deviceMotionDesign.light.glyph));
+  assert(lamp(),'lamp has its own device glyph');
+  assert.equal(r.styles.get(lamp()[0]).iconRunning,1);
+  options.states[0].state='unavailable';r.context.ESPHomeHA.refresh();for(let i=0;i<40;i++)r.tick();
+  assert.equal(r.styles.get(lamp()[0]).iconRunning,0);
+  assert.equal(r.controls.length,0,'visual updates cannot operate a device');
+});
+
+test('washer mechanism runs during a reported cycle, not merely when powered on',()=>{
+  const options={states:[{entity_id:'sensor.washer',state:'washing',attributes:{friendly_name:'Washer',device_type:'washer'}}]};
+  const r=boot(1024,536,options);for(let i=0;i<40;i++)r.tick();
+  const washer=()=>[...r.textValues].find(([id,text])=>!r.hidden.get(id)&&text===String.fromCharCode(deviceMotionDesign.washer.glyph));
+  assert(washer(),'washer has its own device glyph');
+  assert.equal(r.styles.get(washer()[0]).iconRunning,1);
+  for(const state of ['on','idle','paused','unavailable']){
+    options.states[0].state=state;r.context.ESPHomeHA.refresh();for(let i=0;i<40;i++)r.tick();
+    assert.equal(r.styles.get(washer()[0]).iconRunning,0,state);
+  }
+  assert.equal(r.controls.length,0);
+});
+
+test('59 registered appliances use distinct authored 64px drawings in cards and details, with observed-only motion',()=>{
+  const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'all_device_preview.json'),'utf8'));
+  assert.equal(Object.keys(deviceMotionDesign).length,59);
+  assert.equal(new Set(Object.values(deviceMotionDesign).map(row=>row.glyph)).size,59,'one codepoint per registered appliance');
+  for(const sample of fixture.cases){
+    const states=structuredClone(sample.states),policy=deviceMotionDesign[sample.type];assert(policy,sample.type);
+    const r=boot(1024,536,{states,services:fixture.services,nativeActions:true});r.context.ESPHomeHA.refresh();for(let i=0;i<45;i++)r.tick();
+    const checkDrawing=()=>{
+      const entry=[...r.textValues].find(([id,value])=>!r.hidden.get(id)&&value===String.fromCharCode(policy.glyph));assert(entry,sample.type);
+      assert.equal(r.styles.get(entry[0]).icon,2,sample.type+' uses native 64px font');
+      const bounds=r.geometry.get(entry[0]);assert(bounds.w>=64&&bounds.h>=68,sample.type+' drawing fits its bounds');
+      return entry[0];
+    };
+    checkDrawing();deviceBody(r,states[0].entity_id).callback();for(let i=0;i<25;i++)r.tick();checkDrawing();
+    const observe=status=>{
+      states[0].state=status;states[0].attributes.miot_properties[sample.type+'.status']=status;
+      r.context.ESPHomeHA.refresh();for(let i=0;i<45;i++)r.tick();
+      assert.equal(r.styles.get(checkDrawing()).iconRunning,policy.states.includes(status)?1:0,sample.type+' '+status);
+    };
+    observe(policy.states[0]||'on');observe('idle');observe('unavailable');
+    assert.equal(r.controls.length,0,sample.type+' graphics cannot send physical commands');
+  }
+});
+
+test('heater uses actual hvac action and reported stop overrides a stale appliance cycle',()=>{
+  const states=[{entity_id:'climate.room',state:'heat',attributes:{device_type:'air-conditioner',friendly_name:'空调',hvac_action:'idle'}}];
+  const r=boot(1024,536,{states});for(let i=0;i<40;i++)r.tick();
+  assert.equal(r.context.ESPHomeHA.snapshot().deviceCards[0].iconRunning,false);
+  states[0].attributes.hvac_action='heating';r.context.ESPHomeHA.refresh();for(let i=0;i<40;i++)r.tick();
+  assert.equal(r.context.ESPHomeHA.snapshot().deviceCards[0].iconRunning,true);
+  states[0].state='off';r.context.ESPHomeHA.refresh();for(let i=0;i<40;i++)r.tick();
+  assert.equal(r.context.ESPHomeHA.snapshot().deviceCards[0].iconRunning,false);
+});
 
 assert.equal(source.includes('\\u2212'), false,
   'frontend text must not use the unsupported Unicode minus sign');
@@ -1381,7 +1441,7 @@ test('scene grids share capsule navigation without executing a scene',()=>{
 });
 function sceneExecuteButton(r,id){
   const row=r.context.ESPHomeHA.snapshot().layoutPages.flat().find(row=>row.entity_id===id);assert(row);
-  return r.buttons.find(button=>{const box=r.geometry.get(button.id);return !r.hidden.get(button.id)&&box.x===row.x+16&&box.y===row.y+82&&box.w===row.w-32;});
+  return r.buttons.find(button=>{const box=r.geometry.get(button.id);return !r.hidden.get(button.id)&&box.x===row.x+16&&box.y>row.y+60&&box.y+box.h<=row.y+row.h&&box.h===40&&box.w===row.w-32;});
 }
 const sceneServices=[{domain:'scene',services:{turn_on:{}}},{domain:'script',services:{turn_on:{}}}];
 test('HA scene sync independently discovers scenes beyond 512 devices and refreshes renamed/removed presets',()=>{

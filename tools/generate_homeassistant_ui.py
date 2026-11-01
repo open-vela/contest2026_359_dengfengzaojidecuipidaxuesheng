@@ -17,6 +17,13 @@ assert set(covered)==set(types), 'Every registered device type needs a profile'
 for row in profiles:
     assert all(len(reading)==3 for reading in row.get('readings',[])), row['id']
 text=source.read_text(encoding='utf-8')
+from household_icon_design import ART, SYMBOLS, CODEPOINTS
+assert set(ART)==set(types), 'Registered devices and authored artwork must match exactly'
+motion={kind:dict(glyph=CODEPOINTS[SYMBOLS[kind]],states=spec['states'],description=spec['detail']) for kind,spec in ART.items()}
+motion_block='/* HA_DEVICE_MOTIONS_BEGIN */\n  const deviceIconMotions = '+json.dumps(motion,ensure_ascii=True,separators=(',',':'))+';\n  /* HA_DEVICE_MOTIONS_END */'
+if '/* HA_DEVICE_MOTIONS_BEGIN */' in text:
+    text=re.sub(r'/\* HA_DEVICE_MOTIONS_BEGIN \*/.*?/\* HA_DEVICE_MOTIONS_END \*/',lambda _:motion_block,text,flags=re.S)
+else:text=text.replace('  function deviceGlyph(item) {','  '+motion_block+'\n  function deviceGlyph(item) {',1)
 contract=read_design_contract(repo/'app/homeassistant/preview/unified-device-cards.html')
 block='/* HA_DETAIL_DESIGN_BEGIN */\n  const detailDesign = '+json.dumps(contract,ensure_ascii=True,separators=(',',':'))+';\n  /* HA_DETAIL_DESIGN_END */\n'
 if '/* HA_DETAIL_DESIGN_BEGIN */' in text:

@@ -1,0 +1,78 @@
+{
+  "native_lvgl_passed": true,
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "cases": [
+    "offline",
+    "joining",
+    "wifi_unknown_rssi",
+    "wifi_strong",
+    "wifi_weak",
+    "wired",
+    "bluetooth_connected_and_disconnected",
+    "theme_change_with_unchanged_status",
+    "no_idle_redraw_120_ticks_per_theme",
+    "click_settings",
+    "lock_visibility",
+    "40_reopen_cycles",
+    "TF_ready_and_removed_visibility",
+    "Ethernet_carrier_waiting_for_IP",
+    "Ethernet_usable_RJ45_icon",
+    "Ethernet_unplug_fallback_to_WiFi",
+    "battery_charge_and_percentage_widgets_absent",
+    "TF_absent_spacing_collapsed"
+  ],
+  "captured_screens": 38,
+  "production_status_sha256": "c8b61049d597f5c4f99fb68eb4570f4aa57d2aaebe20af0e754d1a19e17bcb21",
+  "host_harness_sha256": "8a7aa0968a37fa472220f5405acd4ae5f7e9c25f1ee86af90df67b53ae34a2b7",
+  "board_written": false,
+  "physical_acceptance": false,
+  "user_ui_acceptance": {
+    "accepted": true,
+    "date": "2026-11-01",
+    "scope": "status bar UI",
+    "basis": "user explicitly designated the current status bar UI as verified"
+  },
+  "native_capture_directory": "native-final",
+  "tf_probe_tests_passed": true,
+  "tf_probe_test_log": "storage-tests/test.log",
+  "tf_absent_policy": "hidden",
+  "tf_probe_interval_seconds": 2,
+  "hardware_card_detect_configured": false,
+  "tf_reinsert_requires_system_recognition_and_mount": true,
+  "candidate": "candidate-final",
+  "status": "built_and_verified_not_deployed",
+  "battery_group_removed": true,
+  "preview": "status-island-no-battery.png",
+  "firmware_build_passed": true,
+  "firmware_sha256": "068ac30d9a8a68f15d60c5f3a4345e4f7c2259c805115b3d293747493dbb6d0d",
+  "firmware_bytes": 12023168,
+  "elf_audit_passed": true,
+  "xip_review_passed": true,
+  "reset_elf_audit_passed": true,
+  "ble_identity": {
+    "address": "FF:E5:30:3C:4E:7E",
+    "address_little_endian": [
+      126,
+      78,
+      60,
+      48,
+      229,
+      255
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-303C4E7E",
+    "store_path": "/data/config/ble_ffe5303c4e7e.bin",
+    "store_temp": "/data/config/.ble_ffe5303c4e7e.tmp",
+    "purpose_path": "/data/config/bh_ffe5303c4e7e.bin",
+    "purpose_temp": "/data/config/.bh_ffe5303c4e7e.tmp",
+    "header_sha256": "f8299db2618df20d478852fdf08416bc49fdb9d15e795e38bf036a4715edc73b"
+  },
+  "final_status_sha256": "c8b61049d597f5c4f99fb68eb4570f4aa57d2aaebe20af0e754d1a19e17bcb21"
+}

@@ -412,7 +412,6 @@ static void glass_motion_enter(lv_obj_t *obj,bool horizontal,unsigned delay)
   lv_obj_t *items[GLASS_MOTION_BATCH_LIMIT];unsigned count=0;
   glass_motion_collect(obj,items,&count,0);
   glass_motion_present_axis(items,count,6,horizontal);
-  (void)0;
 }
 static void glass_motion_page_ready(void *object)
 {glass_motion_enter(object,false,0);}
@@ -434,7 +433,7 @@ static bool glass_motion_dismiss(lv_obj_t *obj,void (*done)(lv_obj_t *))
 static void glass_motion_set_reduced(bool reduced)
 {
   g_motion_reduced=reduced;
-  (void)0;
+  glass_icon_set_reduced(reduced);
   if(reduced){
     for(unsigned i=0;i<GLASS_MOTION_SLOTS;i++)if(g_motion_jobs[i].object)glass_motion_finish(&g_motion_jobs[i],true);
     glass_motion_idle();

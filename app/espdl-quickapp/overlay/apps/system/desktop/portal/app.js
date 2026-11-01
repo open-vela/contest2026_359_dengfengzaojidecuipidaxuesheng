@@ -24,15 +24,32 @@ function pairButton(){
   $('pair-button').textContent=connecting?'正在连接…':seconds?seconds+' 秒后重试':'连接设备';
   if(!seconds&&pairTimer){clearInterval(pairTimer);pairTimer=0;}
 }
+function transferBudget(bytes){return Math.min(3600000,120000+Math.floor(bytes/16384)*1000);}
 async function exchange(url,method,body,authenticate,attempt){
   const requestToken=token,headers=authenticate?{Authorization:'Bearer '+requestToken}:{};
   if(body!==undefined&&!(body instanceof Blob)&&!(body instanceof Uint8Array)){headers['Content-Type']='application/json';body=JSON.stringify(body);}
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),body instanceof Blob||body instanceof Uint8Array||url.startsWith('file?')?120000:15000);
+  const download=method==='GET'&&url.startsWith('file?');
+  const binary=body instanceof Blob||body instanceof Uint8Array;
+  const started=Date.now();let idleTimer;
+  let timer=setTimeout(()=>controller.abort(),binary?transferBudget(body.size??body.byteLength):download?120000:15000);
   try{
     const response=await fetch('/api/'+url,{method,headers,body,cache:'no-store',signal:controller.signal});
-    // Keep the deadline until the entire reply has arrived, including downloads.
-    const r=new Response(await response.arrayBuffer(),{status:response.status,headers:response.headers});
+    // The server and browser use the same bounded size budget. Keep a separate
+    // inactivity deadline so a large allowed file cannot hide a stalled link.
+    let received;
+    if(download&&response.ok&&response.body){
+      const length=Number(response.headers.get('Content-Length'));
+      if(Number.isSafeInteger(length)&&length>=0){
+        clearTimeout(timer);timer=setTimeout(()=>controller.abort(),Math.max(1,transferBudget(length)-(Date.now()-started)));
+      }
+      const reader=response.body.getReader(),chunks=[];
+      const activity=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(()=>controller.abort(),30000);};
+      try{activity();for(;;){const {done,value}=await reader.read();if(done)break;chunks.push(value);activity();}}
+      finally{clearTimeout(idleTimer);reader.releaseLock();}
+      received=new Blob(chunks);
+    }else received=await response.arrayBuffer();
+    const r=new Response(received,{status:response.status,headers:response.headers});
     if(!r.ok){
       let data;try{data=await r.json();}catch{}
       if(authenticate&&r.status===401&&token===requestToken&&attempt===connectionAttempt)forget();
@@ -40,7 +57,7 @@ async function exchange(url,method,body,authenticate,attempt){
       error.status=r.status;error.retryAfter=Number(data?.retry_after)||0;throw error;
     }
     return r;
-  }finally{clearTimeout(timer);}
+  }finally{clearTimeout(timer);clearTimeout(idleTimer);}
 }
 async function request(url,method='GET',body,authenticate=true){
   const attempt=connectionAttempt,requestToken=token;

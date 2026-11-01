@@ -22,7 +22,7 @@ struct ime {
   lv_timer_t *voice_timer;
   char *voice_base;
   uint32_t voice_revision, voice_cursor, voice_request;
-  bool voice_owns;
+  bool voice_owns,voice_allowed;
 #endif
 };
 static void ime_key(lv_event_t *e);
@@ -314,7 +314,7 @@ static lv_obj_t *ime_button(struct ime *ime, int x, int width, const lv_font_t *
   lv_obj_set_style_bg_color(button,lv_color_hex(palette.soft),LV_STATE_PRESSED);
   lv_obj_set_style_opa(button,LV_OPA_50,LV_STATE_DISABLED);
   lv_obj_set_style_radius(button,8,0); lv_obj_set_style_shadow_width(button,0,0); lv_obj_set_style_border_width(button,0,0);
-  lv_obj_t *label=lv_label_create(button);
+  lv_obj_t *label=glass_icon_create(button);
   lv_obj_set_style_text_font(label,font,0); lv_obj_set_style_text_color(label,lv_color_hex(foreground),0);
   lv_obj_set_width(label,width-4); lv_label_set_long_mode(label,LV_LABEL_LONG_DOT); lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0); lv_obj_center(label);
   lv_obj_add_event_cb(button,candidate_clicked,LV_EVENT_CLICKED,ime);
@@ -424,6 +424,7 @@ static void ime_voice_poll(lv_timer_t *timer)
 
 static void ime_voice_begin(struct ime *ime)
 {
+  if(!ime->voice_allowed)return;
   ime_sync_target(ime);
   lv_obj_t *target=lv_keyboard_get_textarea(ime->keyboard);
   if(!target||lv_textarea_get_password_mode(target)||lv_obj_has_state(target,LV_STATE_DISABLED)||
@@ -476,12 +477,27 @@ bool glass_ime_start_voice(lv_obj_t *keyboard)
 {
 #ifdef CONFIG_SYSTEM_DESKTOP
   struct ime *ime = keyboard ? get_ime(keyboard) : NULL;
-  if (!ime || !ime->voice || ime->voice_owns) return false;
+  if (!ime || !ime->voice || !ime->voice_allowed || ime->voice_owns) return false;
   ime_voice_begin(ime);
   return ime->voice_owns;
 #else
   LV_UNUSED(keyboard);
   return false;
+#endif
+}
+
+void glass_ime_set_voice_enabled(lv_obj_t *keyboard,bool enabled)
+{
+#ifdef CONFIG_SYSTEM_DESKTOP
+  struct ime *ime=keyboard?get_ime(keyboard):NULL;if(!ime)return;
+  ime->voice_allowed=enabled;
+  if(!enabled&&ime->voice_owns){glass_voice_stop_request(ime->voice_request);ime_voice_release(ime,true);}
+  if(ime->voice){
+    if(enabled)lv_obj_remove_flag(ime->voice,LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(ime->voice,LV_OBJ_FLAG_HIDDEN);
+  }
+#else
+  LV_UNUSED(keyboard);LV_UNUSED(enabled);
 #endif
 }
 
@@ -508,6 +524,9 @@ void glass_ime_attach(lv_obj_t *keyboard, const lv_font_t *font, bool chinese, u
   lv_obj_set_style_text_color(keyboard,lv_color_hex(foreground),LV_PART_ITEMS|LV_STATE_PRESSED);
   struct ime *ime=calloc(1,sizeof(*ime));
   if (!ime) return;
+#ifdef CONFIG_SYSTEM_DESKTOP
+  ime->voice_allowed=true;
+#endif
   ime->keyboard=keyboard; ime->chinese=chinese;
   glass_pinyin_init(); glass_pinyin_reset();
   lv_obj_update_layout(keyboard);
@@ -519,7 +538,7 @@ void glass_ime_attach(lv_obj_t *keyboard, const lv_font_t *font, bool chinese, u
   lv_obj_set_size(ime->bar,width,44); lv_obj_remove_flag(ime->bar,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(ime->bar,lv_color_hex(surface),0); lv_obj_set_style_bg_opa(ime->bar,LV_OPA_COVER,0); lv_obj_set_style_radius(ime->bar,10,0);
   ime->mode=ime_button(ime,2,44,font,accent,surface);
-  ime->composition=lv_label_create(ime->bar); lv_obj_set_pos(ime->composition,52,12); lv_obj_set_width(ime->composition,width>700?140:70);
+  ime->composition=glass_icon_create(ime->bar); lv_obj_set_pos(ime->composition,52,12); lv_obj_set_width(ime->composition,width>700?140:70);
   lv_obj_set_style_text_font(ime->composition,font,0); lv_obj_set_style_text_color(ime->composition,lv_color_hex(foreground),0); lv_label_set_long_mode(ime->composition,LV_LABEL_LONG_DOT);
   int start=width>700?232:148;
 #ifdef CONFIG_SYSTEM_DESKTOP

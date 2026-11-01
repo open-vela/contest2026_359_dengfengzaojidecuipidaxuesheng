@@ -2,6 +2,10 @@
 #include "glass_custom_wake.h"
 #include "glass_wake_features.h"
 #include "glass_wake_model.h"
+#ifdef GLASS_LOCAL_VOICE
+#include "glass_local_voice.h"
+#include "glass_local_wake.h"
+#endif
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -13,6 +17,9 @@ extern void qpk_dl_sha256(const void *,size_t,uint8_t[32]);
 _Static_assert(GLASS_WAKE_MODEL_BYTES==32+GLASS_WAKE_WEIGHTS*4,"Wake model shape");
 
 struct glass_custom_wake {
+#ifdef GLASS_LOCAL_VOICE
+  struct glv_wake *local;
+#endif
   uint8_t *model;
   float *weights,threshold,noise,score,initial_floor,initial_peak;
   int16_t pcm[GLASS_WAKE_MAX_SAMPLES],block[320],pre[2560];
@@ -22,10 +29,22 @@ struct glass_custom_wake {
 static uint32_t wake_u32(const uint8_t *p)
 {return p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
 void glass_custom_wake_destroy(struct glass_custom_wake *s)
-{if(s){free(s->model);free(s);}}
+{if(s){
+#ifdef GLASS_LOCAL_VOICE
+  glv_wake_destroy(s->local);
+#endif
+  free(s->model);free(s);}}
 int glass_custom_wake_create(const char *root,struct glass_custom_wake **out)
 {
   if(!root||!out)return -EINVAL;*out=NULL;
+#ifdef GLASS_LOCAL_VOICE
+  if(!glass_local_voice_wake_enabled())return -EAGAIN;
+  if(glass_local_voice_wake_selected()){
+    if(!glass_local_voice_wake_ready())return -EAGAIN;
+    struct glass_custom_wake *s=calloc(1,sizeof(*s));if(!s)return -ENOMEM;
+    int ret=glv_wake_create(&s->local);if(ret){glass_local_voice_wake_failure(ret);free(s);return ret;}*out=s;return 0;
+  }
+#endif
   char path[256];if(snprintf(path,sizeof(path),"%s/custom/nihao_openvela.gkw",root)>=(int)sizeof(path))return -ENAMETOOLONG;
   FILE *file=fopen(path,"rb");if(!file)return -errno;
   struct stat st;int ret=-EBADMSG;
@@ -54,6 +73,9 @@ done:
 void glass_custom_wake_reset(struct glass_custom_wake *s)
 {
   if(!s)return;
+#ifdef GLASS_LOCAL_VOICE
+  if(s->local){glv_wake_reset(s->local);return;}
+#endif
   s->samples=s->used=s->pre_at=s->pre_count=s->above=s->below=0;s->speaking=false;
 }
 static int wake_block(struct glass_custom_wake *s)
@@ -129,6 +151,9 @@ static int wake_block(struct glass_custom_wake *s)
 int glass_custom_wake_feed(struct glass_custom_wake *s,const int16_t *pcm,size_t samples)
 {
   if(!s||!pcm||samples>4096)return -EINVAL;int event=0;
+#ifdef GLASS_LOCAL_VOICE
+  if(s->local){int ret=glv_wake_feed(s->local,pcm,samples);if(ret<0)glass_local_voice_wake_failure(ret);return ret;}
+#endif
   while(samples){
     size_t n=320-s->used;if(n>samples)n=samples;
     memcpy(s->block+s->used,pcm,n*sizeof(int16_t));s->used+=n;pcm+=n;samples-=n;
@@ -136,5 +161,13 @@ int glass_custom_wake_feed(struct glass_custom_wake *s,const int16_t *pcm,size_t
   }
   return event;
 }
-unsigned glass_custom_wake_evaluations(const struct glass_custom_wake *s){return s?s->evaluations:0;}
-float glass_custom_wake_score(const struct glass_custom_wake *s){return s?s->score:0;}
+unsigned glass_custom_wake_evaluations(const struct glass_custom_wake *s){
+#ifdef GLASS_LOCAL_VOICE
+  if(s&&s->local)return glv_wake_evaluations(s->local);
+#endif
+  return s?s->evaluations:0;}
+float glass_custom_wake_score(const struct glass_custom_wake *s){
+#ifdef GLASS_LOCAL_VOICE
+  if(s&&s->local)return glv_wake_score(s->local);
+#endif
+  return s?s->score:0;}

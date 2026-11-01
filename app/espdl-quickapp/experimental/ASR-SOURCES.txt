@@ -1,0 +1,20 @@
+Experimental Zipformer port sources and scope (2026-10-31)
+
+Model: official Chinese streaming Zipformer 14M 2023-02-23, unchanged source
+archive SHA256 2cbd71b640d9c37d3784f29367333a4577b0398b62e9deeed418170b081cba8b.
+https://k2-fsa.github.io/sherpa/onnx/pretrained_models/online-transducer/zipformer-transducer-models.html#csukuangfj-sherpa-onnx-streaming-zipformer-zh-14m-2023-02-23-chinese
+
+Feature and greedy-search behavior references (Apache-2.0):
+https://github.com/k2-fsa/sherpa-onnx/blob/master/sherpa-onnx/csrc/features.h
+https://github.com/k2-fsa/sherpa-onnx/blob/master/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.cc
+https://github.com/csukuangfj/kaldi-native-fbank/blob/master/kaldi-native-fbank/csrc/feature-window.cc
+https://github.com/csukuangfj/kaldi-native-fbank/blob/master/kaldi-native-fbank/csrc/feature-fbank.cc
+https://github.com/csukuangfj/kaldi-native-fbank/blob/master/kaldi-native-fbank/csrc/mel-computations.cc
+The links identify algorithm references, not immutable commit pins. Host fbank
+comparison uses the installed kaldi-native-fbank 1.22.5 distribution and records
+its wheel/library hash in the generated report. No upstream source files are
+vendored by the independent fixed-profile C implementation.
+
+The C graph/fbank runtime is experimental and not yet linked into board APP.
+Model tensors remain external data assets. Original model/license provenance
+is retained; implementing an operator does not relicense model weights.

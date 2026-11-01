@@ -1,0 +1,12 @@
+{
+  "candidate": 56,
+  "screen_stable": true,
+  "backlight_stable": true,
+  "source": "User confirmation for candidate56 after actual boot",
+  "speaker_accepted": false,
+  "cold_power_boot_accepted": false,
+  "post_sd_recovery_screen_stable": true,
+  "post_sd_recovery_backlight_stable": true,
+  "post_sd_recovery_source": "User confirmation after SD recovery ordinary reset",
+  "post_sd_recovery_pending": false
+}
