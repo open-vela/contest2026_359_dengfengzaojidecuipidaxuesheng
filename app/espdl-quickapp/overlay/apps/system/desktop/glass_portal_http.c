@@ -31,6 +31,11 @@
 #define EMPTY_TIMEOUT_MS 2000
 #define IO_IDLE_MS 5000
 #define REQUEST_TIMEOUT_MS 120000
+#define TRANSFER_MAX_MS 3600000
+#define TRANSFER_MIN_BYTES_PER_SECOND (16*1024)
+#define LISTENER_POLL_FAULT_LIMIT 8
+#define LISTENER_RECOVERY_COOLDOWN_MS 30000
+#define LISTENER_REBIND_PAUSE_MS 1000
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
@@ -46,11 +51,14 @@ static bool service_running;
 static atomic_uint portal_accepts,portal_closes,portal_active,portal_receives,portal_stage,portal_errors;
 static atomic_int portal_last_error;
 static atomic_uint portal_listener_faults,portal_listener_resets;
+static atomic_uint portal_poll_fault_streak,portal_poll_recoveries;
 static atomic_int portal_fault_phase,portal_fault_errno,portal_fault_flags;
 static atomic_int portal_fault_accepting,portal_fault_socket_error,portal_fault_check_error;
 /* The single request worker owns these and the file/install scratch buffers. */
 static int64_t io_deadline;
 static bool io_failed;
+/* Single request worker owns recovery timing; debug readers use only counters. */
+static int64_t listener_rebind_after,listener_recovery_after;
 
 void portal_debug_status(void)
 {
@@ -67,12 +75,21 @@ void portal_debug_status(void)
     atomic_load(&portal_fault_phase),atomic_load(&portal_fault_errno),atomic_load(&portal_fault_flags),
     atomic_load(&portal_fault_accepting),atomic_load(&portal_fault_socket_error),
     atomic_load(&portal_fault_check_error));
+  printf("portal poll_fault_streak=%u http_recoveries=%u\n",
+    atomic_load(&portal_poll_fault_streak),atomic_load(&portal_poll_recoveries));
 }
 static time_t monotime(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC,&ts); return ts.tv_sec; }
 static int64_t milliseconds(void)
 {
   struct timespec ts; clock_gettime(CLOCK_MONOTONIC,&ts);
   return (int64_t)ts.tv_sec*1000+ts.tv_nsec/1000000;
+}
+static int64_t transfer_budget_ms(uint64_t bytes)
+{
+  uint64_t seconds=bytes/TRANSFER_MIN_BYTES_PER_SECOND;
+  uint64_t maximum_extra=(TRANSFER_MAX_MS-REQUEST_TIMEOUT_MS)/1000;
+  if(seconds>=maximum_extra) return TRANSFER_MAX_MS;
+  return REQUEST_TIMEOUT_MS+(int64_t)seconds*1000;
 }
 static int random_bytes(void *out,size_t size)
 {
@@ -208,9 +225,7 @@ static int upload(int fd,const char *path,size_t size,const char *auth)
   /* Large SD assets keep the existing inactivity deadline. Give an active
    * transfer a size-dependent total budget instead of cutting it off at 120 s.
    * At most one hour, even if the peer sends continuously. */
-  uint64_t budget=REQUEST_TIMEOUT_MS+(uint64_t)size*1000/(64*1024);
-  if(budget>3600000)budget=3600000;
-  io_deadline=milliseconds()+(int64_t)budget;
+  io_deadline=milliseconds()+transfer_budget_ms(size);
   char temp[256]; if(snprintf(temp,sizeof(temp),"%s",path)>=(int)sizeof(temp)) return -EINVAL;
   char *name=strrchr(temp,'/'); if(!name) return -EINVAL;
   strcpy(name+1,".upload");
@@ -387,11 +402,14 @@ static void client(int fd,char *headers)
   char path[256];
   if(!strcmp(url,"/api/files")&&!strcmp(method,"GET")&&arg) { int ret=portal_public_path(arg,path,sizeof(path)); if(ret) result(fd,ret,NULL); else files(fd,path); return; }
   if(!strcmp(url,"/api/file")&&arg) {
-    int ret=portal_public_path(arg,path,sizeof(path)); if(ret) { result(fd,ret,NULL); return; }
+    int ret=!strcmp(method,"PUT")&&length_seen?portal_public_write_path(arg,path,sizeof(path)):
+      portal_public_path(arg,path,sizeof(path));
+    if(ret) { result(fd,ret,NULL); return; }
     if(!strcmp(method,"PUT")&&length_seen) { struct stat st; if(lstat(path,&st)==0) { result(fd,-EEXIST,NULL); return; } result(fd,upload(fd,path,size,auth),NULL); return; }
     if(!strcmp(method,"GET")) {
       struct stat st; int in=open(path,O_RDONLY); if(in<0) { result(fd,-errno,NULL); return; }
       if(fstat(in,&st)<0||!S_ISREG(st.st_mode)) { close(in); result(fd,-EINVAL,NULL); return; }
+      io_deadline=milliseconds()+transfer_budget_ms((uint64_t)st.st_size);
       head(fd,200,"application/octet-stream",st.st_size,true); static char buf[4096]; ssize_t n;
       while(authorized(auth)&&(n=read(in,buf,sizeof(buf)))>0) if(sendall(fd,buf,n)) break; close(in); return;
     }
@@ -412,7 +430,7 @@ static void client(int fd,char *headers)
       snprintf(error,sizeof(error),"HA 地址请用 http://主机:端口（不要 /8123）；令牌最多 511 字符");
   }
   else if(!strcmp(url,"/api/network/connect")&&!arg) ret=network_connect(o);
-  else if(!strcmp(url,"/api/mkdir")&&arg) { ret=portal_public_path(arg,path,sizeof(path)); if(!ret&&mkdir(path,0700)<0) ret=-errno; }
+  else if(!strcmp(url,"/api/mkdir")&&arg) { ret=portal_public_write_path(arg,path,sizeof(path)); if(!ret&&mkdir(path,0700)<0) ret=-errno; }
   else if(!strcmp(url,"/api/install/begin")) { ret=portal_install_begin(o,error,sizeof(error)); }
   else if(!strcmp(url,"/api/install/commit")) ret=portal_install_commit();
   else if(!strcmp(url,"/api/install/abort")) { portal_install_abort(); ret=0; }
@@ -487,6 +505,23 @@ static void listener_fault(int fd,int phase,int error,short flags,
     if(getsockopt(fd,SOL_SOCKET,SO_ERROR,&socket_error,&length)<0) socket_error=-1;
   }
   portal_listener_faults++;
+  /* VFS can collapse a failed poll setup into POLLERR with errno/SO_ERROR=0.
+   * EIO here means the exact lower-layer cause is unknown, not ENOMEM. */
+  portal_last_error=error?error:check_error?check_error:socket_error>0?socket_error:EIO;
+  if(!reset && accepting==1 && (phase==2 || phase==3)) {
+    unsigned streak=atomic_load(&portal_poll_fault_streak);
+    if(streak<LISTENER_POLL_FAULT_LIMIT) streak++;
+    atomic_store(&portal_poll_fault_streak,streak);
+    int64_t now=milliseconds();
+    if(streak>=LISTENER_POLL_FAULT_LIMIT && now>=listener_recovery_after) {
+      /* This worker is between complete requests, so no admitted upload or
+       * configuration transaction is interrupted. Recycle only our listener
+       * and not-yet-dispatched headers. Never restart the device/task group. */
+      reset=true; close_fd=true; portal_poll_recoveries++;
+      listener_rebind_after=now+LISTENER_REBIND_PAUSE_MS;
+      listener_recovery_after=now+LISTENER_RECOVERY_COOLDOWN_MS;
+    }
+  }
   int unset=0;
   if(atomic_compare_exchange_strong(&portal_fault_phase,&unset,-1)) {
     atomic_store(&portal_fault_errno,error);
@@ -499,8 +534,10 @@ static void listener_fault(int fd,int phase,int error,short flags,
   if(reset) {
     if(close_fd) close(fd);
     atomic_store(&listener,-1); portal_listener_resets++;
+    atomic_store(&portal_poll_fault_streak,0);
     /* NuttX cannot rebind while these local accepted connections remain.
-     * Close them on a confirmed listener loss, never on a poll-only fault. */
+     * Close them only on confirmed loss or the bounded persistent-fault
+     * recovery above; an isolated poll notification retains its listener. */
     for(unsigned i=0;i<PENDING_CLIENTS;i++) close_client(pending+i);
   }
 }
@@ -519,12 +556,12 @@ static void *worker(void *arg)
       if(p->fd<0) room=true;
     }
     int listen_fd=atomic_load(&listener);
-    if(listen_fd<0&&now>=open_after) {
+    if(listen_fd<0&&now>=open_after&&now>=listener_rebind_after) {
       listen_fd=open_listener();
       if(listen_fd<0) {
         portal_last_error=-listen_fd; portal_errors++;
         listener_fault(-1,1,-listen_fd,0,pending); open_after=now+200;
-      } else atomic_store(&listener,listen_fd);
+      } else { atomic_store(&listener,listen_fd); atomic_store(&portal_poll_fault_streak,0); }
     }
     events[0]=(struct pollfd){.fd=listen_fd>=0&&room&&now>=accept_after?listen_fd:-1,.events=POLLIN};
     portal_stage=0;
@@ -555,6 +592,7 @@ static void *worker(void *arg)
       listener_fault(listen_fd,3,0,events[0].revents,pending);
       accept_after=open_after=milliseconds()+200; continue;
     }
+    if(events[0].fd>=0) atomic_store(&portal_poll_fault_streak,0);
     if(!(events[0].revents&POLLIN)) continue;
     for(unsigned i=0;i<PENDING_CLIENTS;i++) if(pending[i].fd<0) {
       int fd=accept4(listen_fd,NULL,NULL,SOCK_CLOEXEC);

@@ -14,6 +14,8 @@ struct qpk_hw_progress {
 typedef int (*qpk_pcm_sink_t)(void *cookie,const uint8_t *pcm,size_t bytes);
 /* Dedicated caller-owned worker; same codec reservation and cleanup as WAV. */
 int qpk_audio_capture_pcm(qpk_pcm_sink_t sink,void *cookie,struct qpk_hw_progress *progress);
+/* Bounded read-only recorder signal/timing diagnostics; contains no PCM. */
+int qpk_audio_recording_status(char *buffer, size_t size);
 struct qpk_hw_session *qpk_hw_create(const char *package);
 struct qpk_hw_session *qpk_hw_create_at(const char *package,const char *data_root);
 void qpk_hw_release(struct qpk_hw_session *session);

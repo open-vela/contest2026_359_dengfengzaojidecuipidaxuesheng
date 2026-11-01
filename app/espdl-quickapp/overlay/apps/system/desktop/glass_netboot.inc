@@ -71,7 +71,7 @@ static void glass_status_network_get(struct glass_status_network *out)
 static void glass_status_network_publish(bool wired, bool linked, bool usable)
 {
   pthread_mutex_lock(&g_net_lock);
-  if (wired) g_status_network.wired = usable;
+  if (wired) { g_status_network.wired = usable; g_status_network.wired_link = linked; }
   else { g_status_network.wifi = usable; g_status_network.joining = linked && !usable;
     if(!linked)g_status_network.rssi_valid=false; }
   pthread_mutex_unlock(&g_net_lock);

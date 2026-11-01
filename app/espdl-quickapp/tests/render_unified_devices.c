@@ -9,6 +9,46 @@ extern void qpk_review_root_area(lv_area_t *area);
 static FILE *bounds_file;
 static unsigned bounds_count;
 static unsigned icon_checks;
+static void operating_fixture(const struct all_device_case_s *sample,const char *state)
+{
+  char js[1400];snprintf(js,sizeof(js),"__haStates[0].state='%s';__haStates[0].attributes.miot_properties['%s.status']='%s';ESPHomeHA.refresh();for(let i=0;i<70;i++)__reviewTick();",state,sample->type,state);
+  assert(qpk_review_eval(js)==0);
+}
+static lv_obj_t *visible_glyph(lv_obj_t *root,unsigned code)
+{
+  if(!root||!lv_obj_is_visible(root))return NULL;
+  if(lv_obj_has_class(root,&lv_label_class)){
+    const unsigned char *s=(const unsigned char *)lv_label_get_text(root);
+    if(strlen((const char *)s)==3&&s[0]>=0xe0&&(((s[0]&15)<<12)|((s[1]&63)<<6)|(s[2]&63))==code)return root;
+  }
+  for(unsigned i=0;i<lv_obj_get_child_count(root);i++){lv_obj_t *found=visible_glyph(lv_obj_get_child(root,i),code);if(found)return found;}
+  return NULL;
+}
+static uint32_t icon_pixels(unsigned code)
+{
+  lv_refr_now(NULL);lv_obj_t *glyph=visible_glyph(g_desktop.screen,code);assert(glyph);
+  const lv_font_t *font=lv_obj_get_style_text_font(glyph,0);assert(font->line_height==68);
+  lv_area_t area;lv_obj_get_coords(glyph,&area);assert(area.x1>=0&&area.y1>=0&&area.x2<1024&&area.y2<600);
+  uint32_t hash=2166136261u;
+  for(int y=area.y1;y<=area.y2;y++)for(int x=area.x1;x<=area.x2;x++)for(unsigned b=0;b<2;b++)hash=(hash^review_fb[(y*1024+x)*2+b])*16777619u;
+  return hash;
+}
+static void check_operating(const struct all_device_case_s *sample)
+{
+  operating_fixture(sample,"idle");assert(qpk_review_number("ESPHomeHA.snapshot().deviceCards[0].iconRunning?1:0")==0);
+  (void)icon_pixels(sample->glyph);
+  if(sample->active[0]){
+    operating_fixture(sample,sample->active);assert(qpk_review_number("ESPHomeHA.snapshot().deviceCards[0].iconRunning?1:0")==1);
+    for(unsigned i=0;i<20;i++){lv_tick_inc(40);lv_timer_handler();}
+    uint32_t a=icon_pixels(sample->glyph);bool changed=false;
+    for(unsigned i=0;i<5;i++){lv_tick_inc(117);lv_timer_handler();changed|=a!=icon_pixels(sample->glyph);}
+    if(!changed)fprintf(stderr,"Unchanged mechanism: %s\n",sample->type);assert(changed);
+  }else{
+    operating_fixture(sample,"on");assert(qpk_review_number("ESPHomeHA.snapshot().deviceCards[0].iconRunning?1:0")==0);
+  }
+  operating_fixture(sample,"unavailable");assert(qpk_review_number("ESPHomeHA.snapshot().deviceCards[0].iconRunning?1:0")==0);
+  operating_fixture(sample,sample->active[0]?sample->active:"idle");
+}
 static unsigned check_visible_icons(lv_obj_t *object,uint32_t expected)
 {
   if(!object||!lv_obj_is_visible(object))return 0;
@@ -61,7 +101,7 @@ int main(int argc,char **argv)
   g_desktop.font28=lv_tiny_ttf_create_data(font,size,28);
   g_desktop.font16->fallback=glass_icon_font(16);g_desktop.font20->fallback=glass_icon_font(20);g_desktop.font28->fallback=glass_icon_font(24);
   g_glass.font48=lv_tiny_ttf_create_data(font,size,48);glass_home_fonts_init(font,size);
-  g_glass.reduced_motion=true;g_glass.temperature_c=-999;g_glass.humidity_pct=-1;g_glass.pm25=-1;
+  g_glass.reduced_motion=false;g_glass.temperature_c=-999;g_glass.humidity_pct=-1;g_glass.pm25=-1;
   g_desktop.screen=lv_screen_active();lv_obj_remove_flag(g_desktop.screen,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_text_font(g_desktop.screen,zh_font(20),0);
   g_desktop.panel=glass_box(g_desktop.screen,0,0,1024,600,0x000000,0);lv_obj_add_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
@@ -82,7 +122,9 @@ int main(int argc,char **argv)
         all_device_services,sample->states);
       assert(written>0&&written<(int)sizeof(js));assert(qpk_review_eval(js)==0);
       snprintf(path,sizeof(path),"device-%s-small",sample->type);review_capture(display,path,sample->name);save_card_bounds(sample->type,"small");
-      check_visible_icons(g_desktop.screen,0);
+      assert((unsigned)qpk_review_number("ESPHomeHA.snapshot().deviceCards[0].iconGlyph")==sample->glyph);
+      assert(check_visible_icons(g_desktop.screen,sample->glyph)>0);
+      check_operating(sample);
       int x=(int)qpk_review_number("__row.x+__row.w/2"),y=(int)qpk_review_number("__row.y+22");
       qpk_review_click_at(x,y); /* The card body deliberately has no hit target. */
       assert(qpk_review_eval("for(let i=0;i<15;i++)__reviewTick();if(ESPHomeHA.snapshot().detailOpen)throw Error('body opens detail')")==0);
@@ -90,12 +132,13 @@ int main(int argc,char **argv)
       assert(qpk_review_click_at(x,y)==0);
       assert(qpk_review_eval("for(let i=0;i<35;i++)__reviewTick();if(!ESPHomeHA.snapshot().detailAdvanced)throw Error('detail missing')")==0);
       snprintf(path,sizeof(path),"device-%s-detail",sample->type);review_capture(display,path,sample->name);
+      assert(check_visible_icons(g_desktop.screen,sample->glyph)>0);check_operating(sample);
       unsigned cameras=check_visible_icons(g_desktop.screen,0xe002);
       if(!strcmp(sample->type,"camera")||!strcmp(sample->type,"video-doorbell"))assert(cameras>0);
       panel_hide(NULL);
     }
   fputs("\n]\n",review_manifest);fclose(review_manifest);
   fputs("\n]\n",bounds_file);fclose(bounds_file);
-  printf("UNIFIED_DEVICES_NATIVE_OK: %u captures, 59 categories\n",review_count);return 0;
+  printf("UNIFIED_DEVICES_NATIVE_OK: %u captures, 59 unique 64px drawings, card/detail motion, stop/offline, both themes\n",review_count);return 0;
 }
 #endif

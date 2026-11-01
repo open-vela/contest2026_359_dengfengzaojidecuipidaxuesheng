@@ -240,7 +240,7 @@ static void chat_ui_save_app(lv_event_t *e)
 static lv_obj_t *chat_ui_text(lv_obj_t *parent, const char *text, int x, int y,
                               int width, int size, uint32_t color, bool wrap)
 {
-  lv_obj_t *label = lv_label_create(parent);
+  lv_obj_t *label = glass_icon_create(parent);
   lv_obj_set_pos(label, x, y); lv_obj_set_width(label, width);
   lv_obj_set_style_text_font(label, zh_font(size), 0);
   lv_obj_set_style_text_color(label, lv_color_hex(color), 0);

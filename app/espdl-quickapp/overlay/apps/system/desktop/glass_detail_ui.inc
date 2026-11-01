@@ -71,8 +71,11 @@ static lv_obj_t *detail_sidebar(lv_obj_t *card,const char *name,const char *icon
 enum glass_settings_section {
   SETTINGS_WIFI=0, SETTINGS_FILES=1, SETTINGS_BLUETOOTH=2, SETTINGS_RESOURCES=3,
   SETTINGS_PANEL=4, SETTINGS_HOTSPOT=5, SETTINGS_MOUSE=6,
-  SETTINGS_PORTAL=7, SETTINGS_ABOUT=8
+  SETTINGS_PORTAL=7, SETTINGS_ABOUT=8, SETTINGS_LOCAL_VOICE=9
 };
+#ifdef GLASS_LOCAL_VOICE
+static void glass_local_voice_settings(lv_event_t *e);
+#endif
 static void glass_system_page_open(lv_event_t *e);
 static void glass_settings_back(lv_event_t *e);
 static void glass_portal_open(lv_event_t *e);
@@ -89,6 +92,9 @@ static lv_obj_t *glass_settings_sidebar(lv_obj_t *card,enum glass_settings_secti
 #endif
     {"蓝牙设备",LV_SYMBOL_BLUETOOTH,SETTINGS_BLUETOOTH},
     {"系统性能",GLASS_ICON_SLIDERS,SETTINGS_RESOURCES},
+#ifdef GLASS_LOCAL_VOICE
+    {"本地语音",GLASS_ICON_MIC,SETTINGS_LOCAL_VOICE},
+#endif
     {"扫码配置",GLASS_ICON_QR,SETTINGS_PORTAL},
     {"关于设备",LV_SYMBOL_SETTINGS,SETTINGS_ABOUT}
   };

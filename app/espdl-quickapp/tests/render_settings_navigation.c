@@ -42,6 +42,45 @@ static void check_sidebar(unsigned selected)
   assert(!review_find(g_desktop.current_card,"存储与文件"));
   assert(!review_find(g_desktop.current_card,"无线触摸板"));
 }
+static bool feedback_active(const char *glyph)
+{
+  lv_obj_t *icon=glass_settings_find_symbol(g_desktop.current_card,glyph);
+  assert(icon);return lv_anim_get(icon,NULL)!=NULL;
+}
+static void feedback_step(void)
+{lv_tick_inc(40);lv_timer_handler();lv_obj_update_layout(g_desktop.screen);}
+static void check_action_feedback(lv_display_t *display)
+{
+  g_glass.reduced_motion=false;glass_motion_set_reduced(false);
+  glass_settings(NULL);feedback_step();
+  assert(!feedback_active(GLASS_ICON_SLIDERS)&&!feedback_active(GLASS_ICON_SUN));
+  assert(!feedback_active(LV_SYMBOL_VOLUME_MAX)&&!feedback_active(GLASS_ICON_SPARKLES));
+  settle();
+  lv_obj_send_event(g_glass.speaker_slider,LV_EVENT_HOVER_OVER,NULL);
+  assert(!feedback_active(LV_SYMBOL_VOLUME_MAX));
+  lv_slider_set_value(g_glass.speaker_slider,65,LV_ANIM_OFF);
+  lv_obj_send_event(g_glass.speaker_slider,LV_EVENT_VALUE_CHANGED,NULL);
+  assert(!feedback_active(LV_SYMBOL_VOLUME_MAX)&&!feedback_active(GLASS_ICON_SUN));
+  feedback_step();review_capture(display,"settings-volume-feedback","调整音量触发声波");settle();
+  lv_slider_set_value(g_glass.brightness_slider,70,LV_ANIM_OFF);
+  lv_obj_send_event(g_glass.brightness_slider,LV_EVENT_VALUE_CHANGED,NULL);
+  assert(!feedback_active(GLASS_ICON_SUN)&&!feedback_active(LV_SYMBOL_VOLUME_MAX));
+  feedback_step();review_capture(display,"settings-brightness-feedback","调整亮度触发光芒");settle();
+  lv_obj_send_event(g_glass.widget_dropdown,LV_EVENT_VALUE_CHANGED,NULL);
+  assert(!feedback_active(GLASS_ICON_SPARKLES)&&!feedback_active(GLASS_ICON_SUN));settle();
+  lv_obj_t *old=g_desktop.current_card;
+  lv_obj_send_event(g_glass.settings_switch,LV_EVENT_VALUE_CHANGED,NULL);
+  assert(g_desktop.settings_rebuild_pending);feedback_step();
+  assert(old!=g_desktop.current_card&&!feedback_active(GLASS_ICON_SPARKLES));
+  assert(!feedback_active(GLASS_ICON_SLIDERS)&&!feedback_active(GLASS_ICON_SUN));settle();
+  review_click("蓝牙设备");assert(g_system_page_pending);feedback_step();
+  assert(!feedback_active(LV_SYMBOL_BLUETOOTH)&&!feedback_active(GLASS_ICON_SLIDERS));settle();
+  settings_clicked(NULL);feedback_step();assert(!feedback_active(GLASS_ICON_SLIDERS));settle();
+  g_glass.reduced_motion=true;glass_motion_set_reduced(true);
+  lv_obj_send_event(g_glass.brightness_slider,LV_EVENT_VALUE_CHANGED,NULL);
+  lv_obj_send_event(g_glass.speaker_slider,LV_EVENT_VALUE_CHANGED,NULL);
+  assert(!feedback_active(GLASS_ICON_SUN)&&!feedback_active(LV_SYMBOL_VOLUME_MAX));
+}
 int main(int argc,char **argv)
 {
   assert(argc==3);review_out=argv[2];
@@ -64,6 +103,7 @@ int main(int argc,char **argv)
   char path[1024];snprintf(path,sizeof(path),"%s/screens.json",review_out);
   review_manifest=fopen(path,"w");assert(review_manifest);fputs("[\n",review_manifest);
   glass_status_create();
+  check_action_feedback(display);
   for(unsigned theme=0;theme<2;theme++){
     g_desktop.light_theme=theme!=0;glass_rebuild();settle();glass_settings(NULL);
     for(unsigned i=0;i<7;i++){
@@ -116,5 +156,5 @@ int main(int argc,char **argv)
     panel_hide(NULL);
   }
   fputs("\n]\n",review_manifest);fclose(review_manifest);
-  puts("SETTINGS_NAVIGATION_OK: both themes; seven shared sections; unique entries and selection; standalone files/touchpad from home and apps; origin-aware return; file bounds; CPU/memory switching; 20 sibling cycles and cleanup");
+  puts("SETTINGS_NAVIGATION_OK: static system icons after sliders, clicks, rebuild/navigation and reduced motion; both themes; seven sections; 20 sibling cycles and cleanup");
 }

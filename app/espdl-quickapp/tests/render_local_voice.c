@@ -1,96 +1,140 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-#define GLASS_LOCAL_SPEECH 1
-#define UNIFIED_DEVICE_NO_MAIN
-#include "render_statusbar_devices.c"
-extern void review_chat_dialog_fixture(bool),review_local_ha_fixture(bool),review_local_config_change(void);
-extern void review_local_command_fixture(int,bool),review_local_ha_failure(bool,bool,bool),review_speech_done_fixture(int);
-extern unsigned review_local_call_count(void);
-static void local_steps(unsigned count)
-{for(unsigned i=0;i<count;i++){lv_tick_inc(250);speech_ui_update(NULL);lv_timer_handler();}}
-static void local_bind(unsigned role)
+#define main all_ui_reference_main
+#include "render_all_ui.c"
+#undef main
+extern void review_local_fixture(int,const char *);
+extern void review_local_woke(bool);
+extern void review_chat_dialog_fixture(bool);
+extern unsigned review_voice_start_count(void);
+extern void review_local_elapsed_fixture(unsigned);
+extern void review_local_error_fixture(int);
+extern int review_local_displayed_error(void);
+extern void review_local_config_error(int);
+extern void review_local_asr_fixture(bool,unsigned,const char *);
+extern void review_local_asr_error(int);
+extern unsigned review_local_listens(void),review_local_finishes(void),review_local_stops(void);
+extern void review_local_progress_fixture(unsigned,unsigned);
+extern void review_local_cold_fixture(void);
+extern enum glv_mode review_local_sent_mode(void);
+extern const char *review_local_sent_text(void);
+static void local_keyboard_bounds(void)
 {
-  lv_obj_send_event(lv_obj_get_parent(g_speech_ui.binding[role]),LV_EVENT_CLICKED,NULL);assert(g_speech_ui.picker);
-  local_steps(2);assert(g_speech_ui.choice_count==1); /* garage covers excluded */
-  lv_obj_send_event(g_speech_ui.rows[0],LV_EVENT_CLICKED,NULL);
-  assert(!g_speech_ui.picker&&g_speech_ui.bound[role].entity[0]);
+  lv_obj_update_layout(g_local_ui->card);
+  lv_obj_t *keyboard=g_local_ui->keyboard;
+  lv_obj_t *bar=lv_obj_get_child(g_local_ui->card,lv_obj_get_index(keyboard)+1);
+  lv_area_t keys,candidates,input;
+  lv_obj_get_coords(keyboard,&keys);lv_obj_get_coords(bar,&candidates);
+  lv_obj_get_coords(g_local_ui->input,&input);
+  assert(keys.x1>=0&&keys.x2<1024&&keys.y1>=GLASS_STATUS_HEIGHT&&keys.y2<600);
+  assert(keys.x1==input.x1&&keys.x2==input.x2);
+  assert(candidates.x1==keys.x1&&candidates.x2==keys.x2);
+  assert(input.y2<candidates.y1&&candidates.y2<keys.y1);
 }
-static void local_emit(int command)
-{review_local_command_fixture(command,false);local_steps(10);}
 int main(int argc,char **argv)
 {
-  assert(argc==3);review_out=argv[2];
-  FILE *fontfile=fopen(argv[1],"rb");assert(fontfile);fseek(fontfile,0,SEEK_END);size_t size=ftell(fontfile);rewind(fontfile);
-  void *font=malloc(size);assert(font&&fread(font,1,size,fontfile)==size);fclose(fontfile);
+  assert(argc==3);review_out=argv[2];FILE *f=fopen(argv[1],"rb");assert(f);
+  fseek(f,0,SEEK_END);size_t size=ftell(f);rewind(f);void *font=malloc(size);assert(font);
+  assert(fread(font,1,size,f)==size);fclose(f);
   lv_init();lv_display_t *display=lv_display_create(1024,600);lv_display_set_color_format(display,LV_COLOR_FORMAT_RGB565);
   lv_display_set_buffers(display,review_fb,NULL,sizeof(review_fb),LV_DISPLAY_RENDER_MODE_FULL);lv_display_set_flush_cb(display,review_flush);
   g_desktop.font16=lv_tiny_ttf_create_data(font,size,16);g_desktop.font20=lv_tiny_ttf_create_data(font,size,20);g_desktop.font28=lv_tiny_ttf_create_data(font,size,28);
   g_desktop.font16->fallback=glass_icon_font(16);g_desktop.font20->fallback=glass_icon_font(20);g_desktop.font28->fallback=glass_icon_font(24);
-  g_glass.font48=lv_tiny_ttf_create_data(font,size,48);glass_home_fonts_init(font,size);
-  g_glass.reduced_motion=true;g_glass.temperature_c=-999;g_glass.humidity_pct=-1;g_glass.pm25=-1;
+  glass_home_fonts_init(font,size);g_glass.reduced_motion=true;
   g_desktop.screen=glass_box(lv_screen_active(),0,GLASS_STATUS_HEIGHT,1024,GLASS_CONTENT_HEIGHT,0,0);
-  lv_obj_remove_flag(g_desktop.screen,LV_OBJ_FLAG_SCROLLABLE);lv_obj_set_style_text_font(g_desktop.screen,zh_font(20),0);
+  lv_obj_set_style_text_font(g_desktop.screen,zh_font(20),0);lv_obj_remove_flag(g_desktop.screen,LV_OBJ_FLAG_SCROLLABLE);
   g_desktop.panel=glass_box(g_desktop.screen,0,0,1024,GLASS_CONTENT_HEIGHT,0,0);lv_obj_add_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
   char path[1024];snprintf(path,sizeof(path),"%s/screens.json",review_out);review_manifest=fopen(path,"w");assert(review_manifest);fputs("[\n",review_manifest);
-  glass_edge_back_create();glass_status_create();
-  assert(!local_voice_entity("light.bad.other",0)&&!local_voice_entity("light.x/../door",0));
-  assert(!local_voice_entity("lock.door",0)&&!local_voice_entity("switch.heater",0));
-  assert(!local_voice_json("[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]"));
-  for(unsigned theme=0;theme<2;theme++){
-    panel_hide(NULL);review_chat_dialog_fixture(true);review_local_ha_fixture(true);g_desktop.light_theme=theme==0;glass_rebuild();
-    glass_speech_open(NULL);local_steps(2);assert(g_speech_ui.root);
-    review_capture(display,"local-voice-home","端侧语音助手");
-    for(unsigned role=0;role<3;role++)local_bind(role);
-    assert(!review_local_call_count());review_capture(display,"local-voice-bound","本次会话设备绑定");
-    review_click("开始离线聆听");assert(g_speech_ui.owner);
-    local_emit(1);assert(review_local_call_count()==1&&g_speech_ui.stage==LOCAL_IDLE);
-    assert(!strcmp(lv_label_get_text(g_speech_ui.feedback),"设备状态已确认"));
-    for(unsigned i=0;i<20;i++)speech_ui_update(NULL);assert(review_local_call_count()==1);
-    local_emit(1);assert(review_local_call_count()==1); /* already on, no POST */
-    for(int command=2;command<=6;command++){local_emit(command);assert(review_local_call_count()==(unsigned)command);}
-    review_capture(display,"local-voice-confirmed","离线指令执行后核对实际状态");
-    review_local_command_fixture(1,true);local_steps(3);assert(review_local_call_count()==6);
-    review_local_config_change();local_steps(2);assert(!g_speech_ui.bound[0].entity[0]);
-    local_emit(1);assert(review_local_call_count()==6);
-    review_click("停止");review_speech_done_fixture(0);local_steps(2);local_bind(0);
-    review_click("开始离线聆听");
-    review_local_ha_failure(false,true,false);local_emit(1);assert(review_local_call_count()==7);
-    assert(!strcmp(lv_label_get_text(g_speech_ui.feedback),"设备状态已确认")); /* lost POST ack, successful GET */
-    review_local_ha_failure(false,false,true);local_emit(2);assert(review_local_call_count()==7);
-    review_local_ha_failure(true,false,false);local_emit(2);local_steps(48);assert(review_local_call_count()==8);
-    assert(strstr(lv_label_get_text(g_speech_ui.feedback),"未确认"));
-    review_capture(display,"local-voice-uncertain","状态未确认时不自动重发控制");
-    review_local_ha_failure(false,false,false);
-    review_local_command_fixture(2,false);speech_ui_update(NULL);assert(g_speech_ui.stage==LOCAL_PRECHECK);
-    panel_hide(NULL);local_steps(3);assert(review_local_call_count()==8&&!g_speech_ui.client);
-    review_speech_done_fixture(0);glass_speech_open(NULL);review_click("开始离线聆听");
-    local_emit(7);assert(!g_speech_ui.root); /* return home is local */
-    review_speech_done_fixture(0);glass_speech_open(NULL);review_click("开始离线聆听");
-    local_emit(8);assert(g_speech_ui.root&&!strcmp(lv_label_get_text(g_speech_ui.feedback),"已停止聆听"));
-    /* Retained events and simultaneous stop/home must win over HA polling. */
-    review_speech_done_fixture(0);local_steps(1);local_bind(0);
-    review_click("开始离线聆听");unsigned before=review_local_call_count();
-    review_local_command_fixture(2,false);review_click("停止");local_steps(8);
-    assert(review_local_call_count()==before&&g_speech_ui.stage==LOCAL_IDLE&&!g_speech_ui.accepting_commands);
-    review_speech_done_fixture(0);review_click("开始离线聆听");
-    review_local_command_fixture(2,false);speech_ui_update(NULL);assert(g_speech_ui.stage==LOCAL_PRECHECK);
-    local_emit(8);assert(review_local_call_count()==before&&!g_speech_ui.client);
-    assert(strstr(lv_label_get_text(g_speech_ui.feedback),"已取消"));
-    review_speech_done_fixture(0);review_click("开始离线聆听");
-    review_local_command_fixture(2,false);speech_ui_update(NULL);assert(g_speech_ui.stage==LOCAL_PRECHECK);
-    local_emit(7);assert(review_local_call_count()==before&&!g_speech_ui.root&&!g_speech_ui.client);
-    review_speech_done_fixture(0);glass_speech_open(NULL);local_bind(0);review_click("开始离线聆听");
-    review_local_command_fixture(2,false);speech_ui_update(NULL);speech_ui_update(NULL);
-    assert(g_speech_ui.stage==LOCAL_CONTROL&&review_local_call_count()==before+1);
-    review_click("停止");local_steps(8);
-    assert(!g_speech_ui.client&&review_local_call_count()==before+1);
-    assert(strstr(lv_label_get_text(g_speech_ui.feedback),"已发送"));
-    review_local_command_fixture(1,false);local_steps(8);assert(review_local_call_count()==before+1);
-    review_speech_done_fixture(0);review_click("开始离线聆听");local_emit(1);
-    assert(review_local_call_count()==before+2&&g_speech_ui.stage==LOCAL_IDLE);
-    review_capture(display,"local-voice-stop-safe","停止优先于待处理控制，重新启动后恢复接收指令");
-    panel_hide(NULL);review_speech_done_fixture(0);review_local_ha_fixture(false);
+  glass_status_create();
+  for(unsigned light=0;light<2;light++){
+    g_desktop.light_theme=light;review_local_cold_fixture();glass_local_voice_open(NULL);glass_status_tick();
+    assert(g_local_ui&&!lv_obj_has_state(g_local_ui->send,LV_STATE_DISABLED)&&!lv_obj_has_state(g_local_ui->microphone,LV_STATE_DISABLED));
+    assert(lv_obj_has_state(g_local_ui->speak,LV_STATE_DISABLED));review_capture(display,"local-dialogue","本地对话 · 默认文字 · 语音按需加载");
+    review_local_fixture(GLV_SPEAKING,"你好，很高兴见到你。\n所有模型从 SD 卡读取，回答只保留在本次会话中。");local_ui_poll(NULL);
+    assert(lv_obj_has_state(g_local_ui->send,LV_STATE_DISABLED));review_capture(display,"local-answer","本地回答 · 播报中可以触摸停止");
+    review_local_elapsed_fixture(2000);local_ui_poll(NULL);assert(strstr(lv_label_get_text(g_local_ui->metrics),"2.0 秒"));
+    review_local_error_fixture(-EIO);local_ui_poll(NULL);assert(review_local_displayed_error()==-EIO);
+    assert(strstr(lv_label_get_text(g_local_ui->status),"请检查 SD 模型后重试"));
+    review_local_fixture(GLV_IDLE,"");local_ui_poll(NULL);
+    review_local_asr_error(-EBADMSG);local_ui_poll(NULL);assert(review_local_displayed_error()==-EBADMSG);
+    assert(strstr(lv_label_get_text(g_local_ui->status),"离线转写：")&&strstr(lv_label_get_text(g_local_ui->status),"文字功能可用"));
+    assert(!lv_obj_has_state(g_local_ui->send,LV_STATE_DISABLED)&&!lv_obj_has_state(g_local_ui->microphone,LV_STATE_DISABLED));
+    review_local_fixture(GLV_CHECKING_ASR,"");local_ui_poll(NULL);assert(strstr(lv_label_get_text(g_local_ui->status),"检查转写模型"));
+    review_local_fixture(GLV_PREFILL,"");review_local_progress_fixture(12,24);local_ui_poll(NULL);
+    assert(strstr(lv_label_get_text(g_local_ui->status),"50%"));review_capture(display,"local-prefill","本地推理 · 输入处理进度");
+    review_click("停止");struct glv_snapshot observed;glass_local_voice_get(&observed,NULL,0);assert(observed.cancel_source==GLV_CANCEL_UI_STOP);
+    review_click("新对话");glass_local_voice_get(&observed,NULL,0);assert(observed.cancel_source==GLV_CANCEL_UI_NEW);
+    assert(!strstr(lv_label_get_text(g_local_ui->status),"文字功能可用")&&lv_obj_has_state(g_local_ui->send,LV_STATE_DISABLED));
+    review_local_fixture(GLV_IDLE,"");local_ui_poll(NULL);
+    review_capture(display,"local-asr-fault","转写模型异常 · 文字功能保留");review_local_asr_fixture(false,0,"");local_ui_poll(NULL);
+    lv_obj_send_event(g_local_ui->input,LV_EVENT_CLICKED,NULL);assert(g_local_ui->keyboard);
+    local_keyboard_bounds();
+    assert(!glass_ime_start_voice(g_local_ui->keyboard));review_capture(display,"local-keyboard","中文输入 · 网络麦克风关闭");
+    lv_obj_send_event(g_local_ui->keyboard,LV_EVENT_CANCEL,NULL);assert(!g_local_ui->keyboard);
+    for(unsigned reopen=0;reopen<3;reopen++){
+      lv_obj_send_event(g_local_ui->input,LV_EVENT_CLICKED,NULL);local_keyboard_bounds();
+      lv_obj_send_event(g_local_ui->keyboard,LV_EVENT_READY,NULL);
+      lv_obj_update_layout(g_local_ui->card);
+      assert(!g_local_ui->keyboard&&lv_obj_get_y(g_local_ui->input)==354);
+      assert(!lv_obj_has_flag(g_local_ui->result,LV_OBJ_FLAG_HIDDEN));
+    }
+    assert(!lv_obj_has_state(g_local_ui->microphone,LV_STATE_DISABLED));
+    review_local_asr_fixture(true,0,"");local_ui_poll(NULL);unsigned listened=review_local_listens(),finished=review_local_finishes();
+    lv_obj_send_event(g_local_ui->microphone,LV_EVENT_CLICKED,NULL);assert(review_local_listens()==listened+1);
+    review_local_asr_fixture(true,16384,"");local_ui_poll(NULL);assert(lv_bar_get_value(g_local_ui->level)==50);
+    assert(!strcmp(lv_label_get_text(lv_obj_get_child(g_local_ui->microphone,0)),"结束录音"));
+    review_capture(display,"local-listening","本地录音 · 输入音量 · 结束录音");
+    lv_obj_send_event(g_local_ui->microphone,LV_EVENT_CLICKED,NULL);assert(review_local_finishes()==finished+1);
+    review_local_asr_fixture(true,0,"你好，今天天气怎么样？");local_ui_poll(NULL);
+    assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"你好，今天天气怎么样？"));
+    lv_textarea_set_text(g_local_ui->input,"保留编辑后的草稿");review_local_fixture(GLV_SPEAKING,"回答");local_ui_poll(NULL);
+    assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"保留编辑后的草稿"));
+    review_local_fixture(GLV_IDLE,"回答");local_ui_poll(NULL);
+    assert(!lv_obj_has_state(g_local_ui->speak,LV_STATE_DISABLED));review_click("朗读回答");
+    assert(review_local_sent_mode()==GLV_READ&&!strcmp(review_local_sent_text(),"回答"));
+    assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"保留编辑后的草稿"));
+    review_local_fixture(GLV_IDLE,"回答");local_ui_poll(NULL);
+    lv_obj_send_event(g_local_ui->check,LV_EVENT_CLICKED,NULL);assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"保留编辑后的草稿"));
+    review_click("保存会话");assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"保留编辑后的草稿"));
+    review_local_fixture(GLV_SPEAKING,"旧回答");local_ui_poll(NULL);review_click("新对话");
+    assert(!strstr(lv_label_get_text(g_local_ui->output),"旧回答"));
+    unsigned stops=review_local_stops();panel_hide(NULL);assert(!g_local_ui&&review_local_stops()==stops);
+    review_local_fixture(GLV_IDLE,"");review_local_asr_fixture(true,0,"");glass_local_voice_open(NULL);
+    lv_obj_send_event(g_local_ui->microphone,LV_EVENT_CLICKED,NULL);panel_hide(NULL);assert(review_local_stops()==stops+1);
+    review_local_fixture(GLV_IDLE,"");review_local_asr_fixture(false,0,"");glass_local_voice_open(NULL);
+    g_local_ui->mode=GLV_READ;lv_label_set_text(g_local_ui->heading,"文字朗读");lv_label_set_text(g_local_ui->subtitle,"V2 声音 · 舒缓 · 24 kHz");
+    lv_label_set_text(lv_obj_get_child(g_local_ui->send,0),"朗读");g_local_ui->revision=UINT32_MAX;local_ui_poll(NULL);
+    review_capture(display,"local-reading","V2 文字朗读");
+    lv_area_t area;lv_obj_update_layout(g_local_ui->card);lv_obj_get_coords(g_local_ui->metrics,&area);assert(area.y2<600);
+    lv_obj_get_coords(g_local_ui->footer,&area);assert(area.y2<600);
+    panel_hide(NULL);assert(!g_local_ui);
+    for(unsigned i=0;i<20;i++){glass_local_voice_open(NULL);panel_hide(NULL);assert(!g_local_ui);}
+    review_local_fixture(GLV_IDLE,"");glass_local_voice_enable_wake(true);glass_local_voice_set_wake(true);
+    glass_settings(NULL);review_click("本地语音");assert(g_system_page_pending);glass_system_page_async(NULL);
+    assert(g_local_settings&&g_system_page_kind==SETTINGS_LOCAL_VOICE);
+    lv_obj_update_layout(g_local_settings->card);lv_obj_t *back_label=review_label_find(g_local_settings->card,"返回设置");assert(back_label);
+    lv_area_t back_area;lv_obj_get_coords(back_label,&back_area);assert(back_area.x1>=12&&back_area.x2<GLASS_SIDEBAR_WIDTH);
+    review_capture(display,"local-settings","系统设置 · 本地唤醒和原助手切换");
+    review_local_asr_error(-ENOENT);local_settings_poll(NULL);assert(review_local_displayed_error()==-ENOENT&&strstr(lv_label_get_text(g_local_settings->status),"离线转写："));
+    review_local_asr_fixture(false,0,"");local_settings_poll(NULL);
+    lv_dropdown_set_selected(g_local_settings->target,1);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);
+    assert(!glass_local_voice_wake_selected());assert(strstr(lv_label_get_text(g_local_settings->phrase),"原助手"));
+    lv_obj_remove_state(g_local_settings->wake,LV_STATE_CHECKED);lv_obj_send_event(g_local_settings->wake,LV_EVENT_VALUE_CHANGED,NULL);
+    assert(!glass_local_voice_wake_enabled());
+    review_local_config_error(-EIO);lv_dropdown_set_selected(g_local_settings->target,0);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);
+    assert(!glass_local_voice_wake_selected()&&lv_dropdown_get_selected(g_local_settings->target)==1);review_local_config_error(0);
+    review_local_fixture(GLV_SPEAKING,"");local_settings_poll(NULL);assert(lv_obj_has_state(g_local_settings->target,LV_STATE_DISABLED));
+    lv_dropdown_set_selected(g_local_settings->target,0);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);assert(!glass_local_voice_wake_selected());
+    review_local_fixture(GLV_IDLE,"");glass_local_voice_set_wake(true);glass_local_voice_enable_wake(true);local_settings_poll(NULL);
+    review_local_error_fixture(-EIO);local_settings_poll(NULL);assert(review_local_displayed_error()==-EIO);
+    glass_settings(NULL);assert(!g_local_settings);glass_local_voice_settings(NULL);panel_hide(NULL);assert(!g_local_settings);
   }
-  fputs("\n]\n",review_manifest);fclose(review_manifest);
-  printf("LOCAL_VOICE_UI_OK: %u captures; both themes; 3 explicit bindings, 6 actions, state verification, deduplication, stale commands, configuration changes, unavailable devices, uncertain results, cancellation, home, stop/precheck races, retained-event disarming and explicit restart; hardware/network mocked\n",review_count);
-  return 0;
+  review_chat_dialog_fixture(true);review_local_woke(false);wake_mini_service();
+  assert(g_local_ui&&review_voice_start_count()==0);panel_hide(NULL);
+  review_local_woke(true);wake_mini_service();assert(!g_local_ui&&review_voice_start_count()==0);
+  glass_local_voice_enable_wake(false);review_local_woke(false);wake_mini_service();assert(!g_local_ui&&review_voice_start_count()==0);
+  glass_local_voice_enable_wake(true);
+  review_local_fixture(GLV_IDLE,"");review_local_asr_fixture(true,0,"");unsigned listened=review_local_listens();
+  review_local_woke(false);wake_mini_service();assert(g_local_ui&&review_local_listens()==listened+1&&review_voice_start_count()==0);
+  wake_mini_service();assert(review_local_listens()==listened+1);panel_hide(NULL);
+  fputs("\n]\n",review_manifest);fclose(review_manifest);puts("LOCAL_VOICE_UI_OK themes/keyboard-no-cloud/local-mic/finish/level/transcript/page-lifecycle/wake-once/40-reopen");return 0;
 }

@@ -1412,7 +1412,8 @@
   function masonryHeight(item){
     const rich=item.domain==='light'&&item.dimmable||['fan','climate','cover','humidifier','media_player','water_heater','number','input_number'].includes(item.domain);
     const height=item.domain==='camera'?Math.max(248,Math.round((CARD_W-32)*9/16)+136):rich?212:isSceneCommand(item)?182:controllable(item)?190:168;
-    return Math.max(height,Math.ceil(VIEW_H/3));
+    // Give the 64 px device mechanism room above its controls and More row.
+    return Math.max(height+24,Math.ceil(VIEW_H/3));
   }
   function boardWindow(rows){
     if(!WATERFALL)return rows;
@@ -1885,6 +1886,32 @@
     if (item.domain === 'light' && item.state === 'on') return pal.yellow;
     if (controllable(item) && item.state === 'on') return pal.blue;
     return pal.muted;
+  }
+
+  /* HA_DEVICE_MOTIONS_BEGIN */
+  const deviceIconMotions = {"diffuser":{"glyph":57600,"states":["on"],"description":"\u9999\u85b0\u673a\u5706\u6da6\u5e95\u5ea7\u56fa\u5b9a\uff0c\u9999\u6c14\u4ece\u9876\u90e8\u7f13\u6162\u4e0a\u5347"},"air-conditioner":{"glyph":57601,"states":["cooling","heating","drying","fan"],"description":"\u58c1\u6302\u673a\u4e0e\u5bfc\u98ce\u53e3\u56fa\u5b9a\uff0c\u51b7\u6696\u6c14\u6d41\u5411\u4e0b\u9001\u51fa"},"air-fresh":{"glyph":57602,"states":["on"],"description":"\u58c1\u6302\u65b0\u98ce\u673a\u9762\u677f\u56fa\u5b9a\uff0c\u6362\u6c14\u6d41\u4ece\u4e0b\u65b9\u8f93\u51fa"},"air-fryer":{"glyph":57603,"states":["running","cooking","preheating","heating"],"description":"\u70b8\u9505\u62bd\u5c49\u4e0e\u628a\u624b\u56fa\u5b9a\uff0c\u5185\u80c6\u70ed\u6c14\u4e0a\u5347"},"air-monitor":{"glyph":57604,"states":[],"description":"\u76d1\u6d4b\u4eea\u5c4f\u5e55\u5916\u6846\u56fa\u5b9a\uff0c\u68c0\u6d4b\u66f2\u7ebf\u8f7b\u67d4\u663e\u73b0"},"air-purifier":{"glyph":57605,"states":["on"],"description":"\u51c0\u5316\u5668\u7acb\u5f0f\u673a\u8eab\u4e0e\u6ee4\u7f51\u56fa\u5b9a\uff0c\u51fa\u98ce\u53e3\u6c14\u6d41\u5411\u4e0a\u6d41\u52a8"},"airer":{"glyph":57606,"states":["opening","closing"],"description":"\u5929\u82b1\u540a\u6746\u56fa\u5b9a\uff0c\u6a2a\u6881\u4e0e\u8863\u7269\u968f\u5347\u964d\u673a\u6784\u79fb\u52a8"},"bath-heater":{"glyph":57607,"states":["running","heating","drying"],"description":"\u6d74\u9738\u9762\u677f\u56fa\u5b9a\uff0c\u56db\u4e2a\u53d6\u6696\u706f\u4ea4\u9519\u4eae\u8d77"},"camera":{"glyph":57608,"states":["recording","streaming"],"description":"\u6444\u50cf\u673a\u5916\u58f3\u4e0e\u652f\u67b6\u56fa\u5b9a\uff0c\u955c\u5934\u5c40\u90e8\u5bf9\u7126"},"ceiling-fan":{"glyph":57609,"states":["on"],"description":"\u540a\u6746\u4e0e\u706f\u5ea7\u56fa\u5b9a\uff0c\u4e09\u7247\u6247\u53f6\u7ed5\u4e2d\u5fc3\u65cb\u8f6c"},"coffee-machine":{"glyph":57610,"states":["running","brewing","grinding","heating"],"description":"\u5496\u5561\u673a\u4e0e\u676f\u5b50\u56fa\u5b9a\uff0c\u8403\u53d6\u6db2\u4ece\u51fa\u6db2\u53e3\u843d\u5165\u676f\u4e2d"},"cooker":{"glyph":57611,"states":["running","cooking","preheating","heating"],"description":"\u7535\u996d\u7172\u9505\u4f53\u4e0e\u663e\u793a\u5c4f\u56fa\u5b9a\uff0c\u6392\u6c14\u53e3\u84b8\u6c7d\u4e0a\u5347"},"curtain":{"glyph":57612,"states":["opening","closing"],"description":"\u7a97\u5e18\u8f68\u9053\u4e0e\u5916\u6846\u56fa\u5b9a\uff0c\u4e24\u4fa7\u5e18\u5e03\u76f8\u5411\u5f00\u5408"},"dishwasher":{"glyph":57613,"states":["running","washing","rinsing","spinning","drying"],"description":"\u6d17\u7897\u673a\u9762\u677f\u4e0e\u7897\u67b6\u56fa\u5b9a\uff0c\u6c34\u6d41\u4ece\u55b7\u6dcb\u53e3\u843d\u5411\u9910\u5177"},"fan":{"glyph":57614,"states":["on"],"description":"\u7f51\u7f69\u3001\u7acb\u67f1\u4e0e\u5e95\u5ea7\u56fa\u5b9a\uff0c\u6247\u53f6\u6301\u7eed\u65cb\u8f6c"},"flowerpot":{"glyph":57615,"states":[],"description":"\u82b1\u76c6\u56fa\u5b9a\uff0c\u690d\u682a\u53f6\u7247\u8f7b\u6446\u63d0\u793a\u690d\u7269\u6570\u636e\u53d8\u5316"},"fridge":{"glyph":57616,"states":["cooling","defrosting","running"],"description":"\u51b0\u7bb1\u53cc\u95e8\u4e0e\u628a\u624b\u56fa\u5b9a\uff0c\u51b7\u85cf\u5ba4\u5185\u5236\u51b7\u6807\u5fd7\u547c\u5438"},"fruit-vegetable-purifier":{"glyph":57617,"states":["running","washing","purifying"],"description":"\u679c\u852c\u6e05\u6d17\u69fd\u56fa\u5b9a\uff0c\u51c0\u5316\u6c14\u6ce1\u5728\u69fd\u5185\u5347\u8d77"},"garbage-can":{"glyph":57618,"states":["opening","closing"],"description":"\u5783\u573e\u6876\u6876\u8eab\u56fa\u5b9a\uff0c\u6876\u76d6\u56f4\u7ed5\u540e\u8f74\u5f00\u5408"},"gas-concentration":{"glyph":57619,"states":[],"description":"\u71c3\u6c14\u6d53\u5ea6\u4eea\u5916\u58f3\u56fa\u5b9a\uff0c\u5c4f\u5e55\u4e2d\u7684\u6d53\u5ea6\u66f2\u7ebf\u53cd\u9988\u8bfb\u6570"},"gas-sensor":{"glyph":57620,"states":["on","detected","alarm"],"description":"\u62a5\u8b66\u5668\u5916\u58f3\u4e0e\u8fdb\u6c14\u53e3\u56fa\u5b9a\uff0c\u68c0\u6d4b\u5230\u71c3\u6c14\u540e\u706b\u7130\u6807\u5fd7\u95ea\u52a8"},"gateway":{"glyph":57621,"states":["pairing","transmitting","updating"],"description":"\u7f51\u5173\u4e0e\u5929\u7ebf\u56fa\u5b9a\uff0c\u914d\u5bf9\u6216\u6570\u636e\u4f20\u8f93\u65f6\u6307\u793a\u706f\u987a\u5e8f\u95ea\u52a8"},"health-pot":{"glyph":57622,"states":["running","cooking","preheating","heating"],"description":"\u517b\u751f\u58f6\u58f6\u4f53\u4e0e\u628a\u624b\u56fa\u5b9a\uff0c\u58f6\u5185\u70ed\u6d41\u8f7b\u67d4\u4e0a\u5347"},"heater":{"glyph":57623,"states":["running","heating","drying"],"description":"\u53d6\u6696\u5668\u683c\u6805\u4e0e\u652f\u811a\u56fa\u5b9a\uff0c\u9876\u90e8\u70ed\u6d41\u5411\u4e0a\u6563\u53d1"},"hood":{"glyph":57624,"states":["on"],"description":"\u70df\u673a\u7f69\u4f53\u4e0e\u70df\u9053\u56fa\u5b9a\uff0c\u70df\u6c14\u5411\u5438\u5165\u53e3\u4e0a\u5347"},"humidifier":{"glyph":57625,"states":["on"],"description":"\u52a0\u6e7f\u5668\u6c34\u7bb1\u56fa\u5b9a\uff0c\u53cc\u80a1\u6c34\u96fe\u4ece\u9876\u90e8\u4e0a\u5347"},"illumination-sensor":{"glyph":57626,"states":[],"description":"\u5149\u7167\u4f20\u611f\u5668\u5916\u58f3\u4e0e\u611f\u5149\u4e2d\u5fc3\u56fa\u5b9a\uff0c\u611f\u5149\u5c04\u7ebf\u5c40\u90e8\u8f6e\u8f6c"},"induction-cooker":{"glyph":57627,"states":["running","cooking","preheating","heating"],"description":"\u7535\u78c1\u7089\u9762\u677f\u56fa\u5b9a\uff0c\u52a0\u70ed\u533a\u7ebf\u5708\u6309\u52a0\u70ed\u8282\u5f8b\u547c\u5438"},"integrated-stove":{"glyph":57628,"states":["on","running","cooking","heating"],"description":"\u96c6\u6210\u7076\u70df\u7f69\u4e0e\u53cc\u95e8\u56fa\u5b9a\uff0c\u4e24\u4fa7\u7089\u5934\u4ea4\u66ff\u63d0\u793a\u5de5\u4f5c"},"juicer":{"glyph":57629,"states":["running","cooking","juicing","blending"],"description":"\u69a8\u6c41\u673a\u676f\u4f53\u4e0e\u7535\u673a\u5e95\u5ea7\u56fa\u5b9a\uff0c\u676f\u5185\u5200\u7247\u65cb\u8f6c"},"kettle":{"glyph":57630,"states":["running","heating","boiling"],"description":"\u7535\u6c34\u58f6\u58f6\u4f53\u3001\u58f6\u5634\u4e0e\u628a\u624b\u56fa\u5b9a\uff0c\u6cb8\u817e\u84b8\u6c7d\u4e0a\u5347"},"light":{"glyph":57631,"states":["on"],"description":"\u706f\u67b6\u56fa\u5b9a\uff0c\u6696\u5149\u5411\u5730\u9762\u6d12\u4e0b\u5e76\u8f7b\u67d4\u547c\u5438"},"magnet-sensor":{"glyph":57632,"states":[],"description":"\u78c1\u5438\u53cc\u4f53\u56fa\u5b9a\uff0c\u67e5\u770b\u95e8\u7a97\u72b6\u6001\u65f6\u611f\u5e94\u6807\u5fd7\u8f7b\u4eae"},"massage":{"glyph":57633,"states":["on","running","massaging"],"description":"\u6309\u6469\u6905\u9760\u80cc\u4e0e\u6276\u624b\u56fa\u5b9a\uff0c\u6309\u6469\u6eda\u8f6e\u4ea4\u66ff\u53cd\u9988"},"mirror":{"glyph":57634,"states":["on"],"description":"\u955c\u6846\u4e0e\u5e95\u5ea7\u56fa\u5b9a\uff0c\u4e24\u4fa7\u8865\u5149\u706f\u4eae\u8d77"},"mosquito-dispeller":{"glyph":57635,"states":["on"],"description":"\u9a71\u868a\u5668\u5916\u58f3\u56fa\u5b9a\uff0c\u82af\u7247\u52a0\u70ed\u5de5\u4f5c\u533a\u7f13\u6162\u547c\u5438"},"motion-sensor":{"glyph":57636,"states":["on","detected"],"description":"\u4eba\u4f53\u4f20\u611f\u5668\u673a\u8eab\u56fa\u5b9a\uff0c\u68c0\u6d4b\u5230\u6d3b\u52a8\u65f6\u611f\u5e94\u6ce2\u4f9d\u6b21\u4eae\u8d77"},"moxibustion":{"glyph":57637,"states":["on","running","heating"],"description":"\u827e\u7078\u76d2\u4e0e\u8c03\u8282\u65cb\u94ae\u56fa\u5b9a\uff0c\u7078\u70ed\u6c14\u6d41\u5411\u4e0a\u5347\u8d77"},"outlet":{"glyph":57638,"states":["on"],"description":"\u63d2\u5ea7\u9762\u677f\u56fa\u5b9a\uff0c\u901a\u7535\u63d2\u5b54\u8f7b\u67d4\u4eae\u8d77"},"oven":{"glyph":57639,"states":["running","cooking","preheating","heating"],"description":"\u70e4\u7bb1\u9762\u677f\u3001\u65cb\u94ae\u4e0e\u95e8\u6846\u56fa\u5b9a\uff0c\u7089\u5185\u70ed\u6d41\u53d8\u5316"},"pet-drinking-fountain":{"glyph":57640,"states":["on","running","pumping","circulating"],"description":"\u996e\u6c34\u76c6\u4e0e\u7acb\u67f1\u56fa\u5b9a\uff0c\u51fa\u6c34\u53e3\u6d41\u6c34\u843d\u56de\u76c6\u5185"},"plant-monitor":{"glyph":57641,"states":[],"description":"\u571f\u58e4\u63a2\u9488\u56fa\u5b9a\uff0c\u65c1\u4fa7\u53f6\u7247\u63d0\u793a\u690d\u7269\u76d1\u6d4b\u72b6\u6001"},"pressure-cooker":{"glyph":57642,"states":["running","cooking","preheating","heating"],"description":"\u538b\u529b\u9505\u9505\u4f53\u4e0e\u628a\u624b\u56fa\u5b9a\uff0c\u9650\u538b\u9600\u6392\u51fa\u84b8\u6c7d"},"printer":{"glyph":57643,"states":["printing","running"],"description":"\u6253\u5370\u673a\u673a\u8eab\u4e0e\u8fdb\u7eb8\u53e3\u56fa\u5b9a\uff0c\u8f93\u51fa\u7eb8\u5f20\u5411\u4e0b\u8f93\u9001"},"relay":{"glyph":57644,"states":["on"],"description":"\u7ee7\u7535\u5668\u7aef\u5b50\u4e0e\u5916\u58f3\u56fa\u5b9a\uff0c\u5185\u90e8\u89e6\u70b9\u4eae\u8d77\u63d0\u793a\u5438\u5408"},"smoke-sensor":{"glyph":57645,"states":["on","detected","alarm"],"description":"\u5706\u5f62\u70df\u611f\u4e0e\u73af\u5f62\u8fdb\u6c14\u53e3\u56fa\u5b9a\uff0c\u62a5\u8b66\u6307\u793a\u706f\u95ea\u52a8"},"speaker":{"glyph":57646,"states":["playing"],"description":"\u97f3\u7bb1\u7bb1\u4f53\u4e0e\u9ad8\u97f3\u5355\u5143\u56fa\u5b9a\uff0c\u4f4e\u97f3\u632f\u819c\u968f\u64ad\u653e\u8282\u5f8b\u53d8\u5316"},"submersion-sensor":{"glyph":57647,"states":["on","detected","alarm"],"description":"\u5730\u9762\u6c34\u6d78\u63a2\u5934\u56fa\u5b9a\uff0c\u68c0\u6d4b\u5230\u6f0f\u6c34\u540e\u6c34\u6ef4\u63d0\u793a\u95ea\u52a8"},"switch":{"glyph":57648,"states":["on"],"description":"\u5899\u58c1\u9762\u677f\u4e0e\u6447\u6746\u56fa\u5b9a\uff0c\u5f00\u542f\u6307\u793a\u706f\u4eae\u8d77"},"temperature-humidity-sensor":{"glyph":57649,"states":[],"description":"\u6e29\u6e7f\u5ea6\u8ba1\u5916\u58f3\u4e0e\u6e29\u5ea6\u7ba1\u56fa\u5b9a\uff0c\u6570\u5b57\u8bfb\u6570\u533a\u57df\u8f7b\u67d4\u53cd\u9988"},"towel-rack":{"glyph":57650,"states":["running","heating","drying"],"description":"\u6bdb\u5dfe\u67b6\u4e0e\u6302\u5dfe\u56fa\u5b9a\uff0c\u52a0\u70ed\u65f6\u70ed\u6d41\u4e0a\u5347"},"treadmill":{"glyph":57651,"states":["running","walking","training"],"description":"\u8dd1\u6b65\u673a\u6276\u624b\u4e0e\u63a7\u5236\u53f0\u56fa\u5b9a\uff0c\u8dd1\u5e26\u6cbf\u811a\u4e0b\u5411\u540e\u8fd0\u8f6c"},"vacuum":{"glyph":57652,"states":["cleaning","returning"],"description":"\u626b\u5730\u673a\u5916\u58f3\u4e0e\u96f7\u8fbe\u56fa\u5b9a\uff0c\u4fa7\u8fb9\u6e05\u626b\u5237\u65cb\u8f6c"},"video-doorbell":{"glyph":57653,"states":["ringing","recording","streaming"],"description":"\u95e8\u94c3\u9762\u677f\u4e0e\u6444\u50cf\u5934\u56fa\u5b9a\uff0c\u547c\u53eb\u6309\u94ae\u968f\u95e8\u94c3\u4e8b\u4ef6\u547c\u5438"},"walking-pad":{"glyph":57654,"states":["running","walking","training"],"description":"\u8d70\u6b65\u673a\u4f4e\u77ee\u673a\u8eab\u56fa\u5b9a\uff0c\u5e73\u6574\u8dd1\u5e26\u5411\u540e\u6d41\u52a8"},"washer":{"glyph":57655,"states":["running","washing","rinsing","spinning","drying"],"description":"\u6d17\u8863\u673a\u673a\u8eab\u4e0e\u4e0a\u65b9\u6309\u952e\u56fa\u5b9a\uff0c\u4e2d\u95f4\u6eda\u7b52\u65cb\u8f6c"},"water-dispenser":{"glyph":57656,"states":["running","dispensing","heating","cooling"],"description":"\u996e\u6c34\u673a\u5916\u58f3\u3001\u51b7\u70ed\u6309\u952e\u4e0e\u676f\u6258\u56fa\u5b9a\uff0c\u51fa\u6c34\u6d41\u5165\u676f\u4e2d"},"water-heater":{"glyph":57657,"states":["running","heating","drying"],"description":"\u58c1\u6302\u70ed\u6c34\u5668\u4e0e\u7ba1\u8def\u56fa\u5b9a\uff0c\u6c34\u7bb1\u5185\u70ed\u6d41\u53cd\u9988\u52a0\u70ed\u72b6\u6001"},"water-purifier":{"glyph":57658,"states":["running","filtering","purifying","producing"],"description":"\u4e09\u652f\u6ee4\u7b52\u4e0e\u8fde\u63a5\u7ba1\u8def\u56fa\u5b9a\uff0c\u51c0\u6c34\u9010\u7ea7\u6d41\u8fc7\u6ee4\u82af"}};
+  /* HA_DEVICE_MOTIONS_END */
+  function deviceGlyph(item) {
+    const authored=deviceIconMotions[quickCardType(item)];
+    if(authored)return String.fromCharCode(authored.glyph);
+    const family=quickCardModel(item).family;
+    return family&&family!=='generic'?thumbnail(item):dashboardIcon(item);
+  }
+  function deviceRunning(item) {
+    if(!connected||!available(item)||layoutEditing)return false;
+    if(['off','idle','paused','standby','completed','finished','stopped','docked'].includes(item.state))return false;
+    // Committed observations only. Pending controlTargets are not evidence
+    // that the appliance has started its mechanism.
+    const family=quickCardModel(item).family,type=quickCardType(item),policy=deviceIconMotions[type];
+    const status=String(item.hvac_action||((item.quick_values||{})[type+'.status']??item.state)).toLowerCase();
+    if(policy)return policy.states.includes(status);
+    if(family==='washer')return ['running','washing','rinsing','spinning','drying'].includes(status);
+    if(family==='vacuum')return ['cleaning','returning'].includes(item.state);
+    if(family==='curtain')return ['opening','closing'].includes(item.state);
+    if(family==='media')return item.state==='playing';
+    if(['lamp','plug','fan','purifier','humidifier'].includes(family))return item.state==='on';
+    if(['climate','heater','kitchen'].includes(family))return ['running','heating','cooling','cooking','drying'].includes(status);
+    return false;
   }
 
   // Mi quick-card categories mapped to HA properties. Registration describes
@@ -2931,9 +2958,9 @@
   }
   function detailIcon(id,value,x,y,w,h,mode,color){
     // Icon fonts paint from the top; text alignment only centers horizontally.
-    const pixels=mode===3?32:24;
-    detailText(id,value,x,y+(h-pixels)/2,w,pixels+4,pixels,color,true);
-    pushStyle(id,'I',{icon:mode,fontSize:pixels,center:1});
+    const pixels=mode===2?64:mode===3?32:24;
+    detailText(id,value,x,y+(h-pixels)/2,w,pixels+4,Math.min(pixels,32),color,true);
+    pushStyle(id,'I',{icon:mode,fontSize:Math.min(pixels,32),center:1});
   }
   function paintDetailButton(button,caption,x,y,w,h,active,usable,font=14){
     const out=widgets;
@@ -3083,11 +3110,13 @@
       if(b.face){hide(b.face,false);pushPos(b.face,x,y);pushSize(b.face,w,h);pushColor(b.face,b.color,usable&&paint['c'+b.face]!==undefined);
         text(b.caption,caption,x,y+(h-24)/2,w,24,16,!usable?pal.muted:active?pal.blue:pal.ink);pushStyle(b.caption,'L',{fontSize:16,center:1});}
     };
-    hide(u.icon,false);pushPos(u.icon,left,box.y+25);pushSize(u.icon,46,46);pushColor(u.icon,pal.blueSoft);pushStyle(u.icon,'S',{radius:15});
-    detailIcon(u.glyph,'\uf0eb',left,box.y+25,46,46,1,pal.blue);
-    text(out.detailName,fit(currentDeviceCard().name,box.w-180,23),left+58,box.y+20,box.w-160,33,23);
+    const iconSize=detailDesign.icon,nameX=left+iconSize+12,nameWidth=box.x+box.w-80-nameX;
+    hide(u.icon,true);
+    detailIcon(u.glyph,deviceGlyph(currentDeviceCard()),left,box.y+16,iconSize,iconSize,2,pal.blue);
+    pushStyle(u.glyph,'R',{iconRunning:deviceRunning(item)?1:0});
+    text(out.detailName,fit(currentDeviceCard().name,nameWidth,23),nameX,box.y+20,nameWidth,33,23);
     const area=entityDevices[item.entity_id]&&entityDevices[item.entity_id].area;
-    text(out.detailState,(area?area+' · ':'')+tr('设备功能'),left+58,box.y+56,box.w-160,22,14,pal.muted);
+    text(out.detailState,(area?area+' · ':'')+tr('设备功能'),nameX,box.y+56,nameWidth,22,14,pal.muted);
     out.detailControlRows.forEach(row=>{row.item=item;row.spec=null;[row.title,row.track,row.fill,row.thumb,row.value,row.minusGlyph,row.plusGlyph].forEach(id=>hide(id,true));});
     const rh=detailDesign.rangeHeight,rowGap=92+detailDesign.fieldGap;
     ranges.forEach((spec,index)=>{
@@ -3223,7 +3252,7 @@
   }
 
   /* HA_DETAIL_DESIGN_BEGIN */
-  const detailDesign = {"padding":20,"minHeight":384,"headerHeight":54,"headerGap":22,"icon":46,"title":23,"columnGap":36,"primaryMax":400,"fieldGap":23,"label":15,"value":22,"labelGap":9,"rangeHeight":52,"rangeRadius":18,"thumbHeight":28,"buttonHeight":46,"buttonFont":14,"buttonGap":6,"stepHeight":58,"stepFont":30,"metricFont":43,"layouts":{"bedside":{"left":[["brightness","\u4eae\u5ea6"],["kelvin","\u8272\u6e29"]],"right":[["effect","\u706f\u5149\u6548\u679c"]],"readings":[]},"outlet":{"left":[["watt","\u5f53\u524d\u529f\u7387"]],"right":[["today","\u4eca\u65e5\u7528\u7535"],["voltage","\u7535\u538b"]],"readings":[]},"fan":{"left":[["speed","\u98ce\u901f"],["preset","\u8fd0\u884c\u6a21\u5f0f"]],"right":[["swing","\u6446\u98ce"]],"readings":[]},"climate":{"left":[["target","\u76ee\u6807\u6e29\u5ea6"],["mode","\u8fd0\u884c\u6a21\u5f0f"]],"right":[["fan","\u98ce\u901f"],["swing","\u6446\u98ce"]],"readings":[["room-temp","\u5ba4\u6e29"]]},"cover":{"left":[["position","\u5f00\u542f\u7a0b\u5ea6"],["move","\u7a97\u5e18\u63a7\u5236"]],"right":[["favorite","\u5e38\u7528\u4f4d\u7f6e"]],"readings":[]},"purifier":{"left":[["pm25","PM2.5"],["speed","\u98ce\u901f"]],"right":[["preset","\u51c0\u5316\u6a21\u5f0f"],["filter","\u6ee4\u82af\u4f59\u91cf"]],"readings":[]},"humidifier":{"left":[["humidity","\u76ee\u6807\u6e7f\u5ea6"],["current","\u5f53\u524d\u6e7f\u5ea6"]],"right":[["mode","\u52a0\u6e7f\u6a21\u5f0f"]],"readings":[]},"speaker":{"left":[["volume","\u97f3\u91cf"],["playback","\u64ad\u653e\u63a7\u5236"]],"right":[["mute","\u9759\u97f3"],["source","\u97f3\u6e90"]],"readings":[]},"vacuum":{"left":[["state","\u5f53\u524d\u72b6\u6001"],["clean","\u6e05\u626b\u63a7\u5236"]],"right":[["suction","\u5438\u529b"],["battery","\u7535\u91cf"]],"readings":[]},"heater":{"left":[["target","\u76ee\u6807\u6c34\u6e29"],["current","\u5f53\u524d\u6c34\u6e29"]],"right":[["mode","\u52a0\u70ed\u6a21\u5f0f"]],"readings":[]},"sensor":{"left":[["temperature","\u6e29\u5ea6"],["humidity","\u6e7f\u5ea6"]],"right":[["battery","\u7535\u91cf"],["state","\u8bbe\u5907\u72b6\u6001"]],"readings":[]}},"columnRatio":1.45};
+  const detailDesign = {"padding":20,"minHeight":384,"headerHeight":72,"headerGap":4,"icon":72,"title":23,"columnGap":36,"primaryMax":400,"fieldGap":23,"label":15,"value":22,"labelGap":9,"rangeHeight":52,"rangeRadius":18,"thumbHeight":28,"buttonHeight":46,"buttonFont":14,"buttonGap":6,"stepHeight":58,"stepFont":30,"metricFont":43,"layouts":{"bedside":{"left":[["brightness","\u4eae\u5ea6"],["kelvin","\u8272\u6e29"]],"right":[["effect","\u706f\u5149\u6548\u679c"]],"readings":[]},"outlet":{"left":[["watt","\u5f53\u524d\u529f\u7387"]],"right":[["today","\u4eca\u65e5\u7528\u7535"],["voltage","\u7535\u538b"]],"readings":[]},"fan":{"left":[["speed","\u98ce\u901f"],["preset","\u8fd0\u884c\u6a21\u5f0f"]],"right":[["swing","\u6446\u98ce"]],"readings":[]},"climate":{"left":[["target","\u76ee\u6807\u6e29\u5ea6"],["mode","\u8fd0\u884c\u6a21\u5f0f"]],"right":[["fan","\u98ce\u901f"],["swing","\u6446\u98ce"]],"readings":[["room-temp","\u5ba4\u6e29"]]},"cover":{"left":[["position","\u5f00\u542f\u7a0b\u5ea6"],["move","\u7a97\u5e18\u63a7\u5236"]],"right":[["favorite","\u5e38\u7528\u4f4d\u7f6e"]],"readings":[]},"purifier":{"left":[["pm25","PM2.5"],["speed","\u98ce\u901f"]],"right":[["preset","\u51c0\u5316\u6a21\u5f0f"],["filter","\u6ee4\u82af\u4f59\u91cf"]],"readings":[]},"humidifier":{"left":[["humidity","\u76ee\u6807\u6e7f\u5ea6"],["current","\u5f53\u524d\u6e7f\u5ea6"]],"right":[["mode","\u52a0\u6e7f\u6a21\u5f0f"]],"readings":[]},"speaker":{"left":[["volume","\u97f3\u91cf"],["playback","\u64ad\u653e\u63a7\u5236"]],"right":[["mute","\u9759\u97f3"],["source","\u97f3\u6e90"]],"readings":[]},"vacuum":{"left":[["state","\u5f53\u524d\u72b6\u6001"],["clean","\u6e05\u626b\u63a7\u5236"]],"right":[["suction","\u5438\u529b"],["battery","\u7535\u91cf"]],"readings":[]},"heater":{"left":[["target","\u76ee\u6807\u6c34\u6e29"],["current","\u5f53\u524d\u6c34\u6e29"]],"right":[["mode","\u52a0\u70ed\u6a21\u5f0f"]],"readings":[]},"sensor":{"left":[["temperature","\u6e29\u5ea6"],["humidity","\u6e7f\u5ea6"]],"right":[["battery","\u7535\u91cf"],["state","\u8bbe\u5907\u72b6\u6001"]],"readings":[]}},"columnRatio":1.45};
   /* HA_DETAIL_DESIGN_END */
   function detailExtra(row,name,color){
     if(row[name]===undefined){row[name]=color===undefined?label('',0,0,4,4,15,pal.ink):panel(0,0,4,4,color,12);widgets.detailWidgets.push(row[name]);(widgets.detailDecorations||(widgets.detailDecorations=[])).push(row[name]);}
@@ -3266,11 +3295,13 @@
       u.power=createButton('',0,0,48,48,()=>toggleItem(lookupEntity(u.entity)),pal.track,{radius:24,borderWidth:0});u.power.section='detail';out.profileUi=u;
     }
     const u=out.profileUi;u.entity=item.entity_id;
-    hide(u.icon,false);pushPos(u.icon,left,box.y+25);pushSize(u.icon,D.icon,D.icon);pushColor(u.icon,pal.blueSoft);
-    detailIcon(u.glyph,dashboardIcon(device),left,box.y+25,D.icon,D.icon,3,pal.blue);
-    detailText(out.detailName,device.name,left+D.icon+12,box.y+20,box.w-160,33,D.title,pal.ink);
+    hide(u.icon,true);
+    detailIcon(u.glyph,deviceGlyph(device),left,box.y+16,D.icon,D.icon,2,pal.blue);
+    pushStyle(u.glyph,'R',{iconRunning:deviceRunning(item)?1:0});
+    const nameWidth=box.x+box.w-80-(left+D.icon+12);
+    detailText(out.detailName,fit(device.name,nameWidth,D.title),left+D.icon+12,box.y+20,nameWidth,33,D.title,pal.ink);
     const area=entityDevices[item.entity_id]&&entityDevices[item.entity_id].area;
-    detailText(out.detailState,(area?area+' · ':'')+(profile.readonly?tr('传感器只读'):tr('设备功能')),left+D.icon+12,box.y+56,box.w-160,22,14,pal.muted);
+    detailText(out.detailState,(area?area+' · ':'')+(profile.readonly?tr('传感器只读'):tr('设备功能')),left+D.icon+12,box.y+56,nameWidth,22,14,pal.muted);
     const all=deviceFields(members),used=new Set(),own=field=>field.item.entity_id===item.entity_id;
     const power=all.find(f=>own(f)&&f.spec.kind==='action'&&['turn_on','turn_off'].includes(f.spec.service));if(power)used.add(power);
     const usable=connected&&available(item)&&!layoutEditing&&!item.product_readonly,px=box.x+box.w-D.padding-44,py=box.y+25;
@@ -3863,6 +3894,7 @@
           y:q.brightnessRect.y,w:q.brightnessRect.inputW===undefined?q.brightnessRect.w:q.brightnessRect.inputW,h:q.brightnessRect.h,
           value:displayBrightness(q.item)})),
       deviceCards:groupedDeviceCards().map(card=>({card_id:card.card_id,device_id:card.device_id,
+        iconGlyph:deviceGlyph(card).charCodeAt(0),iconRunning:deviceRunning(card),
         entity_id:card.entity_id,name:card.name,model:card.device_model,readonly:!!card.product_readonly,
         members:card.device_entities,quickReference:selectQuickReference(card),cardSize:cardSize(card),commonProfile:commonCardProfile(card)?.id||null,
         readings:profileReadings(card).map(row=>({key:row.key,title:row.title,display:row.display,source:row.source,alert:row.alert}))})),
@@ -3979,34 +4011,37 @@
     const brightness=light&&item.dimmable&&!item.product_readonly,range=!!spec||brightness;
     const stepper=spec&&spec.key==='temperature',usable=connected&&available(main);
     const service=powerIsOn(item)?'turn_off':'turn_on',power=!isSceneCommand(item)&&controllable(item)&&supports(item,service);
-    const on=powerIsOn(item),body=y+82,rw=w-32,rh=48;
+    const iconPixels=w>=244&&h>=186?64:32,halo=iconPixels+8;
+    const nameOffset=16+halo+12,nameWidth=w-nameOffset-(power?60:16),headShift=iconPixels===64?10:0;
+    const on=powerIsOn(item),body=y+Math.max(82,halo+28),rw=w-32,rh=48;
     if(range&&!card.thumb)card.thumb=panel(0,0,6,28,0xffffff,3);
     card.quickSpec=spec;
     hide(card.iconBase,true);hide(card.unit,true);hide(card.switchFace,true);
     pushPos(card.panel,x,y);pushSize(card.panel,w,h);pushColor(card.panel,pal.card);
     pushStyle(card.panel,'S',{radius:20,borderWidth:0});
-    hide(card.powerHalo,false);pushPos(card.powerHalo,x+16,y+18);pushSize(card.powerHalo,40,40);
-    pushStyle(card.powerHalo,'S',{radius:20});pushColor(card.powerHalo,pal.blueSoft,!quickDrag&&!lampWheelDrag&&paint['c'+card.powerHalo]!==undefined);
-    hide(card.icon,false);pushPos(card.icon,x+24,y+26);pushSize(card.icon,24,28);
-    pushStyle(card.icon,'I',{fontSize:24,icon:1,center:1});pushText(card.icon,commonCardProfile(item)?.readonly?'\uf071':dashboardIcon(item));pushColor(card.icon,pal.blue);if(typeof ui.front==='function')ui.front(card.icon);
-    card.passiveRegion={x:x+16,y:y+18,w:40,h:40};
-    hide(card.name,false);pushPos(card.name,x+66,y+17);pushSize(card.name,w-(power?126:82),26);
-    pushStyle(card.name,'L',{fontSize:18,ellipsis:1});pushText(card.name,fit(item.name,w-(power?126:82),18));pushColor(card.name,pal.ink);
-    hide(card.state,false);pushPos(card.state,x+66,y+44);pushSize(card.state,w-(power?126:82),24);
+    hide(card.powerHalo,true);
+    hide(card.icon,false);pushPos(card.icon,x+20,y+18);pushSize(card.icon,iconPixels,iconPixels+4);
+    pushStyle(card.icon,'I',{icon:iconPixels===64?2:3,center:1});pushText(card.icon,deviceGlyph(item));
+    pushStyle(card.icon,'R',{iconRunning:deviceRunning(item)?1:0});
+    pushColor(card.icon,pal.blue);if(typeof ui.front==='function')ui.front(card.icon);
+    card.passiveRegion={x:x+16,y:y+16,w:halo,h:halo};
+    hide(card.name,false);pushPos(card.name,x+nameOffset,y+17+headShift);pushSize(card.name,nameWidth,26);
+    pushStyle(card.name,'L',{fontSize:18,ellipsis:1});pushText(card.name,fit(item.name,nameWidth,18));pushColor(card.name,pal.ink);
+    hide(card.state,false);pushPos(card.state,x+nameOffset,y+44+headShift);pushSize(card.state,nameWidth,24);
     pushStyle(card.state,'L',{fontSize:14,ellipsis:1,center:0});pushColor(card.state,pal.muted);
     const status=range?spec?formatControl(spec,controlValue(main,spec)):displayBrightness(item)+'%':model.subtitle;
     const intent=controlTargets[item.entity_id],feedback=controlFeedback[item.entity_id];
     const progress=intent?(intent.slow?(intent.sent?'等待设备回报':'等待前序操作'):intent.sent?(pending&&pending.kind==='verify'&&pending.entityId===item.entity_id?'正在核对':'正在提交'):'等待执行'):feedback&&feedback.text;
     const powerText=on?tr('已开启'):tr('已关闭');
     const stateText=!connected?'缓存 · 待同步':!available(item)?(item.state==='unknown'?tr('状态未知'):tr('设备离线')):status+(power&&status.indexOf(powerText)<0?' · '+powerText:'');
-    pushText(card.state,fit(progress||stateText,w-(power?126:82),14));
+    pushText(card.state,fit(progress||stateText,nameWidth,14));
     pushColor(card.state,feedback&&!intent?(feedback.kind==='error'?pal.warn:pal.good):pal.muted);
-    hide(card.powerGlyph,!power);pushPos(card.powerGlyph,x+w-46,y+26);pushSize(card.powerGlyph,24,28);
+    hide(card.powerGlyph,!power);pushPos(card.powerGlyph,x+w-46,y+26+headShift);pushSize(card.powerGlyph,24,28);
     pushStyle(card.powerGlyph,'I',{fontSize:24,icon:1,center:1});pushText(card.powerGlyph,'\uf011');pushColor(card.powerGlyph,on?(dark?0xc7ffdf:0x13744d):pal.muted);
     if(power){if(!card.switchFace)card.switchFace=panel(0,0,36,36,pal.track,18);hide(card.switchFace,false);
-      pushPos(card.switchFace,x+w-52,y+20);pushSize(card.switchFace,36,36);pushStyle(card.switchFace,'S',{radius:18});pushColor(card.switchFace,on?(dark?0x234936:0xdcf7e8):pal.track,!quickDrag&&!lampWheelDrag&&paint['c'+card.switchFace]!==undefined);
+      pushPos(card.switchFace,x+w-52,y+20+headShift);pushSize(card.switchFace,36,36);pushStyle(card.switchFace,'S',{radius:18});pushColor(card.switchFace,on?(dark?0x234936:0xdcf7e8):pal.track,!quickDrag&&!lampWheelDrag&&paint['c'+card.switchFace]!==undefined);
       if(typeof ui.front==='function')ui.front(card.powerGlyph);}
-    Object.assign(card.iconButton,{x:x+w-60,y:y+14,w:48,h:48});card.iconButton._cardVisible=power;
+    Object.assign(card.iconButton,{x:x+w-60,y:y+14+headShift,w:48,h:48});card.iconButton._cardVisible=power;
     card.iconButton.style.enabled=usable?1:0;hide(card.iconButton,!power);
     Object.assign(card.button,{x,y:y+h-42,w,h:38});card.button._cardVisible=true;hide(card.button,false);
     hide(card.moreLabel,false);pushPos(card.moreLabel,x+16,y+h-35);pushSize(card.moreLabel,w-32,26);
@@ -4032,8 +4067,8 @@
       return;
     }
     if(commonCardProfile(item)?.layout==='camera'){
-      const previewH=WATERFALL?Math.max(48,h-136):48;
-      pushText(card.state,fit(available(item)?friendlyState(item):tr('设备离线'),w-82,14));
+      const previewH=WATERFALL?Math.max(48,h-(body-y)-54):48;
+      pushText(card.state,fit(available(item)?friendlyState(item):tr('设备离线'),nameWidth,14));
       hide(card.track,false);pushPos(card.track,x+16,body);pushSize(card.track,rw,previewH);pushColor(card.track,pal.page);
       pushStyle(card.track,'S',{radius:12,borderWidth:0});pushStyle(card.track,'G',{gradientHorizontal:0,gradientVertical:0});
       if(!card.cameraGlyph)card.cameraGlyph=label('',0,0,32,36,32,pal.muted,3);

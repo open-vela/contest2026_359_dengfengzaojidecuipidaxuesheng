@@ -36,6 +36,7 @@ void portal_desktop_publish(const uint8_t values[4]);
 bool portal_desktop_take(uint8_t values[4]);
 bool portal_relative_path(const char *path);
 int portal_public_path(const char *relative,char *out,size_t capacity);
+int portal_public_write_path(const char *relative,char *out,size_t capacity);
 int portal_remove_tree(const char *path);
 int portal_install_begin(const cJSON *manifest,char *error,size_t capacity);
 int portal_install_target(const char *relative,char *out,size_t capacity);

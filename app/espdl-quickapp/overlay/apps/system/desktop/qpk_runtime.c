@@ -1366,7 +1366,7 @@ static JSValue js_ui_text(JSContext *context, JSValueConst this_value,
     }
 
   size = qpk_arg_int(context, argc, argv, 3, 20);
-  label = lv_label_create(g_qpk.root);
+  label = glass_icon_create(g_qpk.root);
   if (label == NULL)
     {
       JS_FreeCString(context, text);
@@ -1447,7 +1447,7 @@ static JSValue js_ui_number(JSContext *context, JSValueConst this_value,
   lv_obj_remove_flag(container, LV_OBJ_FLAG_CLICKABLE |
                              LV_OBJ_FLAG_SCROLLABLE);
 
-  label = lv_label_create(container);
+  label = glass_icon_create(container);
   if (label == NULL)
     {
       lv_obj_delete(container);
@@ -1684,17 +1684,17 @@ static JSValue js_ui_set_style(JSContext *context, JSValueConst this_value,
 {
   static const char *names[] = {"radius", "borderColor", "borderWidth",
     "borderOpacity", "textColor", "fontSize", "center", "ellipsis", "enabled", "icon",
-    "gradientEnd", "gradientHorizontal", "gradientVertical", "gradientMainStop", "gradientEndStop", "rightAlign", "pressLock"};
-  static const int limits[] = {64, 0xffffff, 8, 255, 0xffffff, 48, 1, 1, 1, 3, 0xffffff, 1, 1, 255, 255, 1, 1};
-  int32_t values[17];
-  bool present[17];
+    "gradientEnd", "gradientHorizontal", "gradientVertical", "gradientMainStop", "gradientEndStop", "rightAlign", "pressLock", "iconRunning"};
+  static const int limits[] = {64, 0xffffff, 8, 255, 0xffffff, 48, 1, 1, 1, 3, 0xffffff, 1, 1, 255, 255, 1, 1, 1};
+  int32_t values[18];
+  bool present[18];
   int handle = qpk_arg_int(context, argc, argv, 0, 0);
   if (handle <= 0 || handle > g_qpk.widget_capacity || !g_qpk.widgets[handle - 1])
     return JS_ThrowRangeError(context, "invalid widget handle");
   if (argc < 2 || !JS_IsObject(argv[1]))
     return JS_ThrowTypeError(context, "style must be an object");
   uint64_t generation = g_qpk.widget_generations[handle - 1];
-  for (unsigned i = 0; i < 17; i++)
+  for (unsigned i = 0; i < 18; i++)
     {
       JSValue value = JS_GetPropertyStr(context, argv[1], names[i]);
       if (JS_IsException(value)) return JS_EXCEPTION;
@@ -1728,6 +1728,7 @@ static JSValue js_ui_set_style(JSContext *context, JSValueConst this_value,
   }
   if (label)
     {
+      if (present[17]) glass_icon_set_running(label, values[17] != 0);
       if (present[4]) lv_obj_set_style_text_color(label, lv_color_hex(values[4]), 0);
       if (present[5] && g_qpk.font_cb)
         lv_obj_set_style_text_font(label, g_qpk.font_cb(values[5]), 0);
@@ -2165,7 +2166,7 @@ static lv_obj_t *qpk_input_button(lv_obj_t *parent, const char *text,
   glass_input_guard_install(button);
   lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, NULL);
   if(desktop_motion_button)desktop_motion_button(button);
-  label = lv_label_create(button);
+  label = glass_icon_create(button);
   if (label == NULL)
     {
       lv_obj_delete(button);
@@ -2297,7 +2298,7 @@ static JSValue js_prompt_input(JSContext *context,
   lv_obj_set_style_pad_all(box, 0, 0);
   lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
 
-  label = lv_label_create(box);
+  label = glass_icon_create(box);
   if (label == NULL)
     {
       goto err_input;
@@ -2595,7 +2596,7 @@ static JSValue js_ui_button(JSContext *context, JSValueConst this_value,
                brightness>510?0x172033:0xffffff;
   glass_app_control_style(button,button_color,palette.line);
   if(desktop_motion_button)desktop_motion_button(button);
-  label = lv_label_create(button);
+  label = glass_icon_create(button);
   if (label == NULL)
     {
       lv_obj_delete(button);
