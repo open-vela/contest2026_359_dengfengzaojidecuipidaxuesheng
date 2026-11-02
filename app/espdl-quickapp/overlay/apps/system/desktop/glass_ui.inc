@@ -263,7 +263,7 @@ static lv_obj_t *glass_number(lv_obj_t *parent, const char *text,
 static lv_obj_t *glass_symbol(lv_obj_t *parent, const char *text,
                               int x, int y, uint32_t color)
 {
-  lv_obj_t *label = lv_label_create(parent);
+  lv_obj_t *label = glass_icon_create(parent);
   lv_label_set_text(label, text);
   lv_obj_set_pos(label, x, y);
   lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
@@ -636,6 +636,7 @@ static void glass_weather_home_resume(void)
 
 static void glass_palette_select(lv_event_t *e)
 {
+  g_settings_feedback_pending = GLASS_ICON_SPARKLES;
   g_glass.palette = (unsigned int)(uintptr_t)lv_event_get_user_data(e);
   glass_rebuild();
   glass_save_preferences();
@@ -843,14 +844,23 @@ static void glass_system_page_async(void *unused)
 #endif
   else if (g_system_page_kind == SETTINGS_PORTAL) glass_portal_open(NULL);
   else if (g_system_page_kind == SETTINGS_ABOUT) about_clicked(NULL);
+#ifdef GLASS_LOCAL_VOICE
+  else if (g_system_page_kind == SETTINGS_LOCAL_VOICE) glass_local_voice_settings(NULL);
+#endif
   else glass_wifi_page(NULL);
+  /* Navigation replaces the clicked row. Continue that one gesture on its
+   * new selected row, without starting every icon on the destination page. */
+  if(g_desktop.current_card)for(unsigned i=0;i<lv_obj_get_child_count(g_desktop.current_card);i++){
+    lv_obj_t *row=lv_obj_get_child(g_desktop.current_card,i);
+    if(lv_obj_has_state(row,LV_STATE_CHECKED))glass_icon_play_children(row);
+  }
 }
 
 static void glass_system_page_open(lv_event_t *e)
 {
   if (g_system_page_pending) return;
   uintptr_t kind = (uintptr_t)lv_event_get_user_data(e);
-  if (kind > SETTINGS_ABOUT) return;
+  if (kind > SETTINGS_LOCAL_VOICE) return;
   g_system_page_kind = (unsigned int)kind;
   if (lv_async_call(glass_system_page_async, NULL) == LV_RESULT_OK)
     g_system_page_pending = true;
@@ -881,6 +891,7 @@ static void glass_speech_open(lv_event_t *event);
 #include "glass_chat_ui.inc"
 #include "glass_speech_ui.inc"
 #include "glass_navigation.inc"
+#include "glass_local_voice_ui.inc"
 
 static void glass_music(lv_event_t *e)
 {
@@ -1046,25 +1057,25 @@ static void glass_apps_render(void)
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 glass_tr("网络直播"), glass_tr("相册"),
 #endif
-glass_tr("ESPClaw AI 助手"), glass_tr("相机"), glass_tr("音乐"), glass_tr("录音机"), glass_tr("智能家居"), glass_tr("无线触摸板"), "Grok Ball", "2048", glass_tr("你好快应用"), glass_tr("ESP-DL 离线识别"), glass_tr("大肥鱼桌宠"), glass_tr("文件管理")};
+glass_tr("ESPClaw AI 助手"), glass_tr("相机"), glass_tr("音乐"), glass_tr("录音机"), glass_tr("智能家居"), glass_tr("无线触摸板"), "Grok Ball", "2048", glass_tr("你好快应用"), glass_tr("ESP-DL 离线识别"), glass_tr("大肥鱼桌宠"), glass_tr("文件管理"), glass_tr("本地语音")};
   const char *symbols[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 LV_SYMBOL_VIDEO, LV_SYMBOL_IMAGE,
 #endif
 GLASS_ICON_SPARKLES, GLASS_ICON_CAMERA, GLASS_ICON_HEADPHONES, GLASS_ICON_MIC, LV_SYMBOL_HOME, GLASS_ICON_MOUSE,
-                           GLASS_ICON_FACE, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, GLASS_ICON_FISH, LV_SYMBOL_DIRECTORY};
+                           GLASS_ICON_FACE, LV_SYMBOL_KEYBOARD, LV_SYMBOL_EDIT, LV_SYMBOL_EYE_OPEN, GLASS_ICON_FISH, LV_SYMBOL_DIRECTORY, GLASS_ICON_MIC};
   const char *descriptions[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 glass_tr("观看在线直播"), glass_tr("浏览照片与视频"),
 #endif
 glass_tr("对话、创作与助手"), glass_tr("拍照与实时预览"), glass_tr("听音乐、看歌词"), glass_tr("录制与回放声音"), glass_tr("连接与控制设备"), glass_tr("连接电脑与控制指针"),
-glass_tr("语音与趣味互动"), glass_tr("数字合成小游戏"), glass_tr("探索快应用"), glass_tr("本地模型识别"), glass_tr("陪伴你的桌面伙伴"), glass_tr("浏览设备存储与 SD 卡")};
+glass_tr("语音与趣味互动"), glass_tr("数字合成小游戏"), glass_tr("探索快应用"), glass_tr("本地模型识别"), glass_tr("陪伴你的桌面伙伴"), glass_tr("浏览设备存储与 SD 卡"), glass_tr("离线对话与 V2 朗读")};
   lv_event_cb_t callbacks[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 launch_bilibili, launch_local_video,
 #endif
 glass_chat_open, launch_builtin_camera_qapp, glass_music, launch_builtin_recorder_qapp, glass_homeassistant,
-    glass_mouse_open, launch_builtin_ouo_qapp, launch_builtin_2048_qapp, launch_builtin_qapp, launch_builtin_espdl_qapp, launch_builtin_dafeiyu_qapp, glass_files_open};
+    glass_mouse_open, launch_builtin_ouo_qapp, launch_builtin_2048_qapp, launch_builtin_qapp, launch_builtin_espdl_qapp, launch_builtin_dafeiyu_qapp, glass_files_open, glass_local_voice_open};
   const int builtin_count=sizeof(names)/sizeof(names[0]);
   const int total = builtin_count + g_desktop.nqpk;
   const int pages = (total + 8) / 9;

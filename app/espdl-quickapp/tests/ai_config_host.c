@@ -17,6 +17,12 @@
 static atomic_bool quiet=true,auto_ack=true,ui_exit;
 static atomic_uint cancels,writes,reloads;
 static bool write_fail;
+#ifdef GLASS_LOCAL_VOICE
+#include "glass_local_voice.h"
+static unsigned local_cancels;
+void glass_local_voice_cancel_from(enum glv_cancel_source source){assert(source==GLV_CANCEL_CONFIG);assert(glass_ai_config_active());local_cancels++;}
+bool glass_local_voice_config_idle(void){return atomic_load(&quiet);}
+#endif
 static char saved[8193]="{\"model\":\"before\",\"api_key\":\"fixture-secret\"}";
 /* The ASR public state is idle as soon as cancellation is requested. Its
  * transport deliberately remains busy until the test releases quiet. */
@@ -74,6 +80,9 @@ int main(void)
   assert(atomic_load(&cancels)==1);usleep(20000);assert(!atomic_load(&writes));
   quiet=true;assert(!pthread_join(writer,NULL)&&!result);
   assert(atomic_load(&writes)==1&&atomic_load(&reloads)==1&&!glass_ai_config_active());
+#ifdef GLASS_LOCAL_VOICE
+  assert(local_cancels==1);
+#endif
   assert(glass_ai_start_enter());glass_ai_start_leave();
   assert(strstr(saved,"after")&&strstr(saved,"fixture-secret"));
   assert(!patch("{\"model\":\"after\"}")&&atomic_load(&writes)==1);

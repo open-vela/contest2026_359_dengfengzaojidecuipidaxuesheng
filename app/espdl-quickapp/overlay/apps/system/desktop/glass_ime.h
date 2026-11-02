@@ -12,3 +12,5 @@ void glass_ime_set_target(lv_obj_t *keyboard,lv_obj_t *target);
 void glass_ime_commit_tree(lv_obj_t *parent);
 /* Start the same voice input action as the keyboard microphone. UI thread. */
 bool glass_ime_start_voice(lv_obj_t *keyboard);
+/* Offline-only applications disable the shared keyboard's network voice path. */
+void glass_ime_set_voice_enabled(lv_obj_t *keyboard,bool enabled);

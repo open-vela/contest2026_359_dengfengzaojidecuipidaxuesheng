@@ -2,6 +2,9 @@
 
 ESPClaw 开发入口：[agent.md](agent.md) · [Harness 框架](HARNESS.md) · [默认 CSI／USB 多模态摄像头](MULTIMODAL-CAMERA.md)。
 
+图标精修与单次交互动效见 [ICONS.md](ICONS.md)：含设计参考、SVG 导出、光学尺寸、
+原生 LVGL 入口和宿主验证方法。此项尚未烧录验收。
+
 ## LVGL 首页品质升级（待用户审核）
 
 当前首页使用原生 LVGL 对象复刻审核稿，布局固定为 1024×600；保留上游音乐封面，

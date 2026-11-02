@@ -1,158 +1,256 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* UI-thread controller. The existing HA service owns all network I/O.
- * Bindings are explicitly chosen for this page session and never inferred. */
-enum {LOCAL_IDLE,LOCAL_LIST,LOCAL_PRECHECK,LOCAL_CONTROL,LOCAL_VERIFY};
-static void local_voice_picker_close(lv_event_t *event);
-static void local_voice_message(const char *text)
-{if(g_speech_ui.feedback&&strcmp(lv_label_get_text(g_speech_ui.feedback),text))lv_label_set_text(g_speech_ui.feedback,text);}
-static void local_voice_disconnect(void)
+#ifdef GLASS_LOCAL_VOICE
+#include "glass_local_voice.h"
+#include "glass_local_model.h"
+struct local_voice_ui {
+  lv_obj_t *card,*heading,*subtitle,*output,*input,*keyboard,*status,*metrics,*send,*check,*wake,*target,*result,*microphone,*level,*footer,*speak;
+  lv_timer_t *timer;enum glv_mode mode;uint32_t request,revision,transcript_request;unsigned elapsed_second;char reply[GLV_MAX_REPLY],transcript[1025];
+};
+static struct local_voice_ui *g_local_ui;
+static void glass_local_voice_open(lv_event_t *);
+struct local_settings_ui {
+  lv_obj_t *card,*wake,*target,*check,*status,*monitor,*phrase;
+  lv_timer_t *timer;uint32_t revision;
+};
+static struct local_settings_ui *g_local_settings;
+static const char *local_asr_problem(const struct glv_snapshot *s,char *text,size_t cap)
 {
-#ifdef CONFIG_SYSTEM_HASS
-  if(g_speech_ui.client)hass_close(g_speech_ui.client);
-#endif
-  g_speech_ui.client=g_speech_ui.request=0;g_speech_ui.stage=LOCAL_IDLE;
+  if(s->busy||s->config_pending||s->error||!s->models_ready||s->asr_ready||!s->asr_error)return NULL;
+  snprintf(text,cap,"离线转写：%s · 文字功能可用",glass_local_voice_error(s->asr_error));return text;
 }
-static void local_voice_labels(void)
-{for(unsigned i=0;i<3;i++)if(g_speech_ui.binding[i])lv_label_set_text(g_speech_ui.binding[i],g_speech_ui.bound[i].name[0]?g_speech_ui.bound[i].name:glass_tr("选择设备"));}
-static bool local_voice_config(void)
+static void local_settings_poll(lv_timer_t *timer)
 {
-#ifdef CONFIG_SYSTEM_HASS
-  uint32_t revision=hass_configuration_revision();
-  if(g_speech_ui.configuration&&revision!=g_speech_ui.configuration){
-    local_voice_disconnect();local_voice_picker_close(NULL);memset(g_speech_ui.bound,0,sizeof(g_speech_ui.bound));local_voice_labels();
-    g_speech_ui.configuration=revision;local_voice_message(glass_tr("家庭配置已改变，请重新绑定设备"));return false;
-  }
-  g_speech_ui.configuration=revision;
-  if(!g_speech_ui.client){int client=hass_open(HASS_READ|HASS_CONTROL);if(client<=0){local_voice_message(glass_tr("家庭服务不可用，请稍后重试"));return false;}g_speech_ui.client=client;}
-  return true;
-#else
-  local_voice_message(glass_tr("当前固件未启用家庭设备服务"));return false;
-#endif
+  LV_UNUSED(timer);struct local_settings_ui *ui=g_local_settings;if(!ui)return;
+  struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
+  if(ui->revision==s.revision)return;ui->revision=s.revision;
+  lv_obj_t *controls[]={ui->wake,ui->target,ui->check};
+  for(unsigned i=0;i<3;i++)if(s.busy||s.config_pending)lv_obj_add_state(controls[i],LV_STATE_DISABLED);else lv_obj_remove_state(controls[i],LV_STATE_DISABLED);
+  if(s.wake_enabled)lv_obj_add_state(ui->wake,LV_STATE_CHECKED);else lv_obj_remove_state(ui->wake,LV_STATE_CHECKED);
+  lv_dropdown_set_selected(ui->target,s.local_wake?0:1);
+  lv_label_set_text(ui->phrase,s.local_wake?"你好 openvela":"使用原助手的唤醒配置");
+  lv_label_set_text(ui->monitor,s.config_pending?"正在保存唤醒设置…":s.wake_enabled?"开启后在后台等待唤醒；其他音频任务使用麦克风时会暂停。":"已关闭全局唤醒，APP 的文字对话和朗读仍可使用。");
+  int error=s.error?s.error:!s.models_ready?s.model_error:0;
+  char problem[192];const char *asr=local_asr_problem(&s,problem,sizeof(problem));
+  lv_label_set_text(ui->status,error?glass_local_voice_error(error):s.wake_error?"唤醒模型不可用，可关闭后重新开启":asr?asr:s.busy?"正在处理，请等待或在 APP 中停止":s.models_ready?"大模型已校验 · 语音功能按需加载":"尚未加载模型 · 使用时自动准备");
 }
-static bool local_voice_request(int request,int stage)
+static void local_settings_action(lv_event_t *event)
 {
-  if(request<=0){local_voice_message(request==-EBUSY?glass_tr("家庭服务正忙，请稍后重试"):request==-ENOTCONN?glass_tr("请先配置 Home Assistant"):glass_tr("请求未发送，请检查连接"));return false;}
-  g_speech_ui.request=request;g_speech_ui.stage=stage;g_speech_ui.deadline=lv_tick_get()+12000;return true;
+  if(!g_local_settings)return;struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
+  if(s.busy||s.config_pending)return;
+  intptr_t action=(intptr_t)lv_event_get_user_data(event);int ret=0;
+  if(action==1)ret=glass_local_voice_enable_wake(lv_obj_has_state(g_local_settings->wake,LV_STATE_CHECKED));
+  else if(action==2)ret=glass_local_voice_set_wake(lv_dropdown_get_selected(g_local_settings->target)==0);
+  else if(action==3)ret=glass_local_voice_check(NULL);
+  if(ret)show_toast(glass_local_voice_error(ret));g_local_settings->revision=UINT32_MAX;local_settings_poll(NULL);
 }
-static void local_voice_picker_close(lv_event_t *event)
+static void local_settings_deleted(lv_event_t *event)
 {
-  (void)event;if(g_speech_ui.stage==LOCAL_LIST)local_voice_disconnect();
-  if(g_speech_ui.picker)lv_obj_delete(g_speech_ui.picker);
-  g_speech_ui.picker=g_speech_ui.page_label=NULL;memset(g_speech_ui.rows,0,sizeof(g_speech_ui.rows));
-  free(g_speech_ui.choices);g_speech_ui.choices=NULL;g_speech_ui.choice_count=0;
+  if(!g_local_settings||g_local_settings->card!=lv_event_get_target(event))return;
+  struct local_settings_ui *ui=g_local_settings;g_local_settings=NULL;
+  if(ui->timer)lv_timer_delete(ui->timer);free(ui);
 }
-static void local_voice_choose(lv_event_t *event)
+static void glass_local_voice_settings(lv_event_t *event)
 {
-  unsigned index=(uintptr_t)lv_event_get_user_data(event);
-  bool clear=!index;
-  if(!g_speech_ui.picker||!local_voice_config()||g_speech_ui.stage!=LOCAL_IDLE)return;
-  if(index){index--;if(index>=g_speech_ui.choice_count)return;g_speech_ui.bound[g_speech_ui.role]=g_speech_ui.choices[index];}
-  else memset(&g_speech_ui.bound[g_speech_ui.role],0,sizeof(g_speech_ui.bound[0]));
-  local_voice_labels();local_voice_picker_close(NULL);local_voice_message(clear?glass_tr("已解除绑定"):glass_tr("本次会话绑定已更新"));
+  LV_UNUSED(event);struct local_settings_ui *ui=calloc(1,sizeof(*ui));if(!ui){show_toast("内存不足");return;}
+  lv_obj_t *card=panel_card("本地语音设置");if(!card){free(ui);return;}
+  detail_page(card);ui->card=card;ui->revision=UINT32_MAX;g_local_settings=ui;
+  lv_obj_add_event_cb(card,local_settings_deleted,LV_EVENT_DELETE,NULL);
+  lv_obj_t *back=glass_settings_sidebar(card,SETTINGS_LOCAL_VOICE);g_system_page_kind=SETTINGS_LOCAL_VOICE;
+  lv_obj_t *back_label=lv_obj_get_child(back,0);
+  lv_obj_set_width(back_label,GLASS_SIDEBAR_ITEM_WIDTH-24);lv_obj_set_style_text_align(back_label,LV_TEXT_ALIGN_LEFT,0);
+  lv_obj_align(back_label,LV_ALIGN_LEFT_MID,12,0);
+  detail_text(card,"本地语音",212,30,600,28,detail_ink());
+  detail_text(card,"默认文字对话 · 朗读与唤醒按需启用",212,70,700,16,detail_muted());
+  lv_obj_t *tile=detail_tile(card,212,108,788,150);
+  detail_text(tile,"全局唤醒",24,22,560,20,detail_ink());
+  ui->phrase=detail_text(tile,"",24,59,600,16,detail_muted());
+  ui->monitor=detail_text(tile,"",24,103,732,14,detail_muted());
+  ui->wake=lv_switch_create(tile);glass_control_switch_style(ui->wake);
+  lv_obj_set_pos(ui->wake,710,22);lv_obj_set_size(ui->wake,52,28);
+  lv_obj_set_style_bg_color(ui->wake,lv_color_hex(detail_accent()),LV_PART_INDICATOR|LV_STATE_CHECKED);
+  lv_obj_add_event_cb(ui->wake,local_settings_action,LV_EVENT_VALUE_CHANGED,(void *)1);
+  tile=detail_tile(card,212,278,788,106);
+  detail_text(tile,"唤醒后打开",24,22,340,20,detail_ink());
+  detail_text(tile,"可随时切回原助手",24,60,340,14,detail_muted());
+  ui->target=lv_dropdown_create(tile);glass_input_style(ui->target);
+  lv_obj_set_pos(ui->target,420,28);lv_obj_set_size(ui->target,340,44);
+  lv_obj_set_style_text_font(ui->target,home_font(16),0);
+  lv_obj_set_style_text_font(ui->target,glass_icon_font(16),LV_PART_INDICATOR);
+  lv_dropdown_set_options(ui->target,"本地语音 APP\n原助手");
+  lv_obj_t *list=lv_dropdown_get_list(ui->target);
+  lv_obj_set_style_text_font(list,home_font(16),0);lv_obj_set_style_text_color(list,lv_color_hex(detail_ink()),0);
+  lv_obj_set_style_bg_color(list,lv_color_hex(detail_paper()),0);
+  lv_obj_add_event_cb(ui->target,local_settings_action,LV_EVENT_VALUE_CHANGED,(void *)2);
+  tile=detail_tile(card,212,404,788,112);
+  detail_text(tile,"模型资源",24,20,540,20,detail_ink());
+  ui->status=detail_text(tile,"",24,62,560,14,detail_muted());
+  ui->check=detail_button(tile,"完整检查",620,28,140,local_settings_action,(void *)3);
+  detail_text(card,"本地 APP 不使用云端转写；选择原助手后沿用原助手的语音设置。",212,536,788,14,detail_muted());
+  ui->timer=lv_timer_create(local_settings_poll,200,NULL);local_settings_poll(NULL);
 }
-static void local_voice_picker_render(void)
+static void local_keyboard_close(void)
 {
-  if(!g_speech_ui.picker)return;
-  for(unsigned i=0;i<4;i++){if(g_speech_ui.rows[i])lv_obj_delete(g_speech_ui.rows[i]);g_speech_ui.rows[i]=NULL;}
-  for(unsigned i=0;i<4;i++){
-    unsigned index=g_speech_ui.page*4+i;if(index>=g_speech_ui.choice_count)break;
-    struct local_voice_device *device=&g_speech_ui.choices[index];
-    lv_obj_t *button=glass_button(g_speech_ui.picker,device->name,20,72+i*68,904,theme_card(),local_voice_choose,(void *)(uintptr_t)(index+1));
-    g_speech_ui.rows[i]=button;
-    lv_obj_t *label=lv_obj_get_child(button,0);lv_obj_set_width(label,850);lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
-  }
-  lv_label_set_text_fmt(g_speech_ui.page_label,"%u / %u%s",g_speech_ui.page+1,(g_speech_ui.choice_count+3)/4? (g_speech_ui.choice_count+3)/4:1,g_speech_ui.truncated?glass_tr(" · 仅前 32 台"):"");
+  if(!g_local_ui||!g_local_ui->keyboard)return;
+  lv_obj_t *keyboard=g_local_ui->keyboard;g_local_ui->keyboard=NULL;
+  glass_ime_commit(keyboard);lv_obj_delete(keyboard);
+  lv_obj_set_y(g_local_ui->input,354);lv_obj_remove_flag(g_local_ui->result,LV_OBJ_FLAG_HIDDEN);
 }
-static void local_voice_picker_step(lv_event_t *event)
+static void local_keyboard_ready(lv_event_t *event){LV_UNUSED(event);local_keyboard_close();}
+static void local_input_focus(lv_event_t *event)
 {
-  int page=(int)g_speech_ui.page+((uintptr_t)lv_event_get_user_data(event)?1:-1);
-  if(page<0||(unsigned)page*4>=g_speech_ui.choice_count)return;
-  g_speech_ui.page=page;local_voice_picker_render();
+  LV_UNUSED(event);if(!g_local_ui||g_local_ui->keyboard)return;
+  struct local_voice_ui *ui=g_local_ui;
+  lv_obj_add_flag(ui->result,LV_OBJ_FLAG_HIDDEN);lv_obj_set_y(ui->input,108);
+  ui->keyboard=lv_keyboard_create(ui->card);
+  glass_keyboard_style(ui->keyboard);
+  /* LVGL keyboards start bottom-centred. Select the coordinate origin
+   * explicitly, and reserve 48 px above the keys for the IME candidate bar. */
+  lv_obj_set_size(ui->keyboard,788,GLASS_CONTENT_HEIGHT-232);
+  lv_obj_align(ui->keyboard,LV_ALIGN_TOP_LEFT,212,232);
+  lv_keyboard_set_textarea(ui->keyboard,ui->input);
+  glass_ime_attach(ui->keyboard,home_font(18),true,detail_ink(),detail_paper(),detail_accent());
+  glass_ime_set_voice_enabled(ui->keyboard,false);
+  lv_obj_add_event_cb(ui->keyboard,local_keyboard_ready,LV_EVENT_READY,NULL);
+  lv_obj_add_event_cb(ui->keyboard,local_keyboard_ready,LV_EVENT_CANCEL,NULL);
 }
-static void local_voice_picker_open(lv_event_t *event)
+static const char *local_phase_text(enum glv_phase phase)
 {
-  struct speech_snapshot speech;glass_speech_get(&speech);
-  if(speech.active||g_speech_ui.stage!=LOCAL_IDLE){show_toast(glass_tr("请先停止聆听或等待当前操作完成"));return;}
-  if(g_speech_ui.picker||!local_voice_config())return;
-  g_speech_ui.choices=calloc(32,sizeof(*g_speech_ui.choices));if(!g_speech_ui.choices){local_voice_message(glass_tr("内存不足，无法读取设备"));return;}
-  g_speech_ui.role=(uintptr_t)lv_event_get_user_data(event);g_speech_ui.page=g_speech_ui.choice_count=0;g_speech_ui.truncated=g_speech_ui.sent=g_speech_ui.list_ok=false;
-  const char *titles[]={glass_tr("选择灯光"),glass_tr("选择窗帘"),glass_tr("选择风扇")};
-  lv_obj_t *panel=glass_box(g_speech_ui.root,12,64,952,472,theme_surface(),16);g_speech_ui.picker=panel;
-  glass_text(panel,titles[g_speech_ui.role],20,18,640,24,theme_primary());
-  glass_button(panel,glass_tr("返回"),812,12,120,theme_card(),local_voice_picker_close,NULL);
-  g_speech_ui.page_label=glass_text(panel,glass_tr("正在读取设备…"),196,404,340,16,theme_secondary());
-  glass_button(panel,glass_tr("解除绑定"),20,398,156,theme_card(),local_voice_choose,NULL);
-  glass_button(panel,glass_tr("上一页"),578,398,156,theme_card(),local_voice_picker_step,NULL);
-  glass_button(panel,glass_tr("下一页"),750,398,156,theme_card(),local_voice_picker_step,(void *)1);
-#ifdef CONFIG_SYSTEM_HASS
-  if(!local_voice_request(hass_get(g_speech_ui.client,"states"),LOCAL_LIST))lv_label_set_text(g_speech_ui.page_label,glass_tr("读取未开始，返回后重试"));
-#endif
+  static const char *names[]={"待命","检查 SD 模型","加载对话模型","正在思考","处理中文发音","加载 V2 声音","正在合成","正在朗读","正在停止","处理未完成","加载离线转写","离线转写中","正在聆听","检查转写模型","处理输入文字","计算首个回答"};
+  return (unsigned)phase<sizeof(names)/sizeof(names[0])?names[phase]:"待命";
 }
-static void local_voice_execute(int command)
+static void local_ui_poll(lv_timer_t *timer)
 {
-  if(command<1||command>6)return;
-  if(g_speech_ui.stage!=LOCAL_IDLE){local_voice_message(glass_tr("上一条设备指令仍在处理中，请稍后重说"));return;}
-  int role=(command-1)/2;
-  if(!g_speech_ui.bound[role].entity[0]){local_voice_message(glass_tr("该类设备尚未绑定，请先停止聆听并选择设备"));return;}
-  if(!local_voice_config())return;
-  g_speech_ui.role=role;g_speech_ui.on=command%2;g_speech_ui.sent=false;
-  strcpy(g_speech_ui.entity,g_speech_ui.bound[role].entity);
-#ifdef CONFIG_SYSTEM_HASS
-  if(local_voice_request(hass_get_state(g_speech_ui.client,g_speech_ui.entity),LOCAL_PRECHECK))local_voice_message(glass_tr("正在读取绑定设备状态…"));
-#endif
-}
-static void local_voice_poll(void)
-{
-#ifdef CONFIG_SYSTEM_HASS
-  if(!g_speech_ui.client||!local_voice_config())return;
-  uint32_t now=lv_tick_get();
-  if(g_speech_ui.stage!=LOCAL_IDLE&&(int32_t)(now-g_speech_ui.deadline)>=0){
-    local_voice_message(g_speech_ui.sent?glass_tr("控制结果未确认，请查看设备；不会自动重发"):glass_tr("读取超时，未发送设备控制"));local_voice_disconnect();return;
-  }
-  if(g_speech_ui.stage==LOCAL_VERIFY&&!g_speech_ui.request&&(int32_t)(now-g_speech_ui.verify_at)>=0){
-    if((int32_t)(now-g_speech_ui.verify_deadline)>=0){local_voice_message(glass_tr("控制结果未确认，请查看设备；不会自动重发"));g_speech_ui.stage=LOCAL_IDLE;return;}
-    int request=hass_get_state(g_speech_ui.client,g_speech_ui.entity);
-    if(request>0)g_speech_ui.request=request;else g_speech_ui.verify_at=now+500;
-  }
-  if(!g_speech_ui.request)return;
-  struct hass_result_s result={0};int ret=hass_poll(g_speech_ui.client,&result);
-  if(ret<0){local_voice_message(g_speech_ui.sent?glass_tr("控制结果未确认，请查看设备"):glass_tr("设备状态读取失败，未发送控制"));local_voice_disconnect();return;}
-  if(!result.done){hass_result_free(&result);return;}
-  if(result.request_id!=g_speech_ui.request){hass_result_free(&result);local_voice_message(glass_tr("设备响应已过期，请重试"));local_voice_disconnect();return;}
-  int stage=g_speech_ui.stage;g_speech_ui.request=0;bool ok=!result.error&&result.status>=200&&result.status<300;
-  cJSON *json=ok?local_voice_json(result.body):NULL;
-  if(stage==LOCAL_LIST){
-    if(cJSON_IsArray(json)){
-      g_speech_ui.list_ok=true;
-      const cJSON *item;cJSON_ArrayForEach(item,json)if(local_voice_allowed(item,g_speech_ui.role,NULL)){
-        if(g_speech_ui.choice_count==32){g_speech_ui.truncated=true;continue;}
-        struct local_voice_device *device=&g_speech_ui.choices[g_speech_ui.choice_count++];
-        strcpy(device->entity,local_voice_string(item,"entity_id"));
-        const cJSON *attr=cJSON_GetObjectItemCaseSensitive(item,"attributes");const char *name=local_voice_string(attr,"friendly_name");
-        glass_chat_copy_utf8(device->name,sizeof(device->name),name[0]?name:device->entity);
-      }
-      local_voice_picker_render();if(!g_speech_ui.choice_count)lv_label_set_text(g_speech_ui.page_label,glass_tr("没有可用设备（窗帘须标明窗帘类型）"));
-    }else if(g_speech_ui.page_label)lv_label_set_text(g_speech_ui.page_label,glass_tr("读取失败，请检查家庭服务配置"));
-    g_speech_ui.stage=LOCAL_IDLE;
-  }else if(stage==LOCAL_PRECHECK){
-    g_speech_ui.stage=LOCAL_IDLE;
-    if(!json||!local_voice_allowed(json,g_speech_ui.role,g_speech_ui.entity))local_voice_message(glass_tr("设备不可用或类型不匹配，未发送控制"));
-    else if(local_voice_matches(json,g_speech_ui.role,g_speech_ui.on))local_voice_message(glass_tr("设备已经处于目标状态"));
-    else{
-      char body[128];snprintf(body,sizeof(body),"{\"entity_id\":\"%s\"}",g_speech_ui.entity);
-      int request=g_speech_ui.role==1?hass_call_service_checked(g_speech_ui.client,g_speech_ui.entity,g_speech_ui.on?"open_cover":"close_cover",body,g_speech_ui.configuration):hass_control_checked(g_speech_ui.client,g_speech_ui.entity,g_speech_ui.on,-1,g_speech_ui.configuration);
-      if(local_voice_request(request,LOCAL_CONTROL)){g_speech_ui.sent=true;local_voice_message(glass_tr("控制已发送，等待核对…"));}
+  LV_UNUSED(timer);struct local_voice_ui *ui=g_local_ui;if(!ui)return;
+  struct glv_snapshot s;glass_local_voice_get(&s,ui->reply,sizeof(ui->reply));
+  bool changed=ui->revision!=s.revision;unsigned seconds=s.elapsed_ms/1000;
+  if(!changed&&(!s.busy||ui->elapsed_second==seconds))return;
+  ui->revision=s.revision;ui->elapsed_second=seconds;
+  if(changed){
+    if(ui->transcript_request!=s.request&&glass_local_voice_get_transcript(s.request,ui->transcript,sizeof(ui->transcript))){
+      lv_textarea_set_text(ui->input,ui->transcript);ui->transcript_request=s.request;
     }
-  }else if(stage==LOCAL_CONTROL){
-    /* A lost POST response does not mean the device did nothing. Verify by
-     * GET; never retry a physical action automatically. */
-    g_speech_ui.stage=LOCAL_VERIFY;g_speech_ui.verify_at=now;g_speech_ui.verify_deadline=now+8000;g_speech_ui.deadline=now+10000;
-    local_voice_message(glass_tr("正在核对设备实际状态…"));
-  }else if(stage==LOCAL_VERIFY){
-    if(json&&local_voice_allowed(json,g_speech_ui.role,g_speech_ui.entity)&&local_voice_matches(json,g_speech_ui.role,g_speech_ui.on)){
-      g_speech_ui.stage=LOCAL_IDLE;local_voice_message(glass_tr("设备状态已确认"));
-    }else g_speech_ui.verify_at=now+1000;
+    if(ui->reply[0])lv_label_set_text(ui->output,ui->reply);
+    else lv_label_set_text(ui->output,ui->mode==GLV_READ?"输入中文，使用你的 V2 声音朗读。":"你好，我是本地语音。\n输入文字开始一段离线对话。");
+    int error=s.error?s.error:(!s.busy&&ui->mode==GLV_DIALOGUE&&!s.models_ready?s.model_error:0);
+    const char *detail=!s.error&&error?"请检查 SD 模型后重试":s.detail;
+    char state[256];snprintf(state,sizeof(state),"%s%s%s",error?glass_local_voice_error(error):local_phase_text(s.phase),detail[0]?" · ":"",detail);
+    if(!error&&s.phase==GLV_PREFILL&&s.progress_total)
+      snprintf(state,sizeof(state),"处理输入 · %u%% · 完成后开始回答",s.progress_done*100/s.progress_total);
+    if(s.error==-ECANCELED&&s.cancel_source==GLV_CANCEL_CONFIG)
+      snprintf(state,sizeof(state),"设置变更，已停止本次任务");
+    char problem[192];const char *asr=ui->mode==GLV_DIALOGUE?local_asr_problem(&s,problem,sizeof(problem)):NULL;lv_label_set_text(ui->status,asr?asr:state);
   }
-  cJSON_Delete(json);hass_result_free(&result);
-#endif
+  char metrics[160];snprintf(metrics,sizeof(metrics),"%.1f MiB · 总用时 %.1f 秒 · 录音 %.1f 秒 · 转写 %.1f 秒 · 回答 %u token",
+    s.memory_peak/1048576.0,s.elapsed_ms/1000.0,s.capture_ms/1000.0,s.asr_elapsed_ms/1000.0,s.tokens);
+  lv_label_set_text(ui->metrics,metrics);
+  if(!changed)return;
+  lv_obj_t *buttons[]={ui->send,ui->check,ui->wake,ui->target};
+  for(unsigned i=0;i<4;i++)if(s.busy||s.config_pending)lv_obj_add_state(buttons[i],LV_STATE_DISABLED);else lv_obj_remove_state(buttons[i],LV_STATE_DISABLED);
+  bool recording=s.busy&&s.phase==GLV_RECORDING;
+  lv_label_set_text(lv_obj_get_child(ui->microphone,0),recording?"结束录音":"语音输入");
+  if(ui->mode!=GLV_DIALOGUE||s.config_pending||(!recording&&s.busy))lv_obj_add_state(ui->microphone,LV_STATE_DISABLED);
+  else lv_obj_remove_state(ui->microphone,LV_STATE_DISABLED);
+  if(s.busy)lv_obj_add_state(ui->input,LV_STATE_DISABLED);else lv_obj_remove_state(ui->input,LV_STATE_DISABLED);
+  unsigned level=recording?s.input_level:0;if(level>32768)level=32768;
+  lv_bar_set_value(ui->level,(int)(level*100/32768),LV_ANIM_OFF);
+  if(recording){lv_obj_add_flag(ui->speak,LV_OBJ_FLAG_HIDDEN);lv_obj_remove_flag(ui->level,LV_OBJ_FLAG_HIDDEN);}
+  else {lv_obj_add_flag(ui->level,LV_OBJ_FLAG_HIDDEN);if(ui->mode==GLV_DIALOGUE)lv_obj_remove_flag(ui->speak,LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(ui->speak,LV_OBJ_FLAG_HIDDEN);}
+  if(s.busy||s.config_pending||!ui->reply[0])lv_obj_add_state(ui->speak,LV_STATE_DISABLED);else lv_obj_remove_state(ui->speak,LV_STATE_DISABLED);
+  lv_label_set_text(ui->footer,recording?"请说话，停顿后自动结束；也可点击结束录音。":ui->mode==GLV_READ?"V2 声音按需加载 · 24 kHz · 可随时停止":"纯文字回答 · 点击朗读回答或语音输入时再准备语音功能");
+  if(s.wake_enabled)lv_obj_add_state(ui->wake,LV_STATE_CHECKED);else lv_obj_remove_state(ui->wake,LV_STATE_CHECKED);
+  lv_label_set_text(lv_obj_get_child(ui->target,0),s.local_wake?"目标：本地语音":"目标：原助手");
 }
+static void local_action(lv_event_t *event)
+{
+  if(!g_local_ui)return;intptr_t action=(intptr_t)lv_event_get_user_data(event);int ret=0;
+  if(action==1){local_keyboard_close();ret=glass_local_voice_send(lv_textarea_get_text(g_local_ui->input),g_local_ui->mode,&g_local_ui->request);}
+  else if(action==2)glass_local_voice_cancel_from(GLV_CANCEL_UI_STOP);
+  else if(action==3)ret=glass_local_voice_new_from(GLV_CANCEL_UI_NEW);
+  else if(action==4)ret=glass_local_voice_check(&g_local_ui->request);
+  else if(action==5)ret=glass_local_voice_enable_wake(lv_obj_has_state(g_local_ui->wake,LV_STATE_CHECKED));
+  else if(action==6)ret=glass_local_voice_save(&g_local_ui->request);
+  else if(action==7)ret=glass_local_voice_set_wake(!glass_local_voice_wake_selected());
+  else if(action==8){
+    local_keyboard_close();struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
+    if(s.busy&&s.phase==GLV_RECORDING)ret=glass_local_voice_finish_capture(s.request);
+    else ret=glass_local_voice_listen(&g_local_ui->request);
+  }
+  else if(action==9){local_keyboard_close();ret=glass_local_voice_send(g_local_ui->reply,GLV_READ,&g_local_ui->request);}
+  if(ret)show_toast(glass_local_voice_error(ret));g_local_ui->revision=UINT32_MAX;local_ui_poll(NULL);
+}
+static void local_tab(lv_event_t *event)
+{
+  if(!g_local_ui)return;enum glv_mode mode=(enum glv_mode)(intptr_t)lv_event_get_user_data(event);
+  if(mode==g_local_ui->mode)return;local_keyboard_close();g_local_ui->mode=mode;
+  lv_label_set_text(g_local_ui->heading,mode==GLV_DIALOGUE?"本地对话":"文字朗读");
+  lv_label_set_text(g_local_ui->subtitle,mode==GLV_DIALOGUE?"EdgeIdiot · 默认文字回答":"V2 声音 · 舒缓 · 24 kHz");
+  lv_label_set_text(lv_obj_get_child(g_local_ui->send,0),mode==GLV_DIALOGUE?"发送":"朗读");
+  g_local_ui->revision=UINT32_MAX;local_ui_poll(NULL);
+}
+static void local_ui_deleted(lv_event_t *event)
+{
+  if(!g_local_ui||g_local_ui->card!=lv_event_get_target(event))return;
+  struct local_voice_ui *ui=g_local_ui;g_local_ui=NULL;
+  /* Leaving the page closes an active foreground recording. Model work and
+   * global wake belong to the service, never to this view's timer/widgets. */
+  struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
+  if(s.busy&&s.capture_pending&&s.request==ui->request)glass_local_voice_stop_from(ui->request,GLV_CANCEL_VIEW_CLOSE);
+  glass_local_voice_release();
+  if(ui->timer)lv_timer_delete(ui->timer);free(ui);
+}
+static void glass_local_voice_open(lv_event_t *event)
+{
+  LV_UNUSED(event);if(g_local_ui)return;
+  struct local_voice_ui *ui=calloc(1,sizeof(*ui));if(!ui){show_toast("内存不足");return;}
+  lv_obj_t *card=panel_card("本地语音");if(!card){free(ui);return;}
+  detail_page(card);ui->card=card;ui->revision=UINT32_MAX;g_local_ui=ui;
+  lv_obj_add_event_cb(card,local_ui_deleted,LV_EVENT_DELETE,NULL);
+  detail_sidebar(card,"本地语音",GLASS_ICON_MIC,glass_apps);g_desktop.page_back=glass_apps;
+  detail_nav(card,"对话",GLASS_ICON_SPARKLES,96,GLASS_SIDEBAR_ITEM_WIDTH,local_tab,(void *)GLV_DIALOGUE);
+  detail_nav(card,"文字朗读",LV_SYMBOL_AUDIO,154,GLASS_SIDEBAR_ITEM_WIDTH,local_tab,(void *)GLV_READ);
+  detail_text(card,"全局唤醒",20,238,142,16,detail_ink());
+  detail_text(card,"你好 openvela",20,267,142,14,detail_muted());
+  ui->wake=lv_switch_create(card);lv_obj_set_pos(ui->wake,20,306);lv_obj_set_size(ui->wake,52,28);
+  lv_obj_set_style_bg_color(ui->wake,lv_color_hex(detail_accent()),LV_PART_INDICATOR|LV_STATE_CHECKED);
+  lv_obj_set_style_bg_opa(ui->wake,LV_OPA_COVER,LV_PART_INDICATOR|LV_STATE_CHECKED);
+  lv_obj_add_event_cb(ui->wake,local_action,LV_EVENT_VALUE_CHANGED,(void *)5);
+  detail_text(card,"关闭后停止后台监听",20,350,140,14,detail_muted());
+  ui->target=detail_button(card,"目标：本地语音",20,386,140,local_action,(void *)7);
+  ui->check=detail_button(card,"完整检查",20,446,140,local_action,(void *)4);
+  ui->heading=detail_text(card,"本地对话",212,30,520,28,detail_ink());
+  ui->subtitle=detail_text(card,"EdgeIdiot · 默认文字回答",212,70,600,16,detail_muted());
+  ui->result=detail_tile(card,212,108,788,224);lv_obj_add_flag(ui->result,LV_OBJ_FLAG_SCROLLABLE);
+  ui->output=home_text(ui->result,"",22,22,740,20,detail_ink());lv_label_set_long_mode(ui->output,LV_LABEL_LONG_WRAP);
+  ui->input=lv_textarea_create(card);lv_obj_set_pos(ui->input,212,354);lv_obj_set_size(ui->input,788,66);
+  lv_obj_set_style_text_font(ui->input,home_font(18),0);lv_obj_set_style_text_color(ui->input,lv_color_hex(detail_ink()),0);
+  lv_obj_set_style_bg_color(ui->input,lv_color_hex(detail_paper()),0);lv_obj_set_style_radius(ui->input,12,0);
+  lv_textarea_set_max_length(ui->input,256);lv_textarea_set_placeholder_text(ui->input,"输入文字，开始对话或朗读");
+  lv_obj_add_event_cb(ui->input,local_input_focus,LV_EVENT_CLICKED,NULL);
+  ui->send=detail_button(card,"发送",212,438,100,local_action,(void *)1);
+  detail_button(card,"停止",324,438,100,local_action,(void *)2);
+  detail_button(card,"新对话",436,438,100,local_action,(void *)3);
+  detail_button(card,"保存会话",548,438,100,local_action,(void *)6);
+  ui->microphone=detail_button(card,"语音输入",660,438,132,local_action,(void *)8);
+  ui->speak=detail_button(card,"朗读回答",814,438,182,local_action,(void *)9);
+  ui->level=lv_bar_create(card);lv_obj_set_pos(ui->level,814,454);lv_obj_set_size(ui->level,182,10);
+  lv_obj_set_style_bg_color(ui->level,lv_color_hex(detail_accent()),LV_PART_INDICATOR);
+  ui->status=detail_text(card,"",212,490,788,14,detail_muted());
+  ui->metrics=detail_text(card,"",212,515,788,14,detail_muted());
+  ui->footer=detail_text(card,"",212,542,788,14,detail_muted());
+  ui->timer=lv_timer_create(local_ui_poll,200,NULL);local_ui_poll(NULL);
+}
+static void glass_local_voice_woke(void)
+{
+  glass_local_voice_open(NULL);if(!g_local_ui)return;
+  struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
+  if(s.busy||s.config_pending){show_toast("本地语音正在处理，请等待或停止。");return;}
+  local_keyboard_close();g_local_ui->mode=GLV_DIALOGUE;
+  lv_label_set_text(g_local_ui->heading,"本地对话");lv_label_set_text(g_local_ui->subtitle,"EdgeIdiot · 默认文字回答");
+  lv_label_set_text(lv_obj_get_child(g_local_ui->send,0),"发送");
+  int ret=glass_local_voice_listen(&g_local_ui->request);
+  if(ret)show_toast(glass_local_voice_error(ret));else show_toast(s.asr_ready?"我在，请说话。":"正在准备语音输入，请稍候。");
+  g_local_ui->revision=UINT32_MAX;local_ui_poll(NULL);
+}
+#else
+static void glass_local_voice_open(lv_event_t *e){LV_UNUSED(e);show_toast("本地语音未编入当前版本");}
+#endif

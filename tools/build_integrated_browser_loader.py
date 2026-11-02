@@ -13,7 +13,8 @@ def build(root,out,env):
  opts += ['-I'+str(sdk/'components'/x) for x in ['esp_mm/include','esp_common/include','esp_hw_support/include']]
  opts += ['-I'+str(sdk/'nuttx/esp32p4/include')]
  folder=out/'browser-loader';folder.mkdir(exist_ok=True);objects=[]
- names=['browser_native_host.c','browser_native_nuttx.c','browser_async.c','browser_cache.c','browser_exports.c','browser_text_heap.c']
+ native='CONFIG_OV_BROWSER_TEXT_POOL=y\n' in (root/'nuttx/.config').read_text()
+ names=['browser_native_host.c','browser_native_nuttx.c','browser_async.c','browser_cache.c','browser_exports.c','browser_text_heap.c'] if native else ['browser_native_disabled.c']
  for name in names:
   target=folder/(name+'.o')
   with (folder/(name+'.log')).open('w') as log:
@@ -21,5 +22,5 @@ def build(root,out,env):
   objects.append(target)
  archive=folder/'libbrowser-loader.a';archive.unlink(missing_ok=True)
  subprocess.run(['/home/flash/vela-p4/toolchains/gcc14/bin/riscv32-esp-elf-ar','rcs',str(archive),*map(str,objects)],env=env,check=True)
- (folder/'BUILD.json').write_text(json.dumps(dict(archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),sources={name:hashlib.sha256((desktop/'browser'/name).read_bytes()).hexdigest() for name in names}),indent=2)+'\n')
+ (folder/'BUILD.json').write_text(json.dumps(dict(native_enabled=native,archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),sources={name:hashlib.sha256((desktop/'browser'/name).read_bytes()).hexdigest() for name in names}),indent=2)+'\n')
  return archive

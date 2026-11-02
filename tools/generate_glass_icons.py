@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Generate the authored Glass outline icon family as native LVGL 4-bit fonts.
+"""Generate the authored Calm UI icon family as native LVGL 4-bit fonts.
 
-Requires Pillow. No downloaded assets, raster runtime, SVG engine or font file.
+Pillow is a build dependency; the device uses compiled fonts and A8 masks.
 LV_SYMBOL codepoints stay compatible with existing labels and QuickJS apps.
 """
 import argparse
@@ -9,21 +9,44 @@ import math
 from pathlib import Path
 
 
+class Shape(tuple):
+    """Raster-compatible geometry with optional exact SVG construction."""
+    def __new__(cls, mode, points, svg_path=None):
+        result = super().__new__(cls, (mode, points))
+        result.svg_path = svg_path
+        return result
+
+
+class CurvePoints(list):
+    def __init__(self, points, commands):
+        super().__init__(points)
+        self.commands = commands
+
+
 def line(*points):
-    return ('line', points)
+    return Shape('line', points)
 
 
 def circle(x, y, radius, start=0, end=360):
     count = max(12, round(abs(end - start) / 6))
-    return line(*[(x + radius * math.cos(math.radians(start + (end - start) * i / count)),
+    shape = line(*[(x + radius * math.cos(math.radians(start + (end - start) * i / count)),
                    y + radius * math.sin(math.radians(start + (end - start) * i / count)))
                  for i in range(count + 1)])
+    first = shape[1][0]
+    sweep = 1 if end > start else 0
+    fmt = lambda p: f'{p[0]:.3f},{p[1]:.3f}'
+    if abs(end-start) >= 359.999:
+        opposite = (2*x-first[0], 2*y-first[1])
+        shape.svg_path = f'M{fmt(first)} A{radius},{radius} 0 1,{sweep} {fmt(opposite)} A{radius},{radius} 0 1,{sweep} {fmt(first)} Z'
+    else:
+        shape.svg_path = f'M{fmt(first)} A{radius},{radius} 0 {int(abs(end-start)>180)},{sweep} {fmt(shape[1][-1])}'
+    return shape
 
 
 def bezier(start, first, second, end):
-    return [((1-t)**3*start[0] + 3*(1-t)**2*t*first[0] + 3*(1-t)*t*t*second[0] + t**3*end[0],
+    return CurvePoints([((1-t)**3*start[0] + 3*(1-t)**2*t*first[0] + 3*(1-t)*t*t*second[0] + t**3*end[0],
              (1-t)**3*start[1] + 3*(1-t)**2*t*first[1] + 3*(1-t)*t*t*second[1] + t**3*end[1])
-            for t in [i/24 for i in range(25)]]
+            for t in [i/24 for i in range(25)]], f'C{first[0]},{first[1]} {second[0]},{second[1]} {end[0]},{end[1]}')
 
 
 def rect(x, y, w, h, r=2):
@@ -32,7 +55,15 @@ def rect(x, y, w, h, r=2):
                           (x+r,y+h-r,90), (x+r,y+r,180)]:
         points.extend((cx+r*math.cos(math.radians(angle+i*9)),
                        cy+r*math.sin(math.radians(angle+i*9))) for i in range(11))
-    return line(*points, points[0])
+    shape = line(*points, points[0])
+    if r:
+        shape.svg_path = (f'M{x+r},{y} H{x+w-r} A{r},{r} 0 0,1 {x+w},{y+r} '
+                          f'V{y+h-r} A{r},{r} 0 0,1 {x+w-r},{y+h} '
+                          f'H{x+r} A{r},{r} 0 0,1 {x},{y+h-r} '
+                          f'V{y+r} A{r},{r} 0 0,1 {x+r},{y} Z')
+    else:
+        shape.svg_path = f'M{x},{y} H{x+w} V{y+h} H{x} Z'
+    return shape
 
 
 I = {
@@ -132,9 +163,18 @@ I['device_contact'] = [rect(4,3,9,18,2),rect(16,5,4,14,1),line((7,7),(10,7)),cir
 I['device_climate'] = [rect(2,5,20,11,2),line((4,12),(20,12)),line((5,14),(19,14)),circle(18,8,.5),line((7,19),(6,22)),line((12,19),(12,23)),line((17,19),(18,22))]
 I['device_media'] = [rect(2,3,20,15,2),line((9,18),(9,21),(15,21),(15,18)),line((6,22),(18,22)),line((10,7),(15,10),(10,13),(10,7))]
 I['device_generic'] = I['home']
+I['heart'] = [line(*bezier((12,21),(8,18),(2,13),(2,8)),
+                   *bezier((2,8),(2,2),(9,1),(12,6)),
+                   *bezier((12,6),(15,1),(22,2),(22,8)),
+                   *bezier((22,8),(22,13),(16,18),(12,21)))]
+I['eye_open'] = [line(*bezier((2,12),(7,3),(17,3),(22,12)),
+                      *bezier((22,12),(17,21),(7,21),(2,12))),circle(12,12,3)]
+I['tint'] = [line(*bezier((12,2),(9,7),(4,11),(4,15)),
+                 *bezier((4,15),(4,25),(20,25),(20,15)),
+                 *bezier((20,15),(20,11),(15,7),(12,2)))]
 I['device_purifier'] = [rect(6,2,12,20,3),line((8,5),(16,5)),circle(12,7,.6)] + [line((8,y),(16,y)) for y in [10,12,14,16,18]]
 def solid(shape):
-    return ('fill',shape[1])
+    return Shape('fill',shape[1],getattr(shape,'svg_path',None))
 I['body_lamp'] = [solid(line((6,11),(8,3),(16,3),(18,11),(6,11))),solid(rect(10.8,11,2.4,10,0)),solid(rect(5,20,14,2,1))]
 I['body_plug'] = [solid(rect(6,3,12,18,3))]
 I['body_fan'] = [solid(circle(12,9,7)),solid(rect(11,16,2,6,0)),solid(rect(7,21,10,1,0))]
@@ -201,15 +241,93 @@ EXTRA = ['sparkles','camera','grid','cloud_sun','mic','chat','arrow_ne','radio',
          'body_curtain','body_vacuum','body_camera','body_humidifier','body_heater','body_kitchen','body_washer','body_plant','body_lock']
 SYMBOLS.update((name,0xe001+i) for i,name in enumerate(EXTRA))
 
+# Re-authored rounded silhouettes with a distinct secondary action component.
+# Shared by the static fallback and the native two-tone gesture renderer.
+I['chat'] = [rect(3,3,18,15,4),line((7,18),(6,22),(12,18)),
+             line((7,9),(17,9)),line((7,13),(13,13))]
+I['camera'] = [rect(2.5,6,19,15,3),line((7,6),(9,3),(15,3),(17,6)),
+               circle(12,13,4),circle(18,9,.5)]
+I['home'] = [line((3,10),(12,3),(21,10)),rect(5,9,14,12,2),rect(10,14,4,7,1)]
+I['mic'] = [rect(8,2,8,13,4),circle(12,12,7,0,180),line((12,19),(12,22)),line((8,22),(16,22))]
+I['directory'] = [rect(3,7,18,14,2),line((3,9),(3,4),(9,4),(12,7)),line((7,12),(17,12))]
+I['settings'] = [line((3,7),(6,7)),line((12,7),(21,7)),line((3,17),(12,17)),
+                 line((18,17),(21,17)),circle(9,7,3),circle(15,17,3)]
+I['sliders'] = I['settings']
+FILE_KINDS = ['image','video','audio','text','pdf','document','spreadsheet',
+              'presentation','archive','package','code','font','generic','folder']
+file_page = [line((5,2),(14,2),(20,8),(20,22),(5,22),(5,2)),line((14,2),(14,8),(20,8))]
+I['bulb'] = [circle(12,9,7,135,405),line((7,14),(9,17),(15,17),(17,14)),
+             line((9,20),(15,20)),line((10,22),(14,22)),line((10,9),(12,12),(14,9)),line((12,12),(12,17))]
+I['device_generic'] = I['home']
+for kind in FILE_KINDS:
+    name = 'file_'+kind
+    if kind in ('image','video','audio','folder'):
+        I[name] = I[{'folder':'directory'}.get(kind,kind)]
+    else:
+        inside = {
+          'text':[line((8,11),(17,11)),line((8,15),(17,15)),line((8,19),(14,19))],
+          'document':[line((8,11),(17,11)),line((8,15),(17,15)),line((8,19),(14,19))],
+          'pdf':[line((9,19),(9,11),(14,11),(16,13),(14,15),(9,15))],
+          'spreadsheet':[rect(8,11,9,8,.5),line((8,15),(17,15)),line((12,11),(12,19))],
+          'presentation':[rect(8,11,9,7,1),line((12,18),(12,20)),line((11,13),(14,14.5),(11,16))],
+          'archive':[line((11,9),(13,9),(13,11),(11,11),(11,13),(13,13),(13,15)),rect(10,16,5,4,1)],
+          'package':[line((8,13),(12,11),(17,13),(17,18),(12,20),(8,18),(8,13),(12,15),(17,13)),line((12,15),(12,20))],
+          'code':[line((10,12),(7,15),(10,18)),line((15,12),(18,15),(15,18)),line((13,11),(11,19))],
+          'font':[line((8,19),(12,11),(16,19)),line((10,16),(14,16))],
+          'generic':[line((8,12),(17,12)),line((8,17),(14,17))],
+        }[kind]
+        I[name] = file_page+inside
+    SYMBOLS[name] = 0xe001+len(EXTRA)
+    EXTRA.append(name)
 
-def raster(name, size):
+from household_icon_design import CODEPOINTS
+for name,code in CODEPOINTS.items():
+    I[name]=I['device_generic']  # Installed from the explicit authored paths below.
+    SYMBOLS[name]=code
+    EXTRA.append(name)
+
+
+# Final art direction: locally authored Duo silhouettes. Keep this after all
+# legacy declarations so every public codepoint receives the new artwork.
+from duotone_icon_shapes import apply as apply_duotone_artwork
+apply_duotone_artwork(I, line, rect, circle, bezier, solid)
+from refined_icon_shapes import apply as apply_refined_artwork, STROKE, optical_shapes, stroke_width
+apply_refined_artwork(I, line, rect, circle, bezier, solid)
+from material_icon_shapes import apply as apply_material_artwork, raster_paths
+apply_material_artwork(I)
+
+def rounded_points(points):
+    """Fillet authored corners; keep circles and cubic samples continuous."""
+    closed=points[0]==points[-1]
+    vertices=list(points[:-1] if closed else points)
+    out=[]
+    for i,p in enumerate(vertices):
+        if not closed and i in (0,len(vertices)-1):out.append(p);continue
+        a=vertices[(i-1)%len(vertices)];b=vertices[(i+1)%len(vertices)]
+        da=math.dist(a,p);db=math.dist(b,p)
+        if not da or not db:out.append(p);continue
+        radius=min(.75,da*.23,db*.23)
+        start=(p[0]+(a[0]-p[0])*radius/da,p[1]+(a[1]-p[1])*radius/da)
+        end=(p[0]+(b[0]-p[0])*radius/db,p[1]+(b[1]-p[1])*radius/db)
+        out.extend(((1-t)**2*start[0]+2*(1-t)*t*p[0]+t*t*end[0],
+                    (1-t)**2*start[1]+2*(1-t)*t*p[1]+t*t*end[1]) for t in [j/6 for j in range(7)])
+    if closed:out.append(out[0])
+    return out
+
+
+def raster(name, size, shapes=None):
+    source = I[name] if shapes is None else shapes
+    if source and source[0][0] == 'svgfill':
+        return raster_paths([shape.svg_path for shape in source], size)
     from PIL import Image, ImageDraw
     scale = 8
     image = Image.new('L', (size*scale,size*scale))
     draw = ImageDraw.Draw(image)
     factor = size*scale/24
-    stroke = max(1, round((1.15 if size == 64 and name.startswith('device_') else .85 if size == 64 else 1.65)*factor))
-    for mode, points in I[name]:
+    stroke = max(1, round(stroke_width(size)*factor))
+    source = I[name] if shapes is None else shapes
+    for mode, points in optical_shapes(name, size, source, I[name]):
+        if mode=='line':points=rounded_points(points)
         xy = [(round(x*factor),round(y*factor)) for x,y in points]
         if mode in ('fill','erase'):
             draw.polygon(xy,fill=255 if mode=='fill' else 0)
@@ -223,7 +341,7 @@ def raster(name, size):
 
 def generate(output):
     items = sorted(SYMBOLS.items(), key=lambda x:x[1])
-    chunks = ['/* SPDX-License-Identifier: Apache-2.0\n * Generated by tools/generate_glass_icons.py. Authored 1.65/24 outline family.\n */\n#include "glass_icons.h"\n']
+    chunks = ['/* SPDX-License-Identifier: Apache-2.0\n * Generated by tools/generate_glass_icons.py.\n * Google Material Symbols Rounded; adapted into LVGL masks and motion layers.\n * Source/license: materials/material-symbols/.\n */\n#include "glass_icons.h"\n']
     # Unicode spellings in AI answers share the existing authored monochrome
     # glyphs. Keep the original text; this is font fallback, never text rewrite.
     aliases={0x2705:'ok',0x2611:'ok',0x2714:'ok',0x274c:'close',0x2715:'close',
@@ -252,7 +370,7 @@ def generate(output):
 }
 ''')
     for size in [14,16,20,24,32,64]:
-        glyphs = [(name,code) for name,code in items if not name.startswith(('device_','body_'))] if size != 64 else [(name,code) for name,code in items if name.startswith(('device_','body_')) or name in ('cloud_sun','sun','cloud','cloud_rain','cloud_snow','degree')]
+        glyphs = [(name,code) for name,code in items if not name.startswith(('device_','body_'))] if size != 64 else [(name,code) for name,code in items if name.startswith(('device_','body_','home_')) or name in ('cloud_sun','sun','cloud','cloud_rain','cloud_snow','degree')]
         if size == 24:
             glyphs = [(name,code) for name,code in items if not name.startswith('body_')]
         pixels = bytearray()
@@ -297,11 +415,19 @@ static const lv_font_t font_{size} = {{
   return &font_64;
 }
 ''')
+    chunks.append('#include "glass_icon_motion.inc"\n')
     (output/'glass_icons.c').write_text('\n'.join(chunks),encoding='utf-8')
     header=['/* SPDX-License-Identifier: Apache-2.0 */','/* Generated icon API; LV_SYMBOL names retain their existing codepoints. */',
             '#ifndef GLASS_ICONS_H','#define GLASS_ICONS_H','#include <lvgl/lvgl.h>',
             '#ifdef __cplusplus','extern "C" {','#endif',
-            'const lv_font_t *glass_icon_font(int pixels);']
+            'const lv_font_t *glass_icon_font(int pixels);',
+            'lv_obj_t *glass_icon_create(lv_obj_t *parent);',
+            'void glass_icon_play(lv_obj_t *object);',
+            'void glass_icon_play_children(lv_obj_t *parent);',
+            'void glass_icon_set_reduced(bool reduced);']
+    header.append('void glass_icon_set_active(lv_obj_t *object, bool active);')
+    header.append('void glass_icon_set_running(lv_obj_t *object, bool running);')
+    header.append('int glass_icon_diagnose(lv_obj_t *object, char *buffer, size_t size);')
     for name in EXTRA:
         encoded=''.join(f'\\x{x:02x}' for x in chr(SYMBOLS[name]).encode())
         header.append(f'#define GLASS_ICON_{name.upper()} "{encoded}"')

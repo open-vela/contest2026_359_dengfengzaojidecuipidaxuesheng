@@ -95,6 +95,8 @@
               "air-fresh.on": true,
               "environment.pm2.5-density": 12,
               "air-fresh.mode": "auto",
+              "air-fresh.pm2.5-density": 12,
+              "air-fresh.filter-life-level": 82,
               "air-fresh.status": "on"
             },
             "supported_features": 59,
@@ -180,6 +182,8 @@
               "air-purifier.on": true,
               "environment.pm2.5-density": 12,
               "air-purifier.mode": "auto",
+              "air-purifier.pm2.5-density": 12,
+              "air-purifier.filter-life-level": 82,
               "air-purifier.status": "on"
             },
             "supported_features": 59,

@@ -3,6 +3,62 @@
 #include "glass_network_recovery.h"
 #include "glass_device_controls.h"
 /* SPDX-License-Identifier: Apache-2.0 */
+#ifdef GLASS_LOCAL_VOICE
+#include "glass_local_voice.h"
+#include <errno.h>
+#include "local_voice_error_production.inc"
+static struct glv_snapshot local_fixture={.revision=1,.models_ready=true,.local_wake=true,.wake_enabled=true};
+static char local_reply[4096],local_transcript[1025];static unsigned local_sent,local_cancelled,local_listens,local_finishes;
+static uint32_t local_transcript_request;
+static int local_displayed_error,local_config_error;
+static enum glv_mode local_sent_mode;static char local_sent_text[4096];
+enum glv_mode review_local_sent_mode(void){return local_sent_mode;}
+const char *review_local_sent_text(void){return local_sent_text;}
+void review_local_cold_fixture(void)
+{memset(&local_fixture,0,sizeof(local_fixture));local_fixture.revision=1;local_fixture.local_wake=true;local_reply[0]=local_transcript[0]=0;local_transcript_request=0;}
+void review_local_config_error(int error){local_config_error=error;}
+void review_local_fixture(int phase,const char *reply)
+{local_fixture.phase=phase;local_fixture.busy=phase!=GLV_IDLE&&phase!=GLV_FAILED;local_fixture.capture_pending=phase==GLV_RECORDING;local_fixture.models_ready=true;local_fixture.error=local_fixture.model_error=0;local_fixture.elapsed_ms=0;local_fixture.detail[0]=0;local_fixture.revision++;snprintf(local_reply,sizeof(local_reply),"%s",reply?reply:"");}
+void review_local_asr_fixture(bool ready,unsigned level,const char *text)
+{local_fixture.asr_ready=ready;local_fixture.asr_error=0;local_fixture.input_level=level;local_fixture.revision++;snprintf(local_transcript,sizeof(local_transcript),"%s",text?text:"");local_transcript_request=local_transcript[0]?local_fixture.request:0;}
+void review_local_asr_error(int error)
+{local_fixture.asr_ready=false;local_fixture.asr_error=error;local_fixture.revision++;}
+unsigned review_local_listens(void){return local_listens;}
+unsigned review_local_finishes(void){return local_finishes;}
+unsigned review_local_stops(void){return local_cancelled;}
+void review_local_elapsed_fixture(unsigned ms){local_fixture.busy=true;local_fixture.elapsed_ms=ms;}
+void review_local_error_fixture(int error){local_fixture.busy=false;local_fixture.models_ready=false;local_fixture.error=0;local_fixture.model_error=error;local_fixture.revision++;strcpy(local_fixture.detail,"唤醒设置已保存");}
+int review_local_displayed_error(void){return local_displayed_error;}
+void glass_local_voice_get(struct glv_snapshot *s,char *reply,size_t cap)
+{if(s)*s=local_fixture;if(reply&&cap)snprintf(reply,cap,"%s",local_reply);}
+int glass_local_voice_start(void){return 0;}
+int glass_local_voice_send(const char *text,enum glv_mode mode,uint32_t *id)
+{local_sent_mode=mode;snprintf(local_sent_text,sizeof(local_sent_text),"%s",text);local_sent++;if(id)*id=++local_fixture.request;local_fixture.busy=true;local_fixture.phase=GLV_CHECKING;local_fixture.revision++;return 0;}
+int glass_local_voice_check(uint32_t *id){if(id)*id=++local_fixture.request;return 0;}
+int glass_local_voice_new(void){local_reply[0]=local_transcript[0]=0;local_transcript_request=0;if(local_fixture.busy)local_fixture.phase=GLV_STOPPING;local_fixture.revision++;return 0;}
+int glass_local_voice_save(uint32_t *id){if(id)*id=++local_fixture.request;return 0;}
+int glass_local_voice_listen(uint32_t *id)
+{if(local_fixture.busy)return -EBUSY;local_listens++;if(id)*id=++local_fixture.request;local_fixture.busy=local_fixture.capture_pending=true;local_fixture.phase=local_fixture.asr_ready?GLV_RECORDING:GLV_CHECKING_ASR;local_fixture.revision++;return 0;}
+int glass_local_voice_finish_capture(uint32_t id)
+{if(id!=local_fixture.request||local_fixture.phase!=GLV_RECORDING)return -ENOENT;local_finishes++;local_fixture.capture_pending=false;local_fixture.phase=GLV_TRANSCRIBING;local_fixture.revision++;return 0;}
+bool glass_local_voice_get_transcript(uint32_t id,char *text,size_t cap)
+{snprintf(text,cap,"%s",id==local_fixture.request&&id==local_transcript_request?local_transcript:"");return text[0]!=0;}
+void glass_local_voice_stop(uint32_t id){if(id)local_cancelled++;}
+void glass_local_voice_cancel(void){}
+void glass_local_voice_release(void){local_fixture.session_resident=false;local_fixture.session_bytes=0;}
+void glass_local_voice_cancel_from(enum glv_cancel_source source){local_fixture.cancel_source=source;glass_local_voice_cancel();}
+void review_local_progress_fixture(unsigned done,unsigned total)
+{local_fixture.progress_done=done;local_fixture.progress_total=total;local_fixture.revision++;}
+void glass_local_voice_stop_from(uint32_t id,enum glv_cancel_source source){local_fixture.cancel_source=source;glass_local_voice_stop(id);}
+int glass_local_voice_new_from(enum glv_cancel_source source){local_fixture.cancel_source=source;return glass_local_voice_new();}
+bool glass_local_voice_config_idle(void){return true;}
+bool glass_local_voice_wake_selected(void){return local_fixture.local_wake;}
+bool glass_local_voice_wake_enabled(void){return local_fixture.wake_enabled;}
+bool glass_local_voice_wake_ready(void){return local_fixture.wake_enabled&&local_fixture.local_wake&&!local_fixture.busy&&!local_fixture.wake_error;}
+int glass_local_voice_set_wake(bool enabled){if(local_config_error)return local_config_error;local_fixture.local_wake=enabled;local_fixture.revision++;return 0;}
+int glass_local_voice_enable_wake(bool enabled){if(local_config_error)return local_config_error;local_fixture.wake_enabled=enabled;local_fixture.revision++;return 0;}
+const char *glass_local_voice_error(int e){local_displayed_error=e;return review_production_local_voice_error(e);}
+#endif
 /* Service fixtures only. None of these functions opens a device/network. */
 static bool review_wifi_ip_available=true;
 void review_wifi_ip_fixture(bool available){review_wifi_ip_available=available;}
@@ -34,6 +90,11 @@ static struct chat_snapshot review_dialogue_state;
 static unsigned review_dialogue_sends,review_dialogue_cancels,review_voice_starts;
 static struct glass_voice_snapshot review_dialogue_voice;
 static struct speech_snapshot review_speech;
+#ifdef GLASS_LOCAL_VOICE
+void review_local_woke(bool stale)
+{struct timespec now;clock_gettime(CLOCK_MONOTONIC,&now);review_speech.active=false;review_speech.wake_event++;
+  review_speech.wake_ms=(uint32_t)((uint64_t)now.tv_sec*1000+now.tv_nsec/1000000)-(stale?3000:0);}
+#endif
 static unsigned review_speech_calls;
 static enum chat_activity review_dialogue_activity;
 static int review_speech_failure;
@@ -335,6 +396,9 @@ int glass_ble_gatt(const struct glass_gatt_request *request,struct glass_gatt_re
 }
 static int review_battery_percent=-1;
 static bool review_battery_charging,review_bluetooth_connected;
+static bool review_storage_ready;
+void review_storage_fixture(bool ready){review_storage_ready=ready;}
+bool glass_status_storage_ready(void){return review_storage_ready;}
 void review_status_fixture(int percent,bool charging,bool bluetooth)
 {review_battery_percent=percent;review_battery_charging=charging;review_bluetooth_connected=bluetooth;}
 void glass_status_power_read(int *percent,bool *charging)
