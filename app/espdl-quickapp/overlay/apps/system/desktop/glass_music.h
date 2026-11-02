@@ -17,6 +17,9 @@ struct music_snapshot {
   struct music_song current, result;
   struct music_song favorites[MUSIC_FAVORITES_MAX];
   unsigned revision, search_revision, position_ms, duration_ms, volume, favorite_count;
+  unsigned offline_ready_count;
+  bool offline_caching;
+  int offline_error;
   enum music_state state;
   bool searching, has_result, initialized;
   int error, search_error, storage_error;

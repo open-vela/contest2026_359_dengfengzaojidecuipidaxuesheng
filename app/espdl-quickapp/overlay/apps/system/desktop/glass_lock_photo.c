@@ -3,6 +3,7 @@
 #include "glass_music.h"
 #include "qpk_mjpeg.h"
 #include "glass_music_cache.h"
+#include "glass_music_favorite_cache.h"
 #include <pthread.h>
 #include <errno.h>
 #include <stdio.h>
@@ -42,6 +43,12 @@ static int image_receive(void *ctx,const unsigned char *data,size_t size)
 static int image_read(struct image_job *job)
 {
   if(job->owner) {
+    if(!strncmp(job->url,MUSIC_FAVORITE_COVER_SCHEME,
+                sizeof(MUSIC_FAVORITE_COVER_SCHEME)-1)) {
+      job->input=music_favorite_cover_read(job->url,512,&job->used);
+      if(!job->input)return -ENOENT;
+      job->cached=true;job->capacity=job->used;return 0;
+    }
     if(!job->skip_cache){
       job->input=music_cache_read('c',job->url,COVER_JPEG_MAX,512,&job->used);
       if(job->input){job->cached=true;job->capacity=job->used;return 0;}
@@ -78,7 +85,9 @@ retry:
   if(!out.pixels || !decoder){out.error=-ENOMEM;goto done;}
   out.error=qpk_mjpeg_decode(decoder,job->input,job->used,job->used+512,out.pixels,out.width,out.height,width,height);
 done:
-  if(out.error&&job->cached&&!image_cancelled(job)){
+  if(out.error&&job->cached&&!image_cancelled(job)&&
+     strncmp(job->url,MUSIC_FAVORITE_COVER_SCHEME,
+             sizeof(MUSIC_FAVORITE_COVER_SCHEME)-1)){
     qpk_mjpeg_destroy(decoder);decoder=NULL;free(job->input);job->input=NULL;free(out.pixels);
     out=(struct glass_lock_photo){0};job->used=job->capacity=0;job->cached=false;job->skip_cache=true;goto retry;
   }
@@ -92,7 +101,9 @@ done:
 }
 static int image_request(unsigned owner,const char *url)
 {
-  if(owner>GLASS_COVER_HOME || (owner && (!url || strncmp(url,"https://",8) || strlen(url)>=1024)))return -EINVAL;
+  char favorite_path[256];
+  if(owner>GLASS_COVER_HOME || (owner && (!url || strlen(url)>=1024 ||
+      (strncmp(url,"https://",8)&&music_favorite_cover_path(url,favorite_path)))))return -EINVAL;
   pthread_mutex_lock(&photo_lock);
   if(busy){pthread_mutex_unlock(&photo_lock);return -EBUSY;}
   struct image_job *job=calloc(1,sizeof(*job));if(!job){pthread_mutex_unlock(&photo_lock);return -ENOMEM;}

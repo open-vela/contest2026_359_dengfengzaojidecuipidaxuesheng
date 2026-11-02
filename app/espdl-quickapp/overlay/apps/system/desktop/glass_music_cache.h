@@ -21,9 +21,10 @@ static int music_cache_path(char kind,const char *key,char *path,size_t capacity
   int n=snprintf(path,capacity,MUSIC_CACHE_ROOT "/%c%02u.bin",kind,slot);
   return n>0&&(size_t)n<capacity?0:-1;
 }
-static unsigned char *music_cache_read(char kind,const char *key,size_t limit,size_t padding,size_t *size)
+static unsigned char *music_cache_read_path(const char *path,const char *key,
+                                             size_t limit,size_t padding,size_t *size)
 {
-  char path[256];*size=0;if(music_cache_path(kind,key,path,sizeof(path)))return NULL;
+  *size=0;if(!path||!key||strlen(key)>2047)return NULL;
   FILE *f=fopen(path,"rb");if(!f)return NULL;
   uint32_t h[4];unsigned char *body=NULL;char *identity=NULL;struct stat st;
   if(fstat(fileno(f),&st)||fread(h,sizeof(h),1,f)!=1||h[0]!=0x3143434d||
@@ -36,10 +37,18 @@ static unsigned char *music_cache_read(char kind,const char *key,size_t limit,si
 invalid:free(body);body=NULL;
 done:free(identity);fclose(f);return body;
 }
-static void music_cache_write(char kind,const char *key,const void *data,size_t size,size_t limit)
+static unsigned char *music_cache_read(char kind,const char *key,size_t limit,size_t padding,size_t *size)
 {
-  char path[256],temporary[264];
-  if(!data||!size||size>limit||size>UINT32_MAX||music_cache_path(kind,key,path,sizeof(path)))return;
+  char path[256];*size=0;
+  return music_cache_path(kind,key,path,sizeof(path))?NULL:
+    music_cache_read_path(path,key,limit,padding,size);
+}
+static void music_cache_write_path(const char *path,const char *key,
+                                    const void *data,size_t size,size_t limit)
+{
+  char temporary[264];
+  if(!path||!key||strlen(path)>255||strlen(key)>2047||!data||!size||
+     size>limit||size>UINT32_MAX)return;
   /* Missing/read-only SD is a cache miss, never a playback failure. */
 #ifdef __NuttX__
   mkdir("/sdcard/music",0777);
@@ -52,4 +61,10 @@ static void music_cache_write(char kind,const char *key,const void *data,size_t 
   bool valid=fwrite(h,sizeof(h),1,f)==1&&fwrite(key,1,h[1],f)==h[1]&&fwrite(data,1,size,f)==size;
   if(fclose(f))valid=false;
   if(!valid||rename(temporary,path))unlink(temporary);
+}
+static void music_cache_write(char kind,const char *key,const void *data,size_t size,size_t limit)
+{
+  char path[256];
+  if(!music_cache_path(kind,key,path,sizeof(path)))
+    music_cache_write_path(path,key,data,size,limit);
 }
