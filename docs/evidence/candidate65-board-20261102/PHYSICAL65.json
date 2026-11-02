@@ -1,0 +1,8 @@
+{
+  "firmware_sha256": "d2b38085796032e7d3ff9d53bdce38fedf3935aa072f8fe5612037bcb109fac4",
+  "screen_and_backlight_accepted": true,
+  "touch_response_accepted": true,
+  "confirmation": "画面、背光、触摸响应正常",
+  "recorded_utc": "2026-11-01T18:18:21.261437+00:00",
+  "question_candidate": 65
+}

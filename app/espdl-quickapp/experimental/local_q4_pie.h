@@ -11,5 +11,7 @@ int32_t glv_q4_dot32_ref(const int16_t *,const int16_t *);
 int glv_q4_selftest(struct glv_memory *);
 #ifdef __NuttX__
 int32_t glv_q4_dot32_pie(const int16_t *,const int16_t *);
+/* Groups-major activations/results; each group is one aligned 32-item dot. */
+void glv_q4_dot_batch_pie(const int16_t *,const int16_t *,int32_t *,unsigned,unsigned);
 #endif
 #endif
