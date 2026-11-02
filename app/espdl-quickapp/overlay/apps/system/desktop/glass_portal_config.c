@@ -153,6 +153,7 @@ static int config_save(const char *section,const cJSON *patch)
   }
   if(!strcmp(section,"desktop")) {
     for(unsigned i=0;i<4;i++) desktop_pending[i]=number(o,desktop_keys[i],0);
+    desktop_pending[3]=1;
     desktop_dirty=true; ret=0; goto done;
   }
   if(!strcmp(section,"homeassistant")) {
@@ -300,7 +301,7 @@ int portal_ha_apply(void)
 #endif
 }
 void portal_desktop_publish(const uint8_t values[4])
-{ pthread_mutex_lock(&config_lock); memcpy(desktop_values,values,4); pthread_mutex_unlock(&config_lock); }
+{ pthread_mutex_lock(&config_lock); memcpy(desktop_values,values,4); desktop_values[3]=1; pthread_mutex_unlock(&config_lock); }
 bool portal_desktop_take(uint8_t values[4])
 { pthread_mutex_lock(&config_lock); bool ready=desktop_dirty; if(ready) { memcpy(values,desktop_pending,4); desktop_dirty=false; } pthread_mutex_unlock(&config_lock); return ready; }
 

@@ -74,7 +74,6 @@ static struct
   lv_obj_t *global_font_dropdown;
   lv_obj_t *language_dropdown;
   lv_obj_t *home_cards[GLASS_HOME_CARD_COUNT];
-  lv_obj_t *motion_switch;
   lv_obj_t *brightness_slider;
   lv_obj_t *speaker_slider,*speaker_value;
   lv_font_t *font72;
@@ -434,7 +433,7 @@ static void glass_update(lv_timer_t *timer)
   uint8_t portal_values[4];
   if(portal_desktop_take(portal_values)) {
     g_desktop.light_theme=portal_values[0]; g_glass.palette=portal_values[1];
-    g_glass.widget=portal_values[2]; g_glass.reduced_motion=portal_values[3];
+    g_glass.widget=portal_values[2]; g_glass.reduced_motion=true;
     glass_rebuild(); glass_save_preferences();
   }
   glass_preferences_update();
@@ -653,27 +652,6 @@ static void glass_widget_select(lv_event_t *e)
   g_glass.widget = lv_dropdown_get_selected(lv_event_get_target(e));
   glass_update(NULL);
   glass_save_preferences();
-}
-
-static void glass_motion_changed(lv_event_t *e)
-{
-  g_glass.reduced_motion = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-  glass_motion_set_reduced(g_glass.reduced_motion);
-  glass_save_preferences();
-  if (g_glass.reduced_motion)
-    {
-      lv_anim_delete(g_glass.home, NULL);
-      lv_obj_set_style_opa(g_glass.home, LV_OPA_COVER, 0);
-      for (int i = 0; i < GLASS_HOME_CARD_COUNT; i++)
-        {
-          lv_anim_delete(g_glass.home_cards[i], NULL);
-          lv_obj_set_style_translate_y(g_glass.home_cards[i], 0, 0);
-        }
-    }
-  lv_obj_set_style_anim_duration(g_glass.settings_switch,
-                                 g_glass.reduced_motion ? 0 : 160, 0);
-  lv_obj_set_style_anim_duration(lv_event_get_target(e),
-                                 g_glass.reduced_motion ? 0 : 160, 0);
 }
 
 static lv_obj_t *g_control_card;
@@ -1360,14 +1338,16 @@ static void desktop_ui_create(void)
   g_glass.pm25 = -1;
   g_glass.palette = 0;
   g_desktop.light_theme = true;
-  uint8_t preferences[4] = {1, 0, 0, 0};
+  uint8_t preferences[4] = {1, 0, 0, 1};
   if (glass_settings_load(preferences) == 0)
     {
       g_desktop.light_theme = preferences[0];
       g_glass.palette = preferences[1];
       g_glass.widget = preferences[2];
-      g_glass.reduced_motion = preferences[3];
     }
+  /* Desktop motion stays off even with older saved preferences. */
+  preferences[3] = 1;
+  g_glass.reduced_motion = true;
   glass_wallpaper_load();
   portal_desktop_publish(preferences);
 #ifdef CONFIG_SYSTEM_HASS

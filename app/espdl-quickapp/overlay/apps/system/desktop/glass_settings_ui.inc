@@ -138,22 +138,11 @@ static void glass_settings(lv_event_t *e)
   if(g_desktop.light_theme)lv_obj_add_state(sw,LV_STATE_CHECKED);
   lv_obj_add_event_cb(sw,theme_changed,LV_EVENT_VALUE_CHANGED,NULL);
   glass_settings_bind_feedback(sw,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
-  detail_text(appearance,glass_tr("减少动效"),24,136,260,16,detail_ink());
-  sw=lv_switch_create(appearance);g_glass.motion_switch=sw;
-  glass_control_switch_style(sw);
-  lv_obj_set_pos(sw,308,132);lv_obj_set_size(sw,52,28);
-  lv_obj_set_ext_click_area(sw,8);
-  lv_obj_set_style_bg_opa(sw,LV_OPA_COVER,LV_PART_MAIN);
-  lv_obj_set_style_bg_color(sw,lv_color_hex(detail_accent()),LV_PART_INDICATOR|LV_STATE_CHECKED);
-  lv_obj_set_style_bg_opa(sw,LV_OPA_COVER,LV_PART_INDICATOR|LV_STATE_CHECKED);
-  if(g_glass.reduced_motion)lv_obj_add_state(sw,LV_STATE_CHECKED);
-  lv_obj_add_event_cb(sw,glass_motion_changed,LV_EVENT_VALUE_CHANGED,NULL);
-  glass_settings_bind_feedback(sw,GLASS_ICON_SPARKLES,LV_EVENT_VALUE_CHANGED);
   glass_box(appearance,396,72,1,180,detail_line(),0);
-  detail_text(appearance,glass_tr("主视觉配色"),24,196,120,14,detail_muted());
+  detail_text(appearance,glass_tr("主视觉配色"),24,136,120,14,detail_muted());
   const uint32_t colors[]={0x77658f,0xb77860,0x498d82};
   for(unsigned i=0;i<3;i++){
-    lv_obj_t *choice=glass_button(appearance,"",150+i*62,188,52,colors[i],glass_palette_select,(void *)(uintptr_t)i);
+    lv_obj_t *choice=glass_button(appearance,"",150+i*62,128,52,colors[i],glass_palette_select,(void *)(uintptr_t)i);
     lv_obj_set_size(choice,52,32);lv_obj_set_style_radius(choice,10,0);
     lv_obj_set_style_border_width(choice,g_glass.palette==i?2:0,0);
     lv_obj_set_style_border_color(choice,lv_color_hex(g_desktop.light_theme?0xffffff:0xe0d7ee),0);

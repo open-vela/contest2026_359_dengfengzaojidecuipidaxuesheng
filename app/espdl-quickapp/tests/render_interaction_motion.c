@@ -226,9 +226,7 @@ int main(int argc,char **argv)
       "__caught=false;try{ui.present(Array(129).fill(1),12)}catch(e){__caught=true}"
       "if(!__caught)throw Error('unbounded presentation accepted')")==0);
     panel_hide(NULL);glass_settings(NULL);motion_frames(display,"settings-enter",16);
-    assert(g_glass.motion_switch);
-    lv_obj_add_state(g_glass.motion_switch,LV_STATE_CHECKED);
-    lv_obj_send_event(g_glass.motion_switch,LV_EVENT_VALUE_CHANGED,NULL);
+    glass_motion_set_reduced(true);
     assert(g_motion_reduced);
     for(unsigned i=0;i<GLASS_MOTION_SLOTS;i++)assert(!g_motion_jobs[i].object);
     panel_hide(NULL);glass_apps(NULL);lv_tick_inc(20);lv_timer_handler();
