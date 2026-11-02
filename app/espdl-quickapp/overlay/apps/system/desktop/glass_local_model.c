@@ -2,6 +2,7 @@
 #include "glass_local_model.h"
 #ifdef GLV_Q4_PIE
 #include "local_q4_pie.h"
+#include "local_q8_pie.h"
 #endif
 #include <errno.h>
 #include <math.h>
@@ -277,6 +278,16 @@ int glv_tensor_row(struct glv_model *m,const struct glv_tensor *t,unsigned row,f
   m->memory->profile.weight_decode_us+=glv_now_us()-began-(m->memory->profile.weight_read_us+m->memory->profile.weight_seek_us-io);
   return 0;
 }
+int glv_tensor_q4_packed(struct glv_model *m,const struct glv_tensor *t,unsigned row,
+                         void *packed,size_t capacity)
+{
+  if(!m||!m->memory||!t||!packed||(!m->data&&!m->file))return -EINVAL;
+  if(t->type!=1)return -ENOTSUP;
+  if(t->ndim!=2||!t->shape[1]||t->shape[1]%32||row>=t->shape[0]||
+     t->stride!=t->shape[1]/32*20||capacity<t->stride)return -EINVAL;
+  if(row&&t->stride>(SIZE_MAX-t->offset)/row)return -EBADMSG;
+  return tensor_bytes(m,row_cache(m,t),row,t->offset+(size_t)row*t->stride,packed,t->stride);
+}
 int glv_tensor_q8_packed(struct glv_model *m,const struct glv_tensor *t,unsigned row,
                          void *packed,size_t capacity,unsigned count)
 {
@@ -315,6 +326,7 @@ int glv_matvec(struct glv_model *m,const char *name,const float *x,float *out,un
 {
   const struct glv_tensor *t=glv_tensor(m,name);
 #ifdef GLV_Q4_PIE
+  if(t&&t->type==2&&m->memory->q4_bits==16)return glv_q8_matbatch(m,name,x,out,rows,cols,1);
   if(t&&t->type==1&&m->memory->q4_bits==16)return glv_q4_matbatch(m,name,x,out,rows,cols,1,16);
 #endif
   if(!t||t->ndim!=2||t->shape[0]!=rows||t->shape[1]!=cols)return -EBADMSG;
@@ -334,6 +346,7 @@ int glv_matbatch(struct glv_model *m,const char *name,const float *x,float *out,
 {
   const struct glv_tensor *t=glv_tensor(m,name);
 #ifdef GLV_Q4_PIE
+  if(t&&t->type==2&&m->memory->q4_bits==16)return glv_q8_matbatch(m,name,x,out,rows,cols,batch);
   if(t&&t->type==1&&m->memory->q4_bits==16)return glv_q4_matbatch(m,name,x,out,rows,cols,batch,16);
 #endif
   if(!batch||batch>GLV_MATBATCH_MAX||!t||t->ndim!=2||t->shape[0]!=rows||t->shape[1]!=cols)return -EINVAL;

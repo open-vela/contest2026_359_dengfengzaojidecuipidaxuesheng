@@ -21,6 +21,8 @@ enum glv_llm_progress {GLV_LLM_TOKENIZING,GLV_LLM_PREFILL,GLV_LLM_DECODING};
 struct glv_verified_asset;
 struct glv_row_cache;
 struct glv_profile {
+  unsigned llm_q8_pie_calls;
+  uint64_t llm_q8_pie_dots;
   uint64_t sha_bytes,sha_read_us,sha_compute_us;
   unsigned sha_hw_backend,sha_hw_files,sha_hw_updates,sha_hw_selftests;
   uint64_t tts_parallel_us,tts_parallel_overlap_us;
@@ -54,6 +56,8 @@ struct glv_profile {
   unsigned tts_quant_fast_calls,tts_quant_fast_selftests;
   uint64_t tts_quant_fast_input_saved;
   unsigned tts_clauses,tts_planned_clauses,tts_first_clause_ms,tts_peak_buffered_samples;
+  unsigned tts_upsample_pair_calls,tts_upsample_pair_fallbacks;
+  uint64_t tts_upsample_pack_us,tts_upsample_compute_us,tts_upsample_stage_us[4];
 };
 struct glv_memory {
   size_t used,peak,limit;
@@ -86,6 +90,7 @@ struct glv_memory {
   bool tts_int8_reduce; /* Job9-only full-row S8 accumulation, default off. */
   bool tts_quant_fast; /* Exact stable W8A16 input quantization. */
   bool tts_short; /* Short clauses, sequential synthesis/playback. */
+  bool tts_upsample_pair; /* Exact dual-output FP32 upsample, diagnostic default off. */
 };
 struct glv_tensor {
   char name[80];uint32_t shape[4],ndim,type,offset,bytes,stride;
@@ -119,6 +124,8 @@ int glv_model_cache_tensor(struct glv_model *,const char *);
 void glv_model_cache_clear(struct glv_model *);
 const struct glv_tensor *glv_tensor(struct glv_model *,const char *);
 int glv_tensor_row(struct glv_model *,const struct glv_tensor *,unsigned,float *,unsigned);
+/* Complete, still-packed Q4 row; shares cache, cancellation and IO accounting. */
+int glv_tensor_q4_packed(struct glv_model *,const struct glv_tensor *,unsigned,void *,size_t);
 /* Q8 scale+codes only, same row I/O policy; no float expansion. Caller owns
  * count+4 bytes. Quantized math/overflow checks remain the consumer's job. */
 int glv_tensor_q8_packed(struct glv_model *,const struct glv_tensor *,unsigned,void *,size_t,unsigned);

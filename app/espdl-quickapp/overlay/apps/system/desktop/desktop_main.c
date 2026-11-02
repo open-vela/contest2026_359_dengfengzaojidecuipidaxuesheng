@@ -27,6 +27,10 @@
 
 #include <nuttx/sched.h>
 #include <nuttx/arch.h>
+#ifdef CONFIG_ESPRESSIF_SPI3_DMA
+#  include <inttypes.h>
+#  include <nuttx/spi/esp_spidma.h>
+#endif
 #include <lvgl/lvgl.h>
 #include "glass_ui_visibility.h"
 #include "glass_backlight.h"
@@ -1845,6 +1849,23 @@ int main(int argc, FAR char *argv[])
     }
 #endif
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
+#ifdef CONFIG_ESPRESSIF_SPI3_DMA
+  if (argc == 2 && !strcmp(argv[1], "sd-dma"))
+    {
+      struct esp_spidma_stats_s stats;
+      int ret = esp_spidma_get_stats(3, &stats);
+      if (ret < 0) return 1;
+      printf("SPI_DMA port=3 configured=%" PRIu32 " ready=%" PRIu32
+             " fault=%" PRIu32 " clock=%" PRIu32 " transfers=%" PRIu32
+             " polls=%" PRIu32 " callbacks=%" PRIu32 " errors=%" PRIu32
+             " timeouts=%" PRIu32 " alloc=%" PRIu32 " tx_bytes=%" PRIu64
+             " rx_bytes=%" PRIu64 "\n", stats.configured, stats.ready,
+             stats.fault, stats.frequency, stats.transfers, stats.polls,
+             stats.callbacks, stats.errors, stats.timeouts,
+             stats.allocation_bytes, stats.tx_bytes, stats.rx_bytes);
+      return stats.fault ? 1 : 0;
+    }
+#endif
   if(argc==2&&!strcmp(argv[1],"cpu-status")){bili_cpu_report();return 0;}
   if(argc==3&&!strcmp(argv[1],"media-fps")){
     char *end;unsigned long fps=strtoul(argv[2],&end,10);
@@ -2051,6 +2072,7 @@ int main(int argc, FAR char *argv[])
         (unsigned long)s.request,s.cancel_source,s.cancel_phase,s.cancel_ms,s.stage_ms[GLV_CHECKING],s.stage_ms[GLV_LOADING_LLM],
         s.stage_ms[GLV_TOKENIZING],s.stage_ms[GLV_PREFILL],s.stage_ms[GLV_GENERATING],s.progress_done,s.progress_total);
       char transcript[1025];glass_local_voice_get_transcript(s.request,transcript,sizeof(transcript));
+      printf("LOCAL_VOICE_Q8 included=1 activation_bits=16 gate=%u matrices=%u dots=%llu\n",s.q4_selftest_passed,s.profile.llm_q8_pie_calls,(unsigned long long)s.profile.llm_q8_pie_dots);
       printf("LOCAL_VOICE_Q4 bits=%u selftest=%u matrices=%u dots=%u\n",s.q4_bits,s.q4_selftest_passed,s.q4_matrix_calls,s.q4_dot_calls);
       printf("LOCAL_VOICE_LAZY default_text=1 wake_error=%d\n",s.wake_error);
       printf("LOCAL_VOICE_IO request=%lu sha_bytes=%llu sha_read_ms=%llu sha_compute_ms=%llu weight_bytes=%llu read_ms=%llu seek_ms=%llu decode_ms=%llu matmul_ms=%llu verified_reuses=%u sha_hw=%u sha_hw_files=%u sha_hw_updates=%u sha_hw_selftests=%u\n",
@@ -2083,6 +2105,11 @@ int main(int argc, FAR char *argv[])
       printf("LOCAL_VOICE_TTS_WEIGHT_LUT request=%lu enabled=%u rows=%u hits=%llu misses=%llu rounding_fb=%u\n",(unsigned long)s.request,s.tts_weight_lut,s.profile.tts_weight_lut_rows,(unsigned long long)s.profile.tts_weight_lut_hits,(unsigned long long)s.profile.tts_weight_lut_misses,s.profile.tts_weight_lut_rounding_fallbacks);
       printf("LOCAL_VOICE_TTS_INT8 request=%lu enabled=%u benchmark_only=1 calls=%u kept16=%u selftests=%u selftests16=%u\n",(unsigned long)s.request,s.tts_int8,s.profile.tts_int8_calls,s.profile.tts_int8_kept_calls,s.profile.tts_int8_selftests,s.profile.tts_int16_selftests);
       printf("LOCAL_VOICE_TTS_REDUCE request=%lu enabled=%u calls=%u selftests=%u fast=%u saved=%llu input_saved=%llu\n",(unsigned long)s.request,s.tts_int8_reduce,s.profile.tts_int8_reduce_calls,s.profile.tts_int8_reduce_selftests,s.profile.tts_int8_fast_input_calls,(unsigned long long)s.profile.tts_int8_conversions_saved,(unsigned long long)s.profile.tts_int8_input_conversions_saved);
+      printf("LOCAL_VOICE_TTS_UP_PAIR request=%lu enabled=%u calls=%u packed_fb=%u pack_ms=%llu compute_ms=%llu s0_ms=%llu s1_ms=%llu s2_ms=%llu s3_ms=%llu\n",
+        (unsigned long)s.request,s.tts_upsample_pair,s.profile.tts_upsample_pair_calls,s.profile.tts_upsample_pair_fallbacks,
+        (unsigned long long)(s.profile.tts_upsample_pack_us/1000),(unsigned long long)(s.profile.tts_upsample_compute_us/1000),
+        (unsigned long long)(s.profile.tts_upsample_stage_us[0]/1000),(unsigned long long)(s.profile.tts_upsample_stage_us[1]/1000),
+        (unsigned long long)(s.profile.tts_upsample_stage_us[2]/1000),(unsigned long long)(s.profile.tts_upsample_stage_us[3]/1000));
       printf("LOCAL_VOICE_TTS_CLAUSE request=%lu enabled=%u planned=%u done=%u first_ms=%u peak_samples=%u\n",
         (unsigned long)s.request,s.tts_short,s.profile.tts_planned_clauses,s.profile.tts_clauses,s.profile.tts_first_clause_ms,s.profile.tts_peak_buffered_samples);
       printf("LOCAL_VOICE_TTS_QUANT request=%lu enabled=%u calls=%u selftests=%u input_saved=%llu\n",(unsigned long)s.request,s.tts_quant_fast,s.profile.tts_quant_fast_calls,s.profile.tts_quant_fast_selftests,(unsigned long long)s.profile.tts_quant_fast_input_saved);
@@ -2111,7 +2138,13 @@ int main(int argc, FAR char *argv[])
       printf("LOCAL_VOICE_ASR error=%d level=%u capture_ms=%u tokens=%u first_token_ms=%u elapsed_ms=%u text_bytes=%lu fnv=%08lx\n",
         s.asr_error,s.input_level,s.capture_ms,s.asr_tokens,s.asr_first_token_ms,s.asr_elapsed_ms,(unsigned long)tn,(unsigned long)td);return 0;
     }
-    if(argc==3&&!strcmp(argv[2],"check"))ret=glass_local_voice_check(&request);
+    if(argc==3&&!strcmp(argv[2],"tool-result")){
+      struct glv_snapshot s;char reply[4096];glass_local_voice_get(&s,reply,sizeof(reply));
+      printf("LOCAL_TOOL_RESULT request=%lu busy=%u error=%d\n%s\n",(unsigned long)s.request,s.busy,s.error,reply);return 0;
+    }
+    if(argc==4&&!strcmp(argv[2],"tool-bench")&&strlen(argv[3])==1&&argv[3][0]>='0'&&argv[3][0]<='2')
+      ret=glass_local_voice_tool_benchmark((unsigned)(argv[3][0]-'0'),&request);
+    else if(argc==3&&!strcmp(argv[2],"check"))ret=glass_local_voice_check(&request);
     else if(argc==3&&!strcmp(argv[2],"stop")){glass_local_voice_cancel_from(GLV_CANCEL_CLI_STOP);ret=0;}
     else if(argc==3&&!strcmp(argv[2],"new"))ret=glass_local_voice_new_from(GLV_CANCEL_CLI_NEW);
     else if(argc==3&&!strcmp(argv[2],"save"))ret=glass_local_voice_save(&request);
@@ -2128,6 +2161,7 @@ int main(int argc, FAR char *argv[])
     else if(argc==4&&!strcmp(argv[2],"tts-parallel")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_parallel(!strcmp(argv[3],"on"));
     else if(argc==4&&!strcmp(argv[2],"tts-input")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_input(!strcmp(argv[3],"on"));
     else if(argc==4&&!strcmp(argv[2],"tts-weight-lut")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_weight_lut(!strcmp(argv[3],"on"));
+    else if(argc==4&&!strcmp(argv[2],"tts-up-pair")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_upsample_pair(!strcmp(argv[3],"on"));
     else if(argc==4&&!strcmp(argv[2],"tts-short")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_short(!strcmp(argv[3],"on"));
     else if(argc==4&&!strcmp(argv[2],"tts-quant-fast")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_quant_fast(!strcmp(argv[3],"on"));
     else if(argc==4&&!strcmp(argv[2],"tts-int8-reduce")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_int8_reduce(!strcmp(argv[3],"on"));

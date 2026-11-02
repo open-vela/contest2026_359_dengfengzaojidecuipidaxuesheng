@@ -463,6 +463,49 @@ static int upsample_task_body(void *argument,unsigned first_output,unsigned last
     }
   return 0;
 }
+/* Two output channels reuse the same five input values. Keep each output's
+ * i/tap order and separate multiply/add rounding; tails use the old kernel. */
+static int upsample_task_body_pair(void *argument,unsigned first_output,unsigned last_output,struct glv_tts_lane *lane)
+{
+  const struct upsample_task *task=argument;struct matrix x=task->x,y=task->y;
+  unsigned step=task->step,padding=task->padding,o=first_output;
+  for(;o+1<last_output;o+=2)for(unsigned p=0;p<step;p++){
+    unsigned first=(p+padding)%step,shift=(p+padding-first)/step;
+    const float *w0=task->packed+((size_t)o*step+p)*x.c*2;
+    const float *w1=w0+(size_t)step*x.c*2;
+    float *d0=y.v+(size_t)o*y.t+p,*d1=d0+y.t;
+    for(unsigned at=0;at<x.t;at+=CONV_TILE){
+      unsigned stop=at+CONV_TILE;if(stop>x.t)stop=x.t;
+      for(unsigned q=at;q<stop;){
+        if(q>0&&q+4<x.t&&q+4<=stop){
+          float a=task->bias[o],b=a,c=a,d=a;
+          float e=task->bias[o+1],f=e,g=e,h=e;
+          for(unsigned i=0;i<x.c;i++){
+            const float *in=x.v+(size_t)i*x.t+q+shift;
+            float x0=in[-1],x1=in[0],x2=in[1],x3=in[2],x4=in[3];
+            float v=w0[i*2],u=w0[i*2+1],v1=w1[i*2],u1=w1[i*2+1];
+            a+=x1*v;b+=x2*v;c+=x3*v;d+=x4*v;
+            e+=x1*v1;f+=x2*v1;g+=x3*v1;h+=x4*v1;
+            a+=x0*u;b+=x1*u;c+=x2*u;d+=x3*u;
+            e+=x0*u1;f+=x1*u1;g+=x2*u1;h+=x3*u1;
+          }
+          d0[(size_t)q*step]=a;d0[(size_t)(q+1)*step]=b;d0[(size_t)(q+2)*step]=c;d0[(size_t)(q+3)*step]=d;
+          d1[(size_t)q*step]=e;d1[(size_t)(q+1)*step]=f;d1[(size_t)(q+2)*step]=g;d1[(size_t)(q+3)*step]=h;q+=4;
+        }else{
+          float a=task->bias[o],b=task->bias[o+1];int t=(int)(q+shift);
+          for(unsigned i=0;i<x.c;i++){
+            const float *in=x.v+(size_t)i*x.t;
+            if((unsigned)t<x.t){float v=in[t];a+=v*w0[i*2];b+=v*w1[i*2];}
+            if((unsigned)(t-1)<x.t){float v=in[t-1];a+=v*w0[i*2+1];b+=v*w1[i*2+1];}
+          }
+          d0[(size_t)q*step]=a;d1[(size_t)q*step]=b;q++;
+        }
+      }
+      int ret=glv_tts_parallel_cancel(lane);if(ret)return ret;
+    }
+  }
+  return o<last_output?upsample_task_body(argument,o,last_output,lane):0;
+}
 #ifdef GLV_TTS_FMA
 /* Explicit one-rounding variant, isolated for default-off A/B and ELF review. */
 static int upsample_task_body_fma(void *argument,unsigned first_output,unsigned last_output,struct glv_tts_lane *lane)
@@ -511,10 +554,14 @@ static struct matrix upsample(struct glv_tts *s,struct matrix x,unsigned stage)
   if(s->error)return y;
   if(!w||w->ndim!=3||w->shape[0]!=x.c||w->shape[2]!=2*step){fail(s,-EBADMSG);return y;}
   unsigned oc=w->shape[1],kernel=w->shape[2],padding=(step+1)/2;
+  if(s->memory->tts_upsample_pair&&s->memory->tts_fma){fail(s,-EINVAL);return y;}
   y=make(s,oc,x.t*step);if(!y.v)return y;
   snprintf(name,sizeof(name),"vocoder.upsamples.%u.1.bias",stage);bias=vector(s,name,oc);
   row=glv_alloc(s->memory,oc*kernel*4u);if(!row)fail(s,-ENOMEM);if(s->error)goto done;
   activation(x,.1f);
+  #ifdef GLV_TTS_PARALLEL
+  uint64_t pack_began=glv_now_us();
+  #endif
   /* Each output phase uses exactly two ascending kernel taps per input
    * channel. Pack those taps once, then retain four output sums in registers.
    * The original i/k order and individual FP32 rounding are unchanged. */
@@ -528,12 +575,16 @@ static struct matrix upsample(struct glv_tts *s,struct matrix x,unsigned stage)
       }
     }
 #ifdef GLV_TTS_PARALLEL
+    s->memory->profile.tts_upsample_pack_us+=glv_now_us()-pack_began;
     struct upsample_task task={x,y,packed,bias,step,padding};
     glv_tts_parallel_body operation=upsample_task_body;
+    if(s->memory->tts_upsample_pair){operation=upsample_task_body_pair;s->memory->profile.tts_upsample_pair_calls++;}
 #ifdef GLV_TTS_FMA
     if(s->memory->tts_fma){operation=upsample_task_body_fma;s->memory->profile.tts_fma_upsample_calls++;}
 #endif
+    uint64_t compute_began=glv_now_us();
     int ret=glv_tts_parallel_run(s->memory,operation,&task,oc,(uint64_t)oc*step*x.c*x.t*2);
+    s->memory->profile.tts_upsample_compute_us+=glv_now_us()-compute_began;
     if(ret)fail(s,ret);goto done;
 #endif
     for(unsigned o=0;o<oc;o++)for(unsigned p=0;p<step;p++){
@@ -567,6 +618,7 @@ static struct matrix upsample(struct glv_tts *s,struct matrix x,unsigned stage)
     }
     goto done;
   }
+  if(s->memory->tts_upsample_pair)s->memory->profile.tts_upsample_pair_fallbacks++;
 #ifdef GLV_TTS_FMA
   /* Do not silently mix rounding modes after a failed optional packing buffer. */
   if(s->memory->tts_fma){s->memory->profile.tts_fma_rejections++;fail(s,-ENOMEM);goto done;}
@@ -596,7 +648,8 @@ static struct matrix vocoder(struct glv_tts *s,struct matrix mel)
   struct matrix x=conv(s,mel,"vocoder.input_conv",1,3);
   for(unsigned stage=0;stage<4&&!s->error;stage++){
     uint64_t began=glv_now_us();struct matrix base=upsample(s,x,stage);
-    s->memory->profile.tts_upsample_us+=glv_now_us()-began;drop(&x);
+    uint64_t upsample_spent=glv_now_us()-began;s->memory->profile.tts_upsample_us+=upsample_spent;
+    s->memory->profile.tts_upsample_stage_us[stage]+=upsample_spent;drop(&x);
     struct matrix sum=make(s,base.c,base.t);
     const unsigned kernels[]={3,7,11};
     for(unsigned j=0;j<3&&!s->error;j++){

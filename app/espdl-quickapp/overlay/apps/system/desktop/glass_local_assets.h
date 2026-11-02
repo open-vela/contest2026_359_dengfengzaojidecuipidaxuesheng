@@ -2,7 +2,7 @@
 #pragma once
 #include "glass_local_model.h"
 #ifndef GLV_RELEASE_ROOT
-#define GLV_RELEASE_ROOT "/sdcard/local-voice/models/edgeidiot-sft2-baker-v2-20261031"
+#define GLV_RELEASE_ROOT "/sdcard/local-voice/models/tools-v9-20261101"
 #endif
 #ifdef __cplusplus
 extern "C" {

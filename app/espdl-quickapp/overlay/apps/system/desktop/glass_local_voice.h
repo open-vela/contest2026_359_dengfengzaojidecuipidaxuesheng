@@ -31,6 +31,7 @@ struct glv_snapshot {
   bool tts_int8_reduce; /* Default-off, no-play full-row S8 diagnostic. */
   bool tts_quant_fast;
   bool tts_short;
+  bool tts_upsample_pair;
   bool tts_coarse_profile;
   unsigned tts_bench_limit_kib;
   struct glv_profile profile;
@@ -43,6 +44,8 @@ int glass_local_voice_start(void);
 int glass_local_voice_send(const char *,enum glv_mode,uint32_t *);
 /* Diagnostic fixed text synthesis, same buffering but no audio device open. */
 int glass_local_voice_tts_benchmark(const char *,uint32_t *);
+/* Fixed, manifest-bound tool-model diagnostic. Generates text; no execution/audio. */
+int glass_local_voice_tool_benchmark(unsigned,uint32_t *);
 int glass_local_voice_tts_kernel(bool);
 int glass_local_voice_tts_parallel(bool);
 /* Volatile diagnostic only, default off; explicit FMA changes FP rounding. */
@@ -56,6 +59,7 @@ int glass_local_voice_tts_int8(bool);
 int glass_local_voice_tts_int8_reduce(bool);
 int glass_local_voice_tts_quant_fast(bool);
 int glass_local_voice_tts_short(bool);
+int glass_local_voice_tts_upsample_pair(bool);
 int glass_local_voice_tts_profile(bool);
 int glass_local_voice_tts_bench_limit(unsigned);
 int glass_local_voice_check(uint32_t *);

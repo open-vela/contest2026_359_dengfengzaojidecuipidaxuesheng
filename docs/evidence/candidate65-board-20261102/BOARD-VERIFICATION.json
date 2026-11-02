@@ -1,0 +1,80 @@
+{
+  "candidate": 65,
+  "firmware_sha256": "d2b38085796032e7d3ff9d53bdce38fedf3935aa072f8fe5612037bcb109fac4",
+  "source_inputs_verified": 789,
+  "physical_acceptance": {
+    "firmware_sha256": "d2b38085796032e7d3ff9d53bdce38fedf3935aa072f8fe5612037bcb109fac4",
+    "screen_and_backlight_accepted": true,
+    "touch_response_accepted": true,
+    "confirmation": "画面、背光、触摸响应正常",
+    "recorded_utc": "2026-11-01T18:18:21.261437+00:00",
+    "question_candidate": 65
+  },
+  "board_observations": {
+    "spi3_dma": {
+      "enabled": true,
+      "clock_hz": 20000000,
+      "errors": 0,
+      "timeouts": 0,
+      "final_counter_excerpt": "desktop sd-dma\nSPI_DMA port=3 configured=1 ready=1 fault=0 clock=20000000 transfers=756402 polls=0 callbacks=1512804 errors=0 timeouts=0 alloc=1152 tx_bytes=387277824 rx_bytes=387277824\nnsh> \u001b[K"
+    },
+    "native_browser": {
+      "enabled": false,
+      "reserved_pool_bytes": 0
+    },
+    "user_heap_bytes": 21561344,
+    "system_reserve_bytes": 4194304,
+    "llm_cache_diagnostic": {
+      "before": {
+        "elapsed_ms": 216780,
+        "first_token_ms": 57281,
+        "weight_bytes_read": 255874652,
+        "weight_read_ms": 170960,
+        "raw_cache_peak_bytes": 8439433,
+        "llm_peak_bytes": 10092251
+      },
+      "after": {
+        "elapsed_ms": 212610,
+        "first_token_ms": 59971,
+        "weight_bytes_read": 248667136,
+        "weight_read_ms": 169160,
+        "raw_cache_peak_bytes": 8439577,
+        "llm_peak_bytes": 10677245
+      },
+      "latency_reduction_percent": 1.9236091890395768,
+      "scope": "One paired native SFT2 INT8 diagnostic; 23 prompt tokens, 7 generated tokens, same PIE16 backend. Not a lamp-control latency measurement.",
+      "unchanged_native_output": true,
+      "system_free_reserve_bytes": 4194304,
+      "prefill_admission_guard_bytes": 1048576,
+      "guard_is_released_before_compute": true,
+      "arithmetic_ENOMEM_reclaims_optional_cache": true,
+      "real_tool_actions_replayed": false
+    },
+    "production_model": {
+      "model": "v9-balanced-200",
+      "format": "Q4_32",
+      "parameters": 38023680,
+      "backend": "scalar",
+      "weights_changed": false
+    },
+    "native_diagnostic_passed": true
+  },
+  "limits": {
+    "real_device_actions": false,
+    "microphone_or_playback": false,
+    "q4_full_resident_on_board": false,
+    "post_rollback_physical_screen_reconfirmed": false,
+    "notes": [
+      "No native full-resident Q4 inference was possible in the measured board arena.",
+      "Host hypothetical larger arena control proves loader functionality only; it is not a board memory upgrade test.",
+      "No new microphone, speaker, real HA execution or INT8-versus-Q4 accuracy comparison in this iteration."
+    ]
+  },
+  "evidence_sha256": {
+    "SUMMARY.json": "024f51c7913773d5dc18b6486fbfde32245b11940b644057e4b292c7b05462ca",
+    "PHYSICAL65.json": "29f4ba9c67612f69399aad141c671de6778279b735d05967a59ec41d16900887",
+    "FINAL-STATE.json": "9f84b96c9bba9ca883326ec752a3f0333458828fe874cbb3423d95ef30a48f42",
+    "native\\BOARD-RESULT.json": "19dd7dabc513e74e7afb9d5fd0b037727927bc844c357090f29103a496754dd1",
+    "firmware\\BUILD-METADATA.json": "92dcb3746db7981b418e6b7b5f72257bab019f93b1a1751965a0617f43792167"
+  }
+}
