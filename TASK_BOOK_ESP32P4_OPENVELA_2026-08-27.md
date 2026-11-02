@@ -2,6 +2,9 @@
 
 文档日期：2026-08-27；正式交付仓：`flash555588/contest2026_359_dengfengzaojidecuipidaxuesheng`；工作分支：`codex/esp32p4-lcd-bringup`；目标硬件：ESP32-P4 Function EV Board，芯片 revision v1.0 与 v3.2。
 
+本任务书记录当时的路径和验收状态。文中 v1 固件归档已从当前文件树清理；
+如需核对原始镜像和报告，请检出清理前提交 `50e354d2`。
+
 ## 一、任务目标
 
 基于 OpenVela 大赛指定上游和团队已经跑通的 ESP32-P4 NuttX/apps 仓，形成源码固定、双芯片版本隔离、可重复编译、可烧录、带实机证据的 OpenVela 桌面发行包。最终交付必须包含固定源码入口、v1.0/v3.2 defconfig、统一构建脚本、固件与哈希、烧录说明、测试矩阵、复现报告和 AI Coding 日志，不能依赖构建时覆盖源码的临时脚本。

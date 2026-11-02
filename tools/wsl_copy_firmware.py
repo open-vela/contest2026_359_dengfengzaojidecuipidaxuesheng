@@ -2,27 +2,37 @@
 """Copy WSL NuttX images to the Windows contest tree.
 
 With no arguments this refreshes the current v3.2 NSH files used by the flash
-script. ``--variant v1.x`` writes only to the historical archive; v3 variants
-stay under the current ``firmware/v3`` entry point.
+script. A v1.x build requires an explicit output directory outside the repo;
+v3 variants stay under the current ``firmware/v3`` entry point.
 """
 import argparse
 from pathlib import Path
 import shutil
 
 src_dir = Path("/home/flash/vela-p4/nuttx")
-repo_root = Path(
-    "/mnt/c/Users/flash/Desktop/openvela-contest/"
-    "contest2026_359_dengfengzaojidecuipidaxuesheng"
-)
+repo_root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--variant", choices=("v1.x", "v3.2", "v3.2-usb"))
+parser.add_argument("--output", type=Path, help="required external directory for v1.x")
 args = parser.parse_args()
 
 if args.variant == "v1.x":
-    dst = repo_root / "firmware/历史测试固件/esp32p4-nsh-v1.x"
+    if args.output is None:
+        parser.error("--variant v1.x requires --output outside this repository")
+    dst = args.output.resolve()
+    try:
+        dst.relative_to(repo_root.resolve())
+    except ValueError:
+        pass
+    else:
+        parser.error("--output for v1.x must be outside this repository")
 elif args.variant == "v3.2-usb":
+    if args.output is not None:
+        parser.error("--output is only supported for v1.x")
     dst = repo_root / "firmware/v3/esp32p4-nsh-v3.2-usb"
 else:
+    if args.output is not None:
+        parser.error("--output is only supported for v1.x")
     dst = repo_root / "firmware/v3/esp32p4-nsh-v3.2"
 dst.mkdir(parents=True, exist_ok=True)
 copied = []

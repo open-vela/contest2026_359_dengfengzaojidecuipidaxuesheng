@@ -1,12 +1,12 @@
 # Flash an ESP32-P4 Simple Boot image using esptool 5.x.
 # Usage (PowerShell):
-#   powershell -File tools\flash_p4_nsh.ps1 -Variant v1.x -Port COM7 -Transport uart-bridge
+#   powershell -File tools\flash_p4_nsh.ps1 -Variant v3.2 -Port COM7 -Transport uart-bridge
 #   powershell -File tools\flash_p4_nsh.ps1 -Port COM23 -Transport usb-jtag -Firmware path\nuttx.bin -DryRun
 #
 # Select the physical download interface, not the firmware console setting.
 
 param(
-    [ValidateSet("selected", "v1.x", "v3.2", "v3.2-usb")]
+    [ValidateSet("selected", "v3.2", "v3.2-usb")]
     [string]$Variant = "selected",
     [Parameter(Mandatory = $true)]
     [string]$Port,
@@ -24,13 +24,10 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $PSScriptRoot
 $V3Root = Join-Path $Repo "firmware\v3"
-$HistoryRoot = Join-Path $Repo "firmware\历史测试固件"
 if ($Firmware) {
     $Fw = $Firmware
 } elseif ($Variant -eq "selected") {
     $Fw = Join-Path $V3Root "esp32p4-nsh-v3.2\esp32p4-nsh-v3.2.bin"
-} elseif ($Variant -eq "v1.x") {
-    $Fw = Join-Path $HistoryRoot "esp32p4-nsh-v1.x\esp32p4-nsh-v1.x.bin"
 } elseif ($Variant -eq "v3.2") {
     $Fw = Join-Path $V3Root "esp32p4-nsh-v3.2\esp32p4-nsh-v3.2.bin"
 } elseif ($Variant -eq "v3.2-usb") {
