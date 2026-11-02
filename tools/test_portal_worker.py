@@ -125,6 +125,15 @@ def main():
             assert status == 200, (path, status)
             return json.loads(data)
 
+        if not args.expect_baseline_failure:
+            control('ADVANCE_DOWNLOAD')
+            status, data, _ = request('/api/file?path=files%2Fnative-transfer.bin', token=token)
+            state = control('STATUS')
+            check('large_file_survives_old_120s_deadline_with_exact_bytes',
+                  status == 200 and data == b'\x5a' * (8*1024*1024) and
+                  600000 < state['download_budget_ms'] <= 632000 and
+                  state['transfer_clock_ms'] == 125000, state)
+
         paths = ['/api/session', '/api/network'] + ['/api/config?section=' + section
                  for section in ['ai', 'homeassistant', 'music', 'voice', 'desktop', 'agent']]
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
@@ -164,6 +173,22 @@ def main():
         state = control('STATUS')
         check('whole_poll_EBADF_preserves_healthy_listener', state['listener_closes'] == before['listener_closes'], state)
         client.close(); await_status(lambda s: s['active'] == 0);asset('/style.css')
+
+        if not args.expect_baseline_failure:
+            before = control('STATUS'); control('LISTENERERRS 8')
+            state = await_status(lambda s: s['http_recoveries'] == before['http_recoveries'] + 1)
+            state = await_status(lambda s: s['listener'] >= 0)
+            asset('/'); api('/api/session')
+            check('persistent_healthy_listener_poll_failure_recycles_http_only',
+                  state['http_recoveries'] == before['http_recoveries'] + 1 and
+                  state['listener_closes'] == before['listener_closes'] + 1 and
+                  state['listener_cloexec'] and state['error'] != 0, state)
+            before = control('STATUS'); control('LISTENERERRS 8')
+            await_status(lambda s: s['faults'] >= before['faults'] + 8)
+            asset('/style.css'); api('/api/session'); state = control('STATUS')
+            check('poll_recovery_rate_limited_and_session_retained',
+                  state['http_recoveries'] == before['http_recoveries'] and
+                  state['listener_closes'] == before['listener_closes'], state)
 
         client = empty(); control('INVALID_BLOCK')
         state = await_status(lambda s: s['active'] == 0, seconds=3.5)

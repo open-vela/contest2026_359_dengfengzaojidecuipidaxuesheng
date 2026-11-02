@@ -63,6 +63,8 @@ int portal_config_save(const char *section,const cJSON *patch)
 {(void)section;(void)patch;assert(false);return -EINVAL;}
 int portal_public_path(const char *path,char *out,size_t capacity)
 {(void)path;(void)out;(void)capacity;assert(false);return -EINVAL;}
+int portal_public_write_path(const char *path,char *out,size_t capacity)
+{return portal_public_path(path,out,capacity);}
 int portal_install_target(const char *path,char *out,size_t capacity)
 {(void)path;(void)out;(void)capacity;assert(false);return -EINVAL;}
 int portal_install_begin(const cJSON *manifest,char *error,size_t capacity)
