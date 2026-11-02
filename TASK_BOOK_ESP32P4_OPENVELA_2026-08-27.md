@@ -3,7 +3,7 @@
 文档日期：2026-08-27；正式交付仓：`flash555588/contest2026_359_dengfengzaojidecuipidaxuesheng`；工作分支：`codex/esp32p4-lcd-bringup`；目标硬件：ESP32-P4 Function EV Board，芯片 revision v1.0 与 v3.2。
 
 本任务书记录当时的路径和验收状态。文中 v1 固件归档已从当前文件树清理；
-如需核对原始镜像和报告，请检出清理前提交 `50e354d2`。
+原始镜像和报告见清理前提交 `50e354d2`，v1 测试日志见 `f15c0fe4`。
 
 ## 一、任务目标
 
@@ -56,7 +56,7 @@ ESP32-P4 板级、芯片和桌面源代码已进入完整 NuttX/apps 成员仓�
 | --- | ---: | --- |
 | `firmware/历史测试固件/esp32p4-desktop-v1.0-release/nuttx.bin` | 2908784 | `74420C66BE6A0298DBBEB21326600D47010612C27A097030DF4E47CC90E2C058` |
 
-esptool 5.3.1 识别芯片为 revision v1.0 / ECO2，MAC `60:55:f9:fa:f4:8b`，镜像写入 `0x2000` 并校验通过。连续两次硬复位均进入 NSH，版本为 `NuttX 0.0.0 cd61ccdd`，无 dirty 标记。证据位于 `logs/v1-repro2-smoke-20260827.log` 和 `logs/v1-repro2-reset-cycle2-20260827.log`。
+esptool 5.3.1 识别芯片为 revision v1.0 / ECO2，MAC `60:55:f9:fa:f4:8b`，镜像写入 `0x2000` 并校验通过。连续两次硬复位均进入 NSH，版本为 `NuttX 0.0.0 cd61ccdd`，无 dirty 标记。证据的历史路径为 `logs/v1-repro2-smoke-20260827.log` 和 `logs/v1-repro2-reset-cycle2-20260827.log`，见清理前提交 `f15c0fe4`。
 
 ### 6. v3.2 构建候选
 

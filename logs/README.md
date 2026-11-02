@@ -15,8 +15,9 @@
 [manifest.json](flash555588/manifest.json)。日志清单描述已收录的会话，不保证本机所有
 AI 对话都被自动采集，也不能用它推断当前对话已上传。
 
-本目录根部的 `build-*.log`、`v1-*.log` 等是构建、串口或实板记录；
-它们不是 AI 对话。其他功能证据在 [docs/evidence](../docs/evidence/README.md)与
+本目录根部仍有当前构建、串口或实板记录，它们不是 AI 对话。v1 固件的
+18 份历史测试日志已移出当前文件树，可从清理前提交 `f15c0fe4` 查阅。
+其他功能证据在 [docs/evidence](../docs/evidence/README.md)与
 [应用 evidence](../app/espdl-quickapp/evidence/README.md)。
 
 ## 提交与隐私

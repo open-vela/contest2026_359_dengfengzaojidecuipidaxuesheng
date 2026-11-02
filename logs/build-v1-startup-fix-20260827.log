@@ -1,20 +1,0 @@
-[1KCC:  misc/lib_utsname.c [1KCC:  common/espressif/esp_start.c [1K[1K[1KIN: libs/libc/libc.a -> staging/libc.a [1K[1KIN: arch/risc-v/src/libarch.a -> staging/libarch.a [1KLD: nuttx
-Memory region         Used Size  Region Size  %age Used
-   tcm_idram_seg:         104 B         8 KB      1.27%
-        irom_seg:      661980 B        64 MB      0.99%
-        sram_low:       31780 B     183248 B     17.34%
-       sram_high:           0 B       256 KB      0.00%
-        drom_seg:     2898796 B        64 MB      4.32%
-rev3_mspi_workaround_seg:           0 B          0 B
-      lp_ram_seg:         104 B      32744 B      0.32%
- lp_reserved_seg:           0 B         24 B      0.00%
-  extern_ram_seg:           0 B        64 MB      0.00%
-CP: nuttx.hex
-MKIMAGE: NuttX binary
-esptool.py -c esp32p4 elf2image --ram-only-header -fs 4MB -fm dio -ff "80m" -o nuttx.bin nuttx
-esptool.py v4.8.1
-Creating esp32p4 image...
-Image has only RAM segments visible. ROM segments are hidden and SHA256 digest is not appended.
-Merged 1 ELF section
-Successfully created esp32p4 image.
-Generated: nuttx.bin
