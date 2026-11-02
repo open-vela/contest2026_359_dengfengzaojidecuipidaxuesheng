@@ -40,7 +40,9 @@ bash /path/to/contest-repo/tools/build_esp32p4_desktop.sh v1.0
 bash /path/to/contest-repo/tools/build_esp32p4_desktop.sh v3.2
 ```
 
-两次构建均返回 0。日志分别为 `logs/build-repro-v1.0-20260827.log` 与 `logs/build-repro-v3.2-20260827.log`。
+两次构建均返回 0。v1.0 日志的历史路径为
+`logs/build-repro-v1.0-20260827.log`，可从清理前提交 `f15c0fe4` 查阅；
+v3.2 日志仍位于 `logs/build-repro-v3.2-20260827.log`。
 
 ## 产物矩阵
 
@@ -55,7 +57,10 @@ v1.0 解析配置固定 `CONFIG_ESP32P4_REV_MIN_100=y`、`CONFIG_ESP32P4_SELECTS
 
 连接设备为 ESP32-P4 revision v1.0 / ECO2，MAC `60:55:f9:fa:f4:8b`，COM7。esptool 5.3.1 将镜像写入 `0x2000`，写后校验通过。连续两次自动硬复位均输出 `NuttX 0.0.0 cd61ccdd`，不是 dirty 工作树版本。
 
-运行态确认 `desktop_main` 处于等待信号状态，`/dev/fb0` 与 `/dev/input0` 已注册，用户堆总量为 33554428 bytes。完整证据位于 `logs/v1-repro2-smoke-20260827.log` 和 `logs/v1-repro2-reset-cycle2-20260827.log`。
+运行态确认 `desktop_main` 处于等待信号状态，`/dev/fb0` 与 `/dev/input0` 已注册，
+用户堆总量为 33554428 bytes。完整证据的历史路径为
+`logs/v1-repro2-smoke-20260827.log` 和 `logs/v1-repro2-reset-cycle2-20260827.log`，
+可从清理前提交 `f15c0fe4` 查阅。
 
 ## 尚未完成的比赛门槛
 
