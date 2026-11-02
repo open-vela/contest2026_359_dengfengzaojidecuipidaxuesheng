@@ -28,7 +28,7 @@ if not (out / 'rollback.bin').exists():
 names = ['desktop_main.c', 'glass_agent.c', 'glass_agent_profiles.h', 'glass_board.h',
          'glass_board_agent.inc', 'glass_board_ui.inc', 'glass_board_reference.h',
          'glass_board_home.c', 'glass_board_home.h', 'glass_board_music.c', 'glass_board_music.h',
-           'glass_music.h', 'glass_music_service.c', 'glass_music_ui.inc', 'glass_music_full.inc', 'glass_music_pv.inc', 'glass_music_cache.h', 'glass_music_lyrics.h', 'glass_lock_photo.c', 'glass_music_sd.h', 'glass_music_track_key.h',
+           'glass_music.h', 'glass_music_service.c', 'glass_music_ui.inc', 'glass_music_full.inc', 'glass_music_pv.inc', 'glass_music_cache.h', 'glass_music_audio_cache.h', 'glass_music_favorite_cache.h', 'glass_music_lyrics.h', 'glass_lock_photo.c', 'glass_music_sd.h', 'glass_music_track_key.h',
          'glass_ui.inc', 'glass_lockscreen.inc', 'glass_status.h', 'glass_status_power.c', 'glass_status_storage.c',
          'glass_status_ui.inc', 'glass_home_ui.inc', 'glass_netboot.inc', 'Makefile', 'glass_agent.h',
          'glass_agent_config.c', 'glass_portal_config.c', 'glass_portal_resource.c',

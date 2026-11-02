@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-28",
+  "scenario": "Seek into an undownloaded segment; seek backward again while loading",
+  "implementation": "Keep one producer connection per active stream and replay the flushed SD prefix; restart only MP3/PCM; report the final consumed seek revision to prevent EOF replay",
+  "tests": {
+    "old_behavior_failed": "A second audio GET was issued",
+    "asan_ubsan_host": "passed",
+    "whole_track_pcm_oracle": "passed from 2 seconds to EOF across replay/live-ring seam",
+    "rapid_zero_paused_backward": "passed",
+    "connection_count": "one GET while server is deliberately stalled",
+    "stop_cancellation": "passed",
+    "cache_commit_and_no_cache_fallback": "passed",
+    "fixture": "16s 22050 Hz mono MP3 at 160 kbps, larger than the 256 KiB ring",
+    "p4_rv32_object": "passed",
+    "diff_check": "passed"
+  },
+  "limits": [
+    "Reusing an online downloaded prefix requires working SD audio cache; unavailable cache or exceeding its 16 MiB cap retains streaming/reconnect fallback.",
+    "Full firmware link, flash and physical acceptance have not been performed for this fix."
+  ],
+  "source_sha256": {
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_music_service.c": "0e9383e209d9fb7f850ba9ad8a908af8995e30963ae10851cb0c7e8c1a9c8c2f",
+    "app/espdl-quickapp/tests/music_background_host.c": "2d3cc5e4df38b0b2d509b0a199a5eb6a481f349f2805e8ae72023d2a28caaa74",
+    "tools/test_music_background.py": "7dd4beaf6b82d8640079ae0de6de6b34b7b5f4467ab687a91a47ab89f83da153"
+  }
+}

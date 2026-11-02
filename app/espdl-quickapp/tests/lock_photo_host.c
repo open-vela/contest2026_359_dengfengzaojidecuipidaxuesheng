@@ -65,6 +65,18 @@ int main(int argc,char **argv)
   glass_lock_cover_cancel(GLASS_COVER_MUSIC);
   assert(!glass_lock_cover_take(GLASS_COVER_MUSIC,&out));
   assert(glass_lock_cover_take(GLASS_COVER_HOME,&out)&&!out.error&&out.pixels);free(out.pixels);
+  struct music_song favorite={0};strcpy(favorite.name,"Offline");strcpy(favorite.artist,"Demo");
+  char favorite_url[1024];assert(!music_favorite_cover_url(&favorite,favorite_url));
+  FILE *saved=fopen(GLASS_LOCK_PHOTO_PATH,"rb");assert(saved);
+  assert(!fseek(saved,0,SEEK_END));long saved_size=ftell(saved);assert(saved_size>4);
+  rewind(saved);uint8_t *saved_bytes=malloc(saved_size);assert(saved_bytes);
+  assert(fread(saved_bytes,1,saved_size,saved)==(size_t)saved_size);fclose(saved);
+  assert(music_favorite_cover_write(&favorite,saved_bytes,saved_size));free(saved_bytes);
+  fetched=atomic_load(&downloads);
+  assert(!glass_lock_cover_request(GLASS_COVER_MUSIC,favorite_url));quiet();
+  assert(glass_lock_cover_take(GLASS_COVER_MUSIC,&out)&&!out.error&&out.pixels);
+  free(out.pixels);assert(atomic_load(&downloads)==fetched);
+  music_favorite_cache_forget(&favorite);
   atomic_store(&cover_entered,false);atomic_store(&hold_cover,true);
   assert(!glass_lock_cover_request(GLASS_COVER_HOME,"https://fixture/hold-home"));
   while(!atomic_load(&cover_entered))usleep(1000);
@@ -80,5 +92,5 @@ int main(int argc,char **argv)
   f=fopen(GLASS_LOCK_PHOTO_PATH,"wb");assert(f);assert(!fseek(f,LOCK_JPEG_MAX,SEEK_SET));fputc(0,f);fclose(f);
   assert(!glass_lock_photo_request());out=take();assert(out.error==-E2BIG && !out.pixels);
   glass_lock_photo_cancel();usleep(10000);
-  puts("LOCK_PHOTO_SERVICE_OK: real baseline JPEG decoder, RGB565 frame, independent home/music/lock owners, single-worker busy/cancel/retry, 20 cancellation cycles, missing/corrupt/oversized SD file and ownership cleanup");return 0;
+  puts("LOCK_PHOTO_SERVICE_OK: real baseline JPEG decoder, offline favorite cover, RGB565 frame, independent home/music/lock owners, single-worker busy/cancel/retry, 20 cancellation cycles, missing/corrupt/oversized SD file and ownership cleanup");return 0;
 }

@@ -13,7 +13,7 @@ struct music_audio_cache {
   uint32_t size, hash;
 };
 
-static int music_audio_cache_path(const char *key, char *path, size_t capacity)
+static inline int music_audio_cache_path(const char *key, char *path, size_t capacity)
 {
   if (!key || !*key || strlen(key) > 2047) return -EINVAL;
   unsigned slot = music_cache_hash(2166136261u, key, strlen(key)) % 8;
@@ -21,10 +21,10 @@ static int music_audio_cache_path(const char *key, char *path, size_t capacity)
   return n > 0 && (size_t)n < capacity ? 0 : -ENAMETOOLONG;
 }
 
-static FILE *music_audio_cache_open(const char *key)
+static inline FILE *music_audio_cache_open_path(const char *key, const char *path)
 {
-  char path[256], identity[2048];
-  if (music_audio_cache_path(key, path, sizeof(path))) return NULL;
+  char identity[2048];
+  if (!key || !path || strlen(key) > 2047) return NULL;
   FILE *f = fopen(path, "rb");
   if (!f) return NULL;
   uint32_t h[4]; struct stat st;
@@ -43,10 +43,19 @@ invalid:
   fclose(f); return NULL;
 }
 
-static void music_audio_cache_begin(struct music_audio_cache *c, const char *key)
+static inline FILE *music_audio_cache_open(const char *key)
+{
+  char path[256];
+  return music_audio_cache_path(key, path, sizeof(path)) ? NULL :
+    music_audio_cache_open_path(key, path);
+}
+
+static inline void music_audio_cache_begin_path(struct music_audio_cache *c,
+                                         const char *key, const char *path)
 {
   memset(c, 0, sizeof(*c));
-  if (music_audio_cache_path(key, c->path, sizeof(c->path))) return;
+  if (!key || !path || strlen(key) > 2047 || strlen(path) >= sizeof(c->path)) return;
+  strcpy(c->path, path);
 #ifdef __NuttX__
   mkdir("/sdcard/music", 0777);
 #endif
@@ -65,7 +74,16 @@ static void music_audio_cache_begin(struct music_audio_cache *c, const char *key
   }
 }
 
-static void music_audio_cache_append(struct music_audio_cache *c,
+static inline void music_audio_cache_begin(struct music_audio_cache *c, const char *key)
+{
+  char path[256];
+  if (music_audio_cache_path(key, path, sizeof(path))) {
+    memset(c, 0, sizeof(*c)); return;
+  }
+  music_audio_cache_begin_path(c, key, path);
+}
+
+static inline void music_audio_cache_append(struct music_audio_cache *c,
                                     const unsigned char *bytes, size_t size)
 {
   if (!c->file) return;
@@ -75,7 +93,7 @@ static void music_audio_cache_append(struct music_audio_cache *c,
   c->hash = music_cache_hash(c->hash, bytes, size); c->size += size;
 }
 
-static void music_audio_cache_finish(struct music_audio_cache *c, bool complete)
+static inline void music_audio_cache_finish(struct music_audio_cache *c, bool complete)
 {
   if (!c->file) return;
   uint32_t tail[] = {c->size, c->hash};

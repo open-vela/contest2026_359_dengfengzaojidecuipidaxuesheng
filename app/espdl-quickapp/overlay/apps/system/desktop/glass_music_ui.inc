@@ -324,7 +324,7 @@ static void music_ui_list(void)
   }
   struct music_snapshot *s=g_music_ui.snapshot;
   lv_label_set_text(g_music_ui.heading,g_music_ui.favorites?glass_tr("收藏的声音"):glass_tr("听见好时光"));
-  lv_label_set_text(g_music_ui.subtitle,g_music_ui.favorites?glass_tr("每一首喜欢，都值得再听一遍。"):glass_tr("一首好歌，一段只属于你的时间。"));
+  lv_label_set_text(g_music_ui.subtitle,g_music_ui.favorites?glass_tr("收藏后自动缓存歌曲和封面到 SD 卡"):glass_tr("一首好歌，一段只属于你的时间。"));
   if (g_music_ui.favorites) {
     if (!s->favorite_count) {
       music_ui_text(g_music_ui.list,glass_tr("让喜欢的歌，留在这里"),22,52,418,28,g_music_ui.primary);
@@ -380,6 +380,14 @@ static void music_ui_refresh(lv_timer_t *timer)
   if (g_music_ui.valid && s->revision==previous_revision) return;
   if (!g_music_ui.valid || s->search_revision!=previous_search || s->favorite_count!=previous_count || s->searching!=searching) music_ui_list();
   if (s->storage_error && s->storage_error!=storage_error) show_toast(s->storage_error==-ENOSPC?glass_tr("收藏空间已满"):glass_tr("收藏未保存，请检查存储"));
+  if(g_music_ui.favorites) {
+    if(s->offline_caching)
+      lv_label_set_text_fmt(g_music_ui.subtitle,glass_tr("正在缓存歌曲和封面 · %u/%u 首"),s->offline_ready_count,s->favorite_count);
+    else if(s->offline_error)
+      lv_label_set_text(g_music_ui.subtitle,glass_tr("离线缓存失败，请检查网络和 SD 卡"));
+    else if(s->offline_ready_count)
+      lv_label_set_text_fmt(g_music_ui.subtitle,glass_tr("已离线缓存 %u/%u 首"),s->offline_ready_count,s->favorite_count);
+  }
   g_music_ui.valid=true;
   const char *title=s->current.name[0]?s->current.name:glass_tr("还没有播放音乐");
   const char *artist=s->current.artist[0]?s->current.artist:glass_tr("让好音乐，陪伴此刻");
