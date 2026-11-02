@@ -23,7 +23,6 @@ contest2026_359_dengfengzaojidecuipidaxuesheng/
 ├── board/                           # 板级目录（esp32p4-function-ev-board 等）
 ├── tools/                           # WSL 构建/补丁/拷贝脚本 + Windows 烧录脚本
 ├── firmware/v3/                     # 当前优先的 v3.2 NSH/桌面镜像
-├── firmware/历史测试固件/             # v1.x 与早期实验镜像，仅供追溯
 └── logs/                            # 工作记录与串口日志
 ```
 
@@ -35,7 +34,7 @@ contest2026_359_dengfengzaojidecuipidaxuesheng/
 
 ```bash
 python tools/wsl_build_p4_nsh.py nsh
-python tools/wsl_copy_firmware.py --variant v1.x
+python tools/wsl_copy_firmware.py --variant v1.x --output /path/outside/repo/v1-nsh
 
 python tools/wsl_build_p4_nsh.py nsh-v3
 python tools/wsl_copy_firmware.py --variant v3.2
@@ -45,7 +44,9 @@ python tools/wsl_build_p4_nsh.py nsh-v3-usb
 python tools/wsl_copy_firmware.py --variant v3.2-usb
 ```
 
-产物分别位于 `firmware/历史测试固件/esp32p4-nsh-v1.x/` 和 `firmware/v3/esp32p4-nsh-v3.2/`，每套包含 bin、ELF、hex、map 与最终 `.config`。不要混用两个 revision 的镜像。
+v1.x 产物仅写入显式指定的仓库外目录；v3.2 产物位于
+`firmware/v3/esp32p4-nsh-v3.2/`。每套包含 bin、ELF、hex、map 与最终
+`.config`。不要混用两个 revision 的镜像。
 
 ## 生成镜像与烧录
 
@@ -54,7 +55,7 @@ python tools/wsl_copy_firmware.py --variant v3.2-usb
 **烧录**：
 
 ```powershell
-powershell -File tools\flash_p4_nsh.ps1 -Variant v1.x -Port COM7 -Transport uart-bridge
+# v1.x 固件已从当前仓库清理；如需烧录单独构建的镜像，显式使用 -Firmware 路径。
 # 仅在确认芯片为 v3.2 后使用：
 powershell -File tools\flash_p4_nsh.ps1 -Variant v3.2 -Port COM7 -Transport uart-bridge
 # NSH 与烧录口共用 P4 原生 USB Serial/JTAG：

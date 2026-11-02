@@ -15,17 +15,18 @@ QuickJS 快应用、Home Assistant 原生集成、构建工具和验证记录。
 
 当前 v3 应用开发快照位于 [app/espdl-quickapp](app/espdl-quickapp/README.md)。
 Home Assistant 的实际入口、网络限制和实板证据见 [HASS.md](app/espdl-quickapp/HASS.md)。
-当前固件入口请从 [firmware/v3](firmware/v3/README.md) 开始；v1 和早期实验材料集中在
-[firmware/历史测试固件](firmware/历史测试固件/)，不要把文件夹日期或“候选”名称当作兼容性保证。
+当前固件入口请从 [firmware/v3](firmware/v3/README.md) 开始。v1 固件归档已从当前文件树清理，
+仍可从 Git 历史查阅；不要把文件夹日期或“候选”名称当作兼容性保证。
 
 ## 版本与验证边界
 
-仓库中并存三类材料，不能互相替代：历史 v1.x 固件及其验收记录、针对不同 revision 的
-板级配置，以及 2026-09-17 整理的 v3 应用 overlay 与应用级证据。
+仓库当前保留针对不同 revision 的板级配置，以及 v3 应用 overlay 与应用级证据。
+历史 v1.x 固件及其验收记录保存在 Git 历史中，不作为当前交付镜像。
 
-[2026-08-30 v1.0 测试报告](firmware/历史测试固件/esp32p4-desktop-v1/TEST_REPORT.md)记录了对应镜像的
-烧录校验、冷启动、PSRAM 和桌面/QuickJS 状态；[2026-08-27 v3.2 构建候选](firmware/v3/esp32p4-desktop-v3.2-candidate/README.md)
+[2026-08-27 v3.2 构建候选](firmware/v3/esp32p4-desktop-v3.2-candidate/README.md)
 是独立的旧候选。2026-09-19 的实际 v3 应用实板验证见 [v3 应用记录](firmware/v3/esp32p4-application-v3-20260919.md)，不能把两种镜像混为同一版本。
+如需复查 2026-08-30 的 v1.0 验收报告，可从清理前提交
+`50e354d2` 的 `firmware/历史测试固件/esp32p4-desktop-v1/TEST_REPORT.md` 读取。
 
 `483a750` 是 Home Assistant 原生集成的一次内容基准，不是把整个仓库固定到旧提交的要求。
 旧源码集合及独立 worktree 的取回方法见 [docs/HISTORY.md](docs/HISTORY.md)。
@@ -55,7 +56,7 @@ chip/       ESP32-P4 架构、驱动及 Espressif 适配
 configs/    桌面配置片段；不能替代板级 configs
 quickapp/   QuickJS 快应用的可编辑源码与 manifest
 ouo/        OuO 快应用、设计说明和独立许可证
-firmware/   按版本归档的镜像、校验文件和历史报告
+firmware/   当前 v3 镜像和校验文件；v1 归档保存在 Git 历史
 tools/     构建、overlay、补丁、自检、烧录和宿主测试工具
 docs/      文档导航、历史边界及专题证据
 logs/      AI Coding 会话、清单以及历史构建/串口日志
@@ -135,12 +136,12 @@ make CROSSDEV=/path/to/riscv32-esp-elf/bin/riscv32-esp-elf- -j16
 ## 镜像选择与烧录
 
 先按[固件索引](firmware/README.md)核对芯片 revision、板卡、镜像来源和 `SHA256SUMS`。
-历史 v1.0 镜像不能直接用于 v3.2，反之亦然。端口号必须替换为实际设备端口。
+历史 v1.0 镜像不在当前文件树；不同 revision 的镜像不能混刷。端口号必须替换为实际设备端口。
 
 下面只预览命令，不执行烧录：
 
 ```powershell
-powershell -File tools\flash_p4_nsh.ps1 -Variant v1.x -Port COM7 -Transport uart-bridge -DryRun
+powershell -File tools\flash_p4_nsh.ps1 -Variant v3.2 -Port COM7 -Transport uart-bridge -DryRun
 ```
 
 该脚本针对其 NSH Simple Boot 镜像，将应用写到 `0x2000`，并按 `/data` 位于 `0x400000`

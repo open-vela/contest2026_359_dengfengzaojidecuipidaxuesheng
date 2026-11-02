@@ -81,7 +81,7 @@ struct request_s
 static int fixture_listener;
 static char reply[8192];
 static const char fixture_bearer[]="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-static const char fixture_authorization[]="Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+static const char fixture_authorization[]="Bearer " "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 static void write_all(int fd,const char *data,size_t length)
 {
@@ -170,7 +170,7 @@ int main(void)
   o=request((struct request_s){.method="POST",.path="/api/network/connect",.body=valid},401,0,0);cJSON_Delete(o);
   o=request((struct request_s){.method="GET",.path="/api/network",.authorization="Basic fixture"},401,0,0);cJSON_Delete(o);
   o=request((struct request_s){.method="POST",.path="/api/network/connect",.body=valid,
-    .authorization="Bearer bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},401,0,0);cJSON_Delete(o);
+    .authorization="Bearer " "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},401,0,0);cJSON_Delete(o);
   session_expires=fixture_seconds;
   o=request((struct request_s){.method="GET",.path="/api/network",.authorization=fixture_authorization},401,0,0);cJSON_Delete(o);
   o=request((struct request_s){.method="POST",.path="/api/network/connect",.body=valid,

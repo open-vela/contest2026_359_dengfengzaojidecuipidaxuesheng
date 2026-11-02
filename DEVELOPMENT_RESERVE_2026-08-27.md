@@ -4,7 +4,7 @@
 
 ## 定位
 
-本清单保存不改变当前 release 判定、但能支持后续排障和验收的本地开发资产。正式 v1.0 发布固件归档在 `firmware/历史测试固件/esp32p4-desktop-v1.0-release`；当前浏览入口是 `firmware/v3`。2026-08-27 的桌面候选仍按其原始边界记录，2026-09-19 的实际 v3 应用实板验证另见 `firmware/v3/esp32p4-application-v3-20260919.md`。
+本清单保存不改变当前 release 判定、但能支持后续排障和验收的本地开发资产。正式 v1.0 发布固件原归档路径为 `firmware/历史测试固件/esp32p4-desktop-v1.0-release`，现可从清理前提交 `50e354d2` 查阅；当前浏览入口是 `firmware/v3`。2026-08-27 的桌面候选仍按其原始边界记录，2026-09-19 的实际 v3 应用实板验证另见 `firmware/v3/esp32p4-application-v3-20260919.md`。
 
 ## 本次纳入
 
