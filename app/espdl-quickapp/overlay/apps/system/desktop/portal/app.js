@@ -169,7 +169,7 @@ for(const id of ['ai','homeassistant','music','voice','desktop','agent']){
           if(data['mcp'+i+'_clear_token'])data['mcp'+i+'_token']='';
           delete data['mcp'+i+'_clear_token'];
         }
-        for(const key of ['max_tokens','timeout_ms','light','palette','widget','reduced_motion','skills_enabled','home_control_enabled','mcp1_enabled','mcp2_enabled','mcp3_enabled'])if(key in data)data[key]=Number(data[key]);
+        for(const key of ['max_tokens','timeout_ms','light','palette','widget','skills_enabled','home_control_enabled','mcp1_enabled','mcp2_enabled','mcp3_enabled'])if(key in data)data[key]=Number(data[key]);
         await api('config?section='+id,'POST',data);
         form.querySelectorAll('input[type=password]').forEach(x=>x.value='');
         form.querySelectorAll('input[type=checkbox]').forEach(x=>x.checked=false);

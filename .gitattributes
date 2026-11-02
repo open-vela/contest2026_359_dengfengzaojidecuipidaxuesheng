@@ -38,3 +38,6 @@ docs/evidence/** -text -whitespace
 
 # Preserve the bundled upstream font license verbatim.
 app/espdl-quickapp/overlay/apps/system/desktop/fonts/LICENSE-NotoSansSC.txt -text -whitespace
+
+# Keep embedded Portal bytes stable across Windows and Unix checkouts.
+app/espdl-quickapp/overlay/apps/system/desktop/portal/* text eol=lf

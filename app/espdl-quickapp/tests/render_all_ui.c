@@ -167,15 +167,13 @@ int main(int argc,char **argv)
     review_navigation_entries();
     review_capture(display,"home","首页");
     SHOT("settings","控制面板",glass_settings(NULL));
-    /* A style reset must not move the two controls or collapse their hit targets. */
-    lv_area_t theme_bounds,motion_bounds;
+    /* A style reset must not move the remaining theme control. */
+    lv_area_t theme_bounds;
     lv_obj_get_coords(g_glass.settings_switch,&theme_bounds);
-    lv_obj_get_coords(g_glass.motion_switch,&motion_bounds);
     assert(theme_bounds.x1>500&&theme_bounds.y1>350);
-    assert(theme_bounds.x1==motion_bounds.x1&&theme_bounds.y2+8<motion_bounds.y1);
     assert(lv_obj_get_width(g_glass.settings_switch)>=48&&lv_obj_get_height(g_glass.settings_switch)>=28);
     assert(lv_obj_has_state(g_glass.settings_switch,LV_STATE_CHECKED)==g_desktop.light_theme);
-    assert(lv_obj_has_state(g_glass.motion_switch,LV_STATE_CHECKED)==g_glass.reduced_motion);
+    assert(g_glass.reduced_motion);
     lv_dropdown_open(g_glass.widget_dropdown);review_capture(display,"settings-dropdown","桌面组件选择");lv_dropdown_close(g_glass.widget_dropdown);
     SHOT("wifi","Wi-Fi 网络",glass_wifi_page(NULL));
     g_wifi_result.count=3;
