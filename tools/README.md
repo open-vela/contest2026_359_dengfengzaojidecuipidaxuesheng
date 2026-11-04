@@ -28,6 +28,10 @@ ESP-TTS；`verify_esp_tts.py` 检查依赖、音频回归和实际镜像，`depl
 [skills/mijia-device-control](skills/mijia-device-control/SKILL.md)，安装和提交范围见
 [源码集成说明](../docs/INTEGRATION_2026-10-19.md)。
 
+P4 连接 JBOX-S3 的发现、首次绑定、矩阵与外设控制流程见
+[skills/jbox-p4-control](skills/jbox-p4-control/SKILL.md)。这是仓库内的 Codex skill；
+板上助手使用固件内置的 board MCP 工具，首次配对由用户在可信控制台完成。
+
 在仓库根目录运行：
 
 ```bash

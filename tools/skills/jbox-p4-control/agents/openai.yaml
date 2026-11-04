@@ -1,0 +1,4 @@
+interface:
+  display_name: "P4 连接 JBOX-S3"
+  short_description: "指导 P4 发现、绑定并控制 JBOX-S3，核对会话状态与外设回执"
+  default_prompt: "使用 $jbox-p4-control 指导 P4 首次连接 JBOX-S3，先发现目标，由用户完成控制台绑定，再只读检查能力和状态。"

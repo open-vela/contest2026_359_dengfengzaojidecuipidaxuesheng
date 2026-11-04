@@ -4,6 +4,9 @@
 
 ## 首次连接
 
+可复用的 Codex 操作流程见 [jbox-p4-control skill](../tools/skills/jbox-p4-control/SKILL.md)，
+包含可直接在 P4 助手输入的发现与只读连接示例，以及用户串口绑定步骤。
+
 1. S3 按上游流程完成 BLE 配网，P4 与 S3 接入可互访局域网。
 2. 在 P4 应用调用 `system.jbox.discover({timeoutMs:1500})`，轮询任务取得设备 IP 与 deviceId。多设备时让用户选择，不默认操作第一台。
 3. 短按 S3 的 GPIO10，在120秒窗口内显式调用 `system.jbox.pair({host:"192.168.1.100",deviceId:"aabbccddeeff"})`。只返回保存结果。绑定使用上游的明文 LAN 密钥领取流程，要求可信局域网。
