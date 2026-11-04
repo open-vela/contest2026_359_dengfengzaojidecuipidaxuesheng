@@ -41,6 +41,66 @@ const stopTask = system.jbox.safe({generation});
 
 助手通过内置 board MCP 的 `hardware_capabilities`、`hardware_reference({section:8})`、`hardware_submit`、`hardware_poll` 使用相同实现，例如 `operation:"jbox.status"`。普通闲聊模式沿用原来的 C 层工具权限隔离。助手不能领取或读取绑定密钥，不能触发工厂重置。
 
+### JBOX 专用 MCP 工具
+
+助手首轮直接提供下列 28 个 `jbox_*` 工具的独立 schema，参数沿用上面的 QuickJS API；
+也可通过 `mcp_list_tools({server:"board"})` 发现后，用 `mcp_call_tool` 包装调用。
+发现结果有 `nextCursor` 时继续翻页，直到没有游标。它们复用现有硬件控制器和任务队列，
+与通用 `hardware_submit` 的连接、generation 和资源所有权相同，不建立第二套会话。
+
+| 专用工具 | 对应 `system.jbox` 方法 |
+| --- | --- |
+| `jbox_discover`、`jbox_connect`、`jbox_disconnect` | `discover`、`connect`、`disconnect` |
+| `jbox_caps`、`jbox_status`、`jbox_safe` | `caps`、`status`、`safe` |
+| `jbox_route_set`、`jbox_connect_nodes`、`jbox_remove_node`、`jbox_route_clear` | `routeSet`、`connectNodes`、`removeNode`、`routeClear` |
+| `jbox_gpio_config`、`jbox_gpio_write`、`jbox_gpio_read`、`jbox_adc_read`、`jbox_pwm` | `gpioConfig`、`gpioWrite`、`gpioRead`、`adcRead`、`pwm` |
+| `jbox_i2c_setup`、`jbox_i2c_transfer`、`jbox_i2c_close` | `i2cSetup`、`i2cTransfer`、`i2cClose` |
+| `jbox_spi_setup`、`jbox_spi_transfer`、`jbox_spi_close` | `spiSetup`、`spiTransfer`、`spiClose` |
+| `jbox_uart_setup`、`jbox_uart_write`、`jbox_uart_read`、`jbox_uart_close` | `uartSetup`、`uartWrite`、`uartRead`、`uartClose` |
+| `jbox_function_load`、`jbox_function_call`、`jbox_function_clear` | `functionLoad`、`functionCall`、`functionClear` |
+
+`hardware_poll`、`hardware_stop` 和 `hardware_release` 同时提供直接调用和 board MCP 调用。
+通用 `hardware_submit` 保留兼容；没有 `jbox_pair`、密钥读取或工厂重置工具。
+聊天与创作模式在工具桥接层和 Agent 层都拒绝这些直接工具及 board MCP。
+
+下面是 `mcp_call_tool` 的参数示例；先完成 board 工具发现，仅调用用户当前要求的操作。
+直接调用时以 `tool` 为函数名，传入内层 `arguments` 即可：
+
+```json
+{"server":"board","tool":"jbox_discover","arguments":{"timeoutMs":1500}}
+```
+
+返回 `{"ok":true,"id":N,"state":"submitted"}` 仅表示受理。用实际返回的任务编号 N 轮询：
+
+```json
+{"server":"board","tool":"hardware_poll","arguments":{"id":1}}
+```
+
+示例中的 `1` 必须换成这次实际编号。取得 `done:true`、`ok:true` 后读取 `result`，
+确认发现目标并由用户完成控制台绑定，再连接已保存的设备：
+
+```json
+{"server":"board","tool":"jbox_connect","arguments":{}}
+```
+
+再次轮询到成功，取连接结果的 `generation`。以下 `7` 仅为示例，必须换成本次真实代次。
+依次提交、轮询读取能力、状态和 IO0 的数字电平；这些调用不改变路由或 GPIO 模式：
+
+```json
+{"server":"board","tool":"jbox_caps","arguments":{"generation":7}}
+{"server":"board","tool":"jbox_status","arguments":{"generation":7}}
+{"server":"board","tool":"jbox_gpio_read","arguments":{"generation":7,"mask":1}}
+```
+
+配置／写入类工具使用独立 schema 校验必填参数、类型、取值范围、数组长度、额外及重复字段；
+跨字段约束（例如总传输长度、路由节点跨网络重复、引脚冲突）仍由同一 JBOX 执行器在发送前检查，
+因此提交成功后也必须轮询检查任务错误。字节数组最多4096字节，但编码后的完整工具 JSON 仍受16KiB上限约束。
+取消任务用 `hardware_stop` 并继续轮询；完成回执只消费一次。
+`safe`、`disconnect`、`hardware_release` 会改变已有硬件状态，不能作为只读检查的收尾步骤。
+
+schema 与分派表源文件为 `tools/generate_jbox_tools.py`，生成的 `glass_jbox_tools.h` 同时供直接工具、
+MCP 发现和参数校验使用。修改后运行该生成器；修改助手提示词还需运行 `tools/generate_agent_profiles.py`。
+
 JBOX 的 io0～17 是 API ID（映射为 S3 GPIO1～9、18、21、38～42、47、48），不是 P4 GPIO。矩阵 node0～51 与这些 io ID 也不相同。18路 GPIO 与52节点、8网络都由 S3 实际能力／状态返回。不能把 SDK 应答当作真实传感器、连线和电气验收。
 
 ## 生命周期与错误
@@ -57,11 +117,23 @@ JBOX 的 io0～17 是 API ID（映射为 S3 GPIO1～9、18、21、38～42、47�
 
 ```bash
 python3 tools/test_jbox.py --apps /path/to/apps --output /tmp/jbox-tests
+python3 tools/test_jbox_tools.py --apps /path/to/apps --output /tmp/jbox-tool-tests
 python3 tools/test_portal_storage.py --apps /path/to/apps --output /tmp/jbox-portal-tests
 python3 tools/test_agent.py --apps /path/to/apps --output /tmp/jbox-agent-tests
 ```
 
 协议测试用独立 Python hashlib/hmac 对端驱动实际 C 客户端，覆盖分片、鉴权、4096B 收发、参数拒绝、发现、业务错误、取消、超时、慢速滴流、损坏 MAC／帧和资源释放，并使用 ASan／UBSan。测试发现地址编译为127.0.0.1，不向真实局域网广播。存储测试使用临时 Flash 替身，不操作真实配置。固件仍使用原 `tools/build_bilibili_v3.py`，新增源码由桌面 Makefile 链接；编译通过与实板联调分别记录，不能把宿主测试当成已连接真实 JBOX。
+
+专用工具测试链接真实 Agent、参数 schema 和异步调度器，逐个核对28个工具的直接／MCP 分派及参数保持，
+检查分页、权限、无效参数、任务上限、并发所有权和取消清理。平台为隔离替身，不调用局域网、真实配置或设备。
+
+## 2026-11-05 专用 MCP 补全验证
+
+28个专用工具的直接／MCP路由、参数保持、schema一致性、分页、非法参数拒绝、模式权限、
+控制器所有权、任务上限、取消及清理通过 ASan／UBSan 宿主测试。原有22项 JBOX 通信协议测试、
+Agent／MCP桥接、助手服务与助手平台回归通过，skill格式和文档链接检查通过。
+P4目标编译未完成：现有准备树缺少 `arch/risc-v/src/common/Toolchain.defs`，其架构头链接也缺少
+`arch/chip/irq.h`。本次未重新链接或烧录固件；下面的镜像记录属于11月4日版本，不包含本次专用工具。
 
 ## 2026-11-04 离线验证结果
 

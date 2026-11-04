@@ -67,11 +67,18 @@ description: 用户询问天气时使用，优先调用已配置的天气工具�
 
 协议参考：[MCP Streamable HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)、[生命周期](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)、[工具](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)。
 
+## JBOX-S3 专用工具（board · jbox_*）
+
+JBOX-S3 另有28个 `jbox_*` 专用工具，直接随助手请求提供相同 schema，也可在 board MCP 分页发现后调用。
+覆盖发现、已绑定连接、能力／状态、矩阵、GPIO／ADC／PWM、I²C／SPI／UART 和 S3 函数；
+通过 `hardware_poll` 等待完成，取消／释放使用共享控制器的 `hardware_stop`／`hardware_release`。
+没有配对、密钥读取或重置权限。完整映射、参数与只读调用示例见 [JBOX 连接文档](../../docs/JBOX_P4.md#jbox-专用-mcp-工具)。
+
 ## 内置智能家居工具（board · home_*）
 
 - 链接共享 Home Assistant 服务（`CONFIG_SYSTEM_HASS=y`）时，board 服务额外提供
   `home_light`、`home_status`、`home_list`、`home_state`、`home_control`、`home_service` 六个进程内工具；
-  未链接该服务的构建保持原有 11 个工具，发现请求按实际构建返回工具列表。
+  未链接该服务的构建不提供 home_*，其他 board 工具仍按实际构建分页返回。
 - 查询类工具只使用 `HASS_READ`；控制复用与原生页完全相同的白名单（`light`、`switch`、
   `input_boolean`、`fan`）和注册服务表（`hass_actions.h`）。AI 路径没有 `HASS_CONFIGURE`，
   不能读取地址、令牌或修改连接配置；`home_control` 的亮度仅对灯有效。

@@ -53,7 +53,7 @@ static const char board_tool_catalog[] =
 "{\"name\":\"ui_read\",\"description\":\"Read up to 64 visible labels on the board. Input values are excluded.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},"
 "{\"name\":\"ui_click\",\"description\":\"Click an exact visible button label from ui_read. Only perform the user requested action; recording or capture requires that request.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"maxLength\":128}},\"required\":[\"label\"],\"additionalProperties\":false}},"
 "{\"name\":\"hardware_capabilities\",\"description\":\"Read actual board pin/bus/audio/BLE capabilities and supported operation names.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},"
-"{\"name\":\"hardware_reference\",\"description\":\"Read real hardware arguments before submitting. Sections 1=async, 2=GPIO, 3=I2C, 4=SPI, 5=UART, 6=PWM/servo, 7=audio, 8=BLE. Names system.X.Y(options) map to operation X.Y and arguments options.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"section\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":8}},\"required\":[\"section\"],\"additionalProperties\":false}},"
+"{\"name\":\"hardware_reference\",\"description\":\"Read real hardware arguments before submitting. Sections 1=async, 2=GPIO, 3=I2C, 4=SPI, 5=UART, 6=PWM/servo, 7=audio, 8=BLE/USB/network/JBOX-S3. Names system.X.Y(options) map to operation X.Y and arguments options.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"section\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":8}},\"required\":[\"section\"],\"additionalProperties\":false}},"
 "{\"name\":\"hardware_submit\",\"description\":\"Submit a documented hardware operation. Read capabilities and reference first. Returns job id, NOT completion. Poll until done and ok. Completed pin/bus/PWM state persists across requests; close explicitly or hardware_release. Unfinished jobs or user cancellation release the controller. Use bounded durations. Only operate hardware requested by the user.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"operation\":{\"type\":\"string\"},\"arguments\":{\"type\":\"object\"}},\"required\":[\"operation\",\"arguments\"],\"additionalProperties\":false}},"
 "{\"name\":\"hardware_release\",\"description\":\"Stop and release all GPIO, buses, PWM, audio and BLE owned by this board controller. Other apps keep their own resources.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},"
 "{\"name\":\"hardware_poll\",\"description\":\"Poll a submitted job. Completed result is consumed once. No retry of side effects after errors/timeouts.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"id\"],\"additionalProperties\":false}},"
@@ -65,9 +65,29 @@ static bool board_integer(const cJSON *args,const char *key,unsigned low,unsigne
   if(!cJSON_IsNumber(v)||!(v->valuedouble>=low&&v->valuedouble<=high)||v->valuedouble!=(unsigned)v->valuedouble)return false;
   *out=(unsigned)v->valuedouble;return true;
 }
+static char *board_submit(struct glass_agent *a,const char *operation,const cJSON *options)
+{
+  if(a->board_jobs>=8)return error_result("invalid_operation_arguments_or_job_limit");
+  char *encoded=cJSON_PrintUnformatted(options);cJSON *r=cJSON_CreateObject();
+  if(!encoded||!r){free(encoded);cJSON_Delete(r);return NULL;}
+  if(board_hardware_acquire(a)){free(encoded);cJSON_Delete(r);return error_result("hardware_controller_busy_or_unavailable");}
+  int id=qpk_hw_submit(a->hardware,operation,encoded);free(encoded);
+  cJSON_AddBoolToObject(r,"ok",id>0);
+  if(id>0){a->board_jobs++;cJSON_AddNumberToObject(r,"id",id);cJSON_AddStringToObject(r,"state","submitted");}
+  else cJSON_AddNumberToObject(r,"error",id);
+  char *text=cJSON_PrintUnformatted(r);cJSON_Delete(r);return text;
+}
 static char *board_call(struct glass_agent *a,const char *tool,const cJSON *args)
 {
   if(!cJSON_IsObject(args))return error_result("invalid_arguments");
+  if(!strncmp(tool,"jbox_",5)){
+    for(unsigned i=0;i<sizeof(board_jbox_tools)/sizeof(board_jbox_tools[0]);i++)if(!strcmp(tool,board_jbox_tools[i].name)){
+      cJSON *definition=cJSON_Parse(board_jbox_tools[i].definition);if(!definition)return NULL;
+      bool valid=jbox_schema_valid(args,cJSON_GetObjectItemCaseSensitive(definition,"inputSchema"));cJSON_Delete(definition);
+      return valid?board_submit(a,board_jbox_tools[i].operation,args):error_result("invalid_arguments");
+    }
+    return error_result("unknown_tool_or_invalid_arguments");
+  }
   /* Smart home tools run entirely inside the shared HA service: no page opens
    * and no LVGL object is touched, so the chat stays in place. */
   if(!strncmp(tool,"home_",5))return g_board_home&&g_board_home->call?
@@ -107,13 +127,7 @@ static char *board_call(struct glass_agent *a,const char *tool,const cJSON *args
     const cJSON *options=cJSON_GetObjectItemCaseSensitive(args,"arguments");
     for(unsigned i=0;i<sizeof(board_operations)/sizeof(board_operations[0]);i++)if(!strcmp(operation,board_operations[i]))known=true;
     if(!arguments_only(args,",operation,,arguments,")||!known||!cJSON_IsObject(options)||a->board_jobs>=8)return error_result("invalid_operation_arguments_or_job_limit");
-    if(board_hardware_acquire(a))return error_result("hardware_controller_busy_or_unavailable");
-    char *encoded=cJSON_PrintUnformatted(options);if(!encoded)return NULL;
-    int id=qpk_hw_submit(a->hardware,operation,encoded);free(encoded);
-    cJSON *r=cJSON_CreateObject();cJSON_AddBoolToObject(r,"ok",id>0);
-    if(id>0){a->board_jobs++;cJSON_AddNumberToObject(r,"id",id);cJSON_AddStringToObject(r,"state","submitted");}
-    else cJSON_AddNumberToObject(r,"error",id);
-    char *text=cJSON_PrintUnformatted(r);cJSON_Delete(r);return text;
+    return board_submit(a,operation,options);
   }
   unsigned id;
   if(!strcmp(tool,"hardware_poll")&&arguments_only(args,",id,")&&board_integer(args,"id",1,INT_MAX,&id)) {

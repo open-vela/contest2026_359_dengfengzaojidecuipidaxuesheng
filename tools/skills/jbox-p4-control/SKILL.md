@@ -17,7 +17,7 @@ description: 在 ESPClaw/openvela 项目中指导 P4 首次连接 JBOX-S3，发�
 
    > 搜索局域网中的 JBOX，列出设备 IP 和设备 ID，先不要控制。
 
-   工具路径为先 `mcp_list_tools({server:"board"})`，再通过 `mcp_call_tool` 调用 `hardware_capabilities`、`hardware_reference({section:8})`，按返回的 schema 提交 `hardware_submit({operation:"jbox.discover",arguments:{timeoutMs:1500}})` 并轮询。QuickJS 应用对应 `system.jbox.discover({timeoutMs:1500})`。发现回执中的 `host`、`deviceId`、`paired`、`pairingOpen` 只是未鉴权候选；确认目标身份，多台设备时让用户选择，不默认控制第一台。
+   优先直接调用已有 schema 的 `jbox_discover({timeoutMs:1500})`。使用 MCP 包装时先 `mcp_list_tools({server:"board"})`，有 `nextCursor` 就继续翻页，再用 `mcp_call_tool({server:"board",tool:"jbox_discover",arguments:{timeoutMs:1500}})`。旧固件未暴露专用工具时，按实际发现的 schema 使用 `hardware_capabilities`、`hardware_reference({section:8})` 和 `hardware_submit({operation:"jbox.discover",arguments:{timeoutMs:1500}})`。QuickJS 对应 `system.jbox.discover({timeoutMs:1500})`。发现回执中的 `host`、`deviceId`、`paired`、`pairingOpen` 只是未鉴权候选；确认目标身份，多台设备时让用户选择，不默认控制第一台。
 3. 目标未绑定时，由用户短按 **S3 的 GPIO10 配对键**，在 **120 秒**内通过 **P4 串口 NSH 控制台**执行：
 
    ```text
@@ -29,7 +29,7 @@ description: 在 ESPClaw/openvela 项目中指导 P4 首次连接 JBOX-S3，发�
 
    > 连接已绑定的 JBOX，读取能力和当前状态，不修改连线或 GPIO。
 
-   提交 `jbox.connect`，成功后保存返回的 `generation`，再依次调用 `jbox.caps` 和 `jbox.status`。QuickJS 对应 `system.jbox.connect({})`、`system.jbox.caps({generation})`、`system.jbox.status({generation})`。IP 改变时重新发现，用原绑定的 `deviceId` 和新 `host` 显式连接；不自动重放旧连线。
+   提交专用工具 `jbox_connect({})`，轮询成功后保存返回的 `generation`，再依次调用 `jbox_caps({generation})` 和 `jbox_status({generation})` 并轮询。通用硬件操作名仍是 `jbox.connect`、`jbox.caps`、`jbox.status`；QuickJS 对应 `system.jbox.connect({})`、`system.jbox.caps({generation})`、`system.jbox.status({generation})`。IP 改变时重新发现，用原绑定的 `deviceId` 和新 `host` 显式连接；不自动重放旧连线。完整专用工具清单与 MCP 参数示例见连接文档。
 
 ## 后续操作与回执
 
@@ -45,4 +45,4 @@ description: 在 ESPClaw/openvela 项目中指导 P4 首次连接 JBOX-S3，发�
 
 从 `app/espdl-quickapp/overlay/apps/system/desktop/` 的 `qpk_jbox.c`、`qpk_jbox_transport.c`、`qpk_hardware.h` 和 `desktop_main.c` 追踪实际实现。保持 QuickJS、助手直接调用和 board MCP 的权限、参数与回执一致，不把配对接口加入助手操作列表。
 
-在 Linux／WSL 用隔离对端运行 `tools/test_jbox.py --apps <apps路径> --output <临时目录>`；绑定存储或助手路径变更分别加跑 `tools/test_portal_storage.py`、`tools/test_agent.py`，参数见连接文档。测试不向真实局域网广播，不操作真实配置或设备。分别报告 skill／文档检查、宿主测试、固件构建与实板联调；没有实板证据不能声称已经配对、部署或控制真实 JBOX。
+专用工具 schema／分派源文件为 `tools/generate_jbox_tools.py`，修改后重新生成 `glass_jbox_tools.h`；提示词修改后重新生成 Agent profile。在 Linux／WSL 用隔离对端运行 `tools/test_jbox.py --apps <apps路径> --output <临时目录>`，MCP 改动加跑 `tools/test_jbox_tools.py`；绑定存储或助手路径变更分别加跑 `tools/test_portal_storage.py`、`tools/test_agent.py`，参数见连接文档。测试不向真实局域网广播，不操作真实配置或设备。分别报告 skill／文档检查、宿主测试、固件构建与实板联调；没有实板证据不能声称已经配对、部署或控制真实 JBOX。
