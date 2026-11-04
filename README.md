@@ -4,6 +4,10 @@
 面向 ESP32-P4 Function-EV-Board，保存 openvela/NuttX 板级与芯片 overlay、图形桌面、
 QuickJS 快应用、Home Assistant 原生集成、构建工具和验证记录。
 
+仓库另收录 [ProgrammableMatrix / JBOX-S3](app/ProgrammableMatrix/README.md)，
+用于 ESP32-S3 与 4 颗 CH446Q 的无线 IO 扩展和矩阵连线，包含固件、Python SDK、
+可视化连线工具及 JBoxScript。该工程使用 ESP-IDF 5.5.x 独立构建。
+
 它不是完整的 NuttX/openvela 源码树，也不是 Home Assistant 官方客户端或小米官方米家客户端。
 阅读代码可直接克隆本仓库；固件构建还需要匹配的外部源码、工具链和具体硬件。
 
@@ -12,6 +16,9 @@ QuickJS 快应用、Home Assistant 原生集成、构建工具和验证记录。
 先阅读[目录说明](#目录导航)，再按目标选择入口：板级适配见 [board](board/README.md)，
 芯片驱动见 [chip](chip/README.md)，应用开发见 [app](app/README.md)，
 快应用见 [quickapp](quickapp/README.md)，构建与提交工具见 [tools](tools/README.md)。
+
+无线矩阵板入口见 [ProgrammableMatrix](app/ProgrammableMatrix/README.md)，
+编译命令见下方 [JBOX-S3 构建](#programmablematrix--jbox-s3-构建)。
 
 当前 v3 应用开发快照位于 [app/espdl-quickapp](app/espdl-quickapp/README.md)。
 Home Assistant 的实际入口、网络限制和实板证据见 [HASS.md](app/espdl-quickapp/HASS.md)。
@@ -50,7 +57,7 @@ Home Assistant 原生页面使用共享服务；米家设备需要先接入用�
 ## 目录导航
 
 ```text
-app/        原生应用、内置资源与 v3 应用开发快照
+app/        原生应用、内置资源、v3 应用快照与 ProgrammableMatrix 独立工程
 board/      开发板与公共板级支持
 chip/       ESP32-P4 架构、驱动及 Espressif 适配
 configs/    桌面配置片段；不能替代板级 configs
@@ -91,8 +98,40 @@ repo sync -c -j8
 
 ## 构建
 
-构建环境以 Linux/WSL 为主，需要 Python 3、Git、构建依赖和匹配的 `riscv32-esp-elf`
+P4/openvela 构建环境以 Linux/WSL 为主，需要 Python 3、Git、构建依赖和匹配的 `riscv32-esp-elf`
 工具链。Node.js 用于宿主 JavaScript 测试。这里不把宿主测试通过称为固件构建通过。
+
+### ProgrammableMatrix / JBOX-S3 构建
+
+源码位于 [app/ProgrammableMatrix](app/ProgrammableMatrix/)，同步自
+[streetartist/ProgrammableMatrix](https://github.com/streetartist/ProgrammableMatrix)，
+上游 `main` 提交固定为 `2ca78dcb9c9b825b943da3b36e7baf19f558d91d`（2026-11-04 同步）。
+完整文件摘要见 [UPSTREAM.json](app/ProgrammableMatrix/UPSTREAM.json)。
+
+目标硬件为 ESP32-S3-WROOM-1-N16R8 + 4×CH446Q。安装 ESP-IDF **5.5.x**，
+在已启用 ESP-IDF 环境的终端中，从本仓库根目录执行：
+
+```powershell
+cd app/ProgrammableMatrix
+idf.py set-target esp32s3
+idf.py build
+```
+
+`sdkconfig.defaults` 提供 16MB Flash、Octal 8MB PSRAM、BLE 配网和 Wi-Fi 默认配置；
+`partitions.csv` 提供 4MB 应用分区。产物位于该子目录的 `build/`，
+包括 `programmable_matrix_s3.bin`。需调整设置时运行 `idf.py menuconfig`。
+
+Python 客户端与可视化工具从该子目录启动：
+
+```powershell
+python client/jbox_gui.py
+```
+
+宿主测试使用 `python -m unittest discover -s tests -p 'test_*.py' -v`；
+本机安装 GCC 后，可运行 `python tests/run_native_tests.py` 检查路由与脚本虚拟机。
+首次配网、GPIO10 授权按钮、引脚映射和接线方法见该工程的
+[README](app/ProgrammableMatrix/README.md)。此处同步保留上游源码，
+P4/openvela 固件仍使用下面的构建入口。
 
 ### 当前 P4 rev3.2 复现入口
 

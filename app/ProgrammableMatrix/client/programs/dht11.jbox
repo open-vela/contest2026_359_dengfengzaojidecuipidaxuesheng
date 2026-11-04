@@ -1,0 +1,49 @@
+// Sent to the ESP32 at runtime. No DHT driver is built into the firmware.
+// data is an API IO ID argument; the viewer uses IO0 = physical GPIO1.
+fn read_dht11(data) {
+    let rh = 0;
+    let rh_decimal = 0;
+    let temperature = 0;
+    let temperature_decimal = 0;
+    let checksum = 0;
+    open_drain(data);
+    release(data);
+    sleep_ms(2);
+    low(data);
+    sleep_ms(20);
+    timed {
+        release(data);
+        wait(data, high, 80);
+        wait(data, low, 100);
+        wait(data, high, 100);
+        wait(data, low, 100);
+        repeat(8) {
+            wait(data, high, 100);
+            rh = (rh << 1) | (measure(data, low, 100) > 45);
+        }
+        repeat(8) {
+            wait(data, high, 100);
+            rh_decimal = (rh_decimal << 1) | (measure(data, low, 100) > 45);
+        }
+        repeat(8) {
+            wait(data, high, 100);
+            temperature = (temperature << 1) | (measure(data, low, 100) > 45);
+        }
+        repeat(8) {
+            wait(data, high, 100);
+            temperature_decimal = (temperature_decimal << 1) | (measure(data, low, 100) > 45);
+        }
+        repeat(8) {
+            wait(data, high, 100);
+            checksum = (checksum << 1) | (measure(data, low, 100) > 45);
+        }
+    }
+    release(data);
+    assert(((rh + rh_decimal + temperature + temperature_decimal) & 255) == checksum);
+    assert((rh > 100) == 0);
+    assert((temperature > 50) == 0);
+    assert((rh_decimal > 9) == 0);
+    assert((temperature_decimal > 9) == 0);
+    emit(temperature * 10 + temperature_decimal);
+    emit(rh * 10 + rh_decimal);
+}

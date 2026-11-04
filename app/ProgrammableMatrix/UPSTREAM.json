@@ -1,0 +1,234 @@
+{
+  "repository": "https://github.com/streetartist/ProgrammableMatrix",
+  "branch": "main",
+  "commit": "2ca78dcb9c9b825b943da3b36e7baf19f558d91d",
+  "imported_on": "2026-11-04",
+  "import_mode": "unchanged tracked files; no nested Git metadata or build outputs",
+  "files": {
+    ".gitignore": {
+      "sha256": "1525c0e3c4a1d739ed6c057b896373a99e11fa7b2e80de4a32b5c61c67aebba3",
+      "git_blob": "c898e5b67a408e7f5957086e574671a8e47c7d8c",
+      "bytes": 83
+    },
+    "CMakeLists.txt": {
+      "sha256": "bb490b007c2d8a7aa140067b080485d4c87a42e21c5a7a38659c83e07e7d31d4",
+      "git_blob": "e01068c4a0a286ca11e1bb11ffabea26fe37ed52",
+      "bytes": 119
+    },
+    "README.md": {
+      "sha256": "c21f1eff30cc9dccdf5fd70af5c57eb42f48064d3197469657df2abca89ebd7d",
+      "git_blob": "5b489c1d5a081fec3b6f6d7058af307bcafa42f5",
+      "bytes": 16253
+    },
+    "client/board_layout.py": {
+      "sha256": "58f686d987f24ddde699166be2cbb21df6f9a5ea315230f3f0c446ee60329811",
+      "git_blob": "ae86ff7d0aeda0eda299c12a300b795997c34d5b",
+      "bytes": 3564
+    },
+    "client/demo_i2c.py": {
+      "sha256": "38d2f938c6a110de812a710dce2283e92e986c9e991ab5771a5bc5699b6821ac",
+      "git_blob": "ea9fa182d92bf725aab20288b465745dd23ea83f",
+      "bytes": 824
+    },
+    "client/demo_spi_uart.py": {
+      "sha256": "fa0dac818be4510d8f2cb87f2e1258dd482ab2a77072c2445b5a027f64438302",
+      "git_blob": "3c1de600546f1f80fa51d3225ebaf0ae37fa3631",
+      "bytes": 798
+    },
+    "client/dht11_viewer.py": {
+      "sha256": "34dd85d1c3c0fe7ddf8016a37d6406867cd42b03087f091b8b9ae1f8fb1cb918",
+      "git_blob": "c08fdf4fe10440cdd416366392030a96fba49c0c",
+      "bytes": 8372
+    },
+    "client/jbox_api.py": {
+      "sha256": "a929407999beedff76ed1e6bd9d9079792096cfb5b1c4d5ee17ac6972f95d87f",
+      "git_blob": "1b69e3f74b0f882b062a44aad47a25f31e0ef505",
+      "bytes": 19114
+    },
+    "client/jbox_gui.py": {
+      "sha256": "20e7fc7f9c6ef7942a988f1065da1ecf6a5abaf213873d787795b368850f545d",
+      "git_blob": "7deb5491ccf3e4e16b7de2fb52d785ab768271d4",
+      "bytes": 28419
+    },
+    "client/jbox_lang.py": {
+      "sha256": "db517034b29aba75b7a4f084c57bb743cbcf4cff0e6a458701641883725c04dc",
+      "git_blob": "c49fab1c6f2019ad998ae9645329c3e0c8ef7572",
+      "bytes": 9725
+    },
+    "client/programs/dht11.jbox": {
+      "sha256": "3bb27bb54c67d331a0510144b41f629908ba358fef51a5827afd03fa7c307309",
+      "git_blob": "a44571628a33dbc47b589df04bbb28ea6077e401",
+      "bytes": 1587
+    },
+    "docs/JBoxScript.md": {
+      "sha256": "ef19a60aeb8aaeeb927948f42d877387803ee2b75a48f06162040c94533da20a",
+      "git_blob": "4fff5f2b2a668cd5e4186947e11d24985055b9c4",
+      "bytes": 5348
+    },
+    "main/CMakeLists.txt": {
+      "sha256": "7a22a74eb9235a04000063df688f8fbbf2832e22258982091e4bf7d13e0e6b2d",
+      "git_blob": "6b87adcfeef3ac134c6b869390819512e90f909a",
+      "bytes": 424
+    },
+    "main/api.c": {
+      "sha256": "5700485e9a6ffcf0eb501f8281bed78fc1451fa58ba8d08ad227d32efd957734",
+      "git_blob": "fc3178dbcca611cd7180a2a9e36372650bf4b55d",
+      "bytes": 6092
+    },
+    "main/api.h": {
+      "sha256": "ab27d4bda024a324b6f892e2cbd7f082c448d4b1a25dbf832ce1c2e29991b047",
+      "git_blob": "4726769fd74d40eceb7e8a87eeb31eb52ed97373",
+      "bytes": 1010
+    },
+    "main/board.h": {
+      "sha256": "cf5cd6864d142acbd8586c57596dd5f173804d3dd1b2407c0da23e6105179742",
+      "git_blob": "4c1ad723fbae51390a345cfd3777dcbce2bda092",
+      "bytes": 2843
+    },
+    "main/button.c": {
+      "sha256": "6f758e30d1b1435bf83a480bacf969eb0899cd51879f4864613f01112af2f38d",
+      "git_blob": "b2c2196e57bdfd263e72fbc991e1bd04a9737d0f",
+      "bytes": 2360
+    },
+    "main/button.h": {
+      "sha256": "f8621ded449256bfd1b3b32360821aaa6e89e1de592278498d0e295cc72b9ded",
+      "git_blob": "1f76656a1b8a1d20e8d2996515732a9e0c7faa5c",
+      "bytes": 38
+    },
+    "main/main.c": {
+      "sha256": "429da35f145d0715257a5ce37d6bd3ce042f2c83a927ee35cea22eed6f82f9fb",
+      "git_blob": "f029505d0364752d9c2f948c15d7b44f46928d04",
+      "bytes": 798
+    },
+    "main/matrix.c": {
+      "sha256": "4cbb85059cb95db2a108fc985ec8417dd82465a186947c5051b3b87e5f9acb3b",
+      "git_blob": "04496d98afdfe73d4f36064ea38fb6139e17b000",
+      "bytes": 2972
+    },
+    "main/matrix.h": {
+      "sha256": "ba42a115337a701e09e9169e7e39b67763051d3f6e45ff072b3721816833a118",
+      "git_blob": "a7574cd76831eddab5c70bb45f585e1fc2f5aa5d",
+      "bytes": 167
+    },
+    "main/net.c": {
+      "sha256": "fab24fd2ddc947ca449669e77856a61034df088fb56d2b0356eb16189340388c",
+      "git_blob": "450903f41c3d379b6edacf7d782624f96160ca99",
+      "bytes": 13116
+    },
+    "main/net.h": {
+      "sha256": "9e262914848af82810d266126c8abdad853b377c14501c1d6c0b077ae99ec1a6",
+      "git_blob": "3e52dcd93b2cab80789ffeb8674cc579c3614db6",
+      "bytes": 261
+    },
+    "main/peripherals.c": {
+      "sha256": "828c0ab48258afa5b3933257f2097d70d48855ddebb4bc589f2f2f9706dc5972",
+      "git_blob": "33ef48704cb7f6d6637afb19049b9866667c7381",
+      "bytes": 12358
+    },
+    "main/peripherals.h": {
+      "sha256": "b820ff6ebd20a26562d4249979ca9284f2ab367d4c6e87318e762860e11bbedf",
+      "git_blob": "b162bfff03646df771d8b086a531f6ecd01518a2",
+      "bytes": 1440
+    },
+    "main/route_plan.c": {
+      "sha256": "ac59c15c1a1ea7ab55706c069f619f310b3ad4780515405ba0ce97b8c989bc4a",
+      "git_blob": "47d38433ce504671224d05d1ad2201d632f2afce",
+      "bytes": 2108
+    },
+    "main/route_plan.h": {
+      "sha256": "2f41cec2a78b68f420170c8b743b008d8841a3a2c82cefb521f5358155a3b6fc",
+      "git_blob": "ff4b301423007cf147650abf7de98fef5e89ef3d",
+      "bytes": 584
+    },
+    "main/script_service.c": {
+      "sha256": "e61bd5dc077e0cae13cc3676e64bf6349f999b680d24f859cf1529bbb76c997d",
+      "git_blob": "21eefe2b5d7dbfeebe0299a6f3a30ac4c95094bb",
+      "bytes": 3619
+    },
+    "main/script_service.h": {
+      "sha256": "41329e59cf241af3d740e03fa171c378db88d9a90a1864dd42297d21c2aaf951",
+      "git_blob": "1d97009ee6a794156f274d5fa9219303e102bbe3",
+      "bytes": 289
+    },
+    "main/script_vm.c": {
+      "sha256": "11a0afc5bb55f8a2bbb4fb4fb9ac69b0ec06f7b3534ac9d564cb5e5aa62506a5",
+      "git_blob": "cca1c2010fc6d95e1d5f535ff35a123f4acec5f8",
+      "bytes": 6434
+    },
+    "main/script_vm.h": {
+      "sha256": "dcff07e5d4c946422947e1ea56480dbad91e38551b0cba1463cf64ecc945fd61",
+      "git_blob": "9ee77e218ebec130316db8071a58bc840cb14954",
+      "bytes": 1452
+    },
+    "main/secrets.c": {
+      "sha256": "4f82e255975c85aa5bbf56cc54401ef576b3471f552da62fa1418cb17b1870b4",
+      "git_blob": "244602e6785436e94b2eafe3f82cee893145b6da",
+      "bytes": 1455
+    },
+    "main/secrets.h": {
+      "sha256": "2edb5af1855e45685b1148242593aa26ce4a05823d082637957cb186c4ede8e0",
+      "git_blob": "4f514d5beadaec89c9d573f5f9f19362c69e2174",
+      "bytes": 415
+    },
+    "main/wifi_ble.c": {
+      "sha256": "fed965426b08359c7ccc7e1db131834f3bcb504aa3a9c8836bb50be09919d527",
+      "git_blob": "30a1aa10649d2385d2eafcdb401cf356d4638c50",
+      "bytes": 6932
+    },
+    "main/wifi_ble.h": {
+      "sha256": "b2e0833ad706ade57cac1681e5cece6b14ab31d6f038d1a3d47ebfc89c64ceb5",
+      "git_blob": "d0ae70bf59e90d0a2296a63eb21d7ea0e0e02134",
+      "bytes": 193
+    },
+    "partitions.csv": {
+      "sha256": "b9f72eb39128fb194b727c3a26060630d691147f0bed3a4ea376caa8e1c6bc9b",
+      "git_blob": "2c0c4a310d4a4191917600dc389b1d69e51f7c80",
+      "bytes": 182
+    },
+    "sdkconfig.defaults": {
+      "sha256": "81660cfbead6077925f2f3279a3125425d057cc054fb95f1ba490f3f18bbaa96",
+      "git_blob": "806dacf99932ac43c66adb49c89d9ff5a25f9c5d",
+      "bytes": 740
+    },
+    "start_dht11.cmd": {
+      "sha256": "cceb05d0200b891f1cbec63a842cf92fba91cc56b4e7ed13ab861ea090641657",
+      "git_blob": "67ce2028a0e73618e6b9e4d03ff3ec6e1d1c87c2",
+      "bytes": 206
+    },
+    "start_gui.cmd": {
+      "sha256": "616175ab3efb0f3d35f544308701e454f9c93ff5565345e6f945fe05c12672c9",
+      "git_blob": "b31d21b8571fa79e87a562209163d2993b7ded54",
+      "bytes": 192
+    },
+    "tests/run_native_tests.py": {
+      "sha256": "b18c41cda645b187fdc5c4f1ac7cef7fd7bcf50a46b20f58c5cf4dff72b7ae0f",
+      "git_blob": "20602f7d6e431883738f2bf749cc7c7587e56ae2",
+      "bytes": 1404
+    },
+    "tests/test_client.py": {
+      "sha256": "68709e409c36a36c3c040106e48818706b975321a39c4f957fd4eb753013ad3b",
+      "git_blob": "c9943241387bb8909e8dd69049b37ba40f79e6f0",
+      "bytes": 4513
+    },
+    "tests/test_gui.py": {
+      "sha256": "8f3f55908783242984bc3e225b6a39db7373a31a0dcd21496b5582829cd59034",
+      "git_blob": "61292814309d2e80f9ee2776b3c97f2ecd0fe812",
+      "bytes": 7089
+    },
+    "tests/test_routes.c": {
+      "sha256": "bf583e2916be237f2af564a2c5d0cc93ee77883e113e5c19b8d0973a89a258eb",
+      "git_blob": "75c419b30b31ee1fbcf60b9dfba14738ff420e51",
+      "bytes": 2402
+    },
+    "tests/test_script.py": {
+      "sha256": "412edeebe7d4e40a0c9d2fae6d58ac343e2a9f1d29d21bb6cdf1696928e90c1a",
+      "git_blob": "d1f64b7fbee96cc556749154c106d7386f14af61",
+      "bytes": 5431
+    },
+    "tests/test_script_vm.c": {
+      "sha256": "7decea499825940de8711a4ad4f63acf4f0c64ba5ee9d07ec6c108c714d8ee5d",
+      "git_blob": "a289e8c75791abf50bc4956ac78f83b9993f7e88",
+      "bytes": 4375
+    }
+  }
+}
