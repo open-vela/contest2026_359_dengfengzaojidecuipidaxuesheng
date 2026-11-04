@@ -22,6 +22,8 @@ pre=r'''
 enum qpk_volume {QPK_VOLUME_INTERNAL,QPK_VOLUME_SD};
 struct qpk_hw_progress {atomic_bool cancel;};
 static int sd_error,internal_error;
+static int recorder_text_execute(const char *op,const cJSON *a,cJSON *out,struct qpk_hw_progress *progress){(void)op;(void)a;(void)out;(void)progress;return -ENOTSUP;}
+static int recorder_text_remove(const cJSON *a){(void)a;return 0;}
 static unsigned sd_write_requests,flash_write_requests,backend_calls,list_calls;
 static const char *qpk_volume_data_root(enum qpk_volume v){return v==QPK_VOLUME_SD?"/sd/qpk/.data":"/flash/qpk/.data";}
 static int qpk_volume_ready(enum qpk_volume v,bool create)
@@ -84,6 +86,10 @@ int main(void)
   atomic_store(&progress.cancel,false);sd_error=-EIO;cJSON_Delete(out);out=cJSON_CreateObject();
   n=list_calls;assert(execute("com.openvela.recorder","list",args,out,&progress)==-EIO&&list_calls==n);
   assert(qpk_hw_audio_execute_at(NULL,"com.openvela.recorder","list",args,out,&progress)==-EINVAL);
+  unsigned before_denied=backend_calls;
+  assert(execute("other.app","transcribe",args,out,&progress)==-EACCES);
+  assert(execute("other.app","transcript",args,out,&progress)==-EACCES);
+  assert(backend_calls==before_denied);
   cJSON_Delete(args);cJSON_Delete(out);
   puts("RECORDER_MEDIA_OK: real route/list functions, SD-only new writes, missing/broken SD no fallback, read-only legacy aliases, legacy playback, unchanged other apps and cancellation");
 }

@@ -38,5 +38,8 @@ int music_pcm_drain(struct music_pcm *pcm);
 void music_pcm_close(struct music_pcm *pcm);
 int music_pcm_session_lock(void);
 int music_pcm_session_trylock(void);
+/* Bounded, cancellable capture handoff; only background wake is displaced.
+ * Success owns the session until music_pcm_session_unlock(). */
+int music_pcm_capture_lock(unsigned timeout_ms, bool (*cancelled)(void *), void *opaque);
 void music_pcm_session_unlock(void);
 bool music_pcm_session_active(void);

@@ -104,6 +104,9 @@ int main(int argc,char **argv)
     lv_obj_send_event(g_local_ui->microphone,LV_EVENT_CLICKED,NULL);assert(review_local_finishes()==finished+1);
     review_local_asr_fixture(true,0,"你好，今天天气怎么样？");local_ui_poll(NULL);
     assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"你好，今天天气怎么样？"));
+    review_local_fixture(GLV_CHECKING,"");local_ui_poll(NULL);
+    assert(!strcmp(lv_label_get_text(g_local_ui->output),"你好，今天天气怎么样？"));
+    assert(lv_obj_has_state(g_local_ui->target,LV_STATE_DISABLED));
     lv_textarea_set_text(g_local_ui->input,"保留编辑后的草稿");review_local_fixture(GLV_SPEAKING,"回答");local_ui_poll(NULL);
     assert(!strcmp(lv_textarea_get_text(g_local_ui->input),"保留编辑后的草稿"));
     review_local_fixture(GLV_IDLE,"回答");local_ui_poll(NULL);
@@ -126,33 +129,34 @@ int main(int argc,char **argv)
     lv_obj_get_coords(g_local_ui->footer,&area);assert(area.y2<600);
     panel_hide(NULL);assert(!g_local_ui);
     for(unsigned i=0;i<20;i++){glass_local_voice_open(NULL);panel_hide(NULL);assert(!g_local_ui);}
-    review_local_fixture(GLV_IDLE,"");glass_local_voice_enable_wake(true);glass_local_voice_set_wake(true);
+    review_local_fixture(GLV_IDLE,"");glass_local_voice_enable_wake(true);glass_local_voice_set_wake(false);
     glass_settings(NULL);review_click("本地语音");assert(g_system_page_pending);glass_system_page_async(NULL);
     assert(g_local_settings&&g_system_page_kind==SETTINGS_LOCAL_VOICE);
     lv_obj_update_layout(g_local_settings->card);lv_obj_t *back_label=review_label_find(g_local_settings->card,"返回设置");assert(back_label);
     lv_area_t back_area;lv_obj_get_coords(back_label,&back_area);assert(back_area.x1>=12&&back_area.x2<GLASS_SIDEBAR_WIDTH);
-    review_capture(display,"local-settings","系统设置 · 本地唤醒和原助手切换");
+    assert(lv_obj_has_state(g_local_settings->target,LV_STATE_DISABLED));
+    assert(lv_dropdown_get_option_count(g_local_settings->target)==1);
+    review_capture(display,"local-settings","系统设置 · 全局固定原助手");
     review_local_asr_error(-ENOENT);local_settings_poll(NULL);assert(review_local_displayed_error()==-ENOENT&&strstr(lv_label_get_text(g_local_settings->status),"离线转写："));
     review_local_asr_fixture(false,0,"");local_settings_poll(NULL);
-    lv_dropdown_set_selected(g_local_settings->target,1);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);
+    lv_dropdown_set_selected(g_local_settings->target,0);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);
     assert(!glass_local_voice_wake_selected());assert(strstr(lv_label_get_text(g_local_settings->phrase),"原助手"));
     lv_obj_remove_state(g_local_settings->wake,LV_STATE_CHECKED);lv_obj_send_event(g_local_settings->wake,LV_EVENT_VALUE_CHANGED,NULL);
     assert(!glass_local_voice_wake_enabled());
     review_local_config_error(-EIO);lv_dropdown_set_selected(g_local_settings->target,0);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);
-    assert(!glass_local_voice_wake_selected()&&lv_dropdown_get_selected(g_local_settings->target)==1);review_local_config_error(0);
+    assert(!glass_local_voice_wake_selected()&&lv_dropdown_get_selected(g_local_settings->target)==0);review_local_config_error(0);
     review_local_fixture(GLV_SPEAKING,"");local_settings_poll(NULL);assert(lv_obj_has_state(g_local_settings->target,LV_STATE_DISABLED));
     lv_dropdown_set_selected(g_local_settings->target,0);lv_obj_send_event(g_local_settings->target,LV_EVENT_VALUE_CHANGED,NULL);assert(!glass_local_voice_wake_selected());
-    review_local_fixture(GLV_IDLE,"");glass_local_voice_set_wake(true);glass_local_voice_enable_wake(true);local_settings_poll(NULL);
+    review_local_fixture(GLV_IDLE,"");glass_local_voice_set_wake(false);glass_local_voice_enable_wake(true);local_settings_poll(NULL);
     review_local_error_fixture(-EIO);local_settings_poll(NULL);assert(review_local_displayed_error()==-EIO);
     glass_settings(NULL);assert(!g_local_settings);glass_local_voice_settings(NULL);panel_hide(NULL);assert(!g_local_settings);
   }
-  review_chat_dialog_fixture(true);review_local_woke(false);wake_mini_service();
-  assert(g_local_ui&&review_voice_start_count()==0);panel_hide(NULL);
-  review_local_woke(true);wake_mini_service();assert(!g_local_ui&&review_voice_start_count()==0);
-  glass_local_voice_enable_wake(false);review_local_woke(false);wake_mini_service();assert(!g_local_ui&&review_voice_start_count()==0);
+  review_chat_dialog_fixture(true);unsigned started=review_voice_start_count(),listened=review_local_listens();
+  review_local_woke(false);wake_mini_service();
+  assert(!g_local_ui&&review_voice_start_count()==started+1&&review_local_listens()==listened);
+  wake_mini_service();assert(review_voice_start_count()==started+1);
+  review_local_woke(true);wake_mini_service();assert(!g_local_ui&&review_voice_start_count()==started+1);
+  glass_local_voice_enable_wake(false);review_local_woke(false);wake_mini_service();assert(!g_local_ui&&review_voice_start_count()==started+1);
   glass_local_voice_enable_wake(true);
-  review_local_fixture(GLV_IDLE,"");review_local_asr_fixture(true,0,"");unsigned listened=review_local_listens();
-  review_local_woke(false);wake_mini_service();assert(g_local_ui&&review_local_listens()==listened+1&&review_voice_start_count()==0);
-  wake_mini_service();assert(review_local_listens()==listened+1);panel_hide(NULL);
   fputs("\n]\n",review_manifest);fclose(review_manifest);puts("LOCAL_VOICE_UI_OK themes/keyboard-no-cloud/local-mic/finish/level/transcript/page-lifecycle/wake-once/40-reopen");return 0;
 }

@@ -17,7 +17,7 @@ function launch() {
     setStyle: (id,style) => Object.assign(widgets[id].style, style),
     setHidden: (id,hidden) => widgets[id].hidden = hidden, setColor() {},onBack:fn=>back=fn};
   const audio = {};
-  for (const op of ['list','record','play','remove']) audio[op] = args => {
+  for (const op of ['list','record','play','remove','transcribe','transcript']) audio[op] = args => {
     const id = ++sequence; jobs.set(id, {done:false, state:'running'});
     submitted.push({id,op,args}); return id;
   };
@@ -48,7 +48,7 @@ a.app.record(); assert.equal(a.last().id, first.id, 'wait for actual stop comple
 a.done(true, {bytes:6400}); assert.equal(a.last().op, 'list');
 const clip = {clip:first.args.clip, valid:true, fileBytes:6444, durationMs:200};
 a.done(true, {clips:[clip]}); assert.equal(a.app.state().selected, clip.clip);
-a.app.play(); assert.equal(a.last().args.clip, clip.clip); a.app.stop(); a.done(true);
+a.app.play(); assert.equal(a.last().op,'transcript');a.done(true,{available:false});assert.equal(a.last().op,'play'); assert.equal(a.last().args.clip, clip.clip); a.app.stop(); a.done(true);
 a.app.record(); assert.notEqual(a.last().args.clip, clip.clip);
 a.app.cancel(); assert.equal(a.cancelled.at(-1), a.last().id);
 a.done(false, {}, -125); a.done(true, {clips:[clip]});
@@ -67,6 +67,9 @@ const existing = Array.from({length:9}, (_,i) => ({clip:'rec_' + String(i + 91).
 b.done(true, {clips:existing}); assert.equal(b.app.state().count, 9);
 const target=b.app.state().pager.find(s=>s.page===1);assert(target);b.widgets[target.button].callback();assert.equal(b.app.state().page,1);
 assert(b.widgets.some(w=>!w.hidden&&w.width===20&&w.height===6));
+const conversion=b.widgets.find(w=>w.label==='转文字');
+for(const slot of b.app.state().pager){const w=b.widgets[slot.button];assert(w.y>=conversion.y+conversion.height+8,'pager hit area must stay below conversion button');}
+
 b.app.select(4); b.app.record(); assert.equal(b.last().args.clip, 'rec_000100');
 b.done(false, {}, -28); b.done(true, {clips:existing});
 assert.equal(b.app.state().count, 9); assert(b.widgets.some(w => w.label.includes('存储空间不足')));
@@ -77,9 +80,25 @@ const legacy=launch();
 legacy.done(true,{clips:[{clip:'flash:rec_000001',readOnly:true,valid:true,fileBytes:6444,durationMs:200}]});
 let legacyCalls=legacy.submitted.length;
 legacy.app.remove();assert.equal(legacy.submitted.length,legacyCalls,'legacy Flash recordings remain read-only');
-legacy.app.play();assert.equal(legacy.last().args.clip,'flash:rec_000001');legacy.done(true);
+legacy.app.play();assert.equal(legacy.last().args.clip,'flash:rec_000001');legacy.done(true,{available:false});assert.equal(legacy.last().op,'play');legacy.done(true);
 legacy.app.record();legacy.done(false,{},-19);legacy.done(true,{clips:[]});
 assert(legacy.widgets.some(w=>w.label.includes('SD 卡')),'missing SD explains why recording cannot start');
+const captions=launch();captions.done(true,{clips:[clip]});
+captions.app.transcribe();assert.equal(captions.last().op,'transcribe');
+assert(!captions.submitted.some(j=>j.op==='record'),'converting a file never records a microphone');
+captions.done(true,{available:true,text:'你好天气好',segments:[{atMs:500,text:'你好'},{atMs:1500,text:'天气'},{atMs:2500,text:'好'}]});
+assert.equal(captions.app.state().captionCount,3);
+captions.app.play();captions.done(true,{available:true,text:'你好天气好',segments:[{atMs:500,text:'你好'},{atMs:1500,text:'天气'},{atMs:2500,text:'好'}]});
+const playing=captions.last();assert.equal(playing.op,'play');
+captions.jobs.set(playing.id,{done:false,elapsedMs:1000,peak:180});captions.timer();
+assert(captions.widgets.some(w=>w.label==='你好'),'subtitle follows audio position, not ASR compute time');
+const weak=captions.widgets.filter(w=>w.style.radius===2).map(w=>w.height);
+assert(weak.some(h=>h>4),'quiet real PCM produces visible waveform');
+captions.jobs.set(playing.id,{done:false,elapsedMs:2000,peak:12000});captions.timer();
+assert(captions.widgets.some(w=>w.label==='你好天气'));
+assert(captions.widgets.filter(w=>w.style.radius===2).some(w=>w.height>Math.max(...weak)),'louder PCM changes waveform');
+captions.done(true);captions.app.transcribe();captions.app.stop();assert.equal(captions.cancelled.at(-1),captions.last().id);
+captions.done(false,{},-125);assert.equal(captions.app.state().captionCount,3,'cancel retains previous successful text');
 const result = {result: 'PASS: explicit recording, real progress, stop/cancel completion, playback, confirmed deletion, durable paging, list-failure recovery, full-storage errors, read-only legacy clips and missing SD',
   source_sha256: require('node:crypto').createHash('sha256').update(source).digest('hex'), physical_io:'mocked'};
 console.log(result.result);

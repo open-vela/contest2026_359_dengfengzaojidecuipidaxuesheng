@@ -41,6 +41,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--apps',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--cache',type=Path,required=True)
+    p.add_argument('--material-root',type=Path,help='Host copy of the verified SD desktop material bundle')
     p.add_argument('--desktop-source',type=Path,help='Optional immutable desktop source snapshot, including its runtime header')
     p.add_argument('--prepare-only',action='store_true')
     p.add_argument('--build-only',action='store_true',help='Build a native harness without starting it')
@@ -281,7 +282,7 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
     sources += [desktop/name for name in ['glass_grok.c','glass_grok_state.c','glass_code_font.c','glass_seagull.c','glass_seagull_data.c','pet_engine.c']]
     if a.real_pet:sources += [desktop/'pet_lvgl.c',desktop/'pet_sprites.c']
     sources += [desktop/'glass_sd_font.c',desktop/'glass_material.c']
-    flags += ['-DGLASS_MATERIAL_ROOT="'+str(repo.parent/'sdcard/desktop-assets/v2')+'"']
+    flags += ['-DGLASS_MATERIAL_ROOT="'+str(a.material_root.resolve() if a.material_root else repo.parent/'sdcard/desktop-assets/v2')+'"']
     sources += [desktop/'glass_i18n.c']
     # Production store service uses isolated host volumes, never board paths.
     flags += ['-DQPK_VOLUME_INTERNAL_ROOT="'+str(out/'store-data/qpk')+'"',

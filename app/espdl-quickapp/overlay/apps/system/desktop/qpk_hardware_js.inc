@@ -7,7 +7,7 @@ static const char *const qpk_hw_operations[] = {
   "spi.open", "spi.transfer", "spi.close",
   "uart.open", "uart.read", "uart.write", "uart.close",
   "pwm.write", "pwm.stop", "servo.write", "servo.stop",
-  "audio.record", "audio.play", "audio.tone", "audio.save", "audio.info", "audio.remove", "audio.list",
+  "audio.record", "audio.play", "audio.tone", "audio.save", "audio.info", "audio.remove", "audio.list", "audio.transcribe", "audio.transcript",
   "ble.start", "ble.scan", "ble.connect", "ble.disconnect", "ble.cancel", "ble.status", "ble.services", "ble.characteristics", "ble.descriptors",
   "ble.read", "ble.write", "ble.subscribe", "ble.notification", "ble.pair", "ble.mtu", "net.status",
   "usb.list", "usb.info", "usb.mode", "usb.hidRead", "usb.hidReport",

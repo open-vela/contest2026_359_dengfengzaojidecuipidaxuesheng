@@ -54,6 +54,8 @@ int music_pcm_session_lock(void)
 {
   if(glass_local_voice_yield_model){int yielded=glass_local_voice_yield_model(3000);if(yielded)return yielded;}
   int ret;
+  /* Publish intent before stop so background wake cannot reopen mid-handoff. */
+  atomic_fetch_add(&g_pcm_foreground_waiters, 1);
 #ifdef GLASS_LOCAL_SPEECH
   glass_speech_stop();
 #endif
@@ -68,6 +70,7 @@ int music_pcm_session_lock(void)
       atomic_store(&g_pcm_session_active, true);
     }
 
+  atomic_fetch_sub(&g_pcm_foreground_waiters, 1);
   return ret ? -ret : 0;
 }
 
@@ -92,6 +95,32 @@ bool music_pcm_session_active(void)
 bool music_pcm_foreground_pending(void)
 {
   return atomic_load(&g_pcm_foreground_waiters) != 0;
+}
+
+/* Capture already owns its model/memory lifetime; do not retire that owner. */
+int music_pcm_capture_lock(unsigned timeout_ms, bool (*cancelled)(void *), void *opaque)
+{
+  if(timeout_ms>5000)return -EINVAL;
+  if(cancelled&&cancelled(opaque))return -ECANCELED;
+  struct timespec now;clock_gettime(CLOCK_MONOTONIC,&now);
+  uint64_t deadline=(uint64_t)now.tv_sec*1000+now.tv_nsec/1000000+timeout_ms;
+  atomic_fetch_add(&g_pcm_foreground_waiters,1);
+  bool yielding=false;
+#ifdef GLASS_LOCAL_SPEECH
+  yielding=glass_speech_yield_background();
+#endif
+  int ret;
+  for(;;){
+    if(cancelled&&cancelled(opaque)){ret=-ECANCELED;break;}
+    ret=music_pcm_session_trylock();
+    if(ret!=-EBUSY||!yielding)break;
+    clock_gettime(CLOCK_MONOTONIC,&now);
+    if((uint64_t)now.tv_sec*1000+now.tv_nsec/1000000>=deadline){ret=-ETIMEDOUT;break;}
+    usleep(10000);
+  }
+  atomic_fetch_sub(&g_pcm_foreground_waiters,1);
+  printf("[capture-handoff] background=%u result=%d\n",yielding,ret);
+  return ret;
 }
 
 static int pcm_message(struct music_pcm *pcm)

@@ -27,8 +27,8 @@ globalThis.system={
    modes:()=>[{width:640,height:480,format:'MJPEG',fourcc:1196444237,intervals:[666666,1000000],defaultInterval:666666,continuous:false}],
    start(){__cameraState={busy:true,running:true,error:0};return 0;},stop(){__cameraState={busy:false,running:false,error:0};return 0;},photo:()=>({status:0,path:''}),preview:__nativePreview},
  espdl:{preview:__nativePreview,clear(){},cancel(){},status:()=>({busy:false,stage:0,preview:false,frame:0}),start:()=>1,render:()=>true},
- audio:{list(){__audioKind='list';return 1;},record(){__audioKind='record';return 2;},play(){__audioKind='play';return 3;},stop(){},remove(){__audioKind='remove';return 4;}},
- hardware:{poll:()=>__audioKind==='list'?{done:true,ok:true,result:{clips:__clips}}:{done:false,ok:true,elapsedMs:15000,peak:17000},cancel(){}},
+ audio:{list(){__audioKind='list';return 1;},record(){__audioKind='record';return 2;},play(){__audioKind='play';return 3;},stop(){},remove(){__audioKind='remove';return 4;},transcript(){__audioKind='captions';return 5;},transcribe(){__audioKind='captions';return 6;}},
+ hardware:{poll:()=>__audioKind==='list'?{done:true,ok:true,result:{clips:__clips}}:__audioKind==='captions'?{done:true,ok:true,result:{available:true,text:'你好今天天气怎么样',segments:[{atMs:500,text:'你好'},{atMs:1500,text:'今天'},{atMs:4000,text:'天气怎么样'}]}}:{done:false,ok:true,elapsedMs:globalThis.__audioElapsed===undefined?15000:__audioElapsed,peak:globalThis.__audioPeak===undefined?17000:__audioPeak},cancel(){}},
  pet:{getState:()=>({mode:'wander',visible:true,mood:80,hunger:20,dir:'right',bubble:'今天也要好好生活。',eventSeq:0}),setMode(){},poke(){},feed(){},say(){},chat(){},toggle(){},setSize(){},weather(){}}
 };
 globalThis.__haConfigured=false;

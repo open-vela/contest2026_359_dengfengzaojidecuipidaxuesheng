@@ -9,7 +9,7 @@
 struct qpk_hw_session;
 struct qpk_hw_progress {
   atomic_bool cancel, finish;
-  atomic_uint bytes, elapsed_ms, peak;
+  atomic_uint bytes, elapsed_ms, peak, stage;
 };
 typedef int (*qpk_pcm_sink_t)(void *cookie,const uint8_t *pcm,size_t bytes);
 /* Dedicated caller-owned worker; same codec reservation and cleanup as WAV. */

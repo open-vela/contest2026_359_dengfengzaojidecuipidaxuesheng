@@ -45,6 +45,15 @@ struct glv_snapshot {
   size_t session_bytes;
 };
 /* Initialize only from the persistent desktop task, before opening CLI entrypoints. */
+#define GLV_FILE_MARKS 1024u
+struct glv_file_mark {uint32_t ms;uint16_t end;};
+struct glv_file_transcript {
+  unsigned duration_ms,count;char text[GLV_MAX_REPLY];
+  struct glv_file_mark marks[GLV_FILE_MARKS];
+};
+/* Internal recorder bridge: file-only ASR, no microphone, LLM or tools. */
+int glass_local_voice_transcribe_file(const char *,uint32_t *);
+int glass_local_voice_file_result(uint32_t,struct glv_file_transcript *);
 int glass_local_voice_start(void);
 /* Volatile, idle-only controls; changing mode never sends or replays input. */
 int glass_local_voice_select(enum glv_mode);
