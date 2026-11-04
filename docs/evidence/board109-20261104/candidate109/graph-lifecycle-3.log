@@ -1,0 +1,22 @@
+decoder-epoch-99-avg-1-lifecycle ASR_GRAPH_LIFECYCLE_OK peak=42392
+encoder-epoch-99-avg-1-lifecycle ASR_GRAPH_LIFECYCLE_OK peak=2631344
+joiner-epoch-99-avg-1-lifecycle ASR_GRAPH_LIFECYCLE_OK peak=2105260
+header-tensor-count ASR_GRAPH_REJECTED_CLEANLY
+header-node-count ASR_GRAPH_REJECTED_CLEANLY
+header-input-count ASR_GRAPH_REJECTED_CLEANLY
+header-data-size ASR_GRAPH_REJECTED_CLEANLY
+tensor-rank ASR_GRAPH_REJECTED_CLEANLY
+tensor-overflow ASR_GRAPH_REJECTED_CLEANLY
+tensor-type ASR_GRAPH_REJECTED_CLEANLY
+tensor-conflicting-flags ASR_GRAPH_REJECTED_CLEANLY
+constant-offset ASR_GRAPH_REJECTED_CLEANLY
+constant-format ASR_GRAPH_REJECTED_CLEANLY
+constant-row-shape ASR_GRAPH_REJECTED_CLEANLY
+node-arity ASR_GRAPH_REJECTED_CLEANLY
+node-output-arity ASR_GRAPH_REJECTED_CLEANLY
+node-future-input ASR_GRAPH_REJECTED_CLEANLY
+node-output-duplicate ASR_GRAPH_REJECTED_CLEANLY
+node-opcode ASR_GRAPH_REJECTED_CLEANLY
+truncated-plan ASR_GRAPH_REJECTED_CLEANLY
+trailing-plan ASR_GRAPH_REJECTED_CLEANLY
+payload-sha ASR_GRAPH_REJECTED_CLEANLY

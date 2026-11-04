@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "scope": "Actual service worker, asset SHA checks and control parser; fake engines and fake HA, no physical actuation; phase balancing across normal completion, cancellation, budget rejection",
+  "source_sha256": {
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_model.c": "9012773862e8fda1afc630572f4b4ac3ee2e4af508406ea09babc094c09b2b28",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_sha.c": "c71f65ec34fe887666e928e2fad86c15b06b8fe79df5f45d2fc0e733c5a67738",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_tokenizer.c": "8f40acbc7e3fafb00df85009265fd2c8c12a033bc8bebaa814abc9cc1a3cb35b",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_assets.c": "fc0e00681576939878e4bd607146dbf19914f1b36b7933072b82ee50621b15c6",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_voice.c": "be3546e885916d34cf5b179f035920b549074e7e84e1b206291fb7e9a7b856b3",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_control.c": "00ae9d5ff7b4cfe8b50ae45ff3d458d083d2b86c88f15be111232ab9302dcbbe",
+    "tests/phase-worker/phase-worker.c": "4c4c1422d251cdc046653fcb66891feda11fd1b3097c227b3de7a9b6c67b16ee"
+  },
+  "carried_from_identical_sources": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate108-full-ram-asr\\tests\\phase-worker\\RESULT.json",
+  "rerun_in_109": false
+}

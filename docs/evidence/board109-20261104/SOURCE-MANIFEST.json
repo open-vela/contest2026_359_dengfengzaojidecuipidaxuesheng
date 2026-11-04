@@ -1,6 +1,6 @@
 {
-  "candidate": 108,
-  "firmware_sha256": "67868ff725af9e03e704a214a19a327aa5b0723bd6511bd4d4b72bf630b159e5",
+  "candidate": 109,
+  "firmware_sha256": "09699b5ba452150e913f5062bf8fd9b344410833c85ecc634e7ddcc7c0bb9085",
   "files": [
     {
       "path": "app/bilibili_live/album_formats.c",
@@ -5555,8 +5555,8 @@
     },
     {
       "path": "app/espdl-quickapp/experimental/local_asr_accel.c",
-      "original_build_sha256": "521e52247d2d93548450527ea573b28658f90651058cf05269a78e04746f8da6",
-      "published_sha256": "0ec07408d0d1546850480645f63f11d0736b2b7d5315042ca0ef9e27c4c44f3c",
+      "original_build_sha256": "468d3c00691ad87ea8c20dbb492c5984f3dd6f1c8d9ceb764ab204372d5f344e",
+      "published_sha256": "614452912215ea9bc90c08048bab84af23f8718a0567d008f65ec2cb2a014d72",
       "text_eol_normalized": true,
       "redundant_eof_blank_lines_trimmed": false
     },
@@ -5597,8 +5597,8 @@
     },
     {
       "path": "app/espdl-quickapp/experimental/local_asr_graph.c",
-      "original_build_sha256": "9f893e0925a698ce82284b1e88127740213851fcb938b7096a1b73a9f4aea329",
-      "published_sha256": "c6c06508a9b196ff96ed6e1dcb96ab7a61cd96478744de2e9264cba9028eb0d5",
+      "original_build_sha256": "034fe9f08c72f63c613c2e1b460f2cdb38c35be0de14d3a1137bb6d78ef80ea4",
+      "published_sha256": "7e07ee41d48aa9553cb120a8518fa7531156a20c2b8af0d3ce287548abe7c4fc",
       "text_eol_normalized": true,
       "redundant_eof_blank_lines_trimmed": false
     },
@@ -5618,8 +5618,8 @@
     },
     {
       "path": "app/espdl-quickapp/experimental/local_asr_ops.h",
-      "original_build_sha256": "1d9b72571a94f6ff3b844e40569fe192801b78b48ff5a959c75877be3f9fe2cc",
-      "published_sha256": "a85ebdeddfd339f3928c7ad77d952a3a665c408eab6747b0a8e60f3ddeefd084",
+      "original_build_sha256": "aff94c1da4c5a28dca48a4714b6741abe4b5a59f231593cf7e13ce4c1b40e98f",
+      "published_sha256": "00f15f3f04c479c849f4882abc767fc9bc3b90a63341d741abc5f6c3d6fd1c95",
       "text_eol_normalized": true,
       "redundant_eof_blank_lines_trimmed": false
     },

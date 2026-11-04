@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "scope": "Actual worker and base-package SHA; fake ASR/LLM/capture; new request, late completion, retag, diagnostics, empty and phase balancing, no hardware claim",
+  "source_sha256": {
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_model.c": "9012773862e8fda1afc630572f4b4ac3ee2e4af508406ea09babc094c09b2b28",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_sha.c": "c71f65ec34fe887666e928e2fad86c15b06b8fe79df5f45d2fc0e733c5a67738",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_tokenizer.c": "8f40acbc7e3fafb00df85009265fd2c8c12a033bc8bebaa814abc9cc1a3cb35b",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_assets.c": "fc0e00681576939878e4bd607146dbf19914f1b36b7933072b82ee50621b15c6",
+    "source/app/espdl-quickapp/overlay/apps/system/desktop/glass_local_voice.c": "be3546e885916d34cf5b179f035920b549074e7e84e1b206291fb7e9a7b856b3",
+    "tests/request-phase/request-phase.c": "f2d204ff530decac54744473d81b85a2216a1aa484dbce2978ea625f172757c9"
+  },
+  "carried_from_identical_sources": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate108-full-ram-asr\\tests\\request-phase\\RESULT.json",
+  "rerun_in_109": false
+}

@@ -13,18 +13,39 @@
 extern int32_t glv_tts_dot_pie(const int16_t *,const int16_t *,unsigned);
 extern int glv_tts_pie_context_probe(const int16_t *,const int16_t *,int32_t,unsigned);
 #endif
-static int32_t dot32(const int16_t *w,const int16_t *x)
+/* Called only while the enclosing compute lane holds the qualified PIE
+ * mode. Keep IRQs enabled; NuttX saves/restores each task's vector context. */
+static int32_t dot32_active(const int16_t *w,const int16_t *x)
 {
 #ifdef __NuttX__
  /* Vector loads require 16-byte alignment. Keep a scalar safety net
   * even though activation/code allocations are explicitly aligned. */
  if(((uintptr_t)w|(uintptr_t)x)&15u){int32_t n=0;for(unsigned i=0;i<32;i++)n+=(int32_t)w[i]*x[i];return n;}
- unsigned saved;__asm__ volatile("csrrw %0,0x7f2,%1":"=r"(saved):"r"(1u):"memory");
- int32_t n=glv_tts_dot_pie(w,x,32);__asm__ volatile("csrw 0x7f2,%0"::"r"(saved):"memory");return n;
+ return glv_tts_dot_pie(w,x,32);
 #else
  int32_t n=0;for(unsigned i=0;i<32;i++)n+=(int32_t)w[i]*x[i];return n;
 #endif
 }
+static unsigned pie_enter(bool enable)
+{
+ unsigned saved=0;
+#ifdef __NuttX__
+ if(enable)__asm__ volatile("csrrw %0,0x7f2,%1":"=r"(saved):"r"(1u):"memory");
+#else
+ (void)enable;
+#endif
+ return saved;
+}
+static void pie_leave(bool enable,unsigned saved)
+{
+#ifdef __NuttX__
+ if(enable)__asm__ volatile("csrw 0x7f2,%0"::"r"(saved):"memory");
+#else
+ (void)enable;(void)saved;
+#endif
+}
+static int32_t dot32(const int16_t *w,const int16_t *x)
+{unsigned saved=pie_enter(true);int32_t n=dot32_active(w,x);pie_leave(true,saved);return n;}
 static bool pie_selftest(void)
 {
  _Alignas(16) int16_t w[32],x[32];unsigned seed=79;
@@ -102,7 +123,7 @@ static int matrix_body_inner(void *opaque,unsigned first,unsigned last,struct gl
     const int16_t *code=t->codes+(size_t)o*t->q.padded,*a=t->q.high+(size_t)r*t->q.padded,*b=t->q.low+(size_t)r*t->q.padded;
     for(unsigned g=0;g<t->q.groups;g++){
      size_t sg=(size_t)r*t->q.groups+g,wg=(size_t)o*t->q.groups+g;
-     int32_t hi=dot32(code+g*32,a+g*32),lo=dot32(code+g*32,b+g*32);
+     int32_t hi=dot32_active(code+g*32,a+g*32),lo=dot32_active(code+g*32,b+g*32);
      sum+=((float)hi*t->q.s0[sg]+(float)lo*t->q.s1[sg])*t->scale[wg];
      bound+=t->q.error[sg]*t->l1[wg];stats->dots+=2;
     }
@@ -122,12 +143,73 @@ static int matrix_body_inner(void *opaque,unsigned first,unsigned last,struct gl
  return 0;
 }
 static int matrix_body(void *opaque,unsigned first,unsigned last,struct glv_asr_lane *lane)
-{uint64_t began=glv_now_us();int ret=matrix_body_inner(opaque,first,last,lane);((struct matrix_task *)opaque)->stats[lane->index].us+=glv_now_us()-began;return ret;}
+{struct matrix_task *t=opaque;unsigned saved=pie_enter(t->pie);uint64_t began=glv_now_us();int ret=matrix_body_inner(opaque,first,last,lane);t->stats[lane->index].us+=glv_now_us()-began;pie_leave(t->pie,saved);return ret;}
 static void collect(struct glv_memory *m,const struct lane_stats s[2])
 {for(unsigned i=0;i<2;i++){m->profile.asr_math_us+=s[i].us;m->profile.asr_pie_dots+=s[i].dots;m->profile.asr_pie_fallbacks+=s[i].fallbacks;m->profile.asr_pie_selftests+=s[i].selftests;m->profile.asr_pie_selftest_failures+=s[i].selftest_failures;}}
+struct resident_task {
+ struct glv_asr_packed_rows view;
+ struct matrix_task matrix[2];
+};
+static int resident_body_inner(struct resident_task *task,unsigned first,unsigned last,struct glv_asr_lane *lane)
+{
+ struct matrix_task *t=&task->matrix[lane->index];const struct glv_asr_packed_rows *v=&task->view;
+ float *weights=(float *)t->weights,*scales=(float *)t->scale,*l1=(float *)t->l1;int16_t *codes=(int16_t *)t->codes;
+ unsigned groupbytes=v->format==1?20u:36u;
+ for(unsigned o=first;o<last;o++){
+  int ret=glv_asr_lane_cancel(lane);if(ret)return ret;
+  const unsigned char *raw=v->data+(size_t)o*v->stride;
+  for(unsigned g=0;g<t->q.groups;g++){
+   const unsigned char *b=raw+(size_t)g*groupbytes;float scale;memcpy(&scale,b,4);
+   if(!glv_finite(scale)||scale<0)return -EBADMSG;scales[g]=scale;l1[g]=0;
+   for(unsigned i=0;i<32;i++){
+    unsigned col=g*32u+i;int code=0;
+    if(col<t->k){if(v->format==1){unsigned nib=(b[4+i/2]>>(4u*(i&1u)))&15u;code=nib<8?(int)nib:(int)nib-16;}else code=(int8_t)b[4+i];}
+    codes[col]=(int16_t)code;
+    if(col<t->k){weights[col]=(float)code*scale;l1[g]+=fabsf(weights[col]);}
+   }
+  }
+  t->base=o;ret=matrix_body_inner(t,0,1,lane);if(ret)return ret;
+ }
+ return 0;
+}
+static int resident_body(void *opaque,unsigned first,unsigned last,struct glv_asr_lane *lane)
+{
+ struct resident_task *task=opaque;unsigned saved=pie_enter(true);uint64_t began=glv_now_us();
+ int ret=resident_body_inner(task,first,last,lane);
+ task->matrix[lane->index].stats[lane->index].us+=glv_now_us()-began;pie_leave(true,saved);return ret;
+}
+/* One dispatch for the complete resident matrix. Each lane decodes into its
+ * own bounded row scratch; no row-reader calls, shared I/O buffer, allocation
+ * or mutable graph metadata in the helper. The original group32 scales,
+ * S16 residual representation, error bound and FP32 fallback are retained. */
+static int resident_matmul(struct glv_memory *m,const float *x,float *y,unsigned rows,unsigned k,unsigned n,const struct glv_asr_rows *reader)
+{
+ if(m->asr_no_pie||!reader->resident)return 1;
+ struct resident_task task={0};int ret=reader->resident(reader->opaque,&task.view);if(ret<=0)return ret?ret:1;
+ struct glv_asr_packed_rows *v=&task.view;
+ if(!v->data||(v->format!=1&&v->format!=2)||v->rows!=n||v->columns!=k||v->padded!=((k+31u)&~31u)||
+    v->stride!=(size_t)(v->padded/32u)*(v->format==1?20u:36u))return -EINVAL;
+ uint64_t began=glv_now_us();struct quantized q=quantized_input(m,x,rows,k);m->profile.asr_quant_us+=glv_now_us()-began;
+ if(!q.storage)return 1;
+ size_t stride=((((size_t)k*4u+15u)&~(size_t)15u)+(size_t)q.padded*2u+(size_t)q.groups*8u+15u)&~(size_t)15u;
+ unsigned char *storage=glv_alloc(m,2u*stride+15u);if(!storage){glv_free(q.storage);return 1;}
+ unsigned char *aligned=(unsigned char *)(((uintptr_t)storage+15u)&~(uintptr_t)15u);bool packed=true;
+ for(unsigned i=0;i<2;i++){
+  float *weights=(float *)(aligned+i*stride);int16_t *codes=(int16_t *)(weights+k);
+  /* k need not be a multiple of four. Align the vector codes separately. */
+  codes=(int16_t *)(((uintptr_t)codes+15u)&~(uintptr_t)15u);
+  float *scale=(float *)(codes+q.padded),*l1=scale+q.groups;
+  task.matrix[i]=(struct matrix_task){.x=x,.weights=weights,.scale=scale,.l1=l1,.codes=codes,.packed=&packed,
+    .y=y,.rows=rows,.k=k,.n=n,.q=q,.pie=true};
+ }
+ ret=glv_asr_parallel_run(m,resident_body,&task,n,(uint64_t)rows*k*n);
+ for(unsigned i=0;i<2;i++)collect(m,task.matrix[i].stats);
+ glv_free(storage);glv_free(q.storage);return ret;
+}
 int glv_asr_accel_matmul(struct glv_memory *m,const float *x,float *y,unsigned rows,unsigned k,unsigned n,const struct glv_asr_rows *reader)
 {
  if(k>32768u||(!reader->prepare&&(uint64_t)rows*k*n<262144u))return 1;
+ if(k>=32){int ret=resident_matmul(m,x,y,rows,k,n,reader);if(ret!=1)return ret;}
  struct quantized q={0};bool pie=!m->asr_no_pie&&reader->prepare&&k>=32;
  if(pie){uint64_t began=glv_now_us();q=quantized_input(m,x,rows,k);m->profile.asr_quant_us+=glv_now_us()-began;pie=q.storage!=NULL;}
  size_t row_bytes=(size_t)k*4u+(pie?(size_t)q.padded*2u+q.groups*8u:0);
@@ -213,7 +295,9 @@ static int conv_body(void *opaque,unsigned first,unsigned last,struct glv_asr_la
 int glv_asr_accel_conv(struct glv_memory *m,const float *x,const float *bias,float *y,const struct glv_asr_conv *c,const struct glv_asr_rows *reader,unsigned k,unsigned height,unsigned width)
 {
  if((uint64_t)k*height*width*c->outputs<262144u)return 1;
- unsigned tile=32768u/((size_t)k*4u);if(tile>64)tile=64;if(tile>c->outputs)tile=c->outputs;
+ /* Keep a whole admitted convolution together, rather than testing the
+  * parallel threshold on tiny channel tiles. Fall back under heap pressure. */
+ unsigned tile=262144u/((size_t)k*4u);if(tile>c->outputs)tile=c->outputs;
  float *weights=NULL;for(;tile;tile/=2){weights=glv_alloc(m,(size_t)tile*k*4u);if(weights)break;}if(!weights)return 1;
  int ret=0;
  for(unsigned base=0;base<c->outputs&&!ret;base+=tile){

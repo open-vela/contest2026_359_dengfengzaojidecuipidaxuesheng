@@ -1,0 +1,143 @@
+COMMAND desktop local-voice status
+LOCAL_VOICE request=2 phase=0 busy=0 ready=0 asr=0 local_wake=1 enabled=1 pending=0 error=0 model_error=0 peak=13392633 elapsed_ms=123220 first_token_ms=40921 first_audio_ms=0 tokens=25
+LOCAL_DUAL_AI selected=1 resident_control=0 thinking=5 model_rounds=0 tool_rounds=0 review_rounds=0
+LOCAL_RESIDENT_BYTES bytes=0 kv_bytes=0 reserve=2097152
+LOCAL_ASR_DSP included=1 calls=42009 elements=18593856 selftests=1 fallbacks=0
+LOCAL_LLM_9M9 parameters=9870560 weight_bits=8 activation_bits=8 calls=0 dots=0 selftests=0
+LOCAL_LLM_HOT ticks_per_us=400 matrix=0 quant=0 rows=0 checks=0 compute=0 prepare=0 fast_rows=0 checkpoints=0
+LOCAL_LLM_SPEC blocks=0 drafted=0 accepted=0 fallbacks=0 previous=0 prompt=0
+LOCAL_LLM_ATTENTION qk=0 softmax=0 value=0 head=0 direct_rows=0 repack=0
+LOCAL_LLM_BLOCK loads=0 hits=0 read_bytes=0 peak_bytes=0
+LOCAL_LLM_MORE quant_reuses=0 attention=0 norm=0 activation=0
+LOCAL_VOICE_TEXT bytes=75 fnv=04bc9ea5
+LOCAL_VOICE_DIAG request=2 cancel_source=0 cancel_phase=0 cancel_ms=0 check_ms=10860 load_ms=0 tokenize_ms=0 prefill_ms=0 decode_ms=0 progress=0 total=0
+LOCAL_VOICE_Q8 included=1 activation_bits=16 gate=0 matrices=0 dots=0
+LOCAL_VOICE_Q4 bits=0 selftest=0 matrices=0 dots=0
+LOCAL_VOICE_LAZY default_text=1 wake_error=0
+LOCAL_VOICE_IO request=2 sha_bytes=35591816 sha_read_ms=18860 sha_compute_ms=3580 weight_bytes=0 read_ms=0 seek_ms=0 decode_ms=0 matmul_ms=0 verified_reuses=0 sha_hw=1 sha_hw_files=12 sha_hw_updates=5861 sha_hw_selftests=1
+LOCAL_VOICE_CACHE request=2 peak_bytes=0 hits=0 hit_bytes=0
+LOCAL_VOICE_TTS_PAR request=2 enabled=1 jobs=0 cpu0=0 cpu1=0 fallbacks=0 stack_charge=0 elapsed_ms=0 overlap_ms=0 mlp_jobs=0 cache_fb=0 budget_fb=0 reserve_fb=0 fragment_fb=0 mutex_fb=0 setup_fb=0 create_fb=0 last_reason=0 last_error=0 setup_us=0 join_us=0 owner0=0 owner1=0 pin_retries=0
+LOCAL_VOICE_TTS_FMA request=2 enabled=0 upsample_calls=0 rejected=0
+LOCAL_VOICE_TTS_INPUT request=2 enabled=1 max_jobs=0 quant_jobs=0 rounding_fallbacks=0
+LOCAL_VOICE_TTS_PIE_PAR request=2 enabled=1 eligible=0 jobs=0 context_checks=0 scratch_fb=0 rounding_fb=0
+LOCAL_VOICE_TTS_WEIGHT_LUT request=2 enabled=0 rows=0 hits=0 misses=0 rounding_fb=0
+LOCAL_VOICE_TTS_INT8 request=2 enabled=0 benchmark_only=1 calls=0 kept16=0 selftests=0 selftests16=0
+LOCAL_VOICE_TTS_REDUCE request=2 enabled=0 calls=0 selftests=0 fast=0 saved=0 input_saved=0
+LOCAL_VOICE_TTS_UP_PAIR request=2 enabled=0 calls=0 packed_fb=0 pack_ms=0 compute_ms=0 s0_ms=0 s1_ms=0 s2_ms=0 s3_ms=0
+LOCAL_VOICE_TTS_CLAUSE request=2 enabled=1 planned=0 done=0 first_ms=0 peak_samples=0
+LOCAL_VOICE_TTS_QUANT request=2 enabled=1 calls=0 selftests=0 input_saved=0
+LOCAL_VOICE_TTS_PROFILE request=2 coarse=1
+LOCAL_VOICE_TTS_WINDOWS request=2 planned=1 cap_kib=0 checks=0 skips=0 attempts=0 failed_frames=0 failed_ms=0
+LOCAL_VOICE_TTS_ROWS request=2 bulk=0 reads=0 bulk_rows=0 legacy_rows=0
+LOCAL_VOICE_SESSION request=2 resident=0 pending=0 bytes=0 reused=0 kv_reused=0 prefill_tokens=0
+LOCAL_VOICE_TTS request=2 mel_ms=0 vocoder_ms=0 chunks=0 context_frames=0 output_frames=0 memory_fallbacks=0 pie_ms=0 pie_calls=0 pie_dots=0 pie_selftests=0 samples=0 ready_ms=0
+LOCAL_VOICE_TTS_WORK request=2 single=0 batches=0 input_ms=0 weights_ms=0 pack_ms=0 compute_ms=0 output_ms=0 upsample_ms=0 wave_fnv=0
+LOCAL_VOICE_ASR_STREAM active=0 streaming=0 decoded_ms=0 backlog_ms=0
+LOCAL_VOICE_ASR error=0 level=0 capture_ms=0 tokens=0 first_token_ms=0 elapsed_ms=0 text_bytes=0 fnv=811c9dc5
+COMMAND free
+   25427968    7302448   18125520   18137240   18046880   4282     19 Umem
+     109984      62560      47424      65608      46504    271      6 Kmem
+COMMAND desktop local-voice asr-test 0
+LOCAL_VOICE accepted=1 request=3 error=0
+ASR_FULL_RAM budget=16777216 used=12868297 cached=11609444 graphs=3 ready=1
+COMMAND desktop local-voice status
+LOCAL_VOICE request=3 phase=11 busy=1 ready=0 asr=0 local_wake=1 enabled=1 pending=0 error=0 model_error=0 peak=12901129 elapsed_ms=31520 first_token_ms=0 first_audio_ms=0 tokens=0
+LOCAL_DUAL_AI selected=1 resident_control=0 thinking=5 model_rounds=0 tool_rounds=0 review_rounds=0
+LOCAL_RESIDENT_BYTES bytes=0 kv_bytes=0 reserve=2097152
+LOCAL_ASR_DSP included=1 calls=0 elements=0 selftests=0 fallbacks=0
+LOCAL_LLM_9M9 parameters=9870560 weight_bits=8 activation_bits=8 calls=0 dots=0 selftests=0
+LOCAL_LLM_HOT ticks_per_us=400 matrix=0 quant=0 rows=0 checks=0 compute=0 prepare=0 fast_rows=0 checkpoints=0
+LOCAL_LLM_SPEC blocks=0 drafted=0 accepted=0 fallbacks=0 previous=0 prompt=0
+LOCAL_LLM_ATTENTION qk=0 softmax=0 value=0 head=0 direct_rows=0 repack=0
+LOCAL_LLM_BLOCK loads=0 hits=0 read_bytes=0 peak_bytes=0
+LOCAL_LLM_MORE quant_reuses=0 attention=0 norm=0 activation=0
+LOCAL_VOICE_TEXT bytes=0 fnv=811c9dc5
+LOCAL_VOICE_DIAG request=3 cancel_source=0 cancel_phase=0 cancel_ms=0 check_ms=10840 load_ms=0 tokenize_ms=0 prefill_ms=0 decode_ms=0 progress=0 total=0
+LOCAL_VOICE_Q8 included=1 activation_bits=16 gate=0 matrices=0 dots=0
+LOCAL_VOICE_Q4 bits=0 selftest=0 matrices=0 dots=0
+LOCAL_VOICE_LAZY default_text=1 wake_error=0
+LOCAL_VOICE_IO request=3 sha_bytes=35591816 sha_read_ms=16920 sha_compute_ms=3710 weight_bytes=0 read_ms=0 seek_ms=0 decode_ms=0 matmul_ms=0 verified_reuses=0 sha_hw=1 sha_hw_files=12 sha_hw_updates=5861 sha_hw_selftests=1
+LOCAL_VOICE_CACHE request=3 peak_bytes=0 hits=0 hit_bytes=0
+LOCAL_VOICE_TTS_PAR request=3 enabled=1 jobs=0 cpu0=0 cpu1=0 fallbacks=0 stack_charge=0 elapsed_ms=0 overlap_ms=0 mlp_jobs=0 cache_fb=0 budget_fb=0 reserve_fb=0 fragment_fb=0 mutex_fb=0 setup_fb=0 create_fb=0 last_reason=0 last_error=0 setup_us=0 join_us=0 owner0=0 owner1=0 pin_retries=0
+LOCAL_VOICE_TTS_FMA request=3 enabled=0 upsample_calls=0 rejected=0
+LOCAL_VOICE_TTS_INPUT request=3 enabled=1 max_jobs=0 quant_jobs=0 rounding_fallbacks=0
+LOCAL_VOICE_TTS_PIE_PAR request=3 enabled=1 eligible=0 jobs=0 context_checks=0 scratch_fb=0 rounding_fb=0
+LOCAL_VOICE_TTS_WEIGHT_LUT request=3 enabled=0 rows=0 hits=0 misses=0 rounding_fb=0
+LOCAL_VOICE_TTS_INT8 request=3 enabled=0 benchmark_only=1 calls=0 kept16=0 selftests=0 selftests16=0
+LOCAL_VOICE_TTS_REDUCE request=3 enabled=0 calls=0 selftests=0 fast=0 saved=0 input_saved=0
+LOCAL_VOICE_TTS_UP_PAIR request=3 enabled=0 calls=0 packed_fb=0 pack_ms=0 compute_ms=0 s0_ms=0 s1_ms=0 s2_ms=0 s3_ms=0
+LOCAL_VOICE_TTS_CLAUSE request=3 enabled=1 planned=0 done=0 first_ms=0 peak_samples=0
+LOCAL_VOICE_TTS_QUANT request=3 enabled=1 calls=0 selftests=0 input_saved=0
+LOCAL_VOICE_TTS_PROFILE request=3 coarse=1
+LOCAL_VOICE_TTS_WINDOWS request=3 planned=1 cap_kib=0 checks=0 skips=0 attempts=0 failed_frames=0 failed_ms=0
+LOCAL_VOICE_TTS_ROWS request=3 bulk=0 reads=0 bulk_rows=0 legacy_rows=0
+LOCAL_VOICE_SESSION request=3 resident=0 pending=0 bytes=0 reused=0 kv_reused=0 prefill_tokens=0
+LOCAL_VOICE_TTS request=3 mel_ms=0 vocoder_ms=0 chunks=0 context_frames=0 output_frames=0 memory_fallbacks=0 pie_ms=0 pie_calls=0 pie_dots=0 pie_selftests=0 samples=0 ready_ms=0
+LOCAL_VOICE_TTS_WORK request=3 single=0 batches=0 input_ms=0 weights_ms=0 pack_ms=0 compute_ms=0 output_ms=0 upsample_ms=0 wave_fnv=0
+LOCAL_VOICE_ASR_STREAM active=0 streaming=0 decoded_ms=0 backlog_ms=0
+LOCAL_VOICE_ASR error=0 level=0 capture_ms=0 tokens=0 first_token_ms=0 elapsed_ms=0 text_bytes=0 fnv=811c9dc5
+COMMAND free
+   25427968   18102664    7325304   18137240    6604336   4056     53 Umem
+     109984      61856      48128      65608      46504    262      8 Kmem
+COMMAND desktop local-voice stop
+LOCAL_VOICE accepted=1 request=0 error=0
+LOCAL_ASR_ACCEL pie_dots=1872640 pie_fallbacks=0 selftests=3 selftest_failures=0 parallel_jobs=56 workers=1 parallel_fallbacks=0 cpu0=56 cpu1=56 overlap_us710000 block_loads=0 block_hits=0 block_bytes=0 block_peak=0
+ASR_HOT peak=0 hits=0 evictions=0
+ASR_DSP calls=1333 elements=630384 selftests=1 fallbacks=0
+ASR_TIMING io=7330000 rows_including_io=100000 quant=150000 lane_math=770000 owner_wait=170000 encoder=2000000 decoder=20000 joiner=0 frontend=40000
+ASR_OP op=1 us=10000
+ASR_OP op=2 us=100000
+ASR_OP op=3 us=20000
+ASR_OP op=5 us=70000
+ASR_OP op=6 us=30000
+ASR_OP op=7 us=50000
+ASR_OP op=11 us=60000
+ASR_OP op=12 us=30000
+ASR_OP op=13 us=10000
+ASR_OP op=18 us=80000
+ASR_OP op=21 us=10000
+ASR_OP op=22 us=10000
+ASR_OP op=24 us=700000
+ASR_OP op=25 us=830000
+ASR_OP op=26 us=10000
+LOCAL_ASR_IO sample=0 bytes=11609444 reads=711 seeks=3 packed_cache=11609444 result=-125
+BOOT_STAGE ms=347190 delta=49870 stage=font-background-read-b[local-wake] weights alignment=0 padding=8
+COMMAND desktop local-voice status
+LOCAL_VOICE request=3 phase=0 busy=0 ready=0 asr=0 local_wake=1 enabled=1 pending=0 error=-125 model_error=0 peak=13392633 elapsed_ms=32620 first_token_ms=0 first_audio_ms=0 tokens=0
+LOCAL_DUAL_AI selected=1 resident_control=0 thinking=5 model_rounds=0 tool_rounds=0 review_rounds=0
+LOCAL_RESIDENT_BYTES bytes=0 kv_bytes=0 reserve=2097152
+LOCAL_ASR_DSP included=1 calls=1333 elements=630384 selftests=1 fallbacks=0
+LOCAL_LLM_9M9 parameters=9870560 weight_bits=8 activation_bits=8 calls=0 dots=0 selftests=0
+LOCAL_LLM_HOT ticks_per_us=400 matrix=0 quant=0 rows=0 checks=0 compute=0 prepare=0 fast_rows=0 checkpoints=0
+LOCAL_LLM_SPEC blocks=0 drafted=0 accepted=0 fallbacks=0 previous=0 prompt=0
+LOCAL_LLM_ATTENTION qk=0 softmax=0 value=0 head=0 direct_rows=0 repack=0
+LOCAL_LLM_BLOCK loads=0 hits=0 read_bytes=0 peak_bytes=0
+LOCAL_LLM_MORE quant_reuses=0 attention=0 norm=0 activation=0
+LOCAL_VOICE_TEXT bytes=0 fnv=811c9dc5
+LOCAL_VOICE_DIAG request=3 cancel_source=4 cancel_phase=11 cancel_ms=32570 check_ms=10840 load_ms=0 tokenize_ms=0 prefill_ms=0 decode_ms=0 progress=0 total=0
+LOCAL_VOICE_Q8 included=1 activation_bits=16 gate=0 matrices=0 dots=0
+LOCAL_VOICE_Q4 bits=0 selftest=0 matrices=0 dots=0
+LOCAL_VOICE_LAZY default_text=1 wake_error=0
+LOCAL_VOICE_IO request=3 sha_bytes=35591816 sha_read_ms=16920 sha_compute_ms=3710 weight_bytes=0 read_ms=0 seek_ms=0 decode_ms=0 matmul_ms=0 verified_reuses=0 sha_hw=1 sha_hw_files=12 sha_hw_updates=5861 sha_hw_selftests=1
+LOCAL_VOICE_CACHE request=3 peak_bytes=0 hits=0 hit_bytes=0
+LOCAL_VOICE_TTS_PAR request=3 enabled=1 jobs=0 cpu0=0 cpu1=0 fallbacks=0 stack_charge=0 elapsed_ms=0 overlap_ms=0 mlp_jobs=0 cache_fb=0 budget_fb=0 reserve_fb=0 fragment_fb=0 mutex_fb=0 setup_fb=0 create_fb=0 last_reason=0 last_error=0 setup_us=0 join_us=0 owner0=0 owner1=0 pin_retries=0
+LOCAL_VOICE_TTS_FMA request=3 enabled=0 upsample_calls=0 rejected=0
+LOCAL_VOICE_TTS_INPUT request=3 enabled=1 max_jobs=0 quant_jobs=0 rounding_fallbacks=0
+LOCAL_VOICE_TTS_PIE_PAR request=3 enabled=1 eligible=0 jobs=0 context_checks=0 scratch_fb=0 rounding_fb=0
+LOCAL_VOICE_TTS_WEIGHT_LUT request=3 enabled=0 rows=0 hits=0 misses=0 rounding_fb=0
+LOCAL_VOICE_TTS_INT8 request=3 enabled=0 benchmark_only=1 calls=0 kept16=0 selftests=0 selftests16=0
+LOCAL_VOICE_TTS_REDUCE request=3 enabled=0 calls=0 selftests=0 fast=0 saved=0 input_saved=0
+LOCAL_VOICE_TTS_UP_PAIR request=3 enabled=0 calls=0 packed_fb=0 pack_ms=0 compute_ms=0 s0_ms=0 s1_ms=0 s2_ms=0 s3_ms=0
+LOCAL_VOICE_TTS_CLAUSE request=3 enabled=1 planned=0 done=0 first_ms=0 peak_samples=0
+LOCAL_VOICE_TTS_QUANT request=3 enabled=1 calls=0 selftests=0 input_saved=0
+LOCAL_VOICE_TTS_PROFILE request=3 coarse=1
+LOCAL_VOICE_TTS_WINDOWS request=3 planned=1 cap_kib=0 checks=0 skips=0 attempts=0 failed_frames=0 failed_ms=0
+LOCAL_VOICE_TTS_ROWS request=3 bulk=0 reads=0 bulk_rows=0 legacy_rows=0
+LOCAL_VOICE_SESSION request=3 resident=0 pending=0 bytes=0 reused=0 kv_reused=0 prefill_tokens=0
+LOCAL_VOICE_TTS request=3 mel_ms=0 vocoder_ms=0 chunks=0 context_frames=0 output_frames=0 memory_fallbacks=0 pie_ms=0 pie_calls=0 pie_dots=0 pie_selftests=0 samples=0 ready_ms=0
+LOCAL_VOICE_TTS_WORK request=3 single=0 batches=0 input_ms=0 weights_ms=0 pack_ms=0 compute_ms=0 output_ms=0 upsample_ms=0 wave_fnv=0
+LOCAL_VOICE_ASR_STREAM active=0 streaming=0 decoded_ms=0 backlog_ms=0
+LOCAL_VOICE_ASR error=0 level=0 capture_ms=0 tokens=0 first_token_ms=0 elapsed_ms=0 text_bytes=0 fnv=811c9dc5
+COMMAND free
+   25427968    7299344   18128624   18137240   18046880   4114     23 Umem
+     109984      65600      44384      66120      42408    280     12 Kmem

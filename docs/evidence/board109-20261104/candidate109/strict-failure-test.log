@@ -1,0 +1,15 @@
+ASR_FULL_RAM budget=8388608 used=3188397 cached=2015476 graphs=3 ready=0
+STRICT_ADMISSION limit=8388608 ret=-12 clean=1
+ASR_FULL_RAM budget=12582912 used=10644653 cached=9488116 graphs=3 ready=0
+STRICT_ADMISSION limit=12582912 ret=-12 clean=1
+ASR_FULL_RAM budget=16777216 used=12733181 cached=11609444 graphs=3 ready=1
+STRICT_ADMISSION limit=16777216 ret=0 clean=1
+ASR_FULL_RAM budget=16777216 used=3188397 cached=2015476 graphs=3 ready=0
+STRICT_CANCEL after=2 clean=1
+ASR_FULL_RAM budget=16777216 used=3188397 cached=2015476 graphs=3 ready=0
+STRICT_CANCEL after=8 clean=1
+ASR_FULL_RAM budget=16777216 used=3188397 cached=2015476 graphs=3 ready=0
+STRICT_CANCEL after=14 clean=1
+ASR_FULL_RAM budget=16777216 used=3188397 cached=2015476 graphs=3 ready=0
+STRICT_CANCEL after=20 clean=1
+

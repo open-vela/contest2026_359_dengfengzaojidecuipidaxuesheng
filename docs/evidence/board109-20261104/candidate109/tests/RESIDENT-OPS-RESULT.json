@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "cases": 28,
+  "scope": "Q4/Q8, odd/padded widths, serial/parallel numerical comparison, cancellation, invalid NaN scale, zero row-reader I/O, zero live bytes, ASan/UBSan"
+}

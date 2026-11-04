@@ -1,0 +1,154 @@
+{
+  "original_receipt_sha256": "0e5a27fbcfb9a14b4b76a7fff07d40a484bcef4a38c7e8787a3bcf5ce97aaf87",
+  "scope": "Receipt is scoped to the named candidate; older physical acceptance is not new109 acceptance.",
+  "receipt": {
+    "base_sha256": "20d3d619606837596993ac5646045c6453b2eb16b7b5f3a2242dd66b783c4ff9",
+    "image_sha256": "7723cb933c38c18a9b49d7f5a34a51c00da1deb87bc9acabfa63a5bedfe6b808",
+    "changed_sources": {
+      "app\\espdl-quickapp\\overlay\\apps\\system\\desktop\\glass_lockscreen.inc": "58a50538e71e0a23b5bc105e7f62ff124898b820c3ad8838eb045a62d7cf7619",
+      "app\\espdl-quickapp\\overlay\\apps\\system\\desktop\\glass_lock_pages.inc": "3bdcc34d242bd9baf31168c86f1b1642d77752ac1ad2708c02c1237e50e1e7d2",
+      "app\\espdl-quickapp\\overlay\\apps\\system\\desktop\\glass_lock_art.h": "2e106a5e00d84b5d962ac8c3d24953d9fc7ab05ea42667ef236623d0316d642d",
+      "app\\espdl-quickapp\\overlay\\apps\\system\\desktop\\glass_lock_wallpapers.inc": "0a034c551cd9105cc649953ad56e9ccd88f1a1bf383f869d376c6fa298fb9935",
+      "app\\espdl-quickapp\\overlay\\apps\\system\\desktop\\glass_ui_probe.inc": "809cb09081b8ed8852be0bc5ccc36ca25b6d4658e672234ad5a8bed1d301f713"
+    },
+    "ble_identity": {
+      "address": "EB:DE:FC:B8:F7:82",
+      "address_little_endian": [
+        130,
+        247,
+        184,
+        252,
+        222,
+        235
+      ],
+      "address_type": "static-random",
+      "name": "OpenVela Mouse-FCB8F782",
+      "store_path": "/data/config/ble_ebdefcb8f782.bin",
+      "store_temp": "/data/config/.ble_ebdefcb8f782.tmp",
+      "purpose_path": "/data/config/bh_ebdefcb8f782.bin",
+      "purpose_temp": "/data/config/.bh_ebdefcb8f782.tmp",
+      "header_sha256": "d11151702bacc67c7cc2444a2ea05a223d4f819df98c3759d670da110803f740"
+    },
+    "features": [
+      "four original generated wallpapers embedded in firmware; no SD or network dependency",
+      "refined symmetric transport glyphs and readable current lyric",
+      "localized weekday date; clearer weather symbol; soft photo footer shade",
+      "single fused page-position and home rail",
+      "horizontal swipes change pages; upward swipe unlocks; active rail segment tap unlocks",
+      "one bounded RGB565 wallpaper canvas released with each page",
+      "consistent embedded lock typography; desktop font choice preserved",
+      "wake remains above lockscreen; covered painting deferred"
+    ],
+    "native_tests": {
+      "passed": true,
+      "themes": 2,
+      "open_close_cycles": 80,
+      "midnight_and_invalid_time": true,
+      "pointer_unlock": true,
+      "rail_swipes": true,
+      "wallpaper_bytes_per_lock": 1228800,
+      "wallpaper_release_checked": true,
+      "art_alloc_fail_fallback": true,
+      "localized_date": true,
+      "negative_temperature": true,
+      "bright_photo_footer_pixels": true,
+      "rail_press_feedback": true,
+      "wake_cancel_and_auto_reply": true,
+      "stable_timer_and_object_counts": true,
+      "full_heap_leak_audit": false
+    },
+    "firmware_build_and_elf_audit": true,
+    "physical_flicker_tested": false,
+    "cold_power_cycle_tested": false,
+    "transport_icon_validation": {
+      "passed": true,
+      "previous_lit_pixels": 984,
+      "next_lit_pixels": 984,
+      "mirror_error_fraction": 0.0,
+      "raster_alignment_px": [
+        -1,
+        0
+      ],
+      "raster_tolerance_px": 1
+    },
+    "preview": {
+      "path": "C:\\Users\\11937\\Documents\\ChatGPT\\vela\\output\\lockscreen-wallpapers-20261104\\four-pages.png",
+      "kind": "native LVGL host rendering; not physical-screen capture"
+    },
+    "prior_candidate": {
+      "path": "../lockscreen-polish-20261104/candidate",
+      "sha256": "4b120f44a88a063b7efc757bd14600ee3714c65272efa705280c1080f6466293",
+      "board_written": false,
+      "reason": "superseded by requested generated backgrounds"
+    },
+    "wallpaper_assets": {
+      "mode": "built-in image_gen",
+      "runtime": "one bounded RGB565 decode on page entry; no SD dependency; full-resolution JPEGs also retained",
+      "assets": [
+        {
+          "name": "01-morning",
+          "embedded_width": 512,
+          "embedded_height": 300,
+          "display_width": 1024,
+          "display_height": 600,
+          "embedded_bytes": 3203,
+          "sha256": "62263853c4692147ed7350b41473c9400e47b98dad35a85fb194c254a4d9ceb1"
+        },
+        {
+          "name": "02-dusk",
+          "embedded_width": 512,
+          "embedded_height": 300,
+          "display_width": 1024,
+          "display_height": 600,
+          "embedded_bytes": 5124,
+          "sha256": "918419c376535308b49aaddc2bfb695eb25bb94a44147196f3628b7966a93c81"
+        },
+        {
+          "name": "03-sky",
+          "embedded_width": 512,
+          "embedded_height": 300,
+          "display_width": 1024,
+          "display_height": 600,
+          "embedded_bytes": 3481,
+          "sha256": "8dd88f436182ffceb3e70146c72870d142c67757f7cb511809c369144b6ba075"
+        },
+        {
+          "name": "04-hills",
+          "embedded_width": 512,
+          "embedded_height": 300,
+          "display_width": 1024,
+          "display_height": 600,
+          "embedded_bytes": 3844,
+          "sha256": "237d27220cc49822ff1594fc89a9346e0c6f36ffbb2a337d59213783d619f2e9"
+        }
+      ]
+    },
+    "wallpaper_prompts": "WALLPAPER-PROMPTS.json",
+    "automatic_cover": {
+      "native_tests_passed": true,
+      "delayed_completion_without_playback_revision_change": true,
+      "track_switch_clears_previous_cover": true,
+      "cover_host_px": [
+        368,
+        368
+      ],
+      "preview_track": "BEYOND / 海阔天空; isolated fixture, not board playback proof",
+      "real_network_song_tested": false
+    },
+    "board_written": true,
+    "readback_verified": true,
+    "data_partition_preserved": true,
+    "board_ui_passed": true,
+    "final_view": {
+      "page": "weather lockscreen",
+      "state": "desktop ui lock-status\nLOCK_STATUS active=1 page=2 pending=0 timer=1\nnsh> \u001b[K",
+      "heap_home": "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   21102592    6936704   14165888    8291424   12937816   6505     42 Umem\n     110192      61080      49112      64184      48608    259      2 Kmem\nnsh> \u001b[K",
+      "heap_lock": "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   21102592    8185952   12916640    8291424   11709008   6672     12 Umem\n     110192      61080      49112      64184      48608    259      2 Kmem\nnsh> \u001b[K"
+    },
+    "design_references": [
+      "https://www.apple.com/newsroom/2023/06/ios-17-makes-iphone-more-personal-and-intuitive/",
+      "https://m3.material.io/styles/typography/applying-type",
+      "https://www.mi.com/global/hyperos"
+    ]
+  }
+}

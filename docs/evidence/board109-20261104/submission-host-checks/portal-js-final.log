@@ -1,0 +1,150 @@
+TAP version 13
+# Subtest: visible configuration form stays paired through more than 15 minutes of editing
+ok 1 - visible configuration form stays paired through more than 15 minutes of editing
+  ---
+  duration_ms: 37.298273
+  ...
+# Subtest: transient read failures recover with bounded retries and keep drafts
+ok 2 - transient read failures recover with bounded retries and keep drafts
+  ---
+  duration_ms: 1.87185
+  ...
+# Subtest: reconnect verifies the existing session without overwriting edited forms
+ok 3 - reconnect verifies the existing session without overwriting edited forms
+  ---
+  duration_ms: 3.290357
+  ...
+# Subtest: a lost save reply is reported as uncertain and the POST is sent only once
+ok 4 - a lost save reply is reported as uncertain and the POST is sent only once
+  ---
+  duration_ms: 1.703472
+  ...
+# Subtest: expired or revoked authorization is not retried and clears the local session
+ok 5 - expired or revoked authorization is not retried and clears the local session
+  ---
+  duration_ms: 1.455057
+  ...
+# Subtest: heartbeat skips hidden pages and active requests, then resumes without reloading forms
+ok 6 - heartbeat skips hidden pages and active requests, then resumes without reloading forms
+  ---
+  duration_ms: 14.342314
+  ...
+# Subtest: late responses cannot reconnect a page after an explicit disconnect
+ok 7 - late responses cannot reconnect a page after an explicit disconnect
+  ---
+  duration_ms: 2.311601
+  ...
+# Subtest: a lost code-exchange reply is retried using the same pairing code
+ok 8 - a lost code-exchange reply is retried using the same pairing code
+  ---
+  duration_ms: 2.558152
+  ...
+# Subtest: a saved configuration remains reported as saved if its follow-up read fails
+ok 9 - a saved configuration remains reported as saved if its follow-up read fails
+  ---
+  duration_ms: 7.246789
+  ...
+# Subtest: a failed save keeps password drafts and re-enables the save button
+ok 10 - a failed save keeps password drafts and re-enables the save button
+  ---
+  duration_ms: 2.737849
+  ...
+# Subtest: HA slash-port input is rejected before POST and preserves the token draft
+ok 11 - HA slash-port input is rejected before POST and preserves the token draft
+  ---
+  duration_ms: 2.333921
+  ...
+# Subtest: HA colon-port save trims copied credentials and a blank token preserves the stored one
+ok 12 - HA colon-port save trims copied credentials and a blank token preserves the stored one
+  ---
+  duration_ms: 2.315952
+  ...
+# Subtest: installer submits selected internal volume independently of package metadata
+ok 13 - installer submits selected internal volume independently of package metadata
+  ---
+  duration_ms: 1.782178
+  ...
+# Subtest: installer submits selected sdcard volume independently of package metadata
+ok 14 - installer submits selected sdcard volume independently of package metadata
+  ---
+  duration_ms: 2.006647
+  ...
+# Subtest: failed SD installation aborts staging and never retries on internal storage
+ok 15 - failed SD installation aborts staging and never retries on internal storage
+  ---
+  duration_ms: 2.097346
+  ...
+# Subtest: compiled portal assets match the current installer files byte for byte
+ok 16 - compiled portal assets match the current installer files byte for byte
+  ---
+  duration_ms: 14.536105
+  ...
+# Subtest: Agent save keeps blank MCP secrets, converts switches and sends explicit token clear
+ok 17 - Agent save keeps blank MCP secrets, converts switches and sends explicit token clear
+  ---
+  duration_ms: 6.844569
+  ...
+# Subtest: Agent reports saved MCP tokens accurately when later slots are empty
+ok 18 - Agent reports saved MCP tokens accurately when later slots are empty
+  ---
+  duration_ms: 1.540937
+  ...
+# Subtest: network status is independent and an unavailable API does not block configuration loading
+ok 19 - network status is independent and an unavailable API does not block configuration loading
+  ---
+  duration_ms: 1.375568
+  ...
+# Subtest: network acceptance waits for actual association, IP and persistence before reporting success
+ok 20 - network acceptance waits for actual association, IP and persistence before reporting success
+  ---
+  duration_ms: 2.475295
+  ...
+# Subtest: the hotspot address and malformed station addresses cannot pass network acceptance
+ok 21 - the hotspot address and malformed station addresses cannot pass network acceptance
+  ---
+  duration_ms: 1.71067
+  ...
+# Subtest: router credentials use UTF-8 SSID byte limits and printable ASCII WPA key validation
+ok 22 - router credentials use UTF-8 SSID byte limits and printable ASCII WPA key validation
+  ---
+  duration_ms: 2.530009
+  ...
+# Subtest: association and IP-or-save failures are visible and clear the password
+ok 23 - association and IP-or-save failures are visible and clear the password
+  ---
+  duration_ms: 1.409581
+  ...
+# Subtest: a lost network POST reply is never replayed and an old ready link stays explicitly uncertain
+ok 24 - a lost network POST reply is never replayed and an old ready link stays explicitly uncertain
+  ---
+  duration_ms: 1.345511
+  ...
+# Subtest: duplicate network actions are blocked while submitting and awaiting the first status
+ok 25 - duplicate network actions are blocked while submitting and awaiting the first status
+  ---
+  duration_ms: 2.582877
+  ...
+# Subtest: a stale network read cannot overwrite a newer connection request
+ok 26 - a stale network read cannot overwrite a newer connection request
+  ---
+  duration_ms: 1.507543
+  ...
+# Subtest: network credentials are never stored and are cleared on disconnect and page exit
+ok 27 - network credentials are never stored and are cleared on disconnect and page exit
+  ---
+  duration_ms: 1.166243
+  ...
+# Subtest: expired network authorization clears pairing and prevents further polling
+ok 28 - expired network authorization clears pairing and prevents further polling
+  ---
+  duration_ms: 1.161817
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 138.352677

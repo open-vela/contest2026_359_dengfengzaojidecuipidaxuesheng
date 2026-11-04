@@ -9,6 +9,11 @@ extern "C" {
  * runner owns/counts input/output tensors; these functions count scratch only.
  * Weight rows are [output_channel, flattened_input_kernel], allowing SD/Q4/Q8
  * readers without a resident matrix. A callback error aborts, never retries. */
+struct glv_asr_packed_rows {
+  const unsigned char *data;
+  unsigned format,rows,columns,padded;
+  size_t stride;
+};
 struct glv_asr_rows {
   int (*read)(void *,unsigned,float *,unsigned);
   void *opaque;
@@ -16,6 +21,9 @@ struct glv_asr_rows {
   /* Owner-only: read once, decode original floats and optional raw Q4/Q8
    * codes/scales. Returns 1 for packed, 0 for FP32, negative on error. */
   int (*prepare)(void *,unsigned,float *,int16_t *,float *,float *,unsigned);
+  /* Immutable, verified full-RAM rows only. No file/buffer I/O in workers.
+   * The graph and its pinned cache outlive the joined parallel operation. */
+  int (*resident)(void *,struct glv_asr_packed_rows *);
 #endif
 };
 struct glv_asr_conv {

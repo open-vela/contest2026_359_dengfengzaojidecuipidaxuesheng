@@ -4,7 +4,7 @@
   "program_limit": "0xc00000",
   "data_offset": "0xc00000",
   "data_size": "0x400000",
-  "ebss": "0x4ffa3ddc",
+  "ebss": "0x4ffa3e0c",
   "local_asr": {
     "evaluation_enabled": true,
     "microphone_enabled": true,
@@ -70,26 +70,26 @@
   },
   "l2_cache_kb": 256,
   "ble_identity": {
-    "address": "E5:48:79:64:11:51",
+    "address": "EA:F4:AC:63:99:13",
     "address_little_endian": [
-      81,
-      17,
-      100,
-      121,
-      72,
-      229
+      19,
+      153,
+      99,
+      172,
+      244,
+      234
     ],
     "address_type": "static-random",
-    "name": "OpenVela Mouse-79641151",
-    "store_path": "/data/config/ble_e54879641151.bin",
-    "store_temp": "/data/config/.ble_e54879641151.tmp",
-    "purpose_path": "/data/config/bh_e54879641151.bin",
-    "purpose_temp": "/data/config/.bh_e54879641151.tmp",
-    "header_sha256": "53b286a1653084406c7030dedcdd3ec8ab9ce6888c1bfa797cf8f8950a98e0ed"
+    "name": "OpenVela Mouse-AC639913",
+    "store_path": "/data/config/ble_eaf4ac639913.bin",
+    "store_temp": "/data/config/.ble_eaf4ac639913.tmp",
+    "purpose_path": "/data/config/bh_eaf4ac639913.bin",
+    "purpose_temp": "/data/config/.bh_eaf4ac639913.tmp",
+    "header_sha256": "225b8657479e81623c3ac5cf87629d84bbd4da726b86bc46cf7fe7aee50a8cd5"
   },
   "sha256": {
-    "nuttx.bin": "67868ff725af9e03e704a214a19a327aa5b0723bd6511bd4d4b72bf630b159e5",
-    "nuttx.elf": "56fff8a8278ce9934f532ed6d164699c1e54c086c46f9e6a7501589700459cb8",
+    "nuttx.bin": "09699b5ba452150e913f5062bf8fd9b344410833c85ecc634e7ddcc7c0bb9085",
+    "nuttx.elf": "5384a129b34fa53a496b2ac1b44ba151558afcfa6652b9493be22af844556dd5",
     "resolved.config": "d23f9f38ea10671f44a7b70148dbee3cd0101a17c08b42e2ed6f97037ffe43e3"
   }
 }

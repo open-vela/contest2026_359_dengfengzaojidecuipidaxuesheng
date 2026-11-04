@@ -1,0 +1,107 @@
+{
+  "original_receipt_sha256": "acc367fb6dea5853e41ab1afa75ebf10d1dc6f7dae41bf878db6c7964b9172f7",
+  "scope": "Receipt is scoped to the named candidate; older physical acceptance is not new109 acceptance.",
+  "receipt": {
+    "passed": true,
+    "scope": "ASAN/UBSAN host full-graph lifecycle and isolated corrupt/truncated assets; no real SD removal or P4 verification",
+    "source_sha256": {
+      "app/espdl-quickapp/experimental/local_asr_graph.c": "034fe9f08c72f63c613c2e1b460f2cdb38c35be0de14d3a1137bb6d78ef80ea4",
+      "app/espdl-quickapp/experimental/local_asr_ops.c": "74c8eafda7b897f8d5391de332fe1dec447090f3f1250206f0f59805ee680b97",
+      "app/espdl-quickapp/overlay/apps/system/desktop/glass_local_model.c": "9012773862e8fda1afc630572f4b4ac3ee2e4af508406ea09babc094c09b2b28",
+      "app/espdl-quickapp/overlay/apps/system/desktop/glass_local_sha.c": "c71f65ec34fe887666e928e2fad86c15b06b8fe79df5f45d2fc0e733c5a67738",
+      "app/espdl-quickapp/tests/local_asr_graph_host.c": "46b6336e966c3846928314ad7e05facfd181c557e976739dcbd8667ced05500e"
+    },
+    "cases": [
+      {
+        "test": "decoder-epoch-99-avg-1-lifecycle",
+        "passed": true
+      },
+      {
+        "test": "encoder-epoch-99-avg-1-lifecycle",
+        "passed": true
+      },
+      {
+        "test": "joiner-epoch-99-avg-1-lifecycle",
+        "passed": true
+      },
+      {
+        "test": "header-tensor-count",
+        "passed": true
+      },
+      {
+        "test": "header-node-count",
+        "passed": true
+      },
+      {
+        "test": "header-input-count",
+        "passed": true
+      },
+      {
+        "test": "header-data-size",
+        "passed": true
+      },
+      {
+        "test": "tensor-rank",
+        "passed": true
+      },
+      {
+        "test": "tensor-overflow",
+        "passed": true
+      },
+      {
+        "test": "tensor-type",
+        "passed": true
+      },
+      {
+        "test": "tensor-conflicting-flags",
+        "passed": true
+      },
+      {
+        "test": "constant-offset",
+        "passed": true
+      },
+      {
+        "test": "constant-format",
+        "passed": true
+      },
+      {
+        "test": "constant-row-shape",
+        "passed": true
+      },
+      {
+        "test": "node-arity",
+        "passed": true
+      },
+      {
+        "test": "node-output-arity",
+        "passed": true
+      },
+      {
+        "test": "node-future-input",
+        "passed": true
+      },
+      {
+        "test": "node-output-duplicate",
+        "passed": true
+      },
+      {
+        "test": "node-opcode",
+        "passed": true
+      },
+      {
+        "test": "truncated-plan",
+        "passed": true
+      },
+      {
+        "test": "trailing-plan",
+        "passed": true
+      },
+      {
+        "test": "payload-sha",
+        "passed": true
+      }
+    ],
+    "asr_ready": false,
+    "board_tested": false
+  }
+}

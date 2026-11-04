@@ -14,7 +14,7 @@ static bool cancelled(void *opaque)
 int main(int argc,char **argv)
 {
  assert(argc==2||argc==3);
- struct cancellation cancel={0,0};struct glv_memory mem={0,0,GLV_MEMORY_LIMIT,cancelled,&cancel};
+ struct cancellation cancel={0,0};struct glv_memory mem={.limit=GLV_MEMORY_LIMIT,.cancelled=cancelled,.opaque=&cancel};
  struct glv_asr_graph *g=NULL;int ret=glv_asr_graph_open(&g,argv[1],&mem);
  if(argc==3){assert(ret<0&&!g&&!mem.used);puts("ASR_GRAPH_REJECTED_CLEANLY");return 0;}
  assert(!ret&&g);size_t metadata=mem.used;
