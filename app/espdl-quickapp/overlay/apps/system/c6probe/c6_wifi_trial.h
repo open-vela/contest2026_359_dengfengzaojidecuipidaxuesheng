@@ -16,5 +16,8 @@
 int c6_wifi_trial_begin(const char *ssid, const char *password);
 int c6_wifi_trial_finish(bool commit);
 bool c6_wifi_trial_pending(void);
+/* Native local provisioning only; never expose through HTTP, JS or Agent.
+ * Reads committed STA config under the serialized RPC owner; no writes. */
+int c6_wifi_current_credentials(char ssid[33], char password[65]);
 
 #endif

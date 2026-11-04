@@ -37,6 +37,9 @@
 #include "glass_sd_font.h"
 #include "glass_ui_memory.inc"
 #include "glass_backlight.h"
+#ifdef GLASS_JBOX_SETUP
+#include "glass_jbox_setup.h"
+#endif
 #ifdef CONFIG_SYSTEM_C6PROBE
 #  include "../c6probe/c6_wifi_phy.h"
 #endif
@@ -1810,6 +1813,9 @@ static void desktop_startup_poll(void)
  static unsigned phase;
  switch(phase++){
  case 0:glass_boot_stage("network-start-begin",0);
+#ifdef GLASS_JBOX_SETUP
+ (void)glass_jbox_setup_init();
+#endif
 #ifdef CONFIG_SYSTEM_C6_DESKTOP
 #ifdef CONFIG_NET_NAT44
  (void)glass_network_recovery_init();

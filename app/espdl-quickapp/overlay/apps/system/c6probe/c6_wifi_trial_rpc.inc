@@ -60,6 +60,26 @@ static void c6_wifi_trial_dispose(struct c6_wifi_trial_s *trial)
   free(trial);
 }
 
+/* Error replies may still contain a decoded STA credential payload. */
+static void c6_wifi_trial_free_response(Rpc *response)
+{
+  if (response &&
+      response->payload_case == RPC__PAYLOAD_RESP_WIFI_GET_CONFIG &&
+      response->resp_wifi_get_config && response->resp_wifi_get_config->cfg)
+    {
+      WifiConfig *cfg = response->resp_wifi_get_config->cfg;
+      if (cfg->u_case == WIFI_CONFIG__U_STA && cfg->sta)
+        {
+          if (cfg->sta->password.data)
+            explicit_bzero(cfg->sta->password.data, cfg->sta->password.len);
+          if (cfg->sta->sae_h2e_identifier.data)
+            explicit_bzero(cfg->sta->sae_h2e_identifier.data,
+                           cfg->sta->sae_h2e_identifier.len);
+        }
+    }
+  rpc__free_unpacked(response, NULL);
+}
+
 static int c6_wifi_trial_exchange(Rpc *request, Rpc **response)
 {
   request->msg_type = RPC_TYPE__Req;
@@ -82,7 +102,7 @@ static int c6_wifi_trial_exchange(Rpc *request, Rpc **response)
       (*response)->msg_id != request->msg_id + 256 ||
       (*response)->uid != request->uid)
     {
-      rpc__free_unpacked(*response, NULL);
+      c6_wifi_trial_free_response(*response);
       *response = NULL;
       return -EPROTO;
     }
@@ -231,7 +251,7 @@ static int c6_wifi_trial_snapshot(struct c6_wifi_trial_s *trial)
         }
     }
 
-  rpc__free_unpacked(response, NULL);
+  c6_wifi_trial_free_response(response);
   return ret;
 }
 
@@ -369,4 +389,48 @@ int c6_wifi_trial_finish(bool commit)
 bool c6_wifi_trial_pending(void)
 {
   return atomic_load(&g_c6_wifi_trial_active);
+}
+
+/* Reuse the credential-redacted, UID-checked RPC path under its owner lock. */
+int c6_wifi_current_credentials(char ssid[33], char password[65])
+{
+  struct c6_wifi_trial_s snapshot = {0};
+  int ret;
+  if (!ssid || !password) return -EINVAL;
+  explicit_bzero(ssid, 33);
+  explicit_bzero(password, 65);
+  ret = pthread_mutex_lock(&g_rpc_transaction_lock);
+  if (ret) return -ret;
+  if (g_c6_ota_attempted) ret = -ESHUTDOWN;
+  else if (g_c6_wifi_trial_active) ret = -EBUSY;
+  else ret = c6_wifi_trial_snapshot(&snapshot);
+  if (!ret)
+    {
+      WifiStaConfig *sta = snapshot.saved->resp_wifi_get_config->cfg->sta;
+      size_t sn = sta->ssid.len, pn = sta->password.len;
+      if ((sn && !sta->ssid.data) || (pn && !sta->password.data))
+        ret = -EPROTO;
+      else
+        {
+          /* Hosted may encode fixed arrays, including their trailing NULs. */
+          while (sn && sta->ssid.data[sn - 1] == 0) sn--;
+          while (pn && sta->password.data[pn - 1] == 0) pn--;
+          if (!sn || memchr(sta->ssid.data, 0, sn) ||
+              (pn && (pn < 8 || memchr(sta->password.data, 0, pn))))
+            ret = -EPROTO;
+          else
+            {
+              memcpy(ssid, sta->ssid.data, sn);
+              if (pn) memcpy(password, sta->password.data, pn);
+            }
+        }
+      if (sta->password.data)
+        explicit_bzero(sta->password.data, sta->password.len);
+      if (sta->sae_h2e_identifier.data)
+        explicit_bzero(sta->sae_h2e_identifier.data,
+                       sta->sae_h2e_identifier.len);
+      rpc__free_unpacked(snapshot.saved, NULL);
+    }
+  pthread_mutex_unlock(&g_rpc_transaction_lock);
+  return ret;
 }

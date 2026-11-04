@@ -1,17 +1,21 @@
 # P4 主板连接 JBOX-S3
 
-本实现让现有 ESP32-P4 openvela 主板通过 Wi-Fi／以太网控制 [ProgrammableMatrix](https://github.com/streetartist/ProgrammableMatrix) 的 JBOX-S3。协议依据提交 `2ca78dcb9c9b825b943da3b36e7baf19f558d91d` 的 `main/net.c`、`main/api.c` 与 `client/jbox_api.py`；不改 S3 固件、不占 P4 排针，不改双 AI、ASR、桌面和播放器的配置。
+本实现让现有 ESP32-P4 openvela 主板通过 Wi-Fi／以太网控制 [ProgrammableMatrix](https://github.com/streetartist/ProgrammableMatrix) 的 JBOX-S3。协议依据提交 `2ca78dcb9c9b825b943da3b36e7baf19f558d91d` 的 `main/net.c`、`main/api.c` 与 `client/jbox_api.py`；本次在仓库内 S3 工程增加本地串口配网入口，不占 P4 排针，不改变其他服务配置。
 
-## 首次连接
+## 一键配网与绑定
 
 可复用的 Codex 操作流程见 [jbox-p4-control skill](../tools/skills/jbox-p4-control/SKILL.md)，
 包含可直接在 P4 助手输入的发现与只读连接示例，以及用户串口绑定步骤。
+1. 主板先连接要使用的 Wi-Fi。打开「设置 → JBOX 扩展板」，页面自动搜索局域网和蓝牙设备。
+2. 首次配网时短按 JBOX 的 GPIO10 按键，或在其本地 UART0（115200 8N1）发送 `jbox provision` 加换行，启动限时 BLE 配网。在主板页面点击对应设备的「一键配网」。已有 Wi-Fi 但需要改成主板当前网络时使用 `jbox provision`，不需要先清空 Wi-Fi。
+3. 主板自动读取自身当前已连接的 Wi-Fi，将同一个 SSID 和密码通过 Security1 加密会话发送给所选 JBOX。无需选择网络或填写密码，也不另开主板热点。
+4. 等待 JBOX 联网、限时按键授权窗口、保存绑定、认证连接和状态回读，全部成功后才显示完成。已经联网的设备可点击「绑定并校验」。多块设备时仅需选择目标设备。
 
-1. S3 按上游流程完成 BLE 配网，P4 与 S3 接入可互访局域网。
-2. 在 P4 应用调用 `system.jbox.discover({timeoutMs:1500})`，轮询任务取得设备 IP 与 deviceId。多设备时让用户选择，不默认操作第一台。
-3. 短按 S3 的 GPIO10，在120秒窗口内显式调用 `system.jbox.pair({host:"192.168.1.100",deviceId:"aabbccddeeff"})`。只返回保存结果。绑定使用上游的明文 LAN 密钥领取流程，要求可信局域网。
-4. 调用 `system.jbox.connect({})` 使用已保存绑定，保存返回的 generation。IP 改变时重新 discover，再显式 connect 指定新 host 与原 deviceId；不自动重发旧连线。
-5. 后续各调用携带 generation，并轮询到 done、ok；应用需要持续连线时保持运行，退出会断开并触发 S3 的安全清理。
+主板未连接 Wi-Fi、正在试连或配网中途切网时停止；不会使用旧凭据，也不会自动重发配网或绑定。取消后先清理本次连接再回执。密码只在原生服务内部短暂使用，不进入页面状态、日志、HTTP、JS 或 Agent。配网后的连接验证会释放临时控制连接，供助手和应用使用。
+
+JBOX 固件的 Security1 使用 X25519/AES-CTR，当前上游没有 PoP；依靠本地按键／串口窗口与用户选择设备授权。原有 LAN 绑定仍要求可信局域网。已有 Wi-Fi 时短按或串口 `jbox pair` 只打开 LAN 绑定窗口。`jbox provision` 通过一次软件重启显式进入重新配网窗口，进入窗口不擦 NVS，保留控制密钥。命令和测试见 [S3 集成说明](../app/ProgrammableMatrix/LOCAL_CHANGES.md)。
+
+2026-11-05 实板已验证串口进入 BLE 配网、P4 下发当前 Wi-Fi、JBOX 获取地址、P4 原生绑定和鉴权状态读取，以及普通助手／应用共用入口连接。JBOX 软件重启后使用原绑定再次鉴权通过。尚未验证 GPIO 输出、外接电路或断电冷启动；当前稳定性限制见下文。以下控制台与应用调用仍可用于已联网设备：
 
 也可以在主板 NSH 控制台绑定：
 
@@ -144,3 +148,24 @@ P4目标编译未完成：现有准备树缺少 `arch/risc-v/src/common/Toolchai
 重复构建暴露的 DSP 依赖扫描问题已修复：构建器将原有兼容头限定在私有 DSP 目录，并用生成的源码包含入口保持官方文件完整；不向其他模块增加全局 IDF 头搜索路径。`tools/test_asr_dsp_dependencies.py` 先复现旧布局的扫描失败，再验证重复准备、无私有 CFLAGS 时的依赖生成与三个内核编译。工具参考的会话说明也已与实际的“完成后可保持长连接，显式关闭／取消时释放”行为同步。
 
 本次仅做宿主与离线构建验证，未烧录、未操作板上配置，也未完成实体 JBOX-S3 联调。当前板上109版保持不变；重新构建产生的新 BLE 测试身份不能当作原身份的配对兼容性验收。
+
+## 2026-11-05 一键配网宿主验证（早期阶段）
+
+本机通过 12 项 Security1 协议测试（独立 protobuf/密码学对端，包含 2000 个畸形输入）、原生常驻工作线程测试，以及真实 Hosted protobuf 的当前 STA 凭据读取与原有试连回滚回归。验证了未联网拒绝、试连排斥、切网终止、凭据边界、取消清理、连接所有权及动作不重放。PSA 适配单元使用实际 MbedTLS 头编译；未执行生产 PSA 后端。
+
+本轮尚未完成 Linux ASan/UBSan、全量 BLE/Agent 回归、界面渲染、固件构建、烧录和真实 JBOX 联调。WSL 构建调用被自动审批拦下，返回工作区额度不足。本轮宿主结果不能作为已部署或实板成功证据。
+
+## 2026-11-05 后续实板验证与当前限制
+
+上述早期阶段的构建／实板缺口已继续验证：BLE 8 连接、JMX1、原生配网 worker、当前 STA 凭据／试连回滚、portal 存储、Agent 与 JBOX 工具回归通过；Linux 测试覆盖 ASan/UBSan。Security1 协议另有 12 项独立 protobuf／密码学测试及 2000 个畸形输入。宿主测试不代表真实外接电路验收。
+
+P4 使用已校验并烧录的固件 SHA256 `91fbadbb942759ba48a2636affceb71be9cbee6251885abd2324fdbe7e8a174a`。S3 UART0 的 `jbox provision` 实际启动 `JBOX-E0BA70` 广播，P4 经加密 BLE 下发其当前 Wi-Fi，S3 获取 DHCP 地址；随后本地绑定保存 Flash、鉴权及 `status` 读回成功，页面发布 READY。普通 `desktop hardware-call jbox.connect {}` 返回 `authenticated:true`；S3 软件重启后不重新领取密钥，使用保存的绑定再次鉴权成功。临时诊断会话结束即释放，绑定保留。
+
+提交前另以大赛最新 S3 基线加本次三份串口／配网源码独立构建，排除本机其他未提交脚本功能修改。该 S3 候选 SHA256 `fa9b52c5331755d1fd53126108188481e83f7517f79d49c67a11e3fa7e3c443b`，app-only 写入校验和 NVS 摘要保留检查通过；串口帮助、联网恢复、P4 原绑定鉴权状态读回及普通入口连接均有实板验证。它不是把本机其他开发修改一起提交的快照。
+
+当前有两项未修复的 P4 运行时限制，不能把以上结果称为所有状态下一次点击必成：
+
+- Wi-Fi worker 的旧状态可能导致首次提示未联网，即使接口已有地址。本地 Wi-Fi 页「查询状态」刷新后才能继续；被拒绝的尝试没有下发凭据。
+- 连续运行后出现 socket 资源分配失败：实板 `sock_file_poll` setup 返回 -16，配网页面最终报告 -104，另一只读发现返回 -12。内核固定 devif callback 池为 32，尚未证明耗尽来源或修复底层问题。P4 软件重启后发现、绑定和鉴权通过。遇到失败应先排查或显式重新开始，不能自动重发配置／绑定。
+
+GPIO10 实际按键、180 秒窗口到期、断电冷启动、GPIO／矩阵输出、真实传感器和显示闪屏观察仍需分别验收。配网权限保持本地 UI／串口授权，Agent／MCP 不能借通用 UI 点击进入此流程；无 PoP BLE 与 LAN 绑定仅用于可信现场环境。

@@ -9,6 +9,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+/* Linux/NuttX libc compatibility for the native Windows fixture only. */
+#define ESHUTDOWN 108
+static void explicit_bzero(void *p, size_t n)
+{
+  volatile unsigned char *v = p;
+  while (n--) *v++ = 0;
+}
+#endif
 #include "esp_hosted_rpc.pb-c.h"
 #include "c6_wifi_trial.h"
 
@@ -189,8 +198,61 @@ static void restored(void)
   old_persisted();
 }
 
+static void current_credentials_bounds(void)
+{
+  char ssid[33], password[65];
+  for (unsigned scenario = 0; scenario < 6; scenario++)
+    {
+      reset();
+      WifiConfig *cfg = wifi_config__unpack(NULL, ram_size, ram);
+      assert(cfg && cfg->sta);
+      memset(cfg->sta->ssid.data, 's', cfg->sta->ssid.len);
+      memset(cfg->sta->password.data, 'p', cfg->sta->password.len);
+      if (scenario == 1) cfg->sta->password.len = 0; /* Open network. */
+      if (scenario == 2) cfg->sta->ssid.len = 0;
+      if (scenario == 3) cfg->sta->ssid.data[3] = 0;
+      if (scenario == 4) cfg->sta->password.len = 7;
+      if (scenario == 5) cfg->sta->password.data[3] = 0;
+      ram_size = wifi_config__get_packed_size(cfg);
+      assert(wifi_config__pack(cfg, ram) == ram_size);
+      wifi_config__free_unpacked(cfg, NULL);
+      int ret = c6_wifi_current_credentials(ssid, password);
+      if (scenario < 2)
+        {
+          assert(!ret && strlen(ssid) == 32);
+          assert(strlen(password) == (scenario ? 0 : 64));
+        }
+      else assert(ret < 0 && !ssid[0] && !password[0]);
+      assert(!flash_writes && connected);
+    }
+}
+
 int main(void)
 {
+  char ssid[33], password[65];
+  current_credentials_bounds();
+  reset();
+  assert(!c6_wifi_current_credentials(ssid, password));
+  assert(!strcmp(ssid, "previous-network"));
+  assert(!strcmp(password, "previous-password"));
+  assert(calls == 1 && !flash_writes && connected);
+  reset();
+  g_c6_ota_attempted = true;
+  assert(c6_wifi_current_credentials(ssid, password) == -ESHUTDOWN);
+  assert(!ssid[0] && !password[0] && !calls);
+  reset();
+  assert(!c6_wifi_trial_begin("new-network", "new-password"));
+  unsigned prior_calls = calls;
+  assert(c6_wifi_current_credentials(ssid, password) == -EBUSY);
+  assert(!ssid[0] && !password[0] && calls == prior_calls);
+  assert(!c6_wifi_trial_finish(false));
+  for (unsigned bad = 0; bad <= 5; bad++)
+    {
+      reset(); fail_at = 1; malformed = bad;
+      assert(c6_wifi_current_credentials(ssid, password) < 0);
+      assert(!ssid[0] && !password[0] && calls == 1 && !flash_writes);
+    }
+  puts("CURRENT_STA_CREDENTIALS_READ_ONLY_REDACTED_OK");
   reset();
   assert(c6_wifi_trial_begin(NULL, "password") == -EINVAL);
   assert(c6_wifi_trial_begin("", "password") == -EINVAL);
