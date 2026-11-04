@@ -5,6 +5,12 @@
 
 ## 入口
 
+[ProgrammableMatrix / JBOX-S3](ProgrammableMatrix/README.md) 保存 ESP32-S3 + 4×CH446Q
+无线 IO 与矩阵连线板的完整独立工程，包括 ESP-IDF 固件、Python SDK、Tkinter 连线工具、
+JBoxScript 解释器与宿主测试。使用 ESP-IDF 5.5.x，构建命令见
+[仓库首页](../README.md#programmablematrix--jbox-s3-构建)，上游版本及文件摘要见
+[UPSTREAM.json](ProgrammableMatrix/UPSTREAM.json)。
+
 [jizura](jizura/README.md) 保存 JIZURA 原版完整功能基线，先在浏览器验证全部效果、编辑器和导出，再进行 ESP 移植。
 
 [espdl-quickapp](espdl-quickapp/README.md)是 v3 应用开发快照，含 overlay、模型、测试和
