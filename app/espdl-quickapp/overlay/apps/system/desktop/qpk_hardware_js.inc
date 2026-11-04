@@ -12,7 +12,14 @@ static const char *const qpk_hw_operations[] = {
   "ble.read", "ble.write", "ble.subscribe", "ble.notification", "ble.pair", "ble.mtu", "net.status",
   "usb.list", "usb.info", "usb.mode", "usb.hidRead", "usb.hidReport",
   "usb.audioStart", "usb.audioRead", "usb.audioWrite", "usb.audioStop", "usb.cdcRead", "usb.cdcWrite",
-  "usb.mount", "usb.unmount", "usb.files", "usb.readFile", "usb.writeFile"
+  "usb.mount", "usb.unmount", "usb.files", "usb.readFile", "usb.writeFile",
+  "jbox.discover", "jbox.pair", "jbox.connect", "jbox.disconnect", "jbox.caps", "jbox.status", "jbox.safe",
+  "jbox.routeSet", "jbox.connectNodes", "jbox.removeNode", "jbox.routeClear",
+  "jbox.gpioConfig", "jbox.gpioWrite", "jbox.gpioRead", "jbox.adcRead", "jbox.pwm",
+  "jbox.i2cSetup", "jbox.i2cTransfer", "jbox.i2cClose",
+  "jbox.spiSetup", "jbox.spiTransfer", "jbox.spiClose",
+  "jbox.uartSetup", "jbox.uartWrite", "jbox.uartRead", "jbox.uartClose",
+  "jbox.functionLoad", "jbox.functionCall", "jbox.functionClear"
 };
 static JSValue js_hw_submit(JSContext *c, JSValueConst self, int argc, JSValueConst *argv, int magic)
 {
@@ -47,7 +54,7 @@ static JSValue js_hw_control(JSContext *c, JSValueConst self, int argc, JSValueC
 }
 static void qpk_hw_install(JSContext *c, JSValue system)
 {
-  const char *families[] = {"gpio", "i2c", "spi", "uart", "pwm", "servo", "audio", "ble", "usb", "net"};
+  const char *families[] = {"gpio", "i2c", "spi", "uart", "pwm", "servo", "audio", "ble", "usb", "net", "jbox"};
   for (unsigned f = 0; f < sizeof(families) / sizeof(families[0]); f++) {
     JSValue object = JS_NewObject(c); size_t length = strlen(families[f]);
     for (unsigned i = 0; i < sizeof(qpk_hw_operations) / sizeof(qpk_hw_operations[0]); i++) {

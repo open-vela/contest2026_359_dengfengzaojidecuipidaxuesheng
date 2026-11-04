@@ -14,6 +14,9 @@ struct portal_ai_config {
 struct portal_voice_config {
   char app_id[33], secret_id[129], secret_key[129];
 };
+struct portal_jbox_config {char host[16],device_id[13],key[65];};
+int portal_jbox_load(struct portal_jbox_config *out);
+int portal_jbox_save(const struct portal_jbox_config *config);
 int portal_ai_load(struct portal_ai_config *out);
 int portal_voice_load(struct portal_voice_config *out);
 int portal_music_key(char *out,size_t capacity);

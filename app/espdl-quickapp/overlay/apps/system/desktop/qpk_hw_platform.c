@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include <nuttx/config.h>
 #include "qpk_hardware.h"
+#include "qpk_jbox.h"
 #include "qpk_board_pins.h"
 #include "qpk_volume.h"
 #include "glass_ble.h"
@@ -34,7 +35,7 @@ struct hw_platform {
   int uart, pwm[4];
   bool ble;
   uint32_t channel_epoch,ble_scan,ble_links[GLASS_BLE_CENTRAL_LIMIT];
-  void *usb;
+  void *usb,*jbox;
 };
 static pthread_mutex_t claims_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct hw_platform *pin_owner[7], *ble_owner;
@@ -133,6 +134,7 @@ void qpk_hw_platform_destroy(void *opaque)
 {
   struct hw_platform *p = opaque; if (!p) return;
   qpk_usb_destroy(p->usb);
+  qpk_jbox_destroy(p->jbox);
   if (p->i2c) esp_i2cbus_uninitialize(p->i2c);
   if (p->spi) esp_spibus_uninitialize(p->spi);
   if (p->uart >= 0) close(p->uart);
@@ -417,6 +419,7 @@ int qpk_hw_platform_execute(void *opaque, const char *op, const cJSON *a, cJSON 
   struct hw_platform *p = opaque;
   extern int qpk_network_status(cJSON *);
   if(!strcmp(op,"net.status"))return qpk_network_status(out);
+  if(!strncmp(op,"jbox.",5))return qpk_jbox_execute(&p->jbox,op+5,a,out,progress);
   if (!strncmp(op,"usb.",4))return qpk_usb_execute(&p->usb,op+4,a,out,progress);
   if (!strncmp(op, "gpio.", 5)) return gpio_operation(p, op + 5, a, out);
   if (!strncmp(op, "i2c.", 4)) return i2c_operation(p, op + 4, a, out);

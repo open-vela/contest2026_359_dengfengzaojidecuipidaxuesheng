@@ -226,6 +226,35 @@ GATT 每次最多32项，truncated 为true时说明清单不完整，缩小句�
 
 USB 音频／HID 输入使用有界队列，断开报告ENODEV，旧代次ESTALE；完整端到端外设行为仍须实机验收。U盘按块设备与FAT操作，不导出板内Flash／SD给主机同时写入。
 
+### JBOX-S3 局域网矩阵与外设扩展
+
+`system.jbox` 与助手 `hardware_submit({operation:"jbox.<方法>",arguments:{...}})` 共用异步实现，返回任务 ID，用 `hardware.poll` 等待完成。扩展板来源为 `streetartist/ProgrammableMatrix` 的 JMX1 v1 协议。先发现、让用户确认目标，再连接已绑定的设备；不能把 P4 本地 GPIO 编号用于扩展板。密钥不提供给模型。
+
+| 方法 | 参数／完成结果 |
+| --- | --- |
+| `discover({timeoutMs:1500})` | 100～5000 ms；UDP4748，最多16个 `{deviceId,host,paired,pairingOpen}`；未鉴权发现只是候选，不代表已连接 |
+| `connect({host,deviceId,timeoutMs:5000})` | host、deviceId 可省略使用本机已保存绑定；只允许已绑定 deviceId，host 可采用发现的新 IP；TCP4747 + HMAC-SHA256；返回 authenticated、generation；不会自动绑定或重放连线 |
+| `disconnect({generation})` | 主动断开本会话，扩展板自动清空连线、释放总线并恢复 GPIO 高阻 |
+| `caps({generation})` / `status({generation})` | 返回真实能力（52节点、8网络、18 IO、ioGpios）／uptimeMs、heapFree、nets、ioMode、ioLease |
+| `routeSet({generation,nets:[[40,0],[41,1]]})` | 替换最多8个网络，节点0～51不能重复；返回扩展板接受的实际 nets |
+| `connectNodes({generation,a,b})` / `removeNode({generation,node})` / `routeClear({generation})` | 添加两节点连线／移除节点／清空矩阵；设备端继续执行电源冲突和 EXT 连线校验 |
+| `gpioConfig({generation,io,mode:0,pull:0,initial:0})` | io0～17；mode0输入、1推挽、2开漏、3ADC；pull0无、1上拉、2下拉 |
+| `gpioWrite({generation,mask,levels})` / `gpioRead({generation,mask:262143})` | 18位 IO 掩码批量写／读取 levels；ADC 配置使用 adcRead |
+| `adcRead({generation,io})` / `pwm({generation,channel,io,hz:1000,duty:4096})` | ADC 返回 raw；PWM channel0～3、10～40000 Hz、duty0～8191；io255停止该通道 |
+| `i2cSetup({generation,bus,sda,scl,hz:50000})` | bus0/1、IO0～17、10～400 kHz；矩阵上的 I²C 需要物理上拉；不能把线直接连电源代替上拉 |
+| `i2cTransfer({generation,bus,address,data:[],read:0})` / `i2cClose({generation,bus})` | 地址8～119，发送＋接收合计最多4096B；返回实际 data、bytes |
+| `spiSetup({generation,bus,mosi,miso,sck,cs,mode:0,hz:100000})` | bus0/1映射S3 SPI2/3；miso255表示不接收；1 kHz～20 MHz，矩阵相关 IO 最高2 MHz；从低速实测 |
+| `spiTransfer({generation,bus,data})` / `spiClose({generation,bus})` | 1～4096B，全双工返回 data、bytes |
+| `uartSetup({generation,bus,tx,rx,baud:115200,parity:0,stopbits:1})` | bus0/1映射S3 UART1/2；300～921600 baud，矩阵 IO 最高460800；parity0无、1奇、2偶；stopbits1/2 |
+| `uartWrite({generation,bus,data})` / `uartRead({generation,bus,length:512,timeoutMs:100})` / `uartClose({generation,bus})` | 最多4096B，读等待0～500 ms；读取可能是半帧，写返回已发送 bytes |
+| `functionLoad({generation,slot:0,arguments:0,code:[...]})` | 上传已编译的 JBoxScript 字节码，4个槽，每槽最多4096B、4字节对齐；函数参数0～4；不是在P4执行外部源码 |
+| `functionCall({generation,slot:0,ios:[]})` / `functionClear({generation,slot:0})` | 调用／清除S3函数；IO参数不能重复，返回最多128个 uint32 values |
+| `safe({generation})` | 让扩展板清空矩阵、函数和外设，连接保留；新任务仍需显式重新配置 |
+
+首次绑定必须由用户短按 S3 的 GPIO10 开窗，再在可信主板应用显式调用 `system.jbox.pair({host,deviceId})`，或本机控制台 `desktop jbox-bind <IPv4> <12位设备ID>`。`pair` 只提供给用户应用，不在助手硬件操作清单中；只返回 saved，不返回密钥。绑定配置写入主板 Flash，沿用配置保存的 AI 停机协调与重复写跳过。配对交换遵循上游明文 LAN 协议，只用于可信局域网；不开放工厂重置接口。
+
+所有连接后的操作必须携带当前 `generation`。传输、HMAC、帧格式错误和超时立即关闭连接；取消任务也关闭本会话；任何情况下不自动重连重发动作。`remoteStatus` 是扩展板原始业务错误码，不能当作本机 errno。连接只代表鉴权成功，GPIO 回执不证明外部电路工作。主板应用退出或硬件控制器释放时关闭长连接；助手正常完成后控制器可保留长连接，明确 `safe`／`disconnect`／`hardware_release` 才释放。硬件断网检测时间取决于 TCP 与对端 keepalive，不能宣称瞬间高阻。
+
 ## 9. 生成与验证要求
 
 先查询 `capabilities()`，再依照任务选择接口。引脚共用导致的 `EBUSY` 必须明确告知用户，不擅自关闭另一个正在使用的设备。总线地址、寄存器、接线、舵机标定、蓝牙目标设备都必须来自用户或实际设备资料；缺少外设时可以完成应用结构，但不能声称传感器、舵机运动或 BLE 外设通信已验证。

@@ -98,8 +98,12 @@ int main(int argc,char **argv)
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"home_status\",\"arguments\":{}}",true));
   cJSON_Delete(call(agent,"mcp_list_tools","{\"server\":\"board\",\"cursor\":\"bad\"}",true));
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"device_status\",\"arguments\":{}}",false));
-  cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_capabilities\",\"arguments\":{}}",false));
+  result=call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_capabilities\",\"arguments\":{}}",false);
+  char *capabilities=cJSON_PrintUnformatted(result);assert(capabilities&&strstr(capabilities,"jbox.status")&&!strstr(capabilities,"jbox.pair"));free(capabilities);cJSON_Delete(result);
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_reference\",\"arguments\":{\"section\":2}}",false));
+  result=call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_reference\",\"arguments\":{\"section\":8}}",false);
+  assert(strstr(cJSON_GetObjectItem(result,"scope")->valuestring,"persist across AI requests"));
+  assert(strstr(cJSON_GetObjectItem(result,"reference")->valuestring,"system.jbox"));cJSON_Delete(result);
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_reference\",\"arguments\":{\"section\":1.5}}",true));
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_submit\",\"arguments\":{\"operation\":\"shell.exec\",\"arguments\":{}}}",true));
   result=call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_submit\",\"arguments\":{\"operation\":\"gpio.read\",\"arguments\":{\"pin\":6}}}",false);
@@ -107,6 +111,11 @@ int main(int argc,char **argv)
   result=call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_poll\",\"arguments\":{\"id\":1}}",false);
   assert(cJSON_IsTrue(cJSON_GetObjectItem(result,"done")));assert(cJSON_GetObjectItem(cJSON_GetObjectItem(result,"result"),"value")->valueint==1);cJSON_Delete(result);
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_poll\",\"arguments\":{\"id\":1}}",true));
+  cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_submit\",\"arguments\":{\"operation\":\"jbox.pair\",\"arguments\":{\"host\":\"127.0.0.1\",\"deviceId\":\"aabbccddeeff\"}}}",true));
+  result=call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_submit\",\"arguments\":{\"operation\":\"jbox.status\",\"arguments\":{\"generation\":1}}}",false);
+  assert(cJSON_GetObjectItem(result,"id")->valueint==2);cJSON_Delete(result);
+  result=call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"hardware_poll\",\"arguments\":{\"id\":2}}",false);
+  assert(cJSON_IsTrue(cJSON_GetObjectItem(result,"ok"))&&cJSON_GetObjectItem(cJSON_GetObjectItem(result,"result"),"heapFree")->valueint==456);cJSON_Delete(result);
   assert(http_calls==before);glass_agent_destroy(agent);usleep(200000);
   unlink(link);unlink(path);rmdir(dir);rmdir(scoped);
   char profile_dir[512],profile_path[600];snprintf(profile_dir,sizeof(profile_dir),AGENT_PROFILE_ROOT "/create");mkdir_checked(profile_dir);

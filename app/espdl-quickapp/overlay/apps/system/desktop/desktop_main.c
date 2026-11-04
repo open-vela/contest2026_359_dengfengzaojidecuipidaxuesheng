@@ -1962,6 +1962,11 @@ int main(int argc, FAR char *argv[])
     extern int qpk_hw_call(int,char **);
     return qpk_hw_call(argc-2,argv+2);
   }
+  if(argc==4&&!strcmp(argv[1],"jbox-bind")){
+    extern int qpk_jbox_bind(const char *,const char *);
+    int ret=qpk_jbox_bind(argv[2],argv[3]);
+    printf("JBOX_BIND saved=%u result=%d\n",ret==0,ret);return ret;
+  }
 #ifdef GLASS_LOCAL_SPEECH
   if(argc>1&&!strcmp(argv[1],"speech")){
     /* A temporary NSH task must not own the recognition worker. */

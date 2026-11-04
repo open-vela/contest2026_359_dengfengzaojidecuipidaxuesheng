@@ -36,7 +36,14 @@ static const char *board_operations[] = {
   "ble.read", "ble.write", "ble.subscribe", "ble.notification", "ble.pair", "ble.mtu", "net.status",
   "usb.list", "usb.info", "usb.mode", "usb.hidRead", "usb.hidReport",
   "usb.audioStart", "usb.audioRead", "usb.audioWrite", "usb.audioStop", "usb.cdcRead", "usb.cdcWrite",
-  "usb.mount", "usb.unmount", "usb.files", "usb.readFile", "usb.writeFile"
+  "usb.mount", "usb.unmount", "usb.files", "usb.readFile", "usb.writeFile",
+  "jbox.discover", "jbox.connect", "jbox.disconnect", "jbox.caps", "jbox.status", "jbox.safe",
+  "jbox.routeSet", "jbox.connectNodes", "jbox.removeNode", "jbox.routeClear",
+  "jbox.gpioConfig", "jbox.gpioWrite", "jbox.gpioRead", "jbox.adcRead", "jbox.pwm",
+  "jbox.i2cSetup", "jbox.i2cTransfer", "jbox.i2cClose",
+  "jbox.spiSetup", "jbox.spiTransfer", "jbox.spiClose",
+  "jbox.uartSetup", "jbox.uartWrite", "jbox.uartRead", "jbox.uartClose",
+  "jbox.functionLoad", "jbox.functionCall", "jbox.functionClear"
 };
 static const char board_tool_catalog[] =
 "{\"tools\":["
