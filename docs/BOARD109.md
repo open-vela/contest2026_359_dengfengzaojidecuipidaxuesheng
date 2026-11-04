@@ -18,6 +18,79 @@ ASR uses the user-selected old mixed Q4/Q8 Zipformer14M package at `/sdcard/loca
 
 Use `tools/build_board109.py --help` for the accepted feature profile. Supply a compatible prepared P4 openvela baseline, toolchain, speech/ESP-TTS/wake SDK inputs and a separate build workspace/output directory. The wrapper delegates to `tools/build_bilibili_v3.py`, preserves BSS/partition/XIP guards and never flashes hardware. Prepared dependency acquisition is documented in `docs/P4_BUILD_REPRO_2026-10-27.md`. Each new build generates a distinct BLE test identity, so a rebuild is not claimed to reproduce the historical image byte-for-byte.
 
+### 完整编译命令：现有 Windows / WSL Debian 环境
+
+下面使用已准备好的本机路径，源码目录为已提交的独立 checkout，避免误用仍有历史改动的旧 `project/`。在其他电脑运行时，先按构建复现文档准备相同依赖，再修改这些路径。命令使用独立的新编译目录和输出目录。
+
+先在 PowerShell 中进入 WSL：
+
+```powershell
+wsl -d Debian
+```
+
+再在 WSL Bash 中完整执行：
+
+```bash
+set -euo pipefail
+
+source /home/flash/vela-p4/env.sh
+
+export PATH="/home/flash/vela-p4/host-tools/kconfig/usr/bin:/home/flash/vela-p4/toolchains/gcc14/bin:$PATH"
+export LD_LIBRARY_PATH="/home/flash/vela-p4/host-tools/kconfig/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+export PYTHONUNBUFFERED=1
+
+board_repo="/mnt/d/vela-data/upstream-sync-20261102"
+board_inputs="/mnt/c/Users/11937/Documents/ChatGPT/vela/output"
+board_out="/mnt/d/vela-data/edgeidiot-9m9-20261102/rebuild109-20261104"
+
+mkdir -p "$board_out"
+
+python3 "$board_repo/tools/build_bilibili_v3.py" \
+  --baseline /home/flash/vela-p4/gesture-navigation-20261027 \
+  --workspace /home/flash/vela-p4/board109-rebuild-20261104 \
+  --toolchain /home/flash/vela-p4/toolchains/gcc14/bin \
+  --archive "$board_inputs/v3-recovery/openh264-2.6.0.tar.gz" \
+  --output "$board_out/firmware" \
+  --speech-runtime "$board_inputs/speech-port-20261015/prepared" \
+  --esp-tts-prepared "$board_inputs/esp-tts-20261017" \
+  --local-voice-sdk "$board_inputs/local-voice-20261031/wake-sdk" \
+  --source-revision 8606b402f2d0e47fc347f96f2e339a5101f0d1c6 \
+  --local-session-guard \
+  --local-q4-pie \
+  --local-tts-pie \
+  --local-tts-int8 \
+  --local-sha-hw \
+  --local-tts-parallel \
+  --local-tts-fma \
+  --local-asr-evaluation \
+  --local-asr-accel \
+  --local-asr-official-dsp \
+  --local-asr-streaming \
+  --local-asr-microphone \
+  --sd-read-diagnostics \
+  --sd-spi-dma \
+  --no-native-browser \
+  --offline-inputs \
+  --usb-camera \
+  --factory-header \
+  --psram-xip \
+  --hardware-jpeg \
+  --video-blit \
+  --lcd-backlight \
+  --ethernet-share \
+  --share-forward-slots 16 \
+  --share-net-stats \
+  --ble-eight-test \
+  --jobs 6 \
+  2>&1 | tee "$board_out/build.log"
+```
+
+`--source-revision` 显式标注109功能基线，避免 WSL Git 无法解析 Windows worktree 路径时在编译结束阶段失败；该参数本身不切换源码。编译后续功能版本时，应同时使用对应源码和其40位提交号。快捷入口 `tools/build_board109.py` 也支持并转发此参数，未指定时保持底层构建器自动读取 Git 版本的行为。
+
+成功后日志为 `$board_out/build.log`，主要产物为 `$board_out/firmware/nuttx.bin`、`nuttx.elf`、`resolved.config` 和 `BUILD-METADATA.json`。每次生成新的蓝牙测试身份，镜像SHA256变化属于正常情况。本段只执行编译。
+
+### Host checks
+
 ```sh
 python3 tools/verify_board109_submission.py
 python3 tools/pack_seagull.py --output /tmp/seagull-data.c \
