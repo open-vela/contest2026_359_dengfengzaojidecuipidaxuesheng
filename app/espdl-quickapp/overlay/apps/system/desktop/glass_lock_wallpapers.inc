@@ -1,0 +1,1 @@
+/* Lock JPEGs are in the verified SD material package. */

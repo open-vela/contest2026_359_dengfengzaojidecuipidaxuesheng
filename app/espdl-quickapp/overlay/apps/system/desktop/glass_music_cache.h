@@ -10,6 +10,10 @@
 #ifndef MUSIC_CACHE_ROOT
 #define MUSIC_CACHE_ROOT "/sdcard/music/cache"
 #endif
+#if defined(__NuttX__) || defined(MUSIC_CACHE_COORDINATION_TEST)
+int glass_music_cache_write_enter(void);
+void glass_music_cache_write_leave(void);
+#endif
 /* 32 replaceable slots per kind. Verify the whole request identity on hits;
  * a slot/hash collision can evict an entry, never return another song. */
 static uint32_t music_cache_hash(uint32_t h,const void *data,size_t size)
@@ -43,7 +47,27 @@ static unsigned char *music_cache_read(char kind,const char *key,size_t limit,si
   return music_cache_path(kind,key,path,sizeof(path))?NULL:
     music_cache_read_path(path,key,limit,padding,size);
 }
-static void music_cache_write_path(const char *path,const char *key,
+/* Availability/commit verification must not allocate another full JPEG.
+ * Check the complete identity, bytes, size and checksum with one 4KiB block. */
+static bool music_cache_verify_path(const char *path,const char *key,size_t limit,
+                                    const void *expected,size_t expected_size)
+{
+  if(!path||!key||strlen(key)>2047)return false;
+  FILE *f=fopen(path,"rb");if(!f)return false;
+  uint32_t h[4];struct stat st;unsigned char block[4096];bool valid=false;
+  if(fstat(fileno(f),&st)||fread(h,sizeof(h),1,f)!=1||h[0]!=0x3143434d||
+     h[1]!=strlen(key)||h[1]>2047||!h[2]||h[2]>limit||
+     (uint64_t)st.st_size!=sizeof(h)+(uint64_t)h[1]+h[2]||
+     (expected&&h[2]!=expected_size)||fread(block,1,h[1],f)!=h[1]||memcmp(block,key,h[1]))goto done;
+  uint32_t hash=music_cache_hash(2166136261u,key,h[1]);size_t offset=0,got;
+  while((got=fread(block,1,sizeof(block),f))){
+    if(expected&&(got>expected_size-offset||memcmp(block,(const unsigned char *)expected+offset,got)))goto done;
+    hash=music_cache_hash(hash,block,got);offset+=got;
+  }
+  valid=!ferror(f)&&offset==h[2]&&hash==h[3];
+done:if(fclose(f))valid=false;return valid;
+}
+static void music_cache_write_path_impl(const char *path,const char *key,
                                     const void *data,size_t size,size_t limit)
 {
   char temporary[264];
@@ -61,6 +85,17 @@ static void music_cache_write_path(const char *path,const char *key,
   bool valid=fwrite(h,sizeof(h),1,f)==1&&fwrite(key,1,h[1],f)==h[1]&&fwrite(data,1,size,f)==size;
   if(fclose(f))valid=false;
   if(!valid||rename(temporary,path))unlink(temporary);
+}
+static void music_cache_write_path(const char *path,const char *key,
+                                    const void *data,size_t size,size_t limit)
+{
+#if defined(__NuttX__) || defined(MUSIC_CACHE_COORDINATION_TEST)
+  if(glass_music_cache_write_enter())return;
+#endif
+  music_cache_write_path_impl(path,key,data,size,limit);
+#if defined(__NuttX__) || defined(MUSIC_CACHE_COORDINATION_TEST)
+  glass_music_cache_write_leave();
+#endif
 }
 static void music_cache_write(char kind,const char *key,const void *data,size_t size,size_t limit)
 {

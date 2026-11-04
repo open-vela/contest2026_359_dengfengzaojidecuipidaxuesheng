@@ -71,6 +71,9 @@ static void live_picture_layout(void)
   lv_image_set_scale(g_image,LV_SCALE_NONE);
   lv_obj_center(g_image);
 }
+bool bili_live_fullscreen_active(void)
+{return g_fullscreen&&lv_obj_is_visible(g_fullscreen);}
+
 static void live_fullscreen_leave(void)
 {
   if(!g_fullscreen)return;

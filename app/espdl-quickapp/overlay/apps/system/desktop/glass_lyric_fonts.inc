@@ -6,7 +6,7 @@
 #define GLASS_LYRIC_FONT_ROOT "/sdcard/fonts/lyrics"
 #endif
 #define LYRIC_PAGE_COUNT 64
-#define LYRIC_PRELOAD_LIMIT (2u * 1024u * 1024u)
+#define LYRIC_PRELOAD_LIMIT (256u * 1024u)
 struct lyric_font_face {
   lv_font_t *fonts[SD_FONT_SIZES];
   FILE *file;
@@ -38,6 +38,7 @@ static const unsigned lyric_counts[SD_FONT_SIZES]={32,48,48,64,64,16,16,16,16,8,
  * bounded lyric budget; descriptor addresses remain stable for live labels. */
 static const unsigned lyric_global_counts[SD_FONT_SIZES]={128,192,384,512,384,96,96,96,64,24,32,4};
 static unsigned lyric_global_face;
+static bool lyric_memory_trimmed;
 void glass_lyric_font_set_global(unsigned index)
 {
   lyric_global_face=index;
@@ -46,7 +47,7 @@ void glass_lyric_font_set_global(unsigned index)
     for(unsigned size=0;size<SD_FONT_SIZES;size++){
       lv_font_t *font=lyric_fonts->faces[face].fonts[size];if(!font)continue;
       ttf_font_desc_t *dsc=(ttf_font_desc_t *)font->dsc;
-      unsigned count=face+1==index?lyric_global_counts[size]:lyric_counts[size];
+      unsigned count=face+1==index&&!lyric_memory_trimmed?lyric_global_counts[size]:lyric_counts[size];
       if(dsc->cache_size==(int)count)continue;
       dsc->cache_size=(int)count;
       lv_cache_set_max_size(dsc->glyph_cache,count,dsc);
@@ -59,6 +60,13 @@ void glass_lyric_font_set_global(unsigned index)
             lv_cache_evict_one(dsc->draw_data_cache,dsc)){}
 
     }
+}
+/* GUI-owned policy; glyph/font identities and the chosen family are unchanged.
+ * Existing pinned draw data is retained by LVGL until its lease is released. */
+void glass_lyric_font_memory_pressure(bool active)
+{
+ if(lyric_memory_trimmed==active)return;lyric_memory_trimmed=active;
+ glass_lyric_font_set_global(lyric_global_face);
 }
 void glass_lyric_font_cache_status(unsigned index,struct glass_font_cache_status *status)
 {
@@ -102,9 +110,9 @@ static void *lyric_font_verify(void *arg)
       st.st_size==lyric_font_assets[i].bytes;
     unsigned char *buffer=valid?malloc(16384):NULL;
     if(!buffer)valid=false;
-    /* Cache a small verified font on the checksum worker, never on GUI.
-     * At most 2 MiB per eligible pack entry; only the 1.4 MiB Happy face
-     * currently qualifies. Allocation failure preserves streaming fallback. */
+    /* Whole-file preloading is limited to genuinely small resources. Current
+     * optional families use the verified SD page cache, so the1.4MiB face
+     * no longer remains resident alongside ASR. Font data/quality is unchanged. */
     unsigned char *preload=valid&&lyric_font_assets[i].bytes<=LYRIC_PRELOAD_LIMIT?
       malloc(lyric_font_assets[i].bytes):NULL;
     uint32_t hash=UINT32_C(2166136261);size_t total=0;
@@ -258,7 +266,7 @@ bool glass_lyric_font_poll(void)
     if(valid){
       unsigned size=face->created;
       char path[96];snprintf(path,sizeof(path),"L:/%s",lyric_font_assets[i].file);
-      unsigned count=i+1==lyric_global_face?lyric_global_counts[size]:lyric_counts[size];
+      unsigned count=i+1==lyric_global_face&&!lyric_memory_trimmed?lyric_global_counts[size]:lyric_counts[size];
       face->fonts[size]=face->data?
         sd_ttf_create_data_ex(face->data,lyric_font_assets[i].bytes,sd_sizes[size],LV_FONT_KERNING_NONE,count):
         sd_ttf_create_file_ex(path,sd_sizes[size],LV_FONT_KERNING_NONE,count);

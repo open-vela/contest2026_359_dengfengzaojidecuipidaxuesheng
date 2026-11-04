@@ -19,7 +19,7 @@ def main():
    except OSError as error:
     if error.errno!=errno.EXDEV:raise
     shutil.copyfile(f,target)
- sources=['model','sha','tokenizer','assets','llm','tts','frontend','voice']
+ sources=['model','sha','tokenizer','assets','llm','w8a8','tts','frontend','voice']
  cmd=['gcc','-std=gnu11','-O2','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer','-fno-pie','-no-pie','-ffp-contract=off','-DGLASS_AI_CONFIG_ENABLED',
       '-DGLV_RELEASE_ROOT="'+str(root)+'"','-DGLV_CONFIG_PATH="'+str(out/'wake-target')+'"','-DGLV_SESSION_ROOT="'+str(out/'sessions')+'"','-DGLV_SCRATCH_ROOT="'+str(out)+'"','-I'+str(desktop)]
  cmd += [str(desktop/('glass_local_'+s+'.c')) for s in sources]

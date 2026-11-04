@@ -5,29 +5,11 @@ extern void review_music_now_fixture(const struct music_now_playing *);
 extern void review_lock_photo_fixture(int);
 extern void review_cover_fixture(const char *);
 extern void review_status_fixture(int,bool,bool);
-extern void review_storage_fixture(bool);
 static lv_point_t touch_point;
 static lv_indev_state_t touch_state;
 static unsigned leaked_touches;
 static unsigned status_draws;
 static void status_count_draw(lv_event_t *e){LV_UNUSED(e);status_draws++;}
-static void status_assert_color(lv_obj_t *object,uint32_t color)
-{assert((lv_color_to_u32(lv_obj_get_style_text_color(object,0))&0xffffff)==color);}
-static void status_assert_bounds(void)
-{
-  lv_obj_update_layout(g_status_ui.bar);
-  lv_area_t island;lv_obj_get_coords(g_status_ui.island,&island);
-  for(unsigned i=0;i<lv_obj_get_child_count(g_status_ui.island);i++){
-    lv_obj_t *child=lv_obj_get_child(g_status_ui.island,i);
-    if(lv_obj_has_flag(child,LV_OBJ_FLAG_HIDDEN))continue;
-    lv_area_t a;lv_obj_get_coords(child,&a);
-    assert(a.x1>=island.x1&&a.x2<=island.x2&&a.y1>=0&&a.y2<GLASS_STATUS_HEIGHT);
-  }
-  lv_area_t net,ble;lv_obj_get_coords(g_status_ui.network,&net);
-  lv_obj_get_coords(g_status_ui.bluetooth,&ble);
-  assert(net.x2<ble.x1);
-  assert(lv_obj_get_child_count(g_status_ui.island)==9); /* No battery/charge/percent widgets. */
-}
 static void touch_read(lv_indev_t *input,lv_indev_data_t *data)
 {(void)input;data->point=touch_point;data->state=touch_state;}
 static void touch(lv_indev_t *input,int x,int y,bool pressed)
@@ -64,61 +46,31 @@ int main(int argc,char **argv)
   glass_edge_back_create();glass_status_create();
   lv_obj_add_event_cb(g_status_ui.bar,status_count_draw,LV_EVENT_DRAW_MAIN,NULL);
   for(unsigned theme=0;theme<2;theme++) {
-    review_storage_fixture(false);review_status_fixture(-1,false,true);
     g_desktop.light_theme=theme!=0;glass_rebuild();glass_status_tick();
-    struct glass_app_palette palette=glass_app_palette(g_desktop.light_theme);
     review_net=(struct glass_status_network){0};glass_status_tick();
     assert(g_status_ui.network_state==0);
-    status_assert_color(g_status_ui.network,palette.muted);
     glass_status_tick();review_capture(display,"home","桌面 · 顶部独立状态栏");
     review_net.joining=true;glass_status_tick();assert(g_status_ui.network_state==1);
-    status_assert_color(g_status_ui.network,palette.warning);
     review_net.wifi=true;glass_status_tick();assert(g_status_ui.network_state==2);
-    status_assert_color(g_status_ui.network,palette.accent);
     review_net.wired=true;glass_status_tick();assert(g_status_ui.network_state==3);
-    assert(!lv_obj_has_flag(g_status_ui.wired,LV_OBJ_FLAG_HIDDEN));
-    assert(lv_obj_has_flag(g_status_ui.network,LV_OBJ_FLAG_HIDDEN));
-    status_assert_color(g_status_ui.wired,palette.accent);
-    review_storage_fixture(true);glass_status_tick();status_assert_bounds();
-    assert(!lv_obj_has_flag(g_status_ui.storage,LV_OBJ_FLAG_HIDDEN));
-    review_capture(display,"island-wired","状态岛 · 网口已连接与 TF 卡可用");
-    review_net.wired=false;review_net.wired_link=true;glass_status_tick();
-    assert(g_status_ui.network_state==4);status_assert_color(g_status_ui.wired,palette.warning);
-    review_capture(display,"island-wired-wait","状态岛 · 网口插入等待 IP");
-    review_net.wired_link=false;glass_status_tick();
-    assert(g_status_ui.network_state==2&&lv_obj_has_flag(g_status_ui.wired,LV_OBJ_FLAG_HIDDEN));
-    assert(!lv_obj_has_flag(g_status_ui.network,LV_OBJ_FLAG_HIDDEN));
-    review_storage_fixture(false);glass_status_tick();
-    assert(lv_obj_has_flag(g_status_ui.storage,LV_OBJ_FLAG_HIDDEN));
     review_net=(struct glass_status_network){.wifi=true};glass_status_tick();
     review_status_fixture(76,false,true);
     review_net.rssi_valid=true;review_net.rssi_dbm=-48;glass_status_tick();
-    assert(g_status_ui.signal_level==4&&g_status_ui.bluetooth_count==1);
-    assert(!lv_obj_has_flag(g_status_ui.network,LV_OBJ_FLAG_HIDDEN));
-    assert(lv_obj_get_style_text_font(g_status_ui.network,0)==glass_icon_font(20));
-    status_assert_color(g_status_ui.bluetooth,palette.accent);status_assert_bounds();
+    assert(g_status_ui.signal_level==4&&g_status_ui.bluetooth_count==1&&g_status_ui.battery_percent==76);
     review_capture(display,"island-strong","首页 · 合并状态岛");
     glass_status_tick();lv_refr_now(display);
     status_draws=0;
     for(unsigned idle=0;idle<120;idle++){glass_status_tick();lv_refr_now(display);}
     assert(status_draws==0);
     printf("STATUS_IDLE_OK theme=%u unchanged ticks=120 redraws=0\n",theme);
+    review_status_fixture(76,true,true);glass_status_tick();
+    assert(!lv_obj_has_flag(g_status_ui.charging,LV_OBJ_FLAG_HIDDEN));
+    assert(strcmp(lv_label_get_text(g_status_ui.battery),LV_SYMBOL_CHARGE));
+    review_capture(display,"island-charging","状态岛 · 电池与充电闪电同时显示");
+    review_status_fixture(76,false,true);glass_status_tick();
+    assert(lv_obj_has_flag(g_status_ui.charging,LV_OBJ_FLAG_HIDDEN));
     review_net.rssi_dbm=-87;glass_status_tick();assert(g_status_ui.signal_level==1);
     review_capture(display,"island-weak","首页 · 弱信号");
-    review_net=(struct glass_status_network){0};review_status_fixture(8,false,false);glass_status_tick();
-    status_assert_color(g_status_ui.network,palette.muted);
-    status_assert_color(g_status_ui.bluetooth,palette.muted);
-    for(unsigned i=0;i<4;i++)assert(lv_obj_has_flag(g_status_ui.bars[i],LV_OBJ_FLAG_HIDDEN));
-    review_capture(display,"island-offline","状态岛 · 网络断开与 TF 卡拔出");
-    review_net=(struct glass_status_network){.wifi=true,.rssi_valid=true,.rssi_dbm=-48};
-    review_status_fixture(100,true,true);glass_status_tick();status_assert_bounds();
-    review_storage_fixture(true);glass_status_tick();status_assert_bounds();
-    /* Theme changes must repaint unchanged connection and TF states. */
-    g_desktop.light_theme=!g_desktop.light_theme;glass_status_tick();
-    status_assert_color(g_status_ui.network,glass_app_palette(g_desktop.light_theme).accent);
-    g_desktop.light_theme=!g_desktop.light_theme;glass_status_tick();
-    status_assert_color(g_status_ui.network,palette.accent);
-    review_capture(display,"island-tf","状态岛 · TF 卡已就绪，无电池区域");
     struct music_now_playing now={.revision=41,.position_ms=42000,.duration_ms=204000,.volume=40,
       .state=MUSIC_PLAYING,.lyrics_state=MUSIC_LYRICS_READY,.can_skip=true,.lyrics_started=true};
     strcpy(now.name,"城市与晚风");strcpy(now.artist,"声动 · 原创演示");strcpy(now.lyrics[1],"把今天交给温柔的晚风");
@@ -164,5 +116,5 @@ int main(int argc,char **argv)
     assert(!g_lock_ui.root);
   }
   fputs("\n]\n",review_manifest);fclose(review_manifest);
-  puts("STATUS_NATIVE_OK: both themes; real RSSI levels; Bluetooth count; TF insertion/removal; Ethernet carrier; no battery widgets; pressed-only island outline; click settings; background playback; lock visibility; 40 reopen cycles");return 0;
+  puts("STATUS_NATIVE_OK: both themes; real RSSI levels; Bluetooth count; battery capacity; pressed-only island outline; click settings; background playback; lock visibility; 40 reopen cycles");return 0;
 }

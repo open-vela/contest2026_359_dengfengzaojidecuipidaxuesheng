@@ -2,7 +2,7 @@
 #pragma once
 #include "glass_local_model.h"
 #ifndef GLV_ASR_RELEASE_ROOT
-#define GLV_ASR_RELEASE_ROOT "/sdcard/local-voice/models/zipformer-14m-mixed-board8-20261031"
+#define GLV_ASR_RELEASE_ROOT "/sdcard/local-voice/models/zipformer14m-q48-ram-20261104"
 #endif
 /* Worker-only staged verification entry. No microphone/network/Flash access.
  * Only the two manifest-bound, public model test clips are selectable. */

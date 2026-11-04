@@ -8,4 +8,7 @@ void bili_live_stop(void);
 /* Desktop/LVGL thread only; same action as the Play button. */
 void bili_live_play_room(const char *room);
 void bili_live_play_platform(int platform,const char *room);
+
+/* Read-only LVGL-thread query; never changes player state. */
+bool bili_live_fullscreen_active(void);
 #endif

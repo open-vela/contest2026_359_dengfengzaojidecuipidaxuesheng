@@ -68,6 +68,7 @@ static void glass_global_fonts_apply(void)
   glass_lyric_font_set_global(global_font_selected);
   for(unsigned i=0;i<global_font_view_count;i++){
     lv_font_t *base=&global_font_views[i].embedded;
+    (void)glass_material_font_refresh(base);
     unsigned pixels=global_font_views[i].pixels;
     /* HA uses a text degree mark with its normal typographic advance. */
     const lv_font_t *icons=global_font_views[i].target==&g_hass_font20?
@@ -93,6 +94,7 @@ static void glass_global_fonts_apply(void)
 static void glass_global_fonts_poll(void)
 {
   bool changed=glass_sd_font_poll()!=0;
+  changed=glass_material_fonts_poll()||changed;
   unsigned saved;
   if(!global_font_restore_checked&&glass_font_choice_load(&saved)){
     global_font_restore_checked=true;

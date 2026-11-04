@@ -12,7 +12,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MUSIC_FAVORITE_COVER_MAX (2u * 1024u * 1024u)
+#define MUSIC_FAVORITE_COVER_MAX (4u * 1024u * 1024u)
+#define MUSIC_FAVORITE_AUDIO_MAX MUSIC_AUDIO_CACHE_FILE_MAX
 #define MUSIC_FAVORITE_AUDIO_SCHEME "favorite-audio://"
 #define MUSIC_FAVORITE_COVER_SCHEME "favorite-cover://"
 
@@ -47,7 +48,40 @@ static inline FILE *music_favorite_audio_open(const struct music_song *song)
   char id[33],key[256],path[256];
   if(music_favorite_key(song,key))return NULL;
   music_favorite_id(song,id);
-  return music_favorite_path(id,'a',path)?NULL:music_audio_cache_open_path(key,path);
+  return music_favorite_path(id,'a',path)?NULL:
+    music_audio_cache_open_path_limit_cancelled(key,path,MUSIC_FAVORITE_AUDIO_MAX,NULL,NULL);
+}
+static inline FILE *music_favorite_audio_open_cancelled(const struct music_song *song,
+                                                bool (*cancelled)(void *),void *context)
+{
+  char id[33],key[256],path[256];
+  if(music_favorite_key(song,key))return NULL;
+  music_favorite_id(song,id);
+  return music_favorite_path(id,'a',path)?NULL:
+    music_audio_cache_open_path_limit_cancelled(key,path,MUSIC_FAVORITE_AUDIO_MAX,cancelled,context);
+}
+
+/* Keep a verified association with the replaceable URL cache on SD. This is
+ * only a source hint: cached audio still checks its complete URL and checksum.
+ * Expiring URLs are never treated as a completed offline download. */
+static inline void music_favorite_source_write(const struct music_song *song)
+{
+  char id[33],key[256],path[256];
+  if(strncmp(song->url,"https://",8)||music_favorite_key(song,key))return;
+  music_favorite_id(song,id);
+  if(!music_favorite_path(id,'s',path))
+    music_cache_write_path(path,key,song->url,strlen(song->url),2047);
+}
+static inline bool music_favorite_source_read(struct music_song *song)
+{
+  char id[33],key[256],path[256];size_t size=0;
+  if(music_favorite_key(song,key))return false;
+  music_favorite_id(song,id);
+  if(music_favorite_path(id,'s',path))return false;
+  unsigned char *url=music_cache_read_path(path,key,2047,1,&size);
+  bool valid=url&&size>=8&&!memcmp(url,"https://",8)&&!memchr(url,0,size);
+  if(valid){memcpy(song->url,url,size);song->url[size]=0;}
+  free(url);return valid;
 }
 
 static inline void music_favorite_audio_begin(struct music_audio_cache *cache,
@@ -57,7 +91,7 @@ static inline void music_favorite_audio_begin(struct music_audio_cache *cache,
   if(music_favorite_key(song,key)){memset(cache,0,sizeof(*cache));return;}
   music_favorite_id(song,id);
   if(music_favorite_path(id,'a',path)){memset(cache,0,sizeof(*cache));return;}
-  music_audio_cache_begin_path(cache,key,path);
+  music_audio_cache_begin_path_limit(cache,key,path,MUSIC_FAVORITE_AUDIO_MAX);
 }
 
 static inline int music_favorite_cover_url(const struct music_song *song,char url[1024])
@@ -106,28 +140,30 @@ static inline unsigned char *music_favorite_cover_read(const char *url,size_t pa
 
 static inline bool music_favorite_cover_available(const struct music_song *song)
 {
-  char url[1024];size_t size=0;
+  char url[1024],path[256];
   if(music_favorite_cover_url(song,url))return false;
-  unsigned char *bytes=music_favorite_cover_read(url,0,&size);
-  bool ready=bytes!=NULL&&size!=0;
-  free(bytes);return ready;
+  return !music_favorite_cover_path(url,path)&&music_cache_verify_path(path,url,MUSIC_FAVORITE_COVER_MAX,NULL,0);
 }
 
 static inline bool music_favorite_cover_write(const struct music_song *song,
                                         const void *data,size_t size)
 {
-  char url[1024],path[256];size_t check=0;
+  char url[1024],path[256];
   if(music_favorite_cover_url(song,url)||music_favorite_cover_path(url,path))return false;
+  if(music_cache_verify_path(path,url,MUSIC_FAVORITE_COVER_MAX,data,size))return true;
   music_cache_write_path(path,url,data,size,MUSIC_FAVORITE_COVER_MAX);
-  unsigned char *stored=music_favorite_cover_read(url,0,&check);
-  bool ready=stored!=NULL&&check==size&&!memcmp(stored,data,size);
-  free(stored);return ready;
+  bool valid=music_cache_verify_path(path,url,MUSIC_FAVORITE_COVER_MAX,data,size);
+  if(valid){
+    char id[33];music_favorite_id(song,id);
+    for(const char *kind="tm";*kind;kind++)if(!music_favorite_path(id,*kind,path))unlink(path);
+  }
+  return valid;
 }
 
 static inline void music_favorite_cache_forget(const struct music_song *song)
 {
   char id[33],path[256],temporary[264];music_favorite_id(song,id);
-  for(const char *kind="ac";*kind;kind++) {
+  for(const char *kind="acstm";*kind;kind++) {
     if(music_favorite_path(id,*kind,path))continue;
     unlink(path);
     snprintf(temporary,sizeof(temporary),"%s.tmp",path);unlink(temporary);

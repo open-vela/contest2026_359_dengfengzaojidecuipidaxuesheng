@@ -12,6 +12,8 @@ bool glass_pinyin_candidate(unsigned index, char *out, size_t capacity);
 bool glass_pinyin_choose(unsigned index, char *out, size_t capacity, unsigned *consumed);
 void glass_pinyin_flush(void);
 void glass_pinyin_close(void);
+/* AI admission may reclaim only an idle decoder; active composition survives. */
+bool glass_pinyin_reclaim_idle(void);
 #ifdef __cplusplus
 }
 #endif

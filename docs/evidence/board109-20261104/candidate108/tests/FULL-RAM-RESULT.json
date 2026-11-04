@@ -1,0 +1,279 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "mib": 16,
+      "clip": 0,
+      "mode": "reference",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 16777216,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": 0,
+          "elapsed_us": 6645653,
+          "peak": 13658973,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 25
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 0,
+          "fp32_fallbacks": 0,
+          "selftests": 0,
+          "selftest_failures": 0,
+          "parallel": 0,
+          "workers": 0,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": "对我做了介绍那么我想说的是大家如果对我的研究感兴趣"
+    },
+    {
+      "mib": 16,
+      "clip": 1,
+      "mode": "reference",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 16777216,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": 0,
+          "elapsed_us": 6232675,
+          "peak": 13658973,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 25
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 0,
+          "fp32_fallbacks": 0,
+          "selftests": 0,
+          "selftest_failures": 0,
+          "parallel": 0,
+          "workers": 0,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": "重点呢想谈三个问题首先就是这一轮全球金融动能的表现"
+    },
+    {
+      "mib": 14,
+      "clip": 0,
+      "mode": "accelerated",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 14680064,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": 0,
+          "elapsed_us": 5608938,
+          "peak": 13845715,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 25
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 73165920,
+          "fp32_fallbacks": 0,
+          "selftests": 1,
+          "selftest_failures": 0,
+          "parallel": 114,
+          "workers": 1,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": "对我做了介绍那么我想说的是大家如果对我的研究感兴趣"
+    },
+    {
+      "mib": 16,
+      "clip": 0,
+      "mode": "accelerated",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 16777216,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": 0,
+          "elapsed_us": 5661961,
+          "peak": 13845715,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 25
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 73165920,
+          "fp32_fallbacks": 0,
+          "selftests": 1,
+          "selftest_failures": 0,
+          "parallel": 114,
+          "workers": 1,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": "对我做了介绍那么我想说的是大家如果对我的研究感兴趣"
+    },
+    {
+      "mib": 18,
+      "clip": 0,
+      "mode": "accelerated",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 18874368,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": 0,
+          "elapsed_us": 5681990,
+          "peak": 13845715,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 25
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 73165920,
+          "fp32_fallbacks": 0,
+          "selftests": 1,
+          "selftest_failures": 0,
+          "parallel": 114,
+          "workers": 1,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": "对我做了介绍那么我想说的是大家如果对我的研究感兴趣"
+    },
+    {
+      "mib": 16,
+      "clip": 1,
+      "mode": "accelerated",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 16777216,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": 0,
+          "elapsed_us": 5278776,
+          "peak": 13845715,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 25
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 69323840,
+          "fp32_fallbacks": 0,
+          "selftests": 1,
+          "selftest_failures": 0,
+          "parallel": 108,
+          "workers": 1,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": "重点呢想谈三个问题首先就是这一轮全球金融动能的表现"
+    },
+    {
+      "mib": 16,
+      "clip": 0,
+      "mode": "cancel",
+      "metrics": {
+        "CACHE": {
+          "reads": 0,
+          "bytes": 0,
+          "budget": 16777216,
+          "cached": 11609444
+        },
+        "RESULT": {
+          "ret": -125,
+          "elapsed_us": 836342,
+          "peak": 13845715,
+          "bytes": 11609444,
+          "reads": 711,
+          "seeks": 3,
+          "tokens": 2
+        },
+        "HOT": {
+          "peak": 0,
+          "hits": 0,
+          "evictions": 0
+        },
+        "ACCEL": {
+          "dots": 10763860,
+          "fp32_fallbacks": 0,
+          "selftests": 1,
+          "selftest_failures": 0,
+          "parallel": 18,
+          "workers": 1,
+          "block_loads": 0,
+          "block_hits": 0,
+          "block_bytes": 0
+        }
+      },
+      "text": ""
+    }
+  ],
+  "scope": "Actual C runtime, published model, ASan/UBSan. Simulated heap budget; board not flashed and no board timing claim."
+}

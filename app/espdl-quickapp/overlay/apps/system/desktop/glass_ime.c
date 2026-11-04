@@ -528,7 +528,7 @@ void glass_ime_attach(lv_obj_t *keyboard, const lv_font_t *font, bool chinese, u
   ime->voice_allowed=true;
 #endif
   ime->keyboard=keyboard; ime->chinese=chinese;
-  glass_pinyin_init(); glass_pinyin_reset();
+  glass_pinyin_reset();
   lv_obj_update_layout(keyboard);
   int width=lv_obj_get_width(keyboard);
   /* A sibling remains visible and touchable above the button matrix. */

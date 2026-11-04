@@ -9,7 +9,8 @@
 extern "C" {
 #endif
 #define GLV_ABI 1
-#define GLV_MEMORY_LIMIT (12u*1024u*1024u)
+#define GLV_MEMORY_LIMIT (16u*1024u*1024u)
+#define GLV_SYSTEM_RESERVE (2u*1024u*1024u)
 #define GLV_MAX_CONTEXT 512
 #define GLV_MAX_REPLY 4096
 #define GLV_MATBATCH_MAX 64u
@@ -21,6 +22,14 @@ enum glv_llm_progress {GLV_LLM_TOKENIZING,GLV_LLM_PREFILL,GLV_LLM_DECODING};
 struct glv_verified_asset;
 struct glv_row_cache;
 struct glv_profile {
+  unsigned llm_w8a8_calls,llm_w8a8_selftests;
+  uint64_t llm_matrix_ticks,llm_quant_ticks,llm_row_ticks,llm_check_ticks,llm_compute_ticks,llm_prepare_ticks;
+  uint64_t llm_fast_rows,llm_checkpoints;
+  unsigned llm_spec_blocks,llm_spec_drafted,llm_spec_accepted,llm_spec_fallbacks,llm_spec_previous,llm_spec_prompt;
+  uint64_t llm_planar_rows,llm_repack_ticks,llm_attn_qk_ticks,llm_attn_softmax_ticks,llm_attn_value_ticks,llm_head_ticks;
+  uint64_t llm_quant_reuses,llm_attention_ticks,llm_norm_ticks,llm_activation_ticks;
+  size_t llm_resident_bytes,llm_kv_bytes;
+  uint64_t llm_w8a8_dots;
   unsigned llm_q8_pie_calls;
   uint64_t llm_q8_pie_dots;
   uint64_t sha_bytes,sha_read_us,sha_compute_us;
@@ -40,8 +49,17 @@ struct glv_profile {
   uint64_t weight_bytes,weight_read_us,weight_seek_us,weight_decode_us,matmul_us;
   uint64_t weight_read_calls,weight_q8_bulk_rows,weight_q8_legacy_rows;
   uint64_t weight_cache_peak_bytes,weight_cache_hits,weight_cache_hit_bytes;
+  uint64_t llm_block_loads,llm_block_hits,llm_block_read_bytes;
+  size_t llm_block_peak_bytes;
+  uint64_t asr_pie_dots,asr_pie_fallbacks,asr_pie_selftests,asr_pie_selftest_failures;
+  uint64_t asr_parallel_jobs,asr_parallel_workers,asr_parallel_fallbacks,asr_parallel_cpu0,asr_parallel_cpu1,asr_parallel_overlap_us;
+  uint64_t asr_block_loads,asr_block_hits,asr_block_bytes,asr_block_peak_bytes;
+  uint64_t asr_io_us,asr_rows_us,asr_quant_us,asr_math_us,asr_conv_us,asr_wait_us;
+  uint64_t asr_encoder_us,asr_decoder_us,asr_joiner_us,asr_front_us,asr_op_us[28];
+  uint64_t asr_hot_peak_bytes,asr_hot_hits,asr_hot_evictions;
+  uint64_t asr_dsp_calls,asr_dsp_elements,asr_dsp_selftests,asr_dsp_fallbacks;
   unsigned verified_reuses;
-  unsigned kv_reused_tokens,prefill_tokens,session_reuses;
+  unsigned kv_reused_tokens,prefill_tokens,session_reuses,llm_kv_retries;
   uint64_t tts_mel_us,tts_vocoder_us;
   unsigned tts_chunks,tts_context_frames,tts_output_frames,tts_memory_fallbacks;
   unsigned tts_window_checks,tts_window_skips,tts_window_attempts,tts_window_failed_frames;
@@ -91,6 +109,11 @@ struct glv_memory {
   bool tts_quant_fast; /* Exact stable W8A16 input quantization. */
   bool tts_short; /* Short clauses, sequential synthesis/playback. */
   bool tts_upsample_pair; /* Exact dual-output FP32 upsample, diagnostic default off. */
+  /* ASR-only, per request. Zero enables the compiled accelerated paths. */
+  bool asr_reference,asr_serial,asr_no_pie,asr_no_blocks,asr_pool_unavailable;
+  int asr_pie_state;
+  int asr_dsp_state;
+  void *asr_pool;
 };
 struct glv_tensor {
   char name[80];uint32_t shape[4],ndim,type,offset,bytes,stride;
@@ -102,10 +125,24 @@ struct glv_model {
   FILE *file;unsigned char *data,*io;
   /* TTS-only opt-in. Other model consumers retain their existing decoder. */
   bool bulk_q8;
+  /* Immutable private resident LLM: descriptor/scales/S8 range checked once. */
+  bool w8a8_validated;
+  /* Private authenticated Q8 rows: aligned codes plane, then scale plane.
+   * One bit per directory entry; partial preparation remains well defined. */
+  unsigned char w8a8_planar[256];
+  void *data_storage;
+  void *w8a8_workspace;
+  const float *w8a8_input;
+  unsigned w8a8_batch,w8a8_columns;
   /* Optional raw rows; owned by this open model, never shared across jobs. */
   struct glv_row_cache *cache,*cache_last;
   const struct glv_tensor *cache_last_tensor;
   size_t cache_bytes;
+  /* LLM-only packed tensor blocks. One owner, reusable buffer, no new math.
+   * KV and activations remain separate and mandatory. No async SD worker. */
+  unsigned char *block_data;
+  size_t block_capacity,block_offset,block_bytes;
+  const struct glv_tensor *block_tensor;
 };
 size_t glv_alloc_charge(size_t);
 void *glv_alloc(struct glv_memory *,size_t);
@@ -122,7 +159,11 @@ void glv_model_close(struct glv_model *);
  * Caller reserves mandatory KV/workspace first. Failure leaves streaming usable. */
 int glv_model_cache_tensor(struct glv_model *,const char *);
 void glv_model_cache_clear(struct glv_model *);
+int glv_model_block_reserve(struct glv_model *,size_t);
+void glv_model_block_select(struct glv_model *,const char *);
+void glv_model_block_release(struct glv_model *);
 const struct glv_tensor *glv_tensor(struct glv_model *,const char *);
+bool glv_model_q8_planar(const struct glv_model *,const struct glv_tensor *);
 int glv_tensor_row(struct glv_model *,const struct glv_tensor *,unsigned,float *,unsigned);
 /* Complete, still-packed Q4 row; shares cache, cancellation and IO accounting. */
 int glv_tensor_q4_packed(struct glv_model *,const struct glv_tensor *,unsigned,void *,size_t);

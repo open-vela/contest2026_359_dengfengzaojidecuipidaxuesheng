@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "household_actions": false,
+  "heap_before": "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968    7310496   18117472   18128280   17943824   4292     12 Umem\n     110032      61976      48056      65024      46920    268      5 Kmem\nnsh> \u001b[K",
+  "full_weights_before_cancel": 11609444,
+  "during": {
+    "request": 3,
+    "phase": 11,
+    "busy": 1,
+    "ready": 0,
+    "asr": 0,
+    "local_wake": 1,
+    "enabled": 1,
+    "pending": 0,
+    "error": 0,
+    "model_error": 0,
+    "peak": 12901129,
+    "elapsed_ms": 31510,
+    "first_token_ms": 0,
+    "first_audio_ms": 0,
+    "tokens": 0
+  },
+  "heap_during": "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   17920328    7507640   18128280    6501280   4055     59 Umem\n     110032      61272      48760      65024      46920    259      8 Kmem\nnsh> \u001b[K",
+  "after": {
+    "request": 3,
+    "phase": 0,
+    "busy": 0,
+    "ready": 0,
+    "asr": 0,
+    "local_wake": 1,
+    "enabled": 1,
+    "pending": 0,
+    "error": -125,
+    "model_error": 0,
+    "peak": 13366311,
+    "elapsed_ms": 32910,
+    "first_token_ms": 0,
+    "first_audio_ms": 0,
+    "tokens": 0
+  },
+  "heap_after": "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968    7284096   18143872   18128280   17943824   4104     27 Umem\n     110032      64440      45592      65432      43752    275     13 Kmem\nnsh> \u001b[K",
+  "freed_since_running_bytes": 10636232
+}

@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "assets": 75,
+  "random_slices": 3000,
+  "lz4_fuzz": 10000,
+  "faults": [
+    "magic",
+    "index",
+    "data",
+    "truncate",
+    "missing"
+  ],
+  "scope": "Actual C material loader, real SD package on host, no board timing or device writes"
+}

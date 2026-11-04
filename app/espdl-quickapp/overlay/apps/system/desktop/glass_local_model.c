@@ -38,7 +38,7 @@ void *glv_alloc(struct glv_memory *m,size_t n)
   if(m->used>m->limit||total>m->limit-m->used)return NULL;
 #ifdef __NuttX__
   struct mallinfo mi=mallinfo();
-  if((size_t)mi.fordblks<total+4u*1024u*1024u)return NULL;
+  if((size_t)mi.fordblks<total+GLV_SYSTEM_RESERVE)return NULL;
 #endif
   union glv_header *p=calloc(1,total);if(!p)return NULL;
   p->allocation.size=total;p->allocation.owner=m;m->used+=total;
@@ -102,9 +102,10 @@ static int verified_take(struct glv_model *model,const char *path,const unsigned
 }
 void glv_model_close(struct glv_model *m)
 {
+  glv_model_block_release(m);
   glv_model_cache_clear(m);
   if(m->file)fclose(m->file);
-  glv_free(m->io);glv_free(m->data);glv_free(m->tensors);memset(m,0,sizeof(*m));
+  glv_free(m->io);glv_free(m->data_storage?m->data_storage:m->data);glv_free(m->w8a8_workspace);glv_free(m->tensors);memset(m,0,sizeof(*m));
 }
 int glv_model_open(struct glv_model *m,const char *root,struct glv_memory *memory,bool resident)
 {
@@ -152,13 +153,22 @@ int glv_model_open(struct glv_model *m,const char *root,struct glv_memory *memor
   }
   size=m->bytes;
   if(resident){
-    m->data=glv_alloc(memory,size);if(!m->data){ret=-ENOMEM;goto done;}
+    m->data_storage=glv_alloc(memory,size+15u);if(!m->data_storage){ret=-ENOMEM;goto done;}
+    m->data=(unsigned char *)(((uintptr_t)m->data_storage+15u)&~(uintptr_t)15u);
     for(size_t at=0;at<size;){
       if((ret=glv_cancel(memory)))goto done;
       size_t n=size-at;if(n>16384)n=16384;
       if((ret=glv_read_exact(m->file,m->data+at,n)))goto done;at+=n;
     }
+    unsigned char resident_digest[32];
+    ret=glv_sha_buffer(m->data,size,resident_digest,memory);
+    if(ret)goto done;
+    if(memcmp(resident_digest,h+16,32)){ret=-EBADMSG;goto done;}
     fclose(m->file);m->file=NULL;
+    /* The transferred stdio buffer is no longer needed once bytes reside. */
+    glv_free(m->io);m->io=NULL;
+    memory->profile.llm_resident_bytes=size;
+    printf("LOCAL_RESIDENT bytes=%lu verified=1 file_closed=1\n",(unsigned long)size);
   }
   if(memory->tts_int8)memcpy(memory->tts_base_digest,h+16,32);
   ret=0;
@@ -200,6 +210,60 @@ int glv_model_cache_tensor(struct glv_model *m,const char *name)
     m->memory->profile.weight_cache_peak_bytes=m->cache_bytes;
   m->cache_last_tensor=NULL;m->cache_last=NULL;return 0;
 }
+/* Synchronous bounded queue: packed block -> compute -> invalidate -> reuse.
+ * Persistent complete-row cache wins first, so already cached rows are never
+ * reread just to populate the transient block. Failure/cancellation never
+ * publishes a partially read block and never retries an I/O operation. */
+int glv_model_block_reserve(struct glv_model *m,size_t bytes)
+{
+ if(!m||!m->memory||m->data||!bytes||bytes>256u*1024u)return -EINVAL;
+ if(m->block_data)return 0;
+ m->block_data=glv_alloc(m->memory,bytes);if(!m->block_data)return -ENOMEM;
+ m->block_capacity=bytes;m->block_bytes=0;m->block_tensor=NULL;
+ if(bytes>m->memory->profile.llm_block_peak_bytes)m->memory->profile.llm_block_peak_bytes=bytes;
+ return 0;
+}
+void glv_model_block_select(struct glv_model *m,const char *name)
+{
+ if(!m)return;
+ m->block_bytes=0;m->block_tensor=m->block_data&&name?glv_tensor(m,name):NULL;
+}
+void glv_model_block_release(struct glv_model *m)
+{
+ if(!m)return;glv_free(m->block_data);m->block_data=NULL;
+ m->block_capacity=m->block_offset=m->block_bytes=0;m->block_tensor=NULL;
+}
+static int block_read(struct glv_model *m,size_t offset,void *out,size_t bytes)
+{
+ const struct glv_tensor *t=m->block_tensor;
+ if(!m->block_data||!t||!t->stride||offset<t->offset||offset-t->offset>=t->bytes||bytes>t->bytes-(offset-t->offset)||bytes>m->block_capacity)return 0;
+ if(m->block_bytes&&offset>=m->block_offset&&offset-m->block_offset<=m->block_bytes&&bytes<=m->block_bytes-(offset-m->block_offset)){
+  memcpy(out,m->block_data+offset-m->block_offset,bytes);m->memory->profile.llm_block_hits++;return 1;
+ }
+ /* Whole packed rows, starting at the requested row. The final tile can be
+  * shorter; tensor bounds and the original row decoder still validate it. */
+ size_t relative=(offset-t->offset)/t->stride*t->stride;
+ size_t count=m->block_capacity/t->stride*t->stride;
+ if(count>t->bytes-relative)count=t->bytes-relative;
+ if(!count||offset-(t->offset+relative)>count||bytes>count-(offset-(t->offset+relative)))return 0;
+ m->block_bytes=0;size_t start=t->offset+relative;
+ if(m->cursor!=start){uint64_t began=glv_now_us();int ret=fseek(m->file,(long)start,SEEK_SET);m->memory->profile.weight_seek_us+=glv_now_us()-began;if(ret){m->cursor=SIZE_MAX;return -EIO;}}
+ for(size_t at=0;at<count;){
+  int ret=glv_cancel(m->memory);if(ret){m->cursor=SIZE_MAX;return ret;}
+  /* At most 64 KiB between cancellation/media checks; each tile is read
+   * into its final buffer rather than issuing one stdio call per row. */
+  size_t n=count-at;if(n>65536u)n=65536u;
+  uint64_t began=glv_now_us();m->memory->profile.weight_read_calls++;
+  ret=glv_read_exact(m->file,m->block_data+at,n);
+  m->memory->profile.weight_read_us+=glv_now_us()-began;
+  if(ret){m->cursor=SIZE_MAX;return ret;}
+  m->memory->profile.weight_bytes+=n;m->memory->profile.llm_block_read_bytes+=n;at+=n;
+ }
+ m->cursor=start+count;
+ int ret=glv_cancel(m->memory);if(ret){m->cursor=SIZE_MAX;return ret;}
+ m->block_offset=start;m->block_bytes=count;m->memory->profile.llm_block_loads++;
+ memcpy(out,m->block_data+offset-start,bytes);return 1;
+}
 static struct glv_row_cache *row_cache(struct glv_model *m,const struct glv_tensor *t)
 {
   if(m->cache_last_tensor==t)return m->cache_last;
@@ -221,6 +285,12 @@ static int tensor_bytes(struct glv_model *m,struct glv_row_cache *cache,unsigned
     memcpy(out,cache->contents+row*bytes,bytes);
     m->memory->profile.weight_cache_hits++;m->memory->profile.weight_cache_hit_bytes+=bytes;return 0;
   }
+  int staged=block_read(m,offset,out,bytes);
+  if(staged<0)return staged;
+  if(staged){
+    if(eligible){memcpy(cache->contents+row*bytes,out,bytes);valid[row/8]|=1u<<(row%8);}
+    return 0;
+  }
   if(m->cursor!=offset){uint64_t began=glv_now_us();int seek=fseek(m->file,(long)offset,SEEK_SET);
     m->memory->profile.weight_seek_us+=glv_now_us()-began;if(seek){m->cursor=SIZE_MAX;return -EIO;}}
   uint64_t began=glv_now_us();m->memory->profile.weight_read_calls++;ret=glv_read_exact(m->file,out,bytes);
@@ -229,6 +299,13 @@ static int tensor_bytes(struct glv_model *m,struct glv_row_cache *cache,unsigned
     m->cursor=offset+bytes;m->memory->profile.weight_bytes+=bytes;
     if(eligible){memcpy(cache->contents+row*bytes,out,bytes);valid[row/8]|=1u<<(row%8);}
   }else m->cursor=SIZE_MAX;return ret;
+}
+bool glv_model_q8_planar(const struct glv_model *m,const struct glv_tensor *t)
+{
+ if(!m||!m->data||!t||!m->tensors)return false;
+ uintptr_t offset=(uintptr_t)t-(uintptr_t)m->tensors;
+ if(offset%sizeof(*t)||offset/sizeof(*t)>=m->count||m->count>2048)return false;
+ unsigned i=(unsigned)(offset/sizeof(*t));return (m->w8a8_planar[i/8]>>(i%8))&1u;
 }
 int glv_tensor_row(struct glv_model *m,const struct glv_tensor *t,unsigned row,float *out,unsigned count)
 {
@@ -252,6 +329,15 @@ int glv_tensor_row(struct glv_model *m,const struct glv_tensor *t,unsigned row,f
         for(unsigned j=0;j<32;j++){int v=(block[4+j/2]>>((j%2)*4))&15;if(v>=8)v-=16;out[i+g*32+j]=scale*v;}
       }i+=groups*32;
     }
+  }else if(glv_model_q8_planar(m,t)){
+    if((ret=glv_cancel(m->memory)))return ret;
+    if(t->offset>m->bytes||t->bytes>m->bytes-t->offset||t->bytes!=(size_t)rows*(count+4u))return -EBADMSG;
+    const unsigned char *base=m->data+t->offset;
+    float scale=*(const float *)(base+(size_t)rows*count+row*4u);
+    if(!glv_finite(scale)||scale<=0)return -EBADMSG;
+    const int8_t *codes=(const int8_t *)base+(size_t)row*count;
+    for(unsigned i=0;i<count;i++)out[i]=scale*codes[i];
+    m->memory->profile.weight_q8_bulk_rows++;
   }else if(m->bulk_q8&&count>=2&&count<=4092){
     /* The packed row fits in the caller's float output. Read into its tail,
      * save the scale, then expand forward. Quant byte i is at 3*count+i;
@@ -304,7 +390,15 @@ int glv_tensor_q8_packed(struct glv_model *m,const struct glv_tensor *t,unsigned
   size_t offset=t->offset+(size_t)row*t->stride;unsigned char *raw=packed;
   struct glv_row_cache *cache=row_cache(m,t);int ret;
   uint64_t began=glv_now_us(),io=m->memory->profile.weight_read_us+m->memory->profile.weight_seek_us;
-  if(m->bulk_q8&&count>=2&&count<=4092){
+  if(glv_model_q8_planar(m,t)){
+    if((ret=glv_cancel(m->memory)))return ret;
+    if(t->offset>m->bytes||t->bytes>m->bytes-t->offset||t->bytes!=(size_t)rows*(count+4u))return -EBADMSG;
+    const unsigned char *base=m->data+t->offset;
+    memcpy(raw,base+(size_t)rows*count+row*4u,4);
+    memcpy(raw+4,base+(size_t)row*count,count);
+    float scale;memcpy(&scale,raw,4);if(!glv_finite(scale)||scale<=0)return -EBADMSG;
+    m->memory->profile.weight_q8_bulk_rows++;
+  }else if(m->bulk_q8&&count>=2&&count<=4092){
     ret=tensor_bytes(m,cache,row,offset,raw,(size_t)count+4u);if(ret)return ret;
     float scale;memcpy(&scale,raw,4);if(!glv_finite(scale)||scale<=0)return -EBADMSG;
     m->memory->profile.weight_q8_bulk_rows++;

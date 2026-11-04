@@ -4,10 +4,22 @@ This file records the third-party source material used by the ESP32-P4
 overlay. It does not replace the license files shipped by the corresponding
 upstream projects.
 
+## ESP-DSP ASR vector subset (candidate101)
+
+- Upstream: https://github.com/espressif/esp-dsp at
+  `3c8ac0fdfec83740b783e200862c8d0c056de0ad`, Apache-2.0.
+- Original C float add/sub/mul kernels and their headers are retained without
+  byte changes in `app/espdl-quickapp/experimental/esp_dsp/`; `UPSTREAM.json`
+  records SHA256 and Git blob IDs, and the upstream `LICENSE` is included.
+- Private NuttX compatibility headers and the bounded broadcast adapter are
+  repository-native changes. Compiler symbol prefixes prevent collisions
+  with existing speech libraries. No model requantization, HWLP backend or
+  ESP-IDF/FreeRTOS replacement is introduced.
+
 ## Google Material Symbols Rounded
 
 - Source: https://github.com/google/material-design-icons, revision `10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7`.
-- 113 symbols, outlined and filled variants (226 SVGs); Apache License 2.0.
+- 121 symbols, outlined and filled variants (242 SVGs); Apache License 2.0.
 - Original SVGs, license and per-file SHA-256 records: `materials/material-symbols/`.
 - Adaptations: normalized 24-unit geometry, compound-path component grouping,
   two-color active states, finite state-triggered LVGL animations, and six raster sizes.
@@ -219,7 +231,8 @@ separately from this P1 provenance record.
   that provenance, original model README and Apache license text.
 - Independent C fbank and greedy-search implementations follow the documented
   behavior of kaldi-native-fbank and sherpa-onnx (Apache-2.0, Xiaomi Corporation
-  and Kaldi authors). No upstream implementation source is vendored into this
-  runtime. Host comparison uses kaldi-native-fbank 1.22.5 and sherpa-onnx 2.0.1;
+  and Kaldi authors). No upstream ASR/fbank implementation source is vendored;
+  the separately listed DSP vector kernels are the exception for generic math.
+  Host comparison uses kaldi-native-fbank 1.22.5 and sherpa-onnx 2.0.1;
   their native runtime libraries are host-only reference dependencies, not
   firmware components. Reference links are in experimental/ASR-SOURCES.txt.

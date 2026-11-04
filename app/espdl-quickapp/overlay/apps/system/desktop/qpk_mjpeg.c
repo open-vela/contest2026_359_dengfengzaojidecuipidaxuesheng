@@ -26,6 +26,7 @@ struct mjpeg_decoder
   unsigned column_capacity;
   unsigned preview_width, preview_height;
   unsigned stride, height, width;
+  bool software_only;
 };
 void *qpk_mjpeg_create(void) { return calloc(1, sizeof(struct mjpeg_decoder)); }
 void qpk_mjpeg_destroy(void *decoder)
@@ -150,10 +151,10 @@ static int jpeg_decode_pixels(void *decoder, const uint8_t *input, size_t size,
    * retain their existing decoder and sampling policy. Unsupported streams
    * and hardware failures fall through to the software decoder.
    */
-  if (direct && scale == 0 &&
+  if (!d->software_only && direct && scale == 0 &&
       qpk_jpeg_hw_decode(input, size, output, width, height, stride) == 0)
     return 0;
-  if ((!direct || scale > 0) && !view_width && (!view || !view->style))
+  if (!d->software_only && (!direct || scale > 0) && !view_width && (!view || !view->style))
     {
       unsigned fw = width;
       unsigned fh = (uint64_t)expected_height * width / expected_width;
@@ -320,4 +321,13 @@ int qpk_mjpeg_decode(void *decoder, uint8_t *input, size_t size, size_t capacity
 {
   return qpk_mjpeg_decode_region(decoder,input,size,capacity,output,width,height,width,
                                  expected_width,expected_height);
+}
+int qpk_mjpeg_decode_software(void *decoder,uint8_t *input,size_t size,size_t capacity,
+                              uint16_t *output,unsigned width,unsigned height,
+                              unsigned expected_width,unsigned expected_height)
+{
+  if(!decoder)return -EINVAL;
+  struct mjpeg_decoder *d=decoder;bool prior=d->software_only;d->software_only=true;
+  int ret=qpk_mjpeg_decode(decoder,input,size,capacity,output,width,height,expected_width,expected_height);
+  d->software_only=prior;return ret;
 }

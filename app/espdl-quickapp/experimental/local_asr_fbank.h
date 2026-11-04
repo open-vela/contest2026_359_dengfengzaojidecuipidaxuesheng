@@ -14,6 +14,9 @@ int glv_asr_fbank_create(struct glv_asr_fbank **,struct glv_memory *);
 void glv_asr_fbank_destroy(struct glv_asr_fbank *);
 int glv_asr_fbank_pcm(struct glv_asr_fbank *,const int16_t *,size_t,size_t,
                        int (*)(void *,const float *,unsigned),void *);
+int glv_asr_fbank_stream_begin(struct glv_asr_fbank *);
+int glv_asr_fbank_stream_accept(struct glv_asr_fbank *,const int16_t *,size_t,int (*)(void *,const float *,unsigned),void *);
+int glv_asr_fbank_stream_finish(struct glv_asr_fbank *,size_t,int (*)(void *,const float *,unsigned),void *);
 #ifdef __cplusplus
 }
 #endif

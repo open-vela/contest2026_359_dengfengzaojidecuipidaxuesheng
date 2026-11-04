@@ -2,6 +2,9 @@
 #include "glass_portal.h"
 #include "glass_agent.h"
 #include "glass_ai_config.h"
+#ifdef GLASS_LOCAL_CONTROL
+#include "glass_local_control.h"
+#endif
 #include "qpk_storage.h"
 #include <nuttx/config.h>
 #include "../hass/hass_config_validate.h"
@@ -22,7 +25,7 @@ static bool desktop_dirty;
 static bool config_section_valid(const char *section)
 {
   return section&&(!strcmp(section,"ai")||!strcmp(section,"homeassistant")||!strcmp(section,"music")||
-    !strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"desktop"));
+    !strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"desktop")||!strcmp(section,"localcontrol"));
 }
 static cJSON *load(const char *section)
 {
@@ -67,6 +70,7 @@ static cJSON *defaults(const char *section)
     default_string(o,"app_id",""); default_string(o,"secret_id","");
     default_string(o,"secret_key","");
   }
+  else if(!strcmp(section,"localcontrol"))default_string(o,"catalog","");
   else if(!strcmp(section,"agent")) {
     if(!cJSON_GetObjectItemCaseSensitive(o,"home_control_enabled"))cJSON_AddNumberToObject(o,"home_control_enabled",0);
     if(!cJSON_GetObjectItemCaseSensitive(o,"skills_enabled"))cJSON_AddNumberToObject(o,"skills_enabled",1);
@@ -125,6 +129,15 @@ static int config_save(const char *section,const cJSON *patch)
   for(const cJSON *v=patch->child;v;v=v->next) {
     if(!v->string) goto done;
     for(const cJSON *next=v->next;next;next=next->next) if(!strcmp(next->string,v->string)) goto done;
+    if(!strcmp(section,"localcontrol")){
+#ifdef GLASS_LOCAL_CONTROL
+      if(strcmp(v->string,"catalog")||!cJSON_IsString(v)||glc_catalog_valid(v->valuestring))goto done;
+      cJSON *copy=cJSON_Duplicate(v,true);if(!copy){ret=-ENOMEM;goto done;}
+      cJSON_DeleteItemFromObjectCaseSensitive(o,"catalog");cJSON_AddItemToObject(o,"catalog",copy);continue;
+#else
+      ret=-ENOTSUP;goto done;
+#endif
+    }
     if(!strcmp(section,"agent")){
       if(!glass_agent_value_valid(v->string,v))goto done;
       cJSON *copy=cJSON_Duplicate(v,true);if(!copy){ret=-ENOMEM;goto done;}
@@ -195,7 +208,7 @@ done:
 int portal_config_save(const char *section,const cJSON *patch)
 {
   if(!config_section_valid(section)||!cJSON_IsObject(patch))return -EINVAL;
-  bool ai=!strcmp(section,"ai")||!strcmp(section,"voice")||!strcmp(section,"agent");
+  bool ai=!strcmp(section,"ai")||!strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"localcontrol");
   if(ai){int ret=glass_ai_config_begin(10000);if(ret)return ret;}
   int ret=config_save(section,patch);
   if(ai)glass_ai_config_end();

@@ -1,0 +1,72 @@
+{
+  "model": "User-selected unchanged old Q4/Q8 Zipformer14M",
+  "root": "/sdcard/local-voice/models/zipformer14m-q48-ram-20261104",
+  "weight_bytes": 11609444,
+  "files": [
+    {
+      "path": "checks/0.wav",
+      "sha256": "668bf8df51a10027b84d5d8816a1ce11ae93545538dc05cfe2aa6811d399c250",
+      "bytes": 179646
+    },
+    {
+      "path": "checks/1.wav",
+      "sha256": "30edbabea84ca4c076f5b43bb44495f436f6711319c32a200d3fc5c67c1fee1d",
+      "bytes": 164976
+    },
+    {
+      "path": "decoder-epoch-99-avg-1.data",
+      "sha256": "c1c6732dd845c83ab958dcb91c75c7255dc0ae01f456581cb94874d297f2c402",
+      "bytes": 2121328
+    },
+    {
+      "path": "decoder-epoch-99-avg-1.plan",
+      "sha256": "f48fb93028754b4ca56715e2487aee14cddbf646bb348f42b1a29aa3714643fc",
+      "bytes": 2560
+    },
+    {
+      "path": "encoder-epoch-99-avg-1.data",
+      "sha256": "b45438b250f8e42667ad284d71ef17898bc1a3640198968048c16c93b0305cd3",
+      "bytes": 7472640
+    },
+    {
+      "path": "encoder-epoch-99-avg-1.plan",
+      "sha256": "87eb45cb523373ddf77579df9846cd2d568d34d3227cbd8eb921eb460e4b95a5",
+      "bytes": 502616
+    },
+    {
+      "path": "joiner-epoch-99-avg-1.data",
+      "sha256": "eb1f9735c4123f35d5961f112c54523678a93d45f5d4a1f73f623955b2e96851",
+      "bytes": 2015476
+    },
+    {
+      "path": "joiner-epoch-99-avg-1.plan",
+      "sha256": "e2810ec8b6db2401d93ec42bc3682286f822bb254e1d07bdfde12b576f553954",
+      "bytes": 1172
+    },
+    {
+      "path": "manifest.bin",
+      "sha256": "4ffe2906892e0cfc46c9c1eb9a5af2edc76900c9d5815901be0c6ebbbe40ff8b",
+      "bytes": 1468
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "c07d7bb0dd2d4ef75450f28bd4b7b5a632f1d982834072d0777ea1f916b027ea",
+      "bytes": 2395
+    },
+    {
+      "path": "notices/Apache-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "path": "notices/model-README.md",
+      "sha256": "515751f07faad368f0863ae41773ff09635eba5920122d549abb8e45d5c88282",
+      "bytes": 226
+    },
+    {
+      "path": "tokens.bin",
+      "sha256": "44533b617e7d6fd5e1fdc0915a336d404c48d0ea03528020e6270414b3043118",
+      "bytes": 38769
+    }
+  ]
+}

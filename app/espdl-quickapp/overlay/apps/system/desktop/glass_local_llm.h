@@ -6,6 +6,10 @@ struct glv_llm;
 typedef int (*glv_text_sink)(void *,const char *,unsigned);
 int glv_llm_open(const char *,struct glv_memory *,struct glv_llm **);
 void glv_llm_close(struct glv_llm *);
+/* Owner worker only: discard optional token state, retain authenticated INT8. */
+size_t glv_llm_trim_kv(struct glv_llm *);
+size_t glv_llm_resident_bytes(const struct glv_llm *);
+size_t glv_llm_kv_bytes(const struct glv_llm *);
 int glv_llm_forward(struct glv_llm *,int,float *);
 int glv_llm_prefill(struct glv_llm *,const int *,unsigned,float *);
 int glv_llm_generate(struct glv_llm *,const char *,unsigned,char *,size_t,glv_text_sink,void *);

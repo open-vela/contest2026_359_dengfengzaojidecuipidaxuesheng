@@ -938,3 +938,27 @@ static char *home_call(const char *tool,const cJSON *args,atomic_bool *cancel)
 
 static const struct glass_board_home home_binding = { home_tool_catalog, home_call };
 void glass_board_home_register(void) { glass_agent_set_board_home(&home_binding); }
+
+/* Local offline model uses the very same typed service/capability/readback
+ * path. The revision was captured BEFORE model generation, and reaches
+ * checked transport submission; a late HA configuration swap cannot retarget
+ * an accepted request. No new MCP permission or arbitrary-service API. */
+uint32_t glass_board_home_revision(void *opaque)
+{(void)opaque;return hass_configuration_revision();}
+char *glass_board_home_local_checked(void *opaque,const char *method,const char *entity,bool on,uint32_t revision,atomic_bool *cancel)
+{
+ (void)opaque;
+ if(!method||!entity||!home_entity_valid(entity)||strncmp(entity,"light.",6))return home_error("invalid_arguments");
+ cJSON *args=cJSON_CreateObject();if(!args)return NULL;cJSON_AddStringToObject(args,"entity",entity);char *out=NULL;
+ if(!strcmp(method,"home_state"))out=home_state_at(args,cancel,revision);
+ else if(!strcmp(method,"home_power")){
+  cJSON *config=NULL;int loaded=portal_agent_load(&config);const cJSON *enabled=cJSON_GetObjectItemCaseSensitive(config,"home_control_enabled");
+  bool allowed=!loaded&&cJSON_IsNumber(enabled)&&enabled->valuedouble==1;cJSON_Delete(config);
+  if(!allowed)out=home_error("home_control_disabled");
+  else{
+   cJSON_AddStringToObject(args,"service",on?"turn_on":"turn_off");cJSON_AddObjectToObject(args,"arguments");
+   out=home_service_at(args,cancel,revision);
+  }
+ }else out=home_error("invalid_arguments");
+ cJSON_Delete(args);return out;
+}

@@ -18,6 +18,7 @@ int glv_asr_graph_open(struct glv_asr_graph **,const char *,struct glv_memory *)
 void glv_asr_graph_close(struct glv_asr_graph *);
 int glv_asr_graph_run(struct glv_asr_graph *,const struct glv_asr_io *,unsigned,
                        const struct glv_asr_io *,unsigned);
+int glv_asr_graph_exchange(struct glv_asr_graph *,struct glv_asr_io *,unsigned,struct glv_asr_io *,unsigned);
 unsigned glv_asr_graph_inputs(const struct glv_asr_graph *);
 unsigned glv_asr_graph_outputs(const struct glv_asr_graph *);
 /* Last node index is diagnostic only and never a continuation/retry token. */
@@ -28,6 +29,12 @@ void glv_asr_graph_io_statistics(const struct glv_asr_graph *,struct glv_asr_io_
 /* Optional packed-data cache, worker-owned and fully counted. Keeps weights
  * external on SD; only the bounded selected graph is copied to PSRAM. */
 int glv_asr_graph_cache(struct glv_asr_graph *,size_t);
+/* Required full packed residency; verified RAM, closes backing file. */
+int glv_asr_graph_make_resident(struct glv_asr_graph *);
+/* Optional prefix cache, <=6MiB, budget-sized and evictable for scratch. */
+int glv_asr_graph_hot_prefix(struct glv_asr_graph *,size_t);
+/* Owner-only, before inference; 0 disables optional prefetch. Max 1 MiB. */
+int glv_asr_graph_block_limit(struct glv_asr_graph *,size_t);
 size_t glv_asr_graph_cached_bytes(const struct glv_asr_graph *);
 #ifdef __cplusplus
 }

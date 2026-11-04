@@ -1,0 +1,42 @@
+{
+  "mode": "built-in image_gen",
+  "runtime": "one bounded RGB565 decode on page entry; no SD dependency; full-resolution JPEGs also retained",
+  "assets": [
+    {
+      "name": "01-morning",
+      "embedded_width": 512,
+      "embedded_height": 300,
+      "display_width": 1024,
+      "display_height": 600,
+      "embedded_bytes": 3203,
+      "sha256": "62263853c4692147ed7350b41473c9400e47b98dad35a85fb194c254a4d9ceb1"
+    },
+    {
+      "name": "02-dusk",
+      "embedded_width": 512,
+      "embedded_height": 300,
+      "display_width": 1024,
+      "display_height": 600,
+      "embedded_bytes": 5124,
+      "sha256": "918419c376535308b49aaddc2bfb695eb25bb94a44147196f3628b7966a93c81"
+    },
+    {
+      "name": "03-sky",
+      "embedded_width": 512,
+      "embedded_height": 300,
+      "display_width": 1024,
+      "display_height": 600,
+      "embedded_bytes": 3481,
+      "sha256": "8dd88f436182ffceb3e70146c72870d142c67757f7cb511809c369144b6ba075"
+    },
+    {
+      "name": "04-hills",
+      "embedded_width": 512,
+      "embedded_height": 300,
+      "display_width": 1024,
+      "display_height": 600,
+      "embedded_bytes": 3844,
+      "sha256": "237d27220cc49822ff1594fc89a9346e0c6f36ffbb2a337d59213783d619f2e9"
+    }
+  ]
+}

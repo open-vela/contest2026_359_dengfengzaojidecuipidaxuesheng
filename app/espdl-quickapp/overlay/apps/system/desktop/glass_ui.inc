@@ -1035,7 +1035,7 @@ static void glass_apps_render(void)
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 glass_tr("网络直播"), glass_tr("相册"),
 #endif
-glass_tr("ESPClaw AI 助手"), glass_tr("相机"), glass_tr("音乐"), glass_tr("录音机"), glass_tr("智能家居"), glass_tr("无线触摸板"), "Grok Ball", "2048", glass_tr("你好快应用"), glass_tr("ESP-DL 离线识别"), glass_tr("大肥鱼桌宠"), glass_tr("文件管理"), glass_tr("本地语音")};
+glass_tr("ESPClaw AI 助手"), glass_tr("相机"), glass_tr("音乐"), glass_tr("录音机"), glass_tr("智能家居"), glass_tr("无线触摸板"), glass_tr("海鸥表情"), "2048", glass_tr("你好快应用"), glass_tr("ESP-DL 离线识别"), glass_tr("海鸥桌宠"), glass_tr("文件管理"), glass_tr("本地语音")};
   const char *symbols[] = {
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
 LV_SYMBOL_VIDEO, LV_SYMBOL_IMAGE,
@@ -1356,26 +1356,29 @@ static void desktop_ui_create(void)
     printf("desktop: HA service configuration unavailable (%d)\n",
            -hass_bootstrap);
 #endif
-  g_desktop.font16 = lv_tiny_ttf_create_data_ex(g_desktop_font_start, size,
+  g_desktop.font16 = glass_material_font_create(g_desktop_font_start, size,
     16, LV_FONT_KERNING_NORMAL, DESKTOP_FONT_CACHE_GLYPHS);
-  g_desktop.font20 = lv_tiny_ttf_create_data_ex(g_desktop_font_start, size,
+  g_desktop.font20 = glass_material_font_create(g_desktop_font_start, size,
     20, LV_FONT_KERNING_NORMAL, DESKTOP_FONT_CACHE_GLYPHS);
-  g_desktop.font28 = lv_tiny_ttf_create_data_ex(g_desktop_font_start, size,
+  g_desktop.font28 = glass_material_font_create(g_desktop_font_start, size,
     28, LV_FONT_KERNING_NORMAL, DESKTOP_FONT_CACHE_GLYPHS);
-  g_glass.font72 = lv_tiny_ttf_create_data_ex(g_desktop_font_start, size,
+  g_glass.font72 = glass_material_font_create(g_desktop_font_start, size,
     128, LV_FONT_KERNING_NORMAL, 24);
-  g_glass.font48 = lv_tiny_ttf_create_data_ex(g_desktop_font_start, size,
+  g_glass.font48 = glass_material_font_create(g_desktop_font_start, size,
     48, LV_FONT_KERNING_NORMAL, 24);
   /* The home temperature face above is 128 px despite its historical name.
    * Lyrics need their own actual 72 px face for measurement and clipping. */
-  g_glass.music_font72 = lv_tiny_ttf_create_data_ex(g_desktop_font_start, size,
+  g_glass.music_font72 = glass_material_font_create(g_desktop_font_start, size,
     72, LV_FONT_KERNING_NORMAL, 24);
   glass_home_fonts_init(g_desktop_font_start, size);
   if (g_desktop.font16) g_desktop.font16->fallback = glass_icon_font(16);
   if (g_desktop.font20) g_desktop.font20->fallback = glass_icon_font(20);
   if (g_desktop.font28) g_desktop.font28->fallback = glass_icon_font(24);
   glass_global_fonts_init();
+  /* Optional full font checks start after the first frame and early NSH. */
+#ifdef GLASS_HOST_TEST
   glass_sd_font_start();
+#endif
   glass_i18n_start();
   g_desktop.screen = glass_box(lv_screen_active(), 0, GLASS_STATUS_HEIGHT,
                                 1024, GLASS_CONTENT_HEIGHT, theme_card(), 0);
@@ -1397,6 +1400,7 @@ static void desktop_ui_create(void)
   pet_engine_init(lv_obj_get_width(g_desktop.screen),
                   lv_obj_get_height(g_desktop.screen));
   pet_engine_set_weather_cb(pet_fill_weather);
+  pet_engine_set_visible(false);
   if (pet_lvgl_create(g_desktop.screen, zh_font(16)) < 0)
     {
       printf("desktop: pet overlay skipped\n");

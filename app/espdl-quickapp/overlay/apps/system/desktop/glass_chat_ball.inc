@@ -471,7 +471,7 @@ static void chat_ball_create(lv_obj_t *card)
   g_chat_ui.ball_mount=glass_box(card,332,56,360,360,g_chat_ui.background,0);
   lv_obj_remove_flag(g_chat_ui.ball_mount,LV_OBJ_FLAG_SCROLLABLE);
   g_chat_ui.ball=glass_grok_create_sprite(g_chat_ui.ball_mount,0,0,360,360,220,!g_desktop.light_theme,zh_font);
-  glass_grok_set_notice_text(g_chat_ui.ball,glass_tr("加载小球…"),glass_tr("小球素材未就绪"));
+  glass_grok_set_notice_text(g_chat_ui.ball,glass_tr("加载海鸥…"),glass_tr("海鸥素材未就绪"));
   glass_grok_set_ambient(g_chat_ui.ball,true);
   glass_grok_set_reduced_motion(g_chat_ui.ball,g_glass.reduced_motion);
   if(!glass_grok_gaze(g_chat_ui.ball,0,0))show_toast(glass_tr("正视素材内存不足"));

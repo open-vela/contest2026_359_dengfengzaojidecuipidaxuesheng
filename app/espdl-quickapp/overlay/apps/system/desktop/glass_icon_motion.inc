@@ -11,7 +11,10 @@
 struct icon_layer { const lv_image_dsc_t *image; uint16_t flags; uint8_t x,y,delay; uint16_t run_delay; };
 struct icon_symbol { uint16_t code,first; uint8_t count,motion,pivot_x,pivot_y; int8_t dx,dy;
   uint8_t run_kind; uint16_t run_period; uint8_t run_x,run_y; int8_t run_dx,run_dy; uint32_t tint; };
+#include "glass_material.h"
+struct material_mask_source {lv_image_dsc_t image;uint32_t offset,bytes;};
 #include "glass_icon_geometry.inc"
+#include "glass_material_mask.inc"
 struct icon_label { lv_label_t label; uint16_t phase,run_phase;
   uint32_t run_started; bool presented,hovered,pressed,running,run_pending; };
 static const lv_obj_class_t glass_icon_class;
@@ -26,6 +29,7 @@ static void icon_drain(void);
 
 static const struct icon_symbol *icon_lookup(lv_obj_t *obj)
 {
+  material_mask_register();
   const unsigned char *s=(const unsigned char *)lv_label_get_text(obj);
   if(!s||s[0]<0xe0||s[0]>=0xf0||!s[1]||!s[2]||s[3])return NULL;
   unsigned code=((s[0]&15)<<12)|((s[1]&63)<<6)|(s[2]&63);

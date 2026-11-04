@@ -29,3 +29,12 @@ int glv_capture_collect(struct glv_memory *,const struct glv_capture_source *,
  * teardown. Not enabled in the current ASR evaluation firmware. */
 int glv_capture_platform(struct glv_memory *,const struct glv_capture_signals *,
                            const struct glv_capture_options *,int16_t **,size_t *);
+
+typedef int (*glv_capture_consume)(void *,const int16_t *,size_t);
+typedef void (*glv_capture_stream_progress)(void *,bool,unsigned,unsigned);
+/* Bounded 12-second RAM queue of reclaimable pages; consumed pages are freed.
+ * Queue budget is reserved on the owner; private page accounting is locked.
+ * Overflow is terminal, never drops speech.
+ * Consumer runs on caller/ASR owner. Producer retires DMA before join returns. */
+int glv_capture_stream(struct glv_memory *,const struct glv_capture_source *,const struct glv_capture_signals *,const struct glv_capture_options *,glv_capture_consume,void *,glv_capture_stream_progress);
+int glv_capture_platform_stream(struct glv_memory *,const struct glv_capture_signals *,const struct glv_capture_options *,glv_capture_consume,void *,glv_capture_stream_progress);

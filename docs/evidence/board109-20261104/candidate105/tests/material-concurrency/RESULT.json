@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "readers": 3,
+  "slices": 540,
+  "pressure_changes": 120,
+  "scope": "Actual loader concurrent host operations with independent readers and pressure toggler; ASan/UBSan and live blob lease checks"
+}

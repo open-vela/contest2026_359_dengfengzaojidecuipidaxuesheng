@@ -10,6 +10,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include "glass_boot.h"
 #include <limits.h>
 #include <pthread.h>
 #include <sched.h>
@@ -33,6 +34,8 @@
 #endif
 #include <lvgl/lvgl.h>
 #include "glass_ui_visibility.h"
+#include "glass_sd_font.h"
+#include "glass_ui_memory.inc"
 #include "glass_backlight.h"
 #ifdef CONFIG_SYSTEM_C6PROBE
 #  include "../c6probe/c6_wifi_phy.h"
@@ -1471,7 +1474,7 @@ static void launch_builtin_dafeiyu_qapp(lv_event_t *e)
   unsigned int length;
   const char *source = dafeiyu_get_app_js(&length);
   if (source == NULL || length == 0) { show_toast(glass_tr("应用资源不可用")); return; }
-  lv_obj_t *card = qapp_page_prepare_for("大肥鱼桌宠",launch_builtin_dafeiyu_qapp);
+  lv_obj_t *card = qapp_page_prepare_for("海鸥桌宠",launch_builtin_dafeiyu_qapp);
   if (!card)
     {
       show_toast(glass_tr("页面内存不足"));
@@ -1479,7 +1482,7 @@ static void launch_builtin_dafeiyu_qapp(lv_event_t *e)
     }
 
   qapp_embedded_sidebar(card,true);
-  int ret = qpk_runtime_launch(card, "大肥鱼桌宠", "org.flash.dafeiyu", "1.0.1",
+  int ret = qpk_runtime_launch(card, "海鸥桌宠", "org.flash.dafeiyu", "1.0.1",
                                "builtin:/dafeiyu/app.js", source, length,
                                zh_font, show_toast, qpk_show_dialog, qpk_show_unresponsive);
   if (!ret) qapp_page_commit(card);
@@ -1768,6 +1771,8 @@ static uint32_t desktop_loop_once(void)
       idle = lv_timer_handler();
     }
 
+  /* Apply worker memory requests on the GUI owner after drawing returns. */
+  glass_ui_memory_poll();
   /* Bound NSH command latency even when LVGL has no timer ready. */
   return idle > 100 ? 100 : (idle ? idle : 1);
 }
@@ -1776,8 +1781,55 @@ static uint32_t desktop_loop_once(void)
 
 #include "glass_test_storage.inc"
 
+#ifdef CONFIG_SYSTEM_NSH
+static int desktop_early_console(int argc,FAR char *argv[])
+{extern int nsh_main(int,FAR char **);glass_boot_stage("console-running",0);return nsh_main(argc,argv);}
+#endif
+static void desktop_startup_poll(void)
+{
+ static unsigned phase;
+ switch(phase++){
+ case 0:glass_boot_stage("network-start-begin",0);
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+#ifdef CONFIG_NET_NAT44
+ (void)glass_network_recovery_init();
+#endif
+ glass_net_autostart();
+#endif
+ glass_boot_stage("network-start-end",0);break;
+ case 1:glass_boot_stage("storage-weather-start-begin",0);
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+ (void)glass_status_storage_start();glass_weather_start();
+#endif
+ glass_boot_stage("storage-weather-start-end",0);break;
+ case 2:glass_boot_stage("assistant-start-begin",0);
+#ifdef CONFIG_SYSTEM_C6_DESKTOP
+ {int ret=glass_assistant_start();glass_boot_stage("assistant-start-end",ret);}
+#endif
+ break;
+ case 3:glass_boot_stage("local-voice-start-begin",0);
+#ifdef GLASS_LOCAL_VOICE
+ {int ret=glass_local_voice_start();glass_boot_stage("local-voice-start-end",ret);}
+#endif
+ break;
+ case 4:glass_boot_stage("materials-background-enabled",0);gmat_boot_enable(true);glass_sd_font_start();lv_obj_invalidate(lv_screen_active());break;
+ default:phase=5;break;
+ }
+}
 int main(int argc, FAR char *argv[])
 {
+ if(argc==2&&!strcmp(argv[1],"boot-status")){glass_boot_report();return 0;}
+ if(glass_boot_active()&&!gmat_boot_enabled()&&argc>1&&strcmp(argv[1],"xip")&&strcmp(argv[1],"sd-dma")&&strcmp(argv[1],"cpu-status")){
+  printf("desktop: startup in progress; use desktop boot-status\n");return -EAGAIN;
+ }
+ if(argc==1){
+  if(!glass_boot_enter())return -EBUSY;
+  gmat_boot_enable(false);glass_boot_stage("desktop-entry",0);
+#ifdef CONFIG_SYSTEM_NSH
+  int console=task_create("nsh",100,4096,desktop_early_console,NULL);glass_boot_stage("console-created",console<0?-errno:0);
+#endif
+ }
+
   if(argc==2&&!strcmp(argv[1],"backlight-status"))
     {
       struct glass_backlight_status state;glass_backlight_read(&state);
@@ -2067,6 +2119,17 @@ int main(int argc, FAR char *argv[])
       printf("LOCAL_VOICE request=%lu phase=%u busy=%u ready=%u asr=%u local_wake=%u enabled=%u pending=%u error=%d model_error=%d peak=%lu elapsed_ms=%u first_token_ms=%u first_audio_ms=%u tokens=%u\n",
         (unsigned long)s.request,s.phase,s.busy,s.models_ready,s.asr_ready,s.local_wake,s.wake_enabled,s.config_pending,s.error,
         s.model_error,(unsigned long)s.memory_peak,s.elapsed_ms,s.first_token_ms,s.first_audio_ms,s.tokens);
+      printf("LOCAL_DUAL_AI selected=%u resident_control=%u thinking=%u model_rounds=%u tool_rounds=%u review_rounds=%u\n",s.selected_mode,s.resident_control_model,s.thinking_rounds,s.model_rounds,s.tool_rounds,s.review_rounds);
+      printf("LOCAL_RESIDENT_BYTES bytes=%lu kv_bytes=%lu reserve=%u\n",(unsigned long)s.profile.llm_resident_bytes,(unsigned long)s.profile.llm_kv_bytes,2u*1024u*1024u);
+#ifdef GLV_ASR_OFFICIAL_DSP
+      printf("LOCAL_ASR_DSP included=1 calls=%llu elements=%llu selftests=%llu fallbacks=%llu\n",(unsigned long long)s.profile.asr_dsp_calls,(unsigned long long)s.profile.asr_dsp_elements,(unsigned long long)s.profile.asr_dsp_selftests,(unsigned long long)s.profile.asr_dsp_fallbacks);
+#endif
+      printf("LOCAL_LLM_9M9 parameters=9870560 weight_bits=8 activation_bits=8 calls=%u dots=%llu selftests=%u\n",s.profile.llm_w8a8_calls,(unsigned long long)s.profile.llm_w8a8_dots,s.profile.llm_w8a8_selftests);
+      printf("LOCAL_LLM_HOT ticks_per_us=%u matrix=%llu quant=%llu rows=%llu checks=%llu compute=%llu prepare=%llu fast_rows=%llu checkpoints=%llu\n",CONFIG_ESPRESSIF_CPU_FREQ_MHZ,(unsigned long long)s.profile.llm_matrix_ticks,(unsigned long long)s.profile.llm_quant_ticks,(unsigned long long)s.profile.llm_row_ticks,(unsigned long long)s.profile.llm_check_ticks,(unsigned long long)s.profile.llm_compute_ticks,(unsigned long long)s.profile.llm_prepare_ticks,(unsigned long long)s.profile.llm_fast_rows,(unsigned long long)s.profile.llm_checkpoints);
+      printf("LOCAL_LLM_SPEC blocks=%u drafted=%u accepted=%u fallbacks=%u previous=%u prompt=%u\n",s.profile.llm_spec_blocks,s.profile.llm_spec_drafted,s.profile.llm_spec_accepted,s.profile.llm_spec_fallbacks,s.profile.llm_spec_previous,s.profile.llm_spec_prompt);
+      printf("LOCAL_LLM_ATTENTION qk=%llu softmax=%llu value=%llu head=%llu direct_rows=%llu repack=%llu\n",(unsigned long long)s.profile.llm_attn_qk_ticks,(unsigned long long)s.profile.llm_attn_softmax_ticks,(unsigned long long)s.profile.llm_attn_value_ticks,(unsigned long long)s.profile.llm_head_ticks,(unsigned long long)s.profile.llm_planar_rows,(unsigned long long)s.profile.llm_repack_ticks);
+      printf("LOCAL_LLM_BLOCK loads=%llu hits=%llu read_bytes=%llu peak_bytes=%lu\n",(unsigned long long)s.profile.llm_block_loads,(unsigned long long)s.profile.llm_block_hits,(unsigned long long)s.profile.llm_block_read_bytes,(unsigned long)s.profile.llm_block_peak_bytes);
+      printf("LOCAL_LLM_MORE quant_reuses=%llu attention=%llu norm=%llu activation=%llu\n",(unsigned long long)s.profile.llm_quant_reuses,(unsigned long long)s.profile.llm_attention_ticks,(unsigned long long)s.profile.llm_norm_ticks,(unsigned long long)s.profile.llm_activation_ticks);
       printf("LOCAL_VOICE_TEXT bytes=%lu fnv=%08lx\n",(unsigned long)reply_bytes,(unsigned long)digest);
       printf("LOCAL_VOICE_DIAG request=%lu cancel_source=%u cancel_phase=%u cancel_ms=%u check_ms=%u load_ms=%u tokenize_ms=%u prefill_ms=%u decode_ms=%u progress=%u total=%u\n",
         (unsigned long)s.request,s.cancel_source,s.cancel_phase,s.cancel_ms,s.stage_ms[GLV_CHECKING],s.stage_ms[GLV_LOADING_LLM],
@@ -2135,6 +2198,7 @@ int main(int argc, FAR char *argv[])
         (unsigned long long)(s.profile.tts_pie_input_us/1000),(unsigned long long)(s.profile.tts_pie_weights_us/1000),
         (unsigned long long)(s.profile.tts_pie_pack_us/1000),(unsigned long long)(s.profile.tts_pie_compute_us/1000),
         (unsigned long long)(s.profile.tts_pie_output_us/1000),(unsigned long long)(s.profile.tts_upsample_us/1000),(unsigned long)s.profile.tts_wave_fnv);
+      printf("LOCAL_VOICE_ASR_STREAM active=%u streaming=%u decoded_ms=%u backlog_ms=%u\n",s.capture_active,s.asr_streaming,s.asr_decoded_ms,s.asr_backlog_ms);
       printf("LOCAL_VOICE_ASR error=%d level=%u capture_ms=%u tokens=%u first_token_ms=%u elapsed_ms=%u text_bytes=%lu fnv=%08lx\n",
         s.asr_error,s.input_level,s.capture_ms,s.asr_tokens,s.asr_first_token_ms,s.asr_elapsed_ms,(unsigned long)tn,(unsigned long)td);return 0;
     }
@@ -2144,6 +2208,7 @@ int main(int argc, FAR char *argv[])
     }
     if(argc==4&&!strcmp(argv[2],"tool-bench")&&strlen(argv[3])==1&&argv[3][0]>='0'&&argv[3][0]<='2')
       ret=glass_local_voice_tool_benchmark((unsigned)(argv[3][0]-'0'),&request);
+    else if(argc==4&&!strcmp(argv[2],"tool-cache")&&strlen(argv[3])==1&&argv[3][0]>='0'&&argv[3][0]<='2')ret=glass_local_voice_tool_cached_benchmark((unsigned)(argv[3][0]-'0'),&request);
     else if(argc==3&&!strcmp(argv[2],"check"))ret=glass_local_voice_check(&request);
     else if(argc==3&&!strcmp(argv[2],"stop")){glass_local_voice_cancel_from(GLV_CANCEL_CLI_STOP);ret=0;}
     else if(argc==3&&!strcmp(argv[2],"new"))ret=glass_local_voice_new_from(GLV_CANCEL_CLI_NEW);
@@ -2172,8 +2237,12 @@ int main(int argc, FAR char *argv[])
     else if(argc==4&&!strcmp(argv[2],"tts-bench-limit")&&(!strcmp(argv[3],"0")||!strcmp(argv[3],"4096")))ret=glass_local_voice_tts_bench_limit(!strcmp(argv[3],"4096")?4096:0);
     else if(argc==4&&!strcmp(argv[2],"tts-rows")&&(!strcmp(argv[3],"bulk")||!strcmp(argv[3],"legacy")))ret=glass_local_voice_tts_rows(!strcmp(argv[3],"bulk"));
     else if(argc==4&&!strcmp(argv[2],"tts-fma")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_tts_fma(!strcmp(argv[3],"on"));
+    else if(argc==4&&!strcmp(argv[2],"thinking")&&(!strcmp(argv[3],"Low")||!strcmp(argv[3],"Medium")||!strcmp(argv[3],"High")))ret=glass_local_voice_thinking(!strcmp(argv[3],"Low")?4:!strcmp(argv[3],"Medium")?5:6);
+    else if(argc==4&&!strcmp(argv[2],"select")&&(!strcmp(argv[3],"chat")||!strcmp(argv[3],"assistant")))ret=glass_local_voice_select(!strcmp(argv[3],"chat")?GLV_DIALOGUE:GLV_CONTROL);
+    else if(argc==4&&!strcmp(argv[2],"thinking-bench")&&strlen(argv[3])==1&&argv[3][0]>='0'&&argv[3][0]<='2')ret=glass_local_voice_thinking_benchmark((unsigned)(argv[3][0]-'0'),&request);
+    else if(argc==4&&!strcmp(argv[2],"control"))ret=glass_local_voice_send(argv[3],GLV_CONTROL,&request);
     else if(argc==4&&!strcmp(argv[2],"chat"))ret=glass_local_voice_send(argv[3],GLV_DIALOGUE,&request);
-    else if(argc==4&&!strcmp(argv[2],"asr-test")&&(!strcmp(argv[3],"0")||!strcmp(argv[3],"1")))ret=glass_local_voice_asr_test((unsigned)(argv[3][0]-'0'),&request);
+    else if(argc==4&&!strcmp(argv[2],"asr-test")&&(strlen(argv[3])==1&&argv[3][0]>='0'&&argv[3][0]<='4'))ret=glass_local_voice_asr_test((unsigned)(argv[3][0]-'0'),&request);
     else if(argc==4&&!strcmp(argv[2],"wake")&&(!strcmp(argv[3],"local")||!strcmp(argv[3],"assistant")))ret=glass_local_voice_set_wake(!strcmp(argv[3],"local"));
     else if(argc==4&&!strcmp(argv[2],"wake")&&(!strcmp(argv[3],"on")||!strcmp(argv[3],"off")))ret=glass_local_voice_enable_wake(!strcmp(argv[3],"on"));
     printf("LOCAL_VOICE accepted=%u request=%lu error=%d\n",ret==0,(unsigned long)request,ret);return ret?1:0;
@@ -2243,6 +2312,7 @@ int main(int argc, FAR char *argv[])
       return -1;
     }
 
+glass_boot_stage("touch-init-begin",0);
 #ifdef CONFIG_ESP32P4_FUNCTION_EV_BOARD_TOUCHSCREEN
   if (board_touch_initialize() < 0)
     {
@@ -2250,7 +2320,9 @@ int main(int argc, FAR char *argv[])
     }
 #endif
 
+  glass_boot_stage("lvgl-init-begin",0);
   lv_init();
+  glass_boot_stage("lvgl-init-end",0);
   lv_nuttx_dsc_init(&info);
   info.fb_path = "/dev/fb0";
 #ifdef CONFIG_ESP32P4_FUNCTION_EV_BOARD_TOUCHSCREEN
@@ -2262,6 +2334,7 @@ int main(int argc, FAR char *argv[])
 #ifdef CONFIG_SYSTEM_BILIBILI_LIVE
   bili_cpu_register_ui();
 #endif
+  glass_boot_stage("display-init-begin",0);
   lv_nuttx_init(&info, &result);
   if (result.disp == NULL)
     {
@@ -2269,6 +2342,7 @@ int main(int argc, FAR char *argv[])
       return 1;
   }
   glass_ui_metrics_attach(result.disp);
+  glass_boot_stage("display-init-end",0);
 
 #if defined(CONFIG_FS_SMARTFS) && !defined(CONFIG_DISABLE_MOUNTPOINT)
   /* Restore the existing user volume before any app loads preferences.
@@ -2279,33 +2353,24 @@ int main(int argc, FAR char *argv[])
     fprintf(stderr, "desktop: data volume not mounted: %d\n", errno);
 #endif
 
+  glass_boot_stage("photo-store-init-begin",0);
   extern int qpk_photo_store_initialize(void);
   int photo_init=qpk_photo_store_initialize();
   if(photo_init<0)fprintf(stderr,"desktop: photo writer unavailable: %d\n",photo_init);
+  glass_boot_stage("photo-store-init-end",photo_init);
+  glass_boot_stage("basic-ui-create-begin",0);
   desktop_ui_create();
-#ifdef GLASS_LOCAL_SPEECH
-  glass_speech_prepare();
-#endif
+  glass_boot_stage("basic-ui-create-end",0);
+  /* Local speech remains available; its 3.64 MiB voice data is loaded by
+   * the speech owner on first playback, rather than occupying RAM at boot.
+   * AI admission evicts an idle voice cache before loading resident INT8. */
   lv_obj_invalidate(lv_screen_active());
   lv_refr_now(result.disp);
+  glass_boot_set_ui_ready();glass_boot_stage("first-frame-ready",0);
 
 #if defined(CONFIG_NETUTILS_NETINIT) && !defined(CONFIG_SYSTEM_NSH)
   /* netinit would run before the companion radio has registered wlan0, so the
    * boot task below waits for the station and then requests the lease. */
-#endif
-
-#ifdef CONFIG_SYSTEM_C6_DESKTOP
-#ifdef CONFIG_NET_NAT44
-  (void)glass_network_recovery_init();
-#endif
-  glass_net_autostart();
-  (void)glass_status_storage_start();
-  glass_weather_start();
-  (void)glass_assistant_start();
-#ifdef GLASS_LOCAL_VOICE
-  int local_voice_init=glass_local_voice_start();
-  if(local_voice_init)fprintf(stderr,"desktop: local voice unavailable: %d\n",local_voice_init);
-#endif
 #endif
 
 #if defined(CONFIG_ESP32P4_SELECTS_REV_LESS_V3) && \
@@ -2319,13 +2384,6 @@ int main(int argc, FAR char *argv[])
   }
 #endif
 
-#ifdef CONFIG_SYSTEM_NSH
-  if (task_create("nsh", 100, 4096, nsh_main, NULL) < 0)
-    {
-      fprintf(stderr, "desktop: failed to start NSH\n");
-    }
-#endif
-
   if (launch_camera)
     {
       printf("desktop: launching camera diagnostic\n");
@@ -2334,7 +2392,9 @@ int main(int argc, FAR char *argv[])
 
   while (1)
     {
-      usleep(desktop_loop_once() * 1000);
+      uint32_t idle=desktop_loop_once();
+      desktop_startup_poll();
+      usleep(idle * 1000);
     }
 
   return 0;

@@ -1,0 +1,65 @@
+MUSIC_MASTER_VOLUME_OK: real shared speaker state; settings/music bidirectional updates; snapshot/now-playing; mute/range; single master gain
+LRC_PARSER_OK: timing, offsets, multiple tags, UTF-8, invalid/oversized input, identity, URL encoding and fuzz
+MUSIC_BILINGUAL_OK: 192 paired timestamps, exact translation alignment, OpenCC phrases, Chinese simplification and Japanese/Korean preservation
+LYRICS_STREAM_OK: one-byte chunk boundaries, quoted braces/escapes, lrc/lyrics schema and artist identity
+MUSIC_METADATA_CACHE_OK: binary hit, bounds, full-identity collision check, replacement, checksum and truncated files
+MUSIC_AUDIO_CACHE_OK: binary round-trip, exact identity/collision, checksum, truncated/cancelled/oversize rejection
+MUSIC_LARGE_FAVORITE_OK: streamed pinned audio beyond 16MiB verifies byte-for-byte; replaceable cache retains its 16MiB bound; no writer lease leaked
+MUSIC_LYRICS_WINDOW_OK: first/last of 192 lines, bounded 9-row copies, independent storage, cleared lyrics
+MUSIC_LYRIC_CACHE_HIT_OK: retained timing and artwork without a second HTTP request
+MUSIC_MASTER_VOLUME_OK: real shared speaker state; settings/music bidirectional updates; snapshot/now-playing; mute/range; single master gain
+[music] playback finished ret=0
+[music] playback finished ret=0
+[music] offline item=22c28fdc result=0
+MUSIC_FAVORITE_WHILE_PAUSED_OK: favorite audio and cover complete without waiting for playback to finish
+[music] playback finished ret=0
+[music] playback finished ret=0
+[music] playback finished ret=0
+[music] playback finished ret=0
+MUSIC_STOP_PRESERVES_COVER_OK: asynchronous and draining stop keep selected artwork; lyrics still retire
+[music] playback finished ret=0
+[music] playback finished ret=-5
+MUSIC_BACKGROUND_SERVICE_OK: real MP3 decoder/workers, pause freezes clock, resume, stale lyric cancellation, skip, missing lyrics, network failure and 7/7 PCM teardown
+[music] search result=-1001
+[music] search result=0
+MUSIC_SEARCH_KEY_OK: distinct missing-key result, no HTTP request, MCP configuration guidance, recovery after save
+[music] search result=0
+[music] playback finished ret=0
+MUSIC_MCP_OK: real service search/play/state, idempotent pause/resume, volume/skip/stop, URL redaction, argument rejection, cancellation; no UI linked
+[music] search result=0
+[music] playback finished ret=0
+[music] search result=0
+[music] search result=0
+[music] search result=0
+[music] search result=0
+[music] search result=-5
+[music] search result=0
+[music] playback finished ret=0
+[music] playback finished ret=0
+MUSIC_SELECTED_RESULT_OK: one lookup, exact song/artist and track, single use, replaced/expired/failed result rejection, strict arguments and query-only recovery
+[music] playback finished ret=0
+MUSIC_SEEK_OK: sample-exact oracle at 2s/9s, stale track rejection, rapid last request wins, backward/forward/zero seek, pause retained, sample clock rebased
+[music] playback finished ret=0
+MUSIC_SEEK_SEAM_OK: every PCM sample from backward target through cached prefix, live ring and EOF matches whole-track decode; cache committed
+[music] playback finished ret=0
+MUSIC_LOADING_SEEK_OK: missing-tail seek then paused/sample-exact backward/rapid/zero seeks reuse one stalled GET; stop cancels it
+[music] playback finished ret=0
+MUSIC_REBUFFER_OK: injected network stall pauses PCM, freezes position, resumes and finishes
+[music] playback finished ret=0
+MUSIC_AUDIO_CACHE_HIT_OK: replay feeds real decoder from SD without another audio HTTP request
+[music] playback finished ret=0
+MUSIC_AUDIO_CACHE_UNAVAILABLE_OK: real streaming and teardown survive inaccessible SD cache
+[music] playback finished ret=0
+MUSIC_AUDIO_VALIDATE_CANCEL_OK: checksum scan yields between blocks without changing the committed audio
+[music] offline item=22c28fdc result=0
+MUSIC_FAVORITE_PROMOTION_OK: complete replaceable SD audio and cover promoted after volatile URLs reset, with zero HTTP calls
+[music] playback finished ret=0
+[music] offline item=22c28fdc result=-125
+MUSIC_FAVORITE_PREEMPT_OK: suspended stalled background HTTP is closed, committed cover and favorite preserved, resume restarts pending cache
+MUSIC_CACHE_WRITER_GATE_OK: lyric/cover/source cache writes are blocked during model admission and work again after resume
+[music] offline item=22c28fdc result=-125
+MUSIC_FAVORITE_OFFLINE_OK: complete pinned MP3 and cover, disconnected playback, no HTTP, un-favorite removal
+[music] offline item=f1f3e502 result=-5
+[music] playback finished ret=-5
+MUSIC_FAVORITE_INDEPENDENT_COVER_OK: artwork retained despite audio lookup failure
+MUSIC_SD_SERVICE_OK: real SD source and MP3 decoder, pause/resume clock, cancellation/PCM teardown and path rejection

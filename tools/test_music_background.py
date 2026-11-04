@@ -13,11 +13,12 @@ with tempfile.TemporaryDirectory(prefix='music-background-') as tmp:
  (root/'music_service_under_test.c').write_text(source)
  pcm=(desktop/'glass_music_pcm.c').read_text()
  (root/'speaker_under_test.c').write_text(pcm[pcm.index('static atomic_uint g_speaker_volume'):pcm.index('int music_pcm_session_lock')])
- flags=['cc','-D_GNU_SOURCE','-std=gnu11','-O1','-g','-pthread','-fsanitize=address,undefined','-fno-omit-frame-pointer',
+ flags=['cc','-D_GNU_SOURCE','-DMUSIC_CACHE_COORDINATION_TEST=1','-std=gnu11','-O1','-g','-pthread','-fsanitize=address,undefined','-fno-omit-frame-pointer',
   '-I'+str(root),'-I'+str(desktop),'-I'+str(a.apps/'netutils/cjson/cJSON'),'-DMUSIC_SD_ROOT="'+str(root)+'/"','-DMUSIC_CACHE_ROOT="'+str(root)+'/cache"']
  flags+=['-DMUSIC_LYRICS_ROOT="'+str(root)+'/lyrics"']
  subprocess.run([*flags,str(repo/'app/espdl-quickapp/tests/music_background_host.c'),str(desktop/'glass_music_parse.c'),
   str(desktop/'glass_board_music.c'),str(desktop/'glass_chat_store.c'),
+  str(desktop/'glass_lock_photo.c'),str(desktop/'qpk_mjpeg.c'),str(desktop/'qpk_tjpgd.c'),
   str(a.apps/'netutils/cjson/cJSON/cJSON.c'),'-lm','-o',str(root/'test')],check=True)
  # Exceed the 256 KiB ring so prefix replay also rejoins a wrapped producer.
  subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-f','lavfi','-i','sine=frequency=440:duration=16:sample_rate=22050',

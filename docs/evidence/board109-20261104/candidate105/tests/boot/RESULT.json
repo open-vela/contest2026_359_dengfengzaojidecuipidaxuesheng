@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "checks": [
+    "startup_order",
+    "boot_read_gate",
+    "background_full_crc",
+    "cancel_cleanup",
+    "pressure_admission",
+    "stable_ai_sources"
+  ],
+  "unchanged": [
+    "glass_local_voice.c",
+    "glass_local_asr.c",
+    "glass_local_llm.c",
+    "glass_local_tts.c",
+    "glass_local_control.c",
+    "glass_local_model.h"
+  ]
+}

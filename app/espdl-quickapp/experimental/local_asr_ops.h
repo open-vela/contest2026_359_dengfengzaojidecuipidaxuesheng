@@ -5,13 +5,18 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* Experimental operator port, not linked into the shipping app. The graph
+/* The graph
  * runner owns/counts input/output tensors; these functions count scratch only.
  * Weight rows are [output_channel, flattened_input_kernel], allowing SD/Q4/Q8
  * readers without a resident matrix. A callback error aborts, never retries. */
 struct glv_asr_rows {
   int (*read)(void *,unsigned,float *,unsigned);
   void *opaque;
+#ifdef GLV_ASR_ACCEL_ENABLED
+  /* Owner-only: read once, decode original floats and optional raw Q4/Q8
+   * codes/scales. Returns 1 for packed, 0 for FP32, negative on error. */
+  int (*prepare)(void *,unsigned,float *,int16_t *,float *,float *,unsigned);
+#endif
 };
 struct glv_asr_conv {
   unsigned channels,height,width,outputs,kernel_h,kernel_w,groups;

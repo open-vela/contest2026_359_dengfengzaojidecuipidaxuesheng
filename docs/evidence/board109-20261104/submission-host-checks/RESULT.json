@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "name": "music",
+      "returncode": 0,
+      "seconds": 20.22163169999999
+    },
+    {
+      "name": "artwork",
+      "returncode": 0,
+      "seconds": 0.5172220259999989
+    },
+    {
+      "name": "lock_photo",
+      "returncode": 0,
+      "seconds": 2.8235367319999938
+    },
+    {
+      "name": "wake",
+      "returncode": 0,
+      "seconds": 0.26686091999999917
+    }
+  ]
+}

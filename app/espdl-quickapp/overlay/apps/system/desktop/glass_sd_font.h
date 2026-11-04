@@ -30,6 +30,12 @@ struct glass_font_cache_status {
 };
 /* GUI-thread only: bounded active-family budget; live font pointers survive. */
 void glass_lyric_font_set_global(unsigned index);
+/* GUI-only temporary cache quota; restore lazily without changing font choice. */
+void glass_lyric_font_memory_pressure(bool active);
 void glass_lyric_font_cache_status(unsigned index,struct glass_font_cache_status *status);
 lv_font_t *glass_lyric_font_get(unsigned index,unsigned pixels);
+lv_font_t *glass_material_font_create(const void *,size_t,unsigned,lv_font_kerning_t,unsigned);
+void glass_material_font_pressure(bool);
+int glass_material_fonts_poll(void);
+bool glass_material_font_refresh(lv_font_t *);
 #endif

@@ -18,8 +18,7 @@ static JSValue js_state(JSContext *context)
   pet_engine_get(&state);
   object = JS_NewObject(context);
   JS_SetPropertyStr(context, object, "appearance",
-                    JS_NewString(context, pet_lvgl_uses_sd_sprites() ?
-                                 "maid" : "fallback"));
+                    JS_NewString(context, "seagull"));
   JS_SetPropertyStr(context, object, "mode",
                     JS_NewString(context, state.mode_id));
   JS_SetPropertyStr(context, object, "dir",

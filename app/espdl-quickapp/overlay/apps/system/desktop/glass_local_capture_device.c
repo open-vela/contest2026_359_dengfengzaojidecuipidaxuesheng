@@ -50,3 +50,17 @@ int glv_capture_platform(struct glv_memory *memory,const struct glv_capture_sign
   ret=glv_capture_collect(memory,&source,signals,options,pcm,samples);
   capture_memory=NULL;pthread_mutex_unlock(&capture_entry);return ret;
 }
+
+#ifdef GLV_ASR_STREAMING
+int glv_capture_platform_stream(struct glv_memory *memory,const struct glv_capture_signals *signals,const struct glv_capture_options *options,glv_capture_consume consume,void *opaque,glv_capture_stream_progress progress)
+{
+ if(!memory||!consume)return -EINVAL;
+ int ret=pthread_mutex_trylock(&capture_entry);if(ret)return ret==EBUSY?-EBUSY:-ret;
+ /* Same native adapter and exclusive session as collect(). Main owns entry;
+  * producer alone touches capture, and join retires it before entry unlock. */
+ capture_memory=memory;struct voice_capture capture;
+ struct glv_capture_source source={input_open,input_read,input_close,capture_ms,&capture};
+ ret=glv_capture_stream(memory,&source,signals,options,consume,opaque,progress);
+ capture_memory=NULL;pthread_mutex_unlock(&capture_entry);return ret;
+}
+#endif

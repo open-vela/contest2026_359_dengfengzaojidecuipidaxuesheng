@@ -204,8 +204,16 @@ static int speech_buffer_write(void *opaque,const int16_t *data,size_t frames)
   buffer->frames=needed;return 0;
 }
 #ifdef GLASS_ESP_TTS
+/* Called in the speech owner without speech/config/PCM locks held.
+ * Retire only an idle LLM before allocating the large SD voice/prebuffer.
+ * An active AI request returns EBUSY; it is never cancelled or replayed. */
+extern int glass_local_voice_yield_idle_model(unsigned) __attribute__((weak));
 static int speech_esp_play(const char *text,struct speech_play *play)
 {
+  if(glass_local_voice_yield_idle_model){
+    int yielded=glass_local_voice_yield_idle_model(3000);
+    if(yielded)return yielded;
+  }
   struct speech_buffer buffer={0};
   int ret=glass_esp_synthesize(text,speech_buffer_write,speech_cancelled,&buffer);
   /* The vendor can produce uneven chunks. Finish this bounded UI phrase

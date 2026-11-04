@@ -1,0 +1,94 @@
+{
+  "repository": "https://github.com/espressif/esp-dsp",
+  "revision": "3c8ac0fdfec83740b783e200862c8d0c056de0ad",
+  "license": "Apache-2.0",
+  "files": [
+    {
+      "path": "dsps_add_f32_ansi.c",
+      "upstream_path": "modules/math/add/float/dsps_add_f32_ansi.c",
+      "bytes": 1141,
+      "sha256": "cc15f7c4de7f1ba7263ad5d326299b12efc736adac52ce9c9fb7e84816a6e364",
+      "git_blob_sha1": "01683cc174b8bf898dc3bcde546e821895bcfbcd"
+    },
+    {
+      "path": "dsps_sub_f32_ansi.c",
+      "upstream_path": "modules/math/sub/float/dsps_sub_f32_ansi.c",
+      "bytes": 1141,
+      "sha256": "7e69f16f5ae7106ed04cc0824b80155140a6724e0b761c256c1bfb965baa0077",
+      "git_blob_sha1": "4a328002aa89ae42630b4897946fb21f98eba39f"
+    },
+    {
+      "path": "dsps_mul_f32_ansi.c",
+      "upstream_path": "modules/math/mul/float/dsps_mul_f32_ansi.c",
+      "bytes": 1141,
+      "sha256": "95888327d1d3a83d1dac1e199e28a33d1107113507d33d30ac61d73eda71ac55",
+      "git_blob_sha1": "8e22861727ddbda7ab38b02d0c6ca0a48143fca1"
+    },
+    {
+      "path": "dsps_add.h",
+      "upstream_path": "modules/math/add/include/dsps_add.h",
+      "bytes": 3149,
+      "sha256": "204e8121c54543327aba207286d877eb808dab01610497448ba587675b72aff9",
+      "git_blob_sha1": "750e196f94e23469312cb7dc53e36ea15dc81101"
+    },
+    {
+      "path": "dsps_sub.h",
+      "upstream_path": "modules/math/sub/include/dsps_sub.h",
+      "bytes": 3145,
+      "sha256": "62aad965c650568f3c20708d1926c443366dde6ce57b9ae47aa6536eecdca2cf",
+      "git_blob_sha1": "cb1afa2da3709a2f971ce01838a2feca40661869"
+    },
+    {
+      "path": "dsps_mul.h",
+      "upstream_path": "modules/math/mul/include/dsps_mul.h",
+      "bytes": 4006,
+      "sha256": "fbb07b63a1dd7f6e6a0ba6f92ee89e208e58298be7964e5475909f2a54dcf735",
+      "git_blob_sha1": "db98e88cc29f2a07224213017836b00c51adce90"
+    },
+    {
+      "path": "dsps_add_platform.h",
+      "upstream_path": "modules/math/add/include/dsps_add_platform.h",
+      "bytes": 637,
+      "sha256": "040ab19808088f5009c938a936a60392d70d704debac867766d5a496dd8725ba",
+      "git_blob_sha1": "fd1971879ad090de3e00dfc2a20ec93111eac15b"
+    },
+    {
+      "path": "dsps_sub_platform.h",
+      "upstream_path": "modules/math/sub/include/dsps_sub_platform.h",
+      "bytes": 601,
+      "sha256": "683580efdf928c8b162d87ddf5135bdabf996ec8689ee88d712fa1f36d24a229",
+      "git_blob_sha1": "5b599513b6efce169aa89b19f3c9173ace7e92c1"
+    },
+    {
+      "path": "dsps_mul_platform.h",
+      "upstream_path": "modules/math/mul/include/dsps_mul_platform.h",
+      "bytes": 601,
+      "sha256": "3f85ab8abdc00759c62442f91e619631f6d941b3749ee4c49ebd79853ad4bee0",
+      "git_blob_sha1": "42946f86db449269e720cddce3da0faddb520c23"
+    },
+    {
+      "path": "dsp_err.h",
+      "upstream_path": "modules/common/include/dsp_err.h",
+      "bytes": 752,
+      "sha256": "a3f4d7382e0214db6b84881181913d5e8f78f874895adda836bb1fd38ee29256",
+      "git_blob_sha1": "4268eaaeefb582e3db8cfd8dea17e8ecfd264aa3"
+    },
+    {
+      "path": "dsp_err_codes.h",
+      "upstream_path": "modules/common/include/dsp_err_codes.h",
+      "bytes": 1228,
+      "sha256": "949c15c39cad0e26ed510c0e45c05e77524f343c98a11eb6d779ef579423e90a",
+      "git_blob_sha1": "b86e2914e0e9c0e5860d5553a23fdf9e88298c7c"
+    },
+    {
+      "path": "LICENSE",
+      "upstream_path": "LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "git_blob_sha1": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+    }
+  ],
+  "source_bytes_unchanged": true,
+  "compile_symbol_namespace": "glv_esp_dsp_*",
+  "implementation": "official ANSI float add/sub/mul, O3 and no fast-math/HWLP"
+}

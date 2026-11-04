@@ -47,6 +47,24 @@ int main(int argc,char **argv)
   glass_status_create();
   for(unsigned light=0;light<2;light++){
     g_desktop.light_theme=light;review_local_cold_fixture();glass_local_voice_open(NULL);glass_status_tick();
+    assert(lv_dropdown_get_selected(g_local_ui->thinking)==1);
+    assert(lv_obj_has_state(g_local_ui->thinking,LV_STATE_DISABLED));
+    review_click("小助手");assert(g_local_ui->mode==GLV_CONTROL);
+    lv_obj_update_layout(g_local_ui->card);
+    for(unsigned nav=0;nav<3;nav++){
+      lv_area_t area;lv_obj_get_coords(g_local_ui->navigation[nav],&area);
+      assert(area.x1==GLASS_SIDEBAR_PAD&&area.x2+1==GLASS_SIDEBAR_WIDTH-GLASS_SIDEBAR_PAD);
+      assert(lv_obj_get_y(g_local_ui->navigation[nav])==96+(int)nav*(GLASS_SIDEBAR_ITEM_HEIGHT+GLASS_SIDEBAR_GAP));
+      assert(lv_color_eq(lv_obj_get_style_bg_color(g_local_ui->navigation[nav],0),lv_color_hex(nav==GLV_CONTROL?detail_soft():detail_paper())));
+    }
+    for(unsigned level=0;level<3;level++){
+      lv_dropdown_set_selected(g_local_ui->thinking,level);lv_obj_send_event(g_local_ui->thinking,LV_EVENT_VALUE_CHANGED,NULL);
+      struct glv_snapshot thinking;glass_local_voice_get(&thinking,NULL,0);assert(thinking.thinking_rounds==level+4);
+    }
+    lv_dropdown_set_selected(g_local_ui->thinking,1);lv_obj_send_event(g_local_ui->thinking,LV_EVENT_VALUE_CHANGED,NULL);
+    review_capture(display,"local-assistant-medium","双AI · 小助手 · Low4 Medium5 High6");
+    review_local_fixture(GLV_GENERATING,"");local_ui_poll(NULL);review_click("普通对话");assert(g_local_ui->mode==GLV_CONTROL);
+    review_local_fixture(GLV_IDLE,"");local_ui_poll(NULL);review_click("普通对话");assert(g_local_ui->mode==GLV_DIALOGUE);
     assert(g_local_ui&&!lv_obj_has_state(g_local_ui->send,LV_STATE_DISABLED)&&!lv_obj_has_state(g_local_ui->microphone,LV_STATE_DISABLED));
     assert(lv_obj_has_state(g_local_ui->speak,LV_STATE_DISABLED));review_capture(display,"local-dialogue","本地对话 · 默认文字 · 语音按需加载");
     review_local_fixture(GLV_SPEAKING,"你好，很高兴见到你。\n所有模型从 SD 卡读取，回答只保留在本次会话中。");local_ui_poll(NULL);

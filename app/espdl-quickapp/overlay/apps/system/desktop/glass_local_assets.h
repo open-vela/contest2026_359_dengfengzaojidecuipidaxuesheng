@@ -1,8 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #pragma once
 #include "glass_local_model.h"
+#ifndef GLV_CHAT_ROOT
+#ifdef __NuttX__
+#define GLV_CHAT_ROOT "/sdcard/local-voice/models/edgeidiot-9m9-w8a8-20261102"
+#else
+/* Existing engine fixtures may deliberately bind both roles to one fixture. */
+#define GLV_CHAT_ROOT GLV_RELEASE_ROOT
+#endif
+#endif
 #ifndef GLV_RELEASE_ROOT
-#define GLV_RELEASE_ROOT "/sdcard/local-voice/models/tools-v9-20261101"
+#define GLV_RELEASE_ROOT "/sdcard/local-voice/models/edgeidiot-9m9-w8a8-9000-20261102"
 #endif
 #ifdef __cplusplus
 extern "C" {

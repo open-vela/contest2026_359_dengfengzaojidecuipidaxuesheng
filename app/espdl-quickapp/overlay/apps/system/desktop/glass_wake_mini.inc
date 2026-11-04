@@ -2,7 +2,7 @@
 /* UI-thread global wake presentation. No pointer/tap path can summon it. */
 #define WAKE_MINI_IDLE_MS 6000u
 static struct {
-  lv_obj_t *root,*bubble,*text,*caption;
+  lv_obj_t *root,*bubble,*text,*caption,*dismiss;
   struct glass_grok *ball;
   lv_obj_t *result_root;
   uint32_t event,shown_at,idle_at,retry_at,request,heard_at,listening_at;
@@ -43,18 +43,69 @@ static void wake_mini_pass_through(lv_obj_t *object)
   for(unsigned i=0;i<lv_obj_get_child_count(object);i++)
     wake_mini_pass_through(lv_obj_get_child(object,i));
 }
+static bool wake_mini_contains(lv_obj_t *object,int x,int y)
+{
+  if(!object||!lv_obj_is_visible(object))return false;
+  lv_area_t a;lv_obj_get_coords(object,&a);
+  return x>=a.x1&&x<=a.x2&&y>=a.y1&&y<=a.y2;
+}
+static void wake_mini_input_cover(void)
+{
+  if(!g_wake_mini.dismiss)return;
+  bool cover=g_wake_mini.visible;
+  if(cover&&lv_obj_has_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_HIDDEN)){
+    lv_obj_remove_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(g_wake_mini.dismiss);lv_obj_move_foreground(g_wake_mini.root);
+  }else if(!cover)lv_obj_add_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_HIDDEN);
+}
+
+static void wake_mini_hide(void);
+static void wake_mini_dismiss_at(int x,int y)
+{
+  if(!g_wake_mini.visible)return;
+  if(glass_grok_hit_test(g_wake_mini.ball,x,y)||
+     wake_mini_contains(g_wake_mini.bubble,x,y)||
+     wake_mini_contains(g_wake_mini.result_root,x,y))return;
+  /* Retire mailboxes before cancellation so a late transcript or completed
+   * answer cannot send or speak again. Cancel only this overlay's requests. */
+  g_wake_mini.pending_prompt[0]=0;g_wake_mini.result_pending=false;
+  struct glass_voice_snapshot voice;glass_voice_get(&voice);
+  if(g_wake_mini.voice_owned&&voice.request==g_wake_mini.voice_request)glass_voice_cancel();
+#ifdef GLASS_LOCAL_SPEECH
+  if(g_wake_mini.speech_owned)glass_speech_stop_request(g_wake_mini.speech_request);
+#endif
+  struct chat_activity_snapshot activity;glass_chat_activity_get(&activity);
+  if(g_wake_mini.turn&&activity.turn_id==g_wake_mini.turn&&activity.phase!=CHAT_IDLE)glass_chat_cancel();
+  g_wake_mini.voice_owned=g_wake_mini.speech_owned=false;
+  g_wake_mini.turn=0;g_wake_mini.speech_cursor=0;g_wake_mini.result_signature=0;
+  if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
+  wake_mini_hide();
+}
+static void wake_mini_outside_clicked(lv_event_t *event)
+{
+  LV_UNUSED(event);lv_indev_t *input=lv_indev_active();if(!input)return;
+  lv_point_t point;lv_indev_get_point(input,&point);wake_mini_dismiss_at(point.x,point.y);
+}
+
 static void wake_mini_create(void)
 {
   if(g_wake_mini.root)return;
+  g_wake_mini.dismiss=lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(g_wake_mini.dismiss);
+  lv_obj_set_pos(g_wake_mini.dismiss,0,0);
+  lv_obj_set_size(g_wake_mini.dismiss,LV_PCT(100),LV_PCT(100));
+  lv_obj_remove_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_HIDDEN|LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(g_wake_mini.dismiss,wake_mini_outside_clicked,LV_EVENT_CLICKED,NULL);
   lv_obj_t *root=lv_obj_create(lv_layer_top());
   lv_obj_remove_style_all(root);lv_obj_set_size(root,388,112);
   lv_obj_add_flag(root,LV_OBJ_FLAG_HIDDEN);
   g_wake_mini.root=root;
   /* Same sprite constructor, app expression bank and front-facing gaze as
-   * the large conversation ball, scaled to a black 48px body. */
-  g_wake_mini.ball=glass_grok_create_sprite(root,0,44,64,64,48,true,zh_font);
+   * the large conversation ball, using the same seagull at a readable 64px size. */
+  g_wake_mini.ball=glass_grok_create_sprite(root,0,32,72,72,64,true,zh_font);
   if(g_wake_mini.ball){
-    lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,44);
+    lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);
     glass_grok_gaze(g_wake_mini.ball,0,0);
     glass_grok_select(g_wake_mini.ball,2);
     glass_grok_set_active(g_wake_mini.ball,false);
@@ -79,6 +130,7 @@ static void wake_mini_hide(void)
 {
   if(!g_wake_mini.visible)return;
   g_wake_mini.visible=false;
+  if(g_wake_mini.dismiss)lv_obj_add_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(g_wake_mini.root,LV_OBJ_FLAG_HIDDEN);
   glass_grok_set_active(g_wake_mini.ball,false);
   printf("[wake-mini] hidden age_ms=%lu idle_ms=%lu\n",(unsigned long)(lv_tick_get()-g_wake_mini.shown_at),(unsigned long)(lv_tick_get()-g_wake_mini.idle_at));
@@ -86,15 +138,16 @@ static void wake_mini_hide(void)
 static void wake_mini_present(uint32_t event,uint32_t now)
 {
   /* Called exclusively after consuming a fresh microphone wake event. */
-  wake_mini_create();g_wake_mini.event=event;g_wake_mini.shown_at=g_wake_mini.idle_at=now;
+  wake_mini_create();
+  g_wake_mini.event=event;g_wake_mini.shown_at=g_wake_mini.idle_at=now;
   if(!g_wake_mini.result_pending&&!g_wake_mini.speech_owned){
     g_wake_mini.turn=g_wake_mini.result_signature=0;
     if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
     lv_obj_remove_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,44);
+    lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);
   }
   g_wake_mini.busy=false;
-  g_wake_mini.visible=true;
+  g_wake_mini.visible=true;wake_mini_input_cover();
   bool light=g_desktop.light_theme;
   lv_obj_set_style_bg_color(g_wake_mini.bubble,lv_color_hex(light?0xffffff:0x242b38),0);
   lv_obj_set_style_bg_opa(g_wake_mini.bubble,LV_OPA_COVER,0);
@@ -130,7 +183,7 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
     if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
     if(g_wake_mini.visible){
       lv_obj_remove_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);lv_label_set_text(g_wake_mini.text,glass_tr("对话已更新"));
-      lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,44);g_wake_mini.idle_at=now;
+      lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);g_wake_mini.idle_at=now;
     }
     return;
   }
@@ -143,7 +196,7 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
       lv_obj_add_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);
       int height=126+(int)result.card_count*50;
       lv_obj_set_height(g_wake_mini.root,height);
-      lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,height-68);
+      lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,height-76);
       g_wake_mini.result_signature=signature;
     }
   }
@@ -334,7 +387,7 @@ static void wake_mini_service(void)
       if(lv_obj_get_child(parent,-1)!=g_wake_mini.root)lv_obj_move_foreground(g_wake_mini.root);
     }
   }
-  wake_mini_camera();
+  wake_mini_input_cover();wake_mini_camera();
   /* Page presence never owns the microphone. An ASR capture observes wake
    * words in its own PCM stream; idle pages use this background capture.
    * Leave completed foreground TTS results for their owner to consume. */

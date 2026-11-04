@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_music.h"
 #include "glass_lock_photo.h"
+#include "glass_music_favorite_cache.h"
 struct music_cover_view {
   lv_obj_t *host,*canvas,*thumbnail_host,*thumbnail;unsigned owner,track_id;
   bool requested,done;char url[1024];
+  uint32_t retry_at;
+  int error;
 };
 static void music_cover_deleted(lv_event_t *e)
 {
@@ -17,7 +20,7 @@ static void music_cover_reset(struct music_cover_view *view)
    * it first; only the primary canvas owns and frees the decoded buffer. */
   if(view->thumbnail){lv_obj_delete(view->thumbnail);view->thumbnail=NULL;}
   if(view->canvas){lv_obj_delete(view->canvas);view->canvas=NULL;}
-  view->requested=view->done=false;
+  view->requested=view->done=false;view->retry_at=0;view->error=0;
 }
 static void music_cover_place(lv_obj_t *image,lv_obj_t *host,unsigned width,unsigned height)
 {
@@ -32,19 +35,29 @@ static void music_cover_place(lv_obj_t *image,lv_obj_t *host,unsigned width,unsi
 static void music_cover_tick(struct music_cover_view *view,const struct music_now_playing *now)
 {
   if(!view->host)return;
-  if(view->track_id!=now->track_id || strcmp(view->url,now->cover_url)) {
+  /* Stop advances playback's cancellation generation without changing the
+   * selected artwork. Keep its canvas (or pending same-URL decode) intact. */
+  if(strcmp(view->url,now->cover_url) ||
+     (view->track_id!=now->track_id && now->state!=MUSIC_STOPPED)) {
     music_cover_reset(view);view->track_id=now->track_id;memcpy(view->url,now->cover_url,sizeof(view->url));
   }
-  if(!view->url[0] || view->done)return;
+  view->track_id=now->track_id;
+  if(!view->url[0])return;
+  if(view->done) {
+    if(view->canvas||strncmp(view->url,MUSIC_FAVORITE_COVER_SCHEME,sizeof(MUSIC_FAVORITE_COVER_SCHEME)-1)||
+       (int32_t)(lv_tick_get()-view->retry_at)<0)return;
+    view->requested=view->done=false;
+  }
   if(!view->requested) {
     int ret=glass_lock_cover_request(view->owner,view->url);
     if(ret==-EBUSY)return;
-    if(ret){view->done=true;return;}
+    if(ret){view->error=ret;view->done=true;return;}
     view->requested=true;
   }
   struct glass_lock_photo cover;if(!glass_lock_cover_take(view->owner,&cover))return;
   view->done=true;
-  if(cover.error || !cover.pixels || !cover.width || !cover.height){free(cover.pixels);return;}
+  if(cover.error || !cover.pixels || !cover.width || !cover.height){view->error=cover.error?cover.error:-EIO;free(cover.pixels);view->retry_at=lv_tick_get()+5000;return;}
+  view->error=0;
   lv_obj_update_layout(view->host);
   lv_obj_t *canvas=lv_canvas_create(view->host);view->canvas=canvas;
   if(!canvas){free(cover.pixels);return;}

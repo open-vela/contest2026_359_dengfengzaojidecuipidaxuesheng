@@ -90,7 +90,7 @@ test('poke and feed change bubble and meters', () => {
 test('chat uses local lexicon', () => {
   const s = setup();
   s.api.chat('你好');
-  assert.match(s.api.getState().reply, /碳基/);
+  assert.match(s.api.getState().reply, /薯条/);
 });
 
 test('uses native system.pet when hosted', () => {
@@ -125,7 +125,7 @@ test('navigation keeps every control usable and reflects mode, size and visibili
   s.click('跟随');
   assert.equal(s.api.getState().mode, 'follow');
   s.click('聊天');
-  assert.match(s.api.getState().reply, /碳基/);
+  assert.match(s.api.getState().reply, /薯条/);
   s.click('喂食');
   for (const text of ['小鱼干', '蛋糕', '棒棒糖', '团子', '钻石']) s.click(text);
   s.click('设置'); s.click('大');
@@ -174,15 +174,15 @@ test('unchanged hosted ticks do not rewrite widgets, allocate controls or repeat
   assert.equal(s.labels.size, count);
 });
 
-test('maid loading reports actual success and preserves an already loaded appearance on failure', () => {
+test('seagull loading reports actual success and preserves an already loaded appearance on failure', () => {
   const state = {mode:'still',size:'medium',visible:true,mood:80,hunger:10,eventSeq:0,appearance:'fallback'};
   let ok = true;
-  const s = setup({}, {pet:{getState:()=>state,loadAppearance(){if(ok)state.appearance='maid';return ok;}}});
-  s.click('外观'); s.click('加载女仆装');
-  assert.equal(s.api.getState().appearance, 'maid');
-  assert.equal(s.toasts.at(-1), '女仆装已加载');
-  ok = false; s.click('加载女仆装');
-  assert.equal(s.api.getState().appearance, 'maid');
+  const s = setup({}, {pet:{getState:()=>state,loadAppearance(){if(ok)state.appearance='seagull';return ok;}}});
+  s.click('外观'); s.click('恢复海鸥形象');
+  assert.equal(s.api.getState().appearance, 'seagull');
+  assert.equal(s.toasts.at(-1), '海鸥形象已加载');
+  ok = false; s.click('恢复海鸥形象');
+  assert.equal(s.api.getState().appearance, 'seagull');
   assert.match(s.toasts.at(-1), /失败/);
   const fallback = setup();
   assert.equal(fallback.api.loadAppearance(), false);
@@ -195,4 +195,13 @@ test('generated standalone script and firmware resource match the canonical sour
   const resource = fs.readFileSync(path.join(root,'dafeiyu_resource.c'),'utf8').split('g_dafeiyu_app_js[] =')[1].split('};')[0];
   const bytes = Buffer.from([...resource.matchAll(/0x([0-9a-f]{2})/g)].map(match=>parseInt(match[1],16)));
   assert.deepEqual(bytes, Buffer.concat([data,Buffer.from([0])]));
+});
+
+test('seagull treats fries as food and answers with its own fries dialogue', () => {
+  const s = setup();
+  s.click('喂食'); s.click('薯条');
+  assert.match(s.api.getState().bubble, /薯条/);
+  assert.ok(s.api.getState().hunger < 28);
+  s.api.chat('我的薯条呢'); assert.match(s.api.getState().reply, /薯条/);
+  s.api.chat('困了'); assert.match(s.api.getState().reply, /薯条/);
 });

@@ -4,17 +4,33 @@
 #include "glass_speech.h"
 #include "glass_status.h"
 #include <errno.h>
+#include "glass_material.h"
 #include <stdlib.h>
 #include <malloc.h>
+extern bool glass_pinyin_reclaim_idle(void) __attribute__((weak));
+extern int glass_ui_memory_begin(unsigned) __attribute__((weak));
+extern void glass_ui_memory_end(void) __attribute__((weak));
+void glv_platform_memory_begin(void)
+{gmat_pressure(true);if(glass_ui_memory_begin)(void)glass_ui_memory_begin(150);}
+void glv_platform_memory_end(void)
+{if(glass_ui_memory_end)glass_ui_memory_end();else gmat_pressure(false);}
+static void reclaim_optional(void)
+{glass_speech_clear_cache();if(glass_pinyin_reclaim_idle)glass_pinyin_reclaim_idle();}
+int glv_platform_memory_pressure(void)
+{
+  struct mallinfo mi=mallinfo();size_t free_bytes=mi.fordblks,largest=mi.mxordblk;
+  if(free_bytes<GLV_SYSTEM_RESERVE||largest<65536u)return 2;
+  return free_bytes<GLV_SYSTEM_RESERVE+256u*1024u||largest<262144u?1:0;
+}
 int glv_platform_budget(size_t *budget,size_t *largest)
 {
-  glass_speech_clear_cache();
+  reclaim_optional();
   /* On this board the user malloc arena is PSRAM; the internal kernel arena
    * is separate. Never count kernel/DMA memory as inference capacity. */
   struct mallinfo mi=mallinfo();size_t free_bytes=mi.fordblks;
   *largest=mi.mxordblk;*budget=0;
-  if(free_bytes<=4u*1024u*1024u||*largest<3500u*1024u)return -ENOMEM;
-  *budget=free_bytes-4u*1024u*1024u;if(*budget>GLV_MEMORY_LIMIT)*budget=GLV_MEMORY_LIMIT;
+  if(free_bytes<=GLV_SYSTEM_RESERVE||*largest<3500u*1024u)return -ENOMEM;
+  *budget=free_bytes-GLV_SYSTEM_RESERVE;if(*budget>GLV_MEMORY_LIMIT)*budget=GLV_MEMORY_LIMIT;
   return *budget<4608u*1024u?-ENOMEM:0;
 }
 int glv_platform_audio_open(void **out,bool (*cancelled)(void *),void *opaque)
@@ -41,10 +57,10 @@ int glv_platform_storage_stamp(struct glv_storage_stamp *out)
 }
 int glv_platform_session_budget(size_t retained,size_t *budget,size_t *largest)
 {
-  glass_speech_clear_cache();struct mallinfo mi=mallinfo();
+  reclaim_optional();struct mallinfo mi=mallinfo();
   size_t free_bytes=mi.fordblks;*largest=mi.mxordblk;*budget=0;
-  if(free_bytes<=4u*1024u*1024u||*largest<65536u)return -ENOMEM;
-  size_t available=free_bytes-4u*1024u*1024u;
+  if(free_bytes<=GLV_SYSTEM_RESERVE||*largest<65536u)return -ENOMEM;
+  size_t available=free_bytes-GLV_SYSTEM_RESERVE;
   *budget=retained>GLV_MEMORY_LIMIT||available>GLV_MEMORY_LIMIT-retained?GLV_MEMORY_LIMIT:retained+available;
   return 0;
 }

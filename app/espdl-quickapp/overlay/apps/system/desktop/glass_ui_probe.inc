@@ -165,36 +165,7 @@ static bool desktop_ui_probe_click_at(lv_obj_t *object,int x,int y)
   lv_obj_send_event(object,LV_EVENT_CLICKED,NULL);return true;
 }
 
-static lv_point_t g_ui_probe_pointer_point;
-static lv_indev_state_t g_ui_probe_pointer_state;
-static void desktop_ui_probe_pointer_read(lv_indev_t *input,lv_indev_data_t *data)
-{
-  LV_UNUSED(input);
-  data->point=g_ui_probe_pointer_point;data->state=g_ui_probe_pointer_state;
-}
-/* GUI thread only. Unlike click:, this runs native LVGL hit testing and
- * PRESSED/RELEASED/SHORT_CLICKED/CLICKED, including input guards and motion. */
-static bool desktop_ui_probe_pointer_stroke(int x,int y,int end_x,int end_y)
-{
-  lv_display_t *display=lv_display_get_default();
-  if(!display || x<0 || y<0 || x>=lv_display_get_horizontal_resolution(display) ||
-     y>=lv_display_get_vertical_resolution(display) || end_x<0 || end_y<0 ||
-     end_x>=lv_display_get_horizontal_resolution(display) || end_y>=lv_display_get_vertical_resolution(display))return false;
-  lv_indev_t *input=lv_indev_create();if(!input)return false;
-  lv_indev_set_type(input,LV_INDEV_TYPE_POINTER);
-  lv_indev_set_display(input,display);
-  lv_indev_set_mode(input,LV_INDEV_MODE_EVENT);
-  lv_indev_set_read_cb(input,desktop_ui_probe_pointer_read);
-  g_ui_probe_pointer_point.x=x;g_ui_probe_pointer_point.y=y;
-  g_ui_probe_pointer_state=LV_INDEV_STATE_PRESSED;lv_indev_read(input);
-  g_ui_probe_pointer_point.x=end_x;g_ui_probe_pointer_point.y=end_y;
-  g_ui_probe_pointer_state=LV_INDEV_STATE_RELEASED;lv_indev_read(input);
-  lv_indev_delete(input);
-  return true;
-}
-
-static bool desktop_ui_probe_pointer_tap(int x,int y)
-{return desktop_ui_probe_pointer_stroke(x,y,x,y);}
+#include "glass_ui_probe_pointer.h"
 
 #include "qpk_capacity_test.inc"
 #include "qpk_yield_test.inc"
@@ -280,10 +251,29 @@ static void desktop_ui_probe_service(void)
         weather.data.aqi, weather.data.temperature, weather.data.humidity, weather.data.location);
     }
   else if (!strcmp(command, "weather-refresh")) glass_weather_refresh();
+  else if (!strcmp(command,"lock"))glass_lock_open(NULL);
+  else if (!strcmp(command,"unlock"))lock_unlock(NULL);
+  else if (!strcmp(command,"lock-next"))lock_page_set((g_lock_page+1)%4);
+  else if (!strcmp(command,"lock-status"))
+    desktop_ui_probe_print("LOCK_STATUS active=%u page=%u pending=%u timer=%u\n",
+      g_lock_ui.root!=NULL,g_lock_page,g_lock_page_pending,g_lock_ui.timer!=NULL);
   else if (!strcmp(command, "pet-status"))
+  {
+    struct pet_state_s state;pet_engine_get(&state);
     desktop_ui_probe_print("pet source=%s bytes=%lu open=%d\n",
       pet_lvgl_uses_sd_sprites() ? "sd" : "fallback",
       (unsigned long)pet_lvgl_sprite_bytes(), pet_lvgl_is_open());
+    desktop_ui_probe_print("PET_STATE visible=%u dragging=%u x=%d y=%d\n",
+      state.visible,state.dragging,(int)state.x,(int)state.y);
+    desktop_ui_probe_print("PET_MOTION action=%u elapsed=%u\n",state.motion,state.motion_ms);
+  }
+  else if (!strncmp(command,"pet-motion:",11))
+  {
+    unsigned motion=(unsigned)strtoul(command+11,NULL,10);
+    pet_engine_motion(motion);pet_lvgl_sync();
+    struct pet_state_s state;pet_engine_get(&state);
+    desktop_ui_probe_print("PET_MOTION action=%u elapsed=%u\n",state.motion,state.motion_ms);
+  }
   else if (!strcmp(command,"music-pv-demo"))
     {
       struct music_song song={0};
@@ -364,6 +354,24 @@ static void desktop_ui_probe_service(void)
       desktop_ui_probe_print("music-metadata lyrics=%d lines=%u artwork=%d cover_ready=%d full_cover_ready=%d\n",
         now.lyrics_state,window.total,now.cover_url[0]!=0,g_music_ui.cover.canvas!=NULL,
         g_music_ui.full&&g_music_ui.full->cover.canvas!=NULL);
+      unsigned hosts=0,ready=0;
+      for(unsigned i=0;g_music_ui.artwork&&i<GLASS_COVER_THUMBNAIL_COUNT;i++){
+        hosts+=music_ui_cover_visible(g_music_ui.artwork->views[i].host);
+        ready+=music_ui_cover_visible(g_music_ui.artwork->views[i].host)&&g_music_ui.artwork->views[i].canvas!=NULL;
+      }
+      desktop_ui_probe_print("music-thumbnails visible=%u ready=%u mini_ready=%d\n",hosts,ready,g_music_ui.cover.thumbnail!=NULL);
+      struct glass_artwork_stats stats={0};glass_lock_artwork_stats(&stats);
+      desktop_ui_probe_print("music-artwork-cache hits=%u jpeg_decodes=%u prepared=%u\n",stats.cache_hits,stats.jpeg_decodes,stats.prepared);
+      desktop_ui_probe_print("music-home root=%d home_ready=%d requested=%d done=%d error=%d url=%d\n",
+        g_home_music.root!=NULL,g_home_music.cover.canvas!=NULL,g_home_music.cover.requested,
+        g_home_music.cover.done,g_home_music.cover.error,g_home_music.cover.url[0]!=0);
+      desktop_ui_probe_print("music-list root=%d favorites=%d scroll_y=%ld\n",g_music_ui.root!=NULL,
+        g_music_ui.favorites,g_music_ui.list?(long)lv_obj_get_scroll_y(g_music_ui.list):0);
+      for(unsigned i=0;g_music_ui.artwork&&i<GLASS_COVER_THUMBNAIL_COUNT;i++){
+        struct music_cover_view *v=&g_music_ui.artwork->views[i];
+        desktop_ui_probe_print("music-row slot=%u row=%u visible=%d canvas=%d requested=%d done=%d error=%d\n",
+          i,v->track_id,music_ui_cover_visible(v->host),v->canvas!=NULL,v->requested,v->done,v->error);
+      }
     }
   else if (!strcmp(command, "music-status"))
     {
@@ -372,6 +380,8 @@ static void desktop_ui_probe_service(void)
         glass_music_get(s);
         desktop_ui_probe_print("music state=%d error=%d search=%d search_error=%d result=%d favorites=%u storage=%d position_ms=%u volume=%u title=%s artist=%s\n",
           s->state,s->error,s->searching,s->search_error,s->has_result,s->favorite_count,s->storage_error,s->position_ms,s->volume,s->current.name,s->current.artist);
+        desktop_ui_probe_print("music-offline ready=%u total=%u caching=%d error=%d\n",
+          s->offline_ready_count,s->favorite_count,s->offline_caching,s->offline_error);
         free(s);
       }
     }
@@ -705,7 +715,7 @@ static void desktop_ui_probe_service(void)
 
 static int desktop_ui_probe_request(const char *command)
 {
-  const char *commands[] = {"weather", "weather-status", "weather-refresh", "home", "settings", "wifi", "bluetooth", "files", "resources",
+  const char *commands[] = {"lock","unlock","lock-next","lock-status","weather", "weather-status", "weather-refresh", "home", "settings", "wifi", "bluetooth", "files", "resources",
     "speech-esp-tts", "speech-esp-tts-play", "speech-esp-tts-export",
     "speech-p4tts-scalar", "speech-p4tts-pie", "speech-p4tts-dual",
     "speech-zh-q8", "speech-zh-q8-play", "speech-zh-q8-pie", "speech-zh-q8-dual",
@@ -721,6 +731,7 @@ static int desktop_ui_probe_request(const char *command)
   /* click:<label> presses one visible control by its label, which is how the
    * file manager's list rows are verified. */
   bool found = (!strcmp(command,"backlight-status")) ||
+               (!strncmp(command,"pet-motion:",11)&&((command[11]>='1'&&command[11]<='9'&&command[12]=='\0')||!strcmp(command+11,"10"))) ||
                (!strncmp(command,"screen-brightness:",18)) ||
 #ifdef GLASS_LOCAL_SPEECH
                (!strncmp(command,"speech-say:",11)&&command[11]!='\0') ||

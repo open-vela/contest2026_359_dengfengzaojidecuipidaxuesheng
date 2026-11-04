@@ -1,0 +1,77 @@
+{
+  "status": "FLASHED_STARTUP_UI_DUAL_AI_ASR_REFERENCE_VERIFIED",
+  "firmware_sha256": "e7f853a9c054d9e4424e4809a2f02a88451ecdd9d38bafbc56bf4dd44ad11adc",
+  "ble_identity": {
+    "address": "F6:60:C5:32:98:3B",
+    "address_little_endian": [
+      59,
+      152,
+      50,
+      197,
+      96,
+      246
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-C532983B",
+    "store_path": "/data/config/ble_f660c532983b.bin",
+    "store_temp": "/data/config/.ble_f660c532983b.tmp",
+    "purpose_path": "/data/config/bh_f660c532983b.bin",
+    "purpose_temp": "/data/config/.bh_f660c532983b.tmp",
+    "header_sha256": "dd88199a677f9ece0bed9a916ab4b8494b14cfdb9c7019ffdd626b27ecfe8624"
+  },
+  "layout": {
+    "user_heap_start": "0x487c0000",
+    "user_heap_capacity": 25427968
+  },
+  "startup": [
+    "early NSH and diagnostic trace",
+    "embedded basic font and first frame without SD materials",
+    "services start in successive GUI turns",
+    "font checksum/read in cancellable worker",
+    "one in-memory font face adopted per GUI turn"
+  ],
+  "material_memory": {
+    "font_bytes": 1938976,
+    "normal_page_cache": 65536,
+    "inference_page_cache": 16384,
+    "font_released_on_gui_owner": true,
+    "cancel_checked_each_block": true
+  },
+  "models_changed": false,
+  "asr_sources_unchanged": 49,
+  "dual_ai": true,
+  "thinking": {
+    "Low": 4,
+    "Medium": 5,
+    "High": 6,
+    "default": "Medium",
+    "early_finish": true
+  },
+  "sd_pack_reused_from_104": true,
+  "sd_manifest_sha256": "ea263c22e5a5b7573c6de73fec47a8238203e8c87fee2017092e0a389bd6d8f2",
+  "flashed": true,
+  "cold_power_cycle_tested": false,
+  "physical_screen_accepted": false,
+  "current_board_sha256": "e7f853a9c054d9e4424e4809a2f02a88451ecdd9d38bafbc56bf4dd44ad11adc",
+  "independent_app_readback": true,
+  "data_partition_preserved": true,
+  "startup_ui_passed": true,
+  "dual_ai_real_models_passed": true,
+  "early_console_while_font_loading": true,
+  "asr": {
+    "reference_match": true,
+    "audio_seconds": 5.6115,
+    "job_seconds": 258.66,
+    "compute_seconds": 220.47,
+    "realtime": false,
+    "initial_obsolete_assertion_preserved": true
+  },
+  "actual_first_frame_ms": [
+    430,
+    440
+  ],
+  "actual_material_reclaim_bytes": 2214728,
+  "final_runtime_passed": true,
+  "framebuffer_capture": "board/capture/home105.png",
+  "console_port_released": true
+}

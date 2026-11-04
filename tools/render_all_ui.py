@@ -44,8 +44,10 @@ def main():
     p.add_argument('--desktop-source',type=Path,help='Optional immutable desktop source snapshot, including its runtime header')
     p.add_argument('--prepare-only',action='store_true')
     p.add_argument('--build-only',action='store_true',help='Build a native harness without starting it')
+    p.add_argument('--real-music-artwork',action='store_true',help='Use actual JPEG cache/worker with isolated SD fixtures; HTTP returns ENETDOWN')
     p.add_argument('--safe-event-dispatch',action='store_true',help='Use the prepared LVGL event-vector relocation repair')
     p.add_argument('--local-voice',action='store_true',help='Review the offline native voice app with inert model/audio fixtures')
+    p.add_argument('--real-pet',action='store_true',help='Link and exercise the production pet renderer and sprite lifetime')
     p.add_argument('--harness-source',type=Path,help='Optional focused native page harness')
     p.add_argument('--png-prefix',default='',help='Convert only the matching native captures; all pages still run under sanitizers')
     p.add_argument('--ble-central-limit',type=int,choices=[2,8],default=2,help='Offline BLE snapshot capacity; never changes a controller')
@@ -84,6 +86,9 @@ def main():
 #define CONFIG_LIBC_LOCALTIME 1
 ''')
     (work/'nuttx/sched.h').write_text('#pragma once\n')
+    if a.real_pet:
+        (work/'nuttx/audio').mkdir(exist_ok=True)
+        (work/'nuttx/audio/audio.h').write_text('#pragma once\nstruct ap_buffer_s;\n')
     (work/'netutils/netlib.h').write_text('#pragma once\n#include <netinet/in.h>\nint netlib_get_ipv4addr(const char*,struct in_addr*);\n')
     # Do not compile boot networking, workers or device CLI entry points.
     main=(desktop/'desktop_main.c').read_text().split('#include "glass_ui_probe.inc"')[0]
@@ -122,10 +127,11 @@ static void reap(void){} static void release(void){}
 static void deleted(lv_event_t *e);
 static void play_clicked(lv_event_t *e){(void)e;} static void stop_clicked(lv_event_t *e){(void)e;}
 static void live_scale_changed(lv_event_t *e){(void)e;} static void tick(lv_timer_t *t){(void)t;}
+static lv_obj_t *g_fullscreen;
 void bili_live_stop(void){}
 ''']
     live=(repo/'app/bilibili_live/bili_live.c').read_text()
-    media += [function(live,'button'),function(live,'bili_live_show')]
+    media += [function(live,'button'),function(live,'bili_live_show'),function(live,'bili_live_fullscreen_active')]
     local=(repo/'app/bilibili_live/local_video_ui.c').read_text()
     media.append('''#include "glass_media_controls.h"
 #define button local_button
@@ -143,7 +149,7 @@ static void deleted(lv_event_t *e){if(lv_event_get_target(e)==page)local_video_s
 static char review_video_path[512];
 void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(review_video_path),"%s",path);}
 ''')
-    media += [function(local,name) for name in ['picture_layout','fullscreen_exit','local_video_back','fullscreen_clicked','button','local_video_show','video_view_button','local_video_view']]+['#undef button']
+    media += [function(local,name) for name in ['local_video_fullscreen_active','picture_layout','fullscreen_exit','local_video_back','fullscreen_clicked','button','local_video_show','video_view_button','local_video_view']]+['#undef button']
     (work/'media_pages.inc').write_text('\n'.join(media))
     runtime=(desktop/'qpk_runtime.c').read_text()
     (work/'production_qpk_ha_navigation.inc').write_text(function(runtime,'qpk_runtime_open_ha_device'))
@@ -181,7 +187,9 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
       'glass_ble.h','glass_ble_central.h','glass_status.h','glass_speech.h','qpk_espdl.h','desktop_worker.h','pet_engine.h','pet_lvgl.h','qpk_mjpeg.h']
     skip={'glass_ime_attach','glass_ime_commit','glass_ime_commit_tree','glass_ime_start_voice','glass_ime_set_target','glass_ime_set_voice_enabled',
           'desktop_motion_button','qpk_mjpeg_create','qpk_mjpeg_destroy','qpk_mjpeg_probe','qpk_mjpeg_preview_limits',
-          'qpk_mjpeg_frame_size','qpk_mjpeg_decode','qpk_mjpeg_decode_region','qpk_mjpeg_decode_view','qpk_mjpeg_decode_preview','qpk_mjpeg_decode_still','qpk_mjpeg_decode_still_fit'}
+          'qpk_mjpeg_frame_size','qpk_mjpeg_decode','qpk_mjpeg_decode_software','qpk_mjpeg_decode_region','qpk_mjpeg_decode_view','qpk_mjpeg_decode_preview','qpk_mjpeg_decode_still','qpk_mjpeg_decode_still_fit'}
+    photo_api=['glass_lock_photo_request','glass_lock_photo_cancel','glass_lock_photo_take','glass_lock_cover_request','glass_lock_cover_cancel','glass_lock_cover_take','glass_music_artwork_prepare','glass_lock_artwork_stats']
+    if a.real_music_artwork:skip.update(photo_api)
     if a.local_voice:headers+=['glass_local_voice.h']
     mocks=['#include <stdlib.h>\n#include <string.h>\n#include <stdio.h>\n#include <errno.h>\n#include <netinet/in.h>\n#include "glass_icons.h"']
     mocks += [f'#include "{name}"' for name in headers]
@@ -192,7 +200,8 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
         text=re.sub(r'/\*.*?\*/','',text,flags=re.S)
         for m in re.finditer(r'(?m)^([\w\s*]+?)\s+(\w+)\s*\(([^;{}]*?)\)\s*;',text):
             ret,name,args=m.groups();ret=ret.strip()
-            if 'typedef' in ret or name in skip or name.startswith('qpk_runtime_'):continue
+            if 'typedef' in ret or name in skip or name.startswith(('qpk_runtime_','pet_engine_')):continue
+            if a.real_pet and name.startswith('pet_lvgl_'):continue
             # Do not swallow preceding preprocessor lines into a return type.
             ret=ret.split('\n')[-1].strip()
             if ret.startswith('extern'):ret=ret[6:]
@@ -203,6 +212,20 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
         error=function((desktop/'glass_local_voice.c').read_text(),'glass_local_voice_error')
         (work/'local_voice_error_production.inc').write_text('#define glass_local_voice_error review_production_local_voice_error\n'+error+'\n#undef glass_local_voice_error\n')
     custom_text=custom.read_text() if custom.exists() else ''
+    if a.real_music_artwork:
+        for name in photo_api:
+            if name in ['glass_music_artwork_prepare','glass_lock_artwork_stats']:continue
+            custom_text=custom_text.replace(function(custom_text,name),'')
+        # Use the production identity/URL helpers rather than default false/
+        # success-with-empty-output mocks, which hide every non-current row.
+        service=(desktop/'glass_music_service.c').read_text()
+        lyrics=(desktop/'glass_music_lyrics.h').read_text()
+        for name in ['glass_music_is_favorite','glass_music_artwork_url']:prototypes.pop(name,None)
+        custom_text+='\n'+function(lyrics,'music_metadata_url')+'\n'+function(lyrics,'music_cover_url')
+        custom_text+='\n'+function(service,'glass_music_is_favorite')+'\n'+function(service,'glass_music_artwork_url')+'\n'
+        skip.add('music_http_get')
+        prototypes.pop('music_http_get',None)
+        custom_text+='\nunsigned review_artwork_http;\nint music_http_get(const char *url,music_data_cb cb,void *ctx,music_cancel_cb cancel,unsigned *status){(void)url;(void)cb;(void)ctx;(void)cancel;if(status)*status=0;review_artwork_http++;return -ENETDOWN;}\n'
     for name,(ret,args) in prototypes.items():
         if re.search(r'\b'+name+r'\s*\(',custom_text):continue
         body='' if ret=='void' else 'return NULL;' if '*' in ret else 'return 0;'
@@ -216,8 +239,10 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
       '-I'+str(work),'-I'+str(desktop),'-I'+str(apps/'system/desktop'),
       '-I'+str(repo/'app/bilibili_live'),'-I'+str(apps/'graphics/lvgl'),
       '-I'+str(apps/'netutils/cjson/cJSON'),'-I'+str(cache),'-DLV_CONF_INCLUDE_SIMPLE']
+    if a.real_music_artwork:flags+=['-DGLASS_REVIEW_REAL_ARTWORK','-DMUSIC_CACHE_ROOT="'+str(out/'music-cache')+'"']
     objects=sorted(cache.glob('lvgl-*.o'),key=lambda x:int(x.stem.split('-')[-1]))
-    if a.local_voice:flags+=['-DGLASS_LOCAL_VOICE','-DGLASS_LOCAL_SPEECH']
+    if a.local_voice:flags+=['-DGLASS_LOCAL_VOICE','-DGLASS_LOCAL_SPEECH','-DGLASS_LOCAL_CONTROL']
+    if a.real_pet:flags+=['-DGLASS_REVIEW_REAL_PET']
     if a.safe_event_dispatch:
         from prepare_lvgl_event_dispatch import apply
         original=apps/'graphics/lvgl/lvgl/src/misc/lv_event.c'
@@ -253,17 +278,20 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
     sources=[a.harness_source or repo/'app/espdl-quickapp/tests/render_all_ui.c',repo/'app/espdl-quickapp/tests/qpk_review_bridge.c',work/'service_mocks.c',desktop/'glass_icons.c',desktop/'glass_ime.c',
       apps/'netutils/cjson/cJSON/cJSON.c',work/'qrcodegen.c']
     sources += [desktop/name for name in ['camera_resource.c','recorder_resource.c','espdl_resource.c','ouo_resource.c','dafeiyu_resource.c','homeassistant_resource.c']]
-    sources += [desktop/name for name in ['glass_grok.c','glass_grok_state.c','glass_code_font.c']]
-    sources += [desktop/'glass_sd_font.c']
+    sources += [desktop/name for name in ['glass_grok.c','glass_grok_state.c','glass_code_font.c','glass_seagull.c','glass_seagull_data.c','pet_engine.c']]
+    if a.real_pet:sources += [desktop/'pet_lvgl.c',desktop/'pet_sprites.c']
+    sources += [desktop/'glass_sd_font.c',desktop/'glass_material.c']
+    flags += ['-DGLASS_MATERIAL_ROOT="'+str(repo.parent/'sdcard/desktop-assets/v2')+'"']
     sources += [desktop/'glass_i18n.c']
     sources += [desktop/name for name in ['qpk_mjpeg.c','qpk_tjpgd.c']]
+    if a.real_music_artwork:sources.append(desktop/'glass_lock_photo.c')
     sources += [repo/'app/bilibili_live/local_album_ui.c',repo/'app/bilibili_live/album_formats.c']
     command=['gcc',*flags,*map(str,sources),*map(str,objects),'-Wl,--gc-sections','-lm','-o',str(out/'render-all-ui')]
     with (out/'compile.log').open('w') as log:
         result=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT)
     if result.returncode:
         print('\n'.join((out/'compile.log').read_text().splitlines()[:110]));raise SystemExit(result.returncode)
-    native_command=[str(out/'render-all-ui'),str(apps/'system/desktop/AlibabaPuHuiTi-3-55-Regular.otf'),str(out)]
+    native_command=[str(out/'render-all-ui'),str(desktop/'AlibabaPuHuiTi-3-55-Regular.otf') if (desktop/'AlibabaPuHuiTi-3-55-Regular.otf').is_file() else str(apps/'system/desktop/AlibabaPuHuiTi-3-55-Regular.otf'),str(out)]
     (out/'native-command.json').write_text(json.dumps(native_command))
     if a.build_only:
         print('NATIVE_UI_BUILD_OK',out/'render-all-ui');return
@@ -275,6 +303,7 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
     tracked += [desktop/name for name in ['glass_app_theme.h','glass_app_controls.h','glass_app_frame.h','glass_input_guard.h','glass_media_controls.h','qpk_app_theme.h']]
     tracked += [repo/'app/bilibili_live'/name for name in ['bili_live.c','local_video_ui.c']]
     if (desktop/'glass_ui_visibility.h').exists():tracked.append(desktop/'glass_ui_visibility.h')
+    tracked += [desktop/'glass_seagull_motion.h',desktop/'pet_engine.h',desktop/'glass_seagull.h']
     for path in sorted(set(tracked)):
         try:name=str(path.relative_to(repo))
         except ValueError:name='prepared-apps/'+str(path.relative_to(apps)) if path.is_relative_to(apps) else path.name

@@ -48,13 +48,51 @@ int glv_asr_assets_check(struct glv_memory *memory)
  for(unsigned i=0;i<7;i++){int ret=glv_asset_check(GLV_ASR_RELEASE_ROOT,assets[i],memory);if(ret)return ret;}
  return 0;
 }
+#ifdef GLV_ASR_STREAMING
+struct stream_probe {int (*token)(void *,unsigned,unsigned);void *opaque;unsigned tokens;uint64_t began,first;};
+static int probe_partial(void *opaque,const char *text,unsigned tokens,unsigned frames)
+{
+ struct stream_probe *p=opaque;(void)text;
+ if(tokens>p->tokens){if(!p->first)p->first=glv_now_us()-p->began;
+  p->tokens=tokens;if(p->token)return p->token(p->opaque,tokens,frames);}
+ return 0;
+}
+#endif
 static int transcribe(const int16_t *pcm,size_t samples,struct glv_memory *memory,char *text,size_t cap,
                        int (*token)(void *,unsigned,unsigned),void *opaque,void (*progress)(void *,unsigned),unsigned clip)
 {
  int ret=0;
  struct glv_asr *asr=NULL;
- if(progress)progress(opaque,1);ret=glv_asr_open(&asr,GLV_ASR_RELEASE_ROOT,memory);
+ if(progress)progress(opaque,1);uint64_t load_start=glv_now_us();ret=glv_asr_open(&asr,GLV_ASR_RELEASE_ROOT,memory);
+#ifdef GLV_ASR_STREAMING
+ if(!ret)ret=glv_asr_prepare_partial(asr);
+ uint64_t load_us=glv_now_us()-load_start,compute_us=0,tail_us=0;
+ struct stream_probe probe={.token=token,.opaque=opaque};
+ struct glv_asr_io_stats before={0},after={0};
+ if(!ret){
+  if(progress)progress(opaque,2);glv_asr_io_statistics(asr,&before);probe.began=glv_now_us();
+  ret=glv_asr_stream_begin(asr,probe_partial,&probe);
+  for(size_t at=0;at<samples&&!ret;){size_t n=samples-at;if(n>1600)n=1600;ret=glv_asr_stream_accept(asr,pcm+at,n);at+=n;}
+  uint64_t tail_start=glv_now_us();
+  if(!ret)ret=glv_asr_stream_finish(asr,text,cap,NULL);
+  tail_us=glv_now_us()-tail_start;compute_us=glv_now_us()-probe.began;glv_asr_io_statistics(asr,&after);
+ }
+ printf("LOCAL_ASR_STREAM_BENCH sample=%u samples=%lu load_us=%llu compute_us=%llu tail_us=%llu first_us=%llu resident=%lu inference_reads=%llu peak=%lu budget=%lu result=%d\n",
+ clip,(unsigned long)samples,(unsigned long long)load_us,(unsigned long long)compute_us,(unsigned long long)tail_us,(unsigned long long)probe.first,
+ (unsigned long)glv_asr_cached_bytes(asr),(unsigned long long)(after.reads-before.reads),(unsigned long)memory->peak,(unsigned long)memory->limit,ret);
+#else
  if(!ret){if(progress)progress(opaque,2);ret=glv_asr_transcribe(asr,pcm,samples,text,cap,token,opaque,NULL);}
+#endif
+ printf("LOCAL_ASR_ACCEL pie_dots=%llu pie_fallbacks=%llu selftests=%llu selftest_failures=%llu parallel_jobs=%llu workers=%llu parallel_fallbacks=%llu cpu0=%llu cpu1=%llu overlap_us=%llu block_loads=%llu block_hits=%llu block_bytes=%llu block_peak=%llu\n",
+ (unsigned long long)memory->profile.asr_pie_dots,(unsigned long long)memory->profile.asr_pie_fallbacks,(unsigned long long)memory->profile.asr_pie_selftests,(unsigned long long)memory->profile.asr_pie_selftest_failures,
+ (unsigned long long)memory->profile.asr_parallel_jobs,(unsigned long long)memory->profile.asr_parallel_workers,(unsigned long long)memory->profile.asr_parallel_fallbacks,(unsigned long long)memory->profile.asr_parallel_cpu0,(unsigned long long)memory->profile.asr_parallel_cpu1,(unsigned long long)memory->profile.asr_parallel_overlap_us,
+ (unsigned long long)memory->profile.asr_block_loads,(unsigned long long)memory->profile.asr_block_hits,(unsigned long long)memory->profile.asr_block_bytes,(unsigned long long)memory->profile.asr_block_peak_bytes);
+ printf("ASR_HOT peak=%llu hits=%llu evictions=%llu\n",(unsigned long long)memory->profile.asr_hot_peak_bytes,(unsigned long long)memory->profile.asr_hot_hits,(unsigned long long)memory->profile.asr_hot_evictions);
+ printf("ASR_DSP calls=%llu elements=%llu selftests=%llu fallbacks=%llu\n",(unsigned long long)memory->profile.asr_dsp_calls,(unsigned long long)memory->profile.asr_dsp_elements,(unsigned long long)memory->profile.asr_dsp_selftests,(unsigned long long)memory->profile.asr_dsp_fallbacks);
+ printf("ASR_TIMING io=%llu rows_including_io=%llu quant=%llu lane_math=%llu owner_wait=%llu encoder=%llu decoder=%llu joiner=%llu frontend=%llu\n",
+ (unsigned long long)memory->profile.asr_io_us,(unsigned long long)memory->profile.asr_rows_us,(unsigned long long)memory->profile.asr_quant_us,(unsigned long long)memory->profile.asr_math_us,(unsigned long long)memory->profile.asr_wait_us,
+ (unsigned long long)memory->profile.asr_encoder_us,(unsigned long long)memory->profile.asr_decoder_us,(unsigned long long)memory->profile.asr_joiner_us,(unsigned long long)memory->profile.asr_front_us);
+ for(unsigned op=1;op<28;op++)if(memory->profile.asr_op_us[op])printf("ASR_OP op=%u us=%llu\n",op,(unsigned long long)memory->profile.asr_op_us[op]);
  if(asr){struct glv_asr_io_stats io;glv_asr_io_statistics(asr,&io);
    printf("LOCAL_ASR_IO sample=%u bytes=%llu reads=%llu seeks=%llu packed_cache=%lu result=%d\n",clip,
      (unsigned long long)io.bytes,(unsigned long long)io.reads,(unsigned long long)io.seeks,(unsigned long)glv_asr_cached_bytes(asr),ret);}
