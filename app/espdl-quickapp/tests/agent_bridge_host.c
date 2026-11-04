@@ -73,7 +73,7 @@ int main(void)
     expected_mode=mode;session.mode=mode;memset(&config,0,sizeof(config));
     claw_qpk_configure(&config,&session);assert(session.agent);
     assert(config.supports_tools==(mode!=AGENT_MODE_CHAT));assert(claw_qpk_attach(NULL,&session)==ESP_OK);
-    const char *names[]={"qpk_list_examples","qpk_read_draft","qpk_read_example","qpk_write_draft","mcp_list_tools","mcp_call_tool","skill_list","home_status","music_status","assistant_status"};
+    const char *names[]={"qpk_list_examples","qpk_read_draft","qpk_read_example","qpk_write_draft","mcp_list_tools","mcp_call_tool","skill_list","home_status","music_status","assistant_status","jbox_status","hardware_poll","hardware_release"};
     for(unsigned i=0;i<sizeof(names)/sizeof(names[0]);i++){
       bool denied=mode==AGENT_MODE_CHAT||(i<4&&mode!=AGENT_MODE_CREATE)||((i==4||i==5||i>=7)&&mode!=AGENT_MODE_ASSISTANT);
       if(!denied)continue;
@@ -106,6 +106,8 @@ int main(void)
   assert(card_events==3&&!strstr(out,"card"));free(out);
   assert(strstr(last_card,"\"action\":true")&&strstr(last_card,"\"verified\":false"));
   assert(config.call_cap("home_test","{\"x\":1,\"x\":2}",NULL,&out,config.cap_user_ctx)!=ESP_OK);free(out);
+  assert(config.call_cap("jbox_status","{\"generation\":1,\"generation\":2}",NULL,&out,config.cap_user_ctx)!=ESP_OK&&strstr(out,"invalid_arguments"));free(out);
+  assert(config.call_cap("hardware_poll","{\"id\":1,\"id\":2}",NULL,&out,config.cap_user_ctx)!=ESP_OK&&strstr(out,"invalid_arguments"));free(out);
   /* Native assistant tools work directly and large board catalogs paginate. */
   char *catalog=malloc(strlen(assistant_tool_catalog)+3);assert(catalog);sprintf(catalog,"[%s]",assistant_tool_catalog);
   cJSON *entries=cJSON_Parse(catalog);free(catalog);assert(cJSON_GetArraySize(entries)==10);
@@ -131,7 +133,7 @@ int main(void)
     const cJSON *next=cJSON_GetObjectItem(page,"nextCursor");snprintf(cursor,sizeof(cursor),"%s",cJSON_IsString(next)?next->valuestring:"");
     cJSON_Delete(page);pages++;assert(pages<=4);
   }while(cursor[0]);
-  assert(pages>1&&total==26);
+  assert(pages>1&&total==54);
   assert(config.call_cap("mcp_list_tools","{\"server\":\"board\",\"cursor\":123}",NULL,&out,config.cap_user_ctx)!=ESP_OK);free(out);
   glass_agent_set_board_assistant(NULL);free(expanded);
   puts("ASSISTANT_BRIDGE_OK: direct native tools, duplicate-field rejection, mode boundaries and bounded board discovery pagination");

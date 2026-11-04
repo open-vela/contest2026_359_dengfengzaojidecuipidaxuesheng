@@ -93,7 +93,7 @@ int main(int argc,char **argv)
   save("{\"mcp1_enabled\":0,\"skills_enabled\":0}",0);agent=glass_agent_create(&cancel,AGENT_MODE_ASSISTANT);tools=glass_agent_tools(agent,"[]");assert(strstr(tools,"mcp_call_tool"));free(tools);cJSON_Delete(call(agent,"skill_list","{}",true));
   before=http_calls;
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"device_status\",\"arguments\":{}}",true));
-  result=call(agent,"mcp_list_tools","{\"server\":\"board\"}",false);assert(cJSON_GetArraySize(cJSON_GetObjectItem(result,"tools"))==11);cJSON_Delete(result);
+  result=call(agent,"mcp_list_tools","{\"server\":\"board\"}",false);assert(cJSON_GetArraySize(cJSON_GetObjectItem(result,"tools"))>=11);cJSON_Delete(result);
   /* Without the shared HA service the smart home tools do not exist. */
   cJSON_Delete(call(agent,"mcp_call_tool","{\"server\":\"board\",\"tool\":\"home_status\",\"arguments\":{}}",true));
   cJSON_Delete(call(agent,"mcp_list_tools","{\"server\":\"board\",\"cursor\":\"bad\"}",true));

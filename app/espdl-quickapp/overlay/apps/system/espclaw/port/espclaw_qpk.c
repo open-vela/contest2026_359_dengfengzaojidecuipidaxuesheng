@@ -74,9 +74,9 @@ static esp_err_t call_tool(const char *name, const char *input, const claw_core_
   /* Enforce the request's immutable mode even for guessed tool names. */
   if(!session->agent||!glass_agent_mode_valid(session->mode)||session->mode==AGENT_MODE_CHAT||
      (!strncmp(name,"qpk_",4)&&session->mode!=AGENT_MODE_CREATE)||
-     ((!strncmp(name,"mcp_",4)||!strncmp(name,"home_",5)||!strncmp(name,"music_",6)||!strncmp(name,"assistant_",10))&&session->mode!=AGENT_MODE_ASSISTANT))
+     ((!strncmp(name,"mcp_",4)||!strncmp(name,"home_",5)||!strncmp(name,"music_",6)||!strncmp(name,"assistant_",10)||!strncmp(name,"jbox_",5)||!strncmp(name,"hardware_",9))&&session->mode!=AGENT_MODE_ASSISTANT))
     return fail(out,"mode_denied","Switch mode explicitly before using this tool.");
-  cJSON *args = !strncmp(name,"skill_",6)||!strncmp(name,"mcp_",4)||!strncmp(name,"home_",5)||!strncmp(name,"music_",6)||!strncmp(name,"assistant_",10)?glass_agent_json(input):
+  cJSON *args = !strncmp(name,"skill_",6)||!strncmp(name,"mcp_",4)||!strncmp(name,"home_",5)||!strncmp(name,"music_",6)||!strncmp(name,"assistant_",10)||!strncmp(name,"jbox_",5)||!strncmp(name,"hardware_",9)?glass_agent_json(input):
     strstr(input,"\\u0000")?NULL:cJSON_ParseWithOpts(input,NULL,true);
   if (!cJSON_IsObject(args)) { cJSON_Delete(args); return fail(out, "invalid_arguments", "Arguments must be one complete JSON object."); }
   if(session->tool_calls>=session->tool_budget){cJSON_Delete(args);return fail(out,"tool_budget_exhausted","Report completed and pending steps. Do not replay effects.");}

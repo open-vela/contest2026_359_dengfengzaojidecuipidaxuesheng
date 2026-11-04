@@ -6,6 +6,7 @@
 #include "glass_board.h"
 #include "qpk_hardware.h"
 #include "glass_board_reference.h"
+#include "glass_jbox_tools.h"
 #include <limits.h>
 #include <pthread.h>
 #ifndef AGENT_PROFILE_ROOT
@@ -265,6 +266,20 @@ static void add_local_tools(cJSON *array,const struct glass_board_home *provider
   }
   cJSON_Delete(catalog);
 }
+static void add_jbox_tools(cJSON *array,bool functions)
+{
+  for(unsigned i=0;i<sizeof(board_jbox_tools)/sizeof(board_jbox_tools[0]);i++){
+    cJSON *entry=cJSON_Parse(board_jbox_tools[i].definition);if(!entry)return;
+    if(!functions){cJSON_AddItemToArray(array,entry);continue;}
+    cJSON *tool=cJSON_CreateObject(),*fn=cJSON_CreateObject();
+    if(!tool||!fn){cJSON_Delete(tool);cJSON_Delete(fn);cJSON_Delete(entry);return;}
+    cJSON_AddStringToObject(tool,"type","function");
+    cJSON_AddStringToObject(fn,"name",jstring(entry,"name"));
+    cJSON_AddStringToObject(fn,"description",jstring(entry,"description"));
+    cJSON_AddItemToObject(fn,"parameters",cJSON_DetachItemFromObjectCaseSensitive(entry,"inputSchema"));
+    cJSON_AddItemToObject(tool,"function",fn);cJSON_AddItemToArray(array,tool);cJSON_Delete(entry);
+  }
+}
 char *glass_agent_tools(struct glass_agent *a,const char *existing)
 {
   cJSON *array=cJSON_Parse(a&&a->mode==AGENT_MODE_CREATE?existing:"[]");if(!cJSON_IsArray(array)){cJSON_Delete(array);return NULL;}
@@ -277,7 +292,13 @@ char *glass_agent_tools(struct glass_agent *a,const char *existing)
     add_tool(array,"mcp_list_tools","Discover one configured MCP server's tools and inputSchema. Follow nextCursor if present.","{\"server\":{\"type\":\"string\"},\"cursor\":{\"type\":\"string\"}}","[\"server\"]");
     add_tool(array,"mcp_call_tool","Invoke a discovered, user-allowed tool on a configured MCP server. Use its exact inputSchema.","{\"server\":{\"type\":\"string\"},\"tool\":{\"type\":\"string\"},\"arguments\":{\"type\":\"object\"}}","[\"server\",\"tool\",\"arguments\"]");
   }
-  if(a&&a->mode==AGENT_MODE_ASSISTANT){add_local_tools(array,g_board_home);add_local_tools(array,g_board_music);add_local_tools(array,g_board_assistant);}
+  if(a&&a->mode==AGENT_MODE_ASSISTANT){
+    add_local_tools(array,g_board_home);add_local_tools(array,g_board_music);add_local_tools(array,g_board_assistant);
+    add_jbox_tools(array,true);
+    add_tool(array,"hardware_poll","Poll an async hardware/JBOX job until done and ok. Completed results are consumed once.","{\"id\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":2147483647}}","[\"id\"]");
+    add_tool(array,"hardware_stop","Cancel an owned hardware/JBOX job, then poll. JBOX cancellation closes its connection; never replay the action.","{\"id\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":2147483647},\"finish\":{\"type\":\"boolean\"}}","[\"id\"]");
+    add_tool(array,"hardware_release","Release this controller and disconnect JBOX, clearing its routes and peripherals. Changes hardware state; only when requested.","{}","[]");
+  }
   char *text=cJSON_PrintUnformatted(array);cJSON_Delete(array);return text;
 }
 static bool allowed_tool(const char *list,const char *name)
@@ -292,6 +313,48 @@ static bool arguments_only(const cJSON *args,const char *keys)
     for(const char *p=v->string;*p;p++)if(!isalnum((unsigned char)*p)&&*p!='_')return false;
     char field[64];snprintf(field,sizeof(field),",%s,",v->string);
     if(!strstr(keys,field))return false;for(const cJSON *next=v->next;next;next=next->next)if(!strcmp(v->string,next->string))return false;}
+  return true;
+}
+/* Validate the schema vocabulary emitted by generate_jbox_tools.py.
+ * Unknown types fail closed. Cross-field electrical/protocol
+ * constraints remain checked by qpk_jbox before any remote command is sent. */
+static bool jbox_schema_valid(const cJSON *value,const cJSON *schema)
+{
+  if(!value||!cJSON_IsObject(schema))return false;
+  const char *type=jstring(schema,"type");
+  if(!strcmp(type,"object")){
+    if(!cJSON_IsObject(value))return false;
+    const cJSON *properties=cJSON_GetObjectItemCaseSensitive(schema,"properties");
+    const cJSON *required=cJSON_GetObjectItemCaseSensitive(schema,"required");
+    for(const cJSON *key=required?required->child:NULL;key;key=key->next)
+      if(!cJSON_IsString(key)||!cJSON_GetObjectItemCaseSensitive(value,key->valuestring))return false;
+    for(const cJSON *v=value->child;v;v=v->next){
+      if(!v->string||cJSON_GetObjectItemCaseSensitive(value,v->string)!=v||
+         !jbox_schema_valid(v,cJSON_GetObjectItemCaseSensitive(properties,v->string)))return false;
+    }
+  }else if(!strcmp(type,"integer")){
+    if(!cJSON_IsNumber(value)||!(value->valuedouble>=0&&value->valuedouble<=INT_MAX)||
+       value->valuedouble!=(int)value->valuedouble)return false;
+    const cJSON *low=cJSON_GetObjectItemCaseSensitive(schema,"minimum"),*high=cJSON_GetObjectItemCaseSensitive(schema,"maximum");
+    if((low&&value->valuedouble<low->valuedouble)||(high&&value->valuedouble>high->valuedouble))return false;
+  }else if(!strcmp(type,"string")){
+    if(!cJSON_IsString(value))return false;
+    size_t length=strlen(value->valuestring);
+    const cJSON *low=cJSON_GetObjectItemCaseSensitive(schema,"minLength"),*high=cJSON_GetObjectItemCaseSensitive(schema,"maxLength");
+    if((low&&length<(size_t)low->valueint)||(high&&length>(size_t)high->valueint))return false;
+  }else if(!strcmp(type,"array")){
+    if(!cJSON_IsArray(value))return false;
+    int length=cJSON_GetArraySize(value);
+    const cJSON *low=cJSON_GetObjectItemCaseSensitive(schema,"minItems"),*high=cJSON_GetObjectItemCaseSensitive(schema,"maxItems");
+    if((low&&length<low->valueint)||(high&&length>high->valueint))return false;
+    for(const cJSON *v=value->child;v;v=v->next){
+      if(!jbox_schema_valid(v,cJSON_GetObjectItemCaseSensitive(schema,"items")))return false;
+      if(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(schema,"uniqueItems")))
+        for(const cJSON *prev=value->child;prev!=v;prev=prev->next)if(cJSON_Compare(prev,v,true))return false;
+    }
+  }else return false;
+  const cJSON *choices=cJSON_GetObjectItemCaseSensitive(schema,"enum");
+  if(choices){for(const cJSON *choice=choices->child;choice;choice=choice->next)if(cJSON_Compare(value,choice,true))return true;return false;}
   return true;
 }
 #include "glass_board_agent.inc"
@@ -312,6 +375,7 @@ static char *board_catalog_page(const cJSON *args)
     if(!cJSON_IsArray(extra)){cJSON_Delete(extra);cJSON_Delete(all);return error_result("invalid_board_catalog");}
     while(extra->child)cJSON_AddItemToArray(tools,cJSON_DetachItemFromArray(extra,0));cJSON_Delete(extra);
   }
+  add_jbox_tools(tools,false);
   unsigned total=cJSON_GetArraySize(tools);if(offset>total){cJSON_Delete(all);return error_result("invalid_cursor");}
   cJSON *page=cJSON_CreateObject(),*items=cJSON_AddArrayToObject(page,"tools");
   unsigned next=offset;
@@ -328,7 +392,8 @@ int glass_agent_call(struct glass_agent *a,const char *name,const cJSON *args,ch
 {
   bool skill=!strcmp(name,"skill_list")||!strcmp(name,"skill_read");
   bool mcp=!strcmp(name,"mcp_list_tools")||!strcmp(name,"mcp_call_tool");
-  bool local=!strncmp(name,"home_",5)||!strncmp(name,"music_",6)||!strncmp(name,"assistant_",10);
+  bool local=!strncmp(name,"home_",5)||!strncmp(name,"music_",6)||!strncmp(name,"assistant_",10)||
+    !strncmp(name,"jbox_",5)||!strcmp(name,"hardware_poll")||!strcmp(name,"hardware_stop")||!strcmp(name,"hardware_release");
   if(!skill&&!mcp&&!local)return 0;*out=NULL;
   if(!a||cancelled(a)){*out=error_result("cancelled_or_unavailable");return *out?1:-ENOMEM;}
   if(a->mode==AGENT_MODE_CHAT||((mcp||local)&&a->mode!=AGENT_MODE_ASSISTANT)){*out=error_result("mode_denied");return *out?1:-ENOMEM;}
