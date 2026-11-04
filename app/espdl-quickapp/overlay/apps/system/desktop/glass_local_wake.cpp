@@ -2,6 +2,7 @@
 /* SDK MFCC and generated EON operators are unchanged. Only immutable trained
  * arrays are bound to authenticated SD bytes instead of compiled constants. */
 #include "glass_local_wake.h"
+#include "glass_custom_wake.h"
 #include "glass_local_assets.h"
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
 #include <cerrno>
@@ -99,7 +100,7 @@ extern "C" int glv_wake_feed(glv_wake *s,const int16_t *pcm,size_t n)
       for(size_t j=0;j<count;j++)out[j]=s->ring[(s->at+offset+j)%32000];return 0;};
     ei_impulse_result_t result={};auto ret=run_classifier(&signal,&result,false);if(ret)return -EIO;
     s->evaluations++;s->score=result.classification[2].value;
-    if(!s->cooldown&&s->score>=EI_CLASSIFIER_THRESHOLD){event=1;s->cooldown=16000;}
+    if(!s->cooldown&&s->score>=static_cast<float>(EI_CLASSIFIER_THRESHOLD)*GLASS_WAKE_ACCEPTANCE_FACTOR){event=1;s->cooldown=16000;}
   }return event;
 }
 extern "C" void glv_wake_destroy(glv_wake *s)

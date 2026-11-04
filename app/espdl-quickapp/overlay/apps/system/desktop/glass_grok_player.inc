@@ -19,6 +19,7 @@
 #ifndef GROK_ASSET_ROOT
 #define GROK_ASSET_ROOT "/sdcard/grok"
 #endif
+#define GROK_WAKE_SPRITE 7u
 #define GROK_STATES 42
 #define GROK_POLL_MS 20
 struct grok_entry {uint32_t id,count,offset;};
@@ -208,6 +209,28 @@ static void grok_nest_toggle(lv_event_t *event)
   pet_engine_toggle_visible();pet_lvgl_sync();grok_nest_sync(b);
 }
 
+static void grok_display_frame(struct glass_grok *b,unsigned slot)
+{
+  b->front=slot;
+  lv_image_cache_drop(&b->images[slot]);
+  lv_image_set_src(b->image,&b->images[slot]);
+  if(!b->home_nest||!b->nest_away)lv_obj_remove_flag(b->image,LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(b->notice,LV_OBJ_FLAG_HIDDEN);
+  b->initialized=true;b->displayed++;
+}
+
+/* Wake popups use a native 64px built-in frame. Decode on the UI thread so
+ * microphone/model work cannot starve a separate first-frame worker. */
+static bool grok_wake_sprite_frame(struct glass_grok *b)
+{
+  unsigned slot=1-b->front;
+  if(glass_seagull_render(b->pixels[slot],b->side,b->current,b->next_frame,
+                          b->gaze_enabled,b->gaze_x,b->gaze_y))return false;
+  grok_display_frame(b,slot);
+  b->next_frame++;b->due=lv_tick_get()+b->period;
+  return true;
+}
+
 static void grok_tick(lv_timer_t *timer)
 {
   struct glass_grok *b=lv_timer_get_user_data(timer);uint32_t now=lv_tick_get();
@@ -216,14 +239,17 @@ static void grok_tick(lv_timer_t *timer)
   grok_wake(b);grok_nest_sync(b);
   if(now-b->last_tick>500)b->due=now;b->last_tick=now;grok_poll_state(b,now);grok_poll_mood(b,now);
   grok_nest_motion(b,now);
+  if(!b->thread_started){
+    if((int32_t)(now-b->due)>=0&&(!b->reduced||!b->next_frame))
+      grok_wake_sprite_frame(b);
+    lv_timer_set_period(timer,b->period);
+    return;
+  }
   pthread_mutex_lock(&b->lock);
   if(b->ready&&(b->result_epoch!=b->epoch||(int32_t)(now-b->due)>=0)){
     if(b->result_epoch==b->epoch){
       if(!b->error){
-        b->front=b->job_slot;lv_image_cache_drop(&b->images[b->front]);
-        lv_image_set_src(b->image,&b->images[b->front]);
-        if(!b->home_nest||!b->nest_away)lv_obj_remove_flag(b->image,LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(b->notice,LV_OBJ_FLAG_HIDDEN);b->initialized=true;b->displayed++;
+        grok_display_frame(b,b->job_slot);
         b->next_frame=b->result_frame+1;b->due=now+b->period;
         if(b->action==42&&b->next_frame>=30){b->action=0;b->epoch++;b->next_frame=0;}
       }else{
@@ -296,7 +322,7 @@ static struct glass_grok *grok_create(lv_obj_t *parent,int width,unsigned style,
   if(!parent||!font||width<1||width>1024)return NULL;
   struct glass_grok *b=calloc(1,sizeof(*b));if(!b)return NULL;
   pthread_mutex_init(&b->lock,NULL);pthread_cond_init(&b->wake,NULL);
-  b->side=style==0?64:128;b->bytes=b->side*b->side*3;b->period=100;b->current=b->requested=2;b->epoch=1;b->active=true;b->states=style>=5?42:32;
+  b->side=(style==0||style==GROK_WAKE_SPRITE)?64:128;b->bytes=b->side*b->side*3;b->period=100;b->current=b->requested=2;b->epoch=1;b->active=true;b->states=style>=5?42:32;
   const char *name=style==0?"mini-white":style==4||style==2?"home-black":style==5?"app-white":style==6?"app-black":"home-white";
   snprintf(b->path,sizeof(b->path),"builtin:seagull/%s",name);
   b->root=lv_obj_create(parent);if(!b->root){pthread_cond_destroy(&b->wake);pthread_mutex_destroy(&b->lock);free(b);return NULL;}
@@ -328,12 +354,16 @@ static struct glass_grok *grok_create(lv_obj_t *parent,int width,unsigned style,
     b->images[i].header.w=b->images[i].header.h=b->side;b->images[i].header.stride=b->side*2;
     b->images[i].data_size=b->bytes;b->images[i].data=b->pixels[i];
   }
-  pthread_attr_t attr;pthread_attr_init(&attr);
+  if(style==GROK_WAKE_SPRITE){
+    if(!grok_wake_sprite_frame(b)){lv_obj_delete(b->root);return NULL;}
+  }else{
+    pthread_attr_t attr;pthread_attr_init(&attr);
 #ifdef __NuttX__
-  pthread_attr_setstacksize(&attr,4096);
+    pthread_attr_setstacksize(&attr,4096);
 #endif
-  int ret=pthread_create(&b->worker,&attr,grok_reader,b);pthread_attr_destroy(&attr);
-  if(ret){lv_obj_delete(b->root);return NULL;}b->thread_started=true;
+    int ret=pthread_create(&b->worker,&attr,grok_reader,b);pthread_attr_destroy(&attr);
+    if(ret){lv_obj_delete(b->root);return NULL;}b->thread_started=true;
+  }
   b->timer=lv_timer_create(grok_tick,GROK_POLL_MS,b);if(!b->timer){lv_obj_delete(b->root);return NULL;}
   for(unsigned i=0;i<8;i++)if(!instances[i]){instances[i]=b;break;}return b;
 }
@@ -341,6 +371,12 @@ struct glass_grok *glass_grok_create(lv_obj_t *p,int w,glass_grok_font_t f){retu
 struct glass_grok *glass_grok_create_pixel(lv_obj_t *p,int w,bool black,glass_grok_font_t f){return grok_create(p,w,black?4:3,f);}
 struct glass_grok *glass_grok_create_mosaic(lv_obj_t *p,int w,bool black,glass_grok_font_t f){return grok_create(p,w,black?4:3,f);}
 struct glass_grok *glass_grok_create_avatar(lv_obj_t *p,glass_grok_font_t f){return grok_create(p,64,0,f);}
+struct glass_grok *glass_grok_create_wake_sprite(lv_obj_t *parent,int x,int y,glass_grok_font_t font)
+{
+  struct glass_grok *b=grok_create(parent,72,GROK_WAKE_SPRITE,font);
+  if(b){b->manual=true;glass_grok_geometry(b,x,y,72,72,64);}
+  return b;
+}
 struct glass_grok *glass_grok_create_sprite(lv_obj_t *p,int x,int y,int w,int h,int diameter,bool black,glass_grok_font_t f)
 {
   if(diameter<48||diameter>480||w<64||h<64||w>1024||h>600)return NULL;
@@ -352,7 +388,7 @@ bool glass_grok_geometry(struct glass_grok *b,int x,int y,int w,int h,int diamet
 {
   if(!b||b->states!=42||diameter<48||diameter>480||w<64||h<64||w>1024||h>600)return false;
   lv_obj_set_pos(b->root,x,y);lv_obj_set_size(b->root,w,h);
-  lv_image_set_scale(b->image,diameter*256/128);lv_image_set_antialias(b->image,true);
+  lv_image_set_scale(b->image,diameter*256/(int)b->side);lv_image_set_antialias(b->image,true);
   lv_image_set_pivot(b->image,0,0);int image_side=diameter;
   lv_obj_set_pos(b->image,(w-image_side)/2,(h-image_side)/2);return true;
 }

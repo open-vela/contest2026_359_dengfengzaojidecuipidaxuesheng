@@ -60,12 +60,9 @@ static void wake_mini_input_cover(void)
 }
 
 static void wake_mini_hide(void);
-static void wake_mini_dismiss_at(int x,int y)
+static void wake_mini_close(void)
 {
   if(!g_wake_mini.visible)return;
-  if(glass_grok_hit_test(g_wake_mini.ball,x,y)||
-     wake_mini_contains(g_wake_mini.bubble,x,y)||
-     wake_mini_contains(g_wake_mini.result_root,x,y))return;
   /* Retire mailboxes before cancellation so a late transcript or completed
    * answer cannot send or speak again. Cancel only this overlay's requests. */
   g_wake_mini.pending_prompt[0]=0;g_wake_mini.result_pending=false;
@@ -80,6 +77,13 @@ static void wake_mini_dismiss_at(int x,int y)
   g_wake_mini.turn=0;g_wake_mini.speech_cursor=0;g_wake_mini.result_signature=0;
   if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
   wake_mini_hide();
+}
+static void wake_mini_dismiss_at(int x,int y)
+{
+  if(glass_grok_hit_test(g_wake_mini.ball,x,y)||
+     wake_mini_contains(g_wake_mini.bubble,x,y)||
+     wake_mini_contains(g_wake_mini.result_root,x,y))return;
+  wake_mini_close();
 }
 static void wake_mini_outside_clicked(lv_event_t *event)
 {
@@ -101,15 +105,6 @@ static void wake_mini_create(void)
   lv_obj_remove_style_all(root);lv_obj_set_size(root,388,112);
   lv_obj_add_flag(root,LV_OBJ_FLAG_HIDDEN);
   g_wake_mini.root=root;
-  /* Same sprite constructor, app expression bank and front-facing gaze as
-   * the large conversation ball, using the same seagull at a readable 64px size. */
-  g_wake_mini.ball=glass_grok_create_sprite(root,0,32,72,72,64,true,zh_font);
-  if(g_wake_mini.ball){
-    lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);
-    glass_grok_gaze(g_wake_mini.ball,0,0);
-    glass_grok_select(g_wake_mini.ball,2);
-    glass_grok_set_active(g_wake_mini.ball,false);
-  }
   lv_obj_t *bubble=lv_obj_create(root);g_wake_mini.bubble=bubble;
   lv_obj_set_pos(bubble,72,4);lv_obj_set_size(bubble,312,96);
   lv_obj_set_style_radius(bubble,20,0);lv_obj_set_style_pad_all(bubble,14,0);
@@ -138,13 +133,22 @@ static void wake_mini_hide(void)
 static void wake_mini_present(uint32_t event,uint32_t now)
 {
   /* Called exclusively after consuming a fresh microphone wake event. */
+  lv_display_trigger_activity(NULL);
   wake_mini_create();
+  if(!g_wake_mini.ball){
+    g_wake_mini.ball=glass_grok_create_wake_sprite(g_wake_mini.root,0,32,zh_font);
+    if(g_wake_mini.ball){
+      wake_mini_pass_through(glass_grok_root(g_wake_mini.ball));
+      glass_grok_gaze(g_wake_mini.ball,0,0);
+    }
+  }
   g_wake_mini.event=event;g_wake_mini.shown_at=g_wake_mini.idle_at=now;
   if(!g_wake_mini.result_pending&&!g_wake_mini.speech_owned){
     g_wake_mini.turn=g_wake_mini.result_signature=0;
     if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
     lv_obj_remove_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);
+    lv_obj_set_height(g_wake_mini.root,112);
+    if(g_wake_mini.ball)lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);
   }
   g_wake_mini.busy=false;
   g_wake_mini.visible=true;wake_mini_input_cover();
@@ -183,7 +187,9 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
     if(g_wake_mini.result_root){lv_obj_delete(g_wake_mini.result_root);g_wake_mini.result_root=NULL;}
     if(g_wake_mini.visible){
       lv_obj_remove_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);lv_label_set_text(g_wake_mini.text,glass_tr("对话已更新"));
-      lv_obj_set_height(g_wake_mini.root,112);lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);g_wake_mini.idle_at=now;
+      lv_obj_set_height(g_wake_mini.root,112);
+      if(g_wake_mini.ball)lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,32);
+      g_wake_mini.idle_at=now;
     }
     return;
   }
@@ -196,7 +202,7 @@ static void wake_mini_result_service(const struct speech_snapshot *speech,const 
       lv_obj_add_flag(g_wake_mini.bubble,LV_OBJ_FLAG_HIDDEN);
       int height=126+(int)result.card_count*50;
       lv_obj_set_height(g_wake_mini.root,height);
-      lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,height-76);
+      if(g_wake_mini.ball)lv_obj_set_pos(glass_grok_root(g_wake_mini.ball),0,height-76);
       g_wake_mini.result_signature=signature;
     }
   }

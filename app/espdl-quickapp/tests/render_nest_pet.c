@@ -25,7 +25,7 @@ static void check_mini(void)
   pointer_input=lv_indev_create();lv_indev_set_type(pointer_input,LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(pointer_input,pointer_read);
   review_chat_dialog_fixture(true);
-  wake_mini_present(90,lv_tick_get());frames(3);
+  wake_mini_present(90,lv_tick_get());assert(glass_grok_ready(g_wake_mini.ball));frames(3);
   assert(!lv_obj_has_flag(g_wake_mini.dismiss,LV_OBJ_FLAG_HIDDEN));
   pointer_tap_at(1000,10);assert(!g_wake_mini.visible);
   lv_obj_t *video=glass_box(g_desktop.screen,0,0,1024,568,0,0);
@@ -74,7 +74,7 @@ static void check_local_wake(void)
   enum glv_phase phases[]={GLV_RECORDING,GLV_GENERATING,GLV_SPEAKING};
   for(unsigned i=0;i<3;i++){
     review_local_fixture(GLV_IDLE,"");review_local_asr_fixture(true,0,"");
-    glass_local_voice_woke();frames(20);assert(g_local_wake.root);
+    glass_local_voice_woke();assert(glass_grok_ready(g_local_wake.bird));frames(20);assert(g_local_wake.root);
     assert(g_desktop.panel==underlying&&lv_obj_has_flag(underlying,LV_OBJ_FLAG_HIDDEN)==hidden);
     lv_area_t dialog;lv_obj_get_coords(g_local_wake.dialog,&dialog);
     pointer_tap_at(dialog.x1+20,dialog.y1+20);assert(g_local_wake.root);
@@ -160,6 +160,56 @@ static void check_bird_actions(lv_display_t *display)
   puts("BIRD_ACTIONS_OK: ten bounded gestures, real LVGL renderer, stable memory, drag/follow priority, feed and hide lifecycle");
 }
 #endif
+
+static void check_wake_return(void)
+{
+  extern void review_local_fixture(int,const char *);
+  extern void review_local_asr_fixture(bool,unsigned,const char *);
+  pointer_input=lv_indev_create();lv_indev_set_type(pointer_input,LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(pointer_input,pointer_read);
+  for(unsigned theme=0;theme<2;theme++)for(unsigned page=0;page<6;page++){
+    panel_hide(NULL);g_desktop.light_theme=!theme;
+    if(page==1)glass_settings(NULL);
+    if(page==2)glass_storage_page(NULL);
+    if(page==3)glass_chat_open(NULL);
+    if(page==4)glass_music(NULL);
+    if(page==5)glass_lock_open(NULL);
+    frames(3);
+    lv_obj_t *card=g_desktop.current_card,*lock=g_lock_ui.root;
+    bool hidden=lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
+    wake_mini_present(100+page,lv_tick_get());frames(3);
+    assert(g_wake_mini.visible);
+    /* Real left-edge pointer swipe must close the overlay, even on Home/lock. */
+    pointer_point=(lv_point_t){8,220};pointer_state=LV_INDEV_STATE_PRESSED;
+    lv_indev_read(pointer_input);lv_tick_inc(20);
+    pointer_point.x=100;lv_indev_read(pointer_input);lv_tick_inc(20);
+    pointer_state=LV_INDEV_STATE_RELEASED;lv_indev_read(pointer_input);frames(3);
+    assert(!g_wake_mini.visible);
+    assert(g_desktop.current_card==card&&g_lock_ui.root==lock);
+    assert(lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN)==hidden);
+    /* A release queued before an idle timeout must never go back a second time. */
+    wake_mini_present(200+page,lv_tick_get());g_edge_wake=true;
+    g_edge_page=card;wake_mini_hide();glass_edge_back_async(NULL);
+    assert(g_desktop.current_card==card&&g_lock_ui.root==lock);
+    /* App-local popup obeys the same return priority. */
+    review_local_fixture(GLV_IDLE,"");review_local_asr_fixture(true,0,"");
+    glass_local_voice_woke();assert(g_local_wake.root);
+    g_edge_page=card;glass_edge_back_async(NULL);frames(3);
+    assert(!g_local_wake.root&&g_desktop.current_card==card&&g_lock_ui.root==lock);
+    if(lock)lock_unlock(NULL);
+  }
+  panel_hide(NULL);
+  review_chat_dialog_fixture(true);glass_chat_ball_open(NULL);frames(3);
+  lv_obj_t *ball_page=g_desktop.current_card;
+  assert(chat_ball_accept_wake()&&g_chat_ui.voice_session&&g_chat_ui.voice_from_wake);
+  g_edge_page=ball_page;glass_edge_back_async(NULL);frames(3);
+  assert(g_desktop.current_card==ball_page&&!g_chat_ui.voice_session);
+  assert(chat_ball_accept_wake());glass_chat_back(NULL);
+  assert(g_desktop.current_card==ball_page&&!g_chat_ui.voice_session);
+  panel_hide(NULL);lv_indev_delete(pointer_input);
+  puts("WAKE_RETURN_OK: Home/settings/files/chat/music/lock; both themes; actual edge pointer, queued timeout and local popup; original page identities preserved");
+}
+
 int main(int argc,char **argv)
 {
   assert(argc==3);review_out=argv[2];
@@ -224,6 +274,11 @@ int main(int argc,char **argv)
     check_bird_actions(display);
 #endif
   }
+  /* Local inference may evict the LVGL image cache before a wake popup draws. */
+  lv_image_cache_resize(0,true);
+  lock_display_font=lv_tiny_ttf_create_data(font,size,192);
+  g_glass.font72=lv_tiny_ttf_create_data(font,size,128);
+  check_wake_return();
   check_mini();
   check_local_wake();
   glass_chat_ball_open(NULL);frames(20);assert(g_chat_ui.ball_mode);

@@ -682,8 +682,8 @@ static void *worker(void *unused)
   int affinity=sched_setaffinity(0,sizeof(cpus),&cpus);
   printf("LOCAL_VOICE_CPU requested=1 affinity=%d\n",affinity);
 #endif
-  (void)unused;FILE *f=fopen(GLV_CONFIG_PATH,"rb");int target=f?fgetc(f):'1',enabled=f?fgetc(f):'1';if(f)fclose(f);
-  pthread_mutex_lock(&lock);service->state.local_wake=target!='0';service->state.wake_enabled=enabled=='1';service->state.config_pending=false;service->state.revision++;pthread_mutex_unlock(&lock);
+  (void)unused;FILE *f=fopen(GLV_CONFIG_PATH,"rb");int target=f?fgetc(f):'0',enabled=f?fgetc(f):'1';if(f)fclose(f);
+  pthread_mutex_lock(&lock);service->state.local_wake=target=='1';service->state.wake_enabled=enabled=='1';service->state.config_pending=false;service->state.revision++;pthread_mutex_unlock(&lock);
   for(;;){
     pthread_mutex_lock(&lock);
     while(!service->job&&!service->retire_session){
@@ -807,7 +807,7 @@ int glass_local_voice_start(void)
   s->state.tts_parallel_input=true;
   s->state.tts_parallel_pie=true;
 #endif
-  s->state.thinking_rounds=5;s->state.local_wake=true;s->state.config_pending=true;s->began=s->phase_began=ms();
+  s->state.thinking_rounds=5;s->state.local_wake=false;s->state.config_pending=true;s->began=s->phase_began=ms();
   pthread_mutex_lock(&lock);service=s;pthread_mutex_unlock(&lock);
   pthread_attr_t attr;pthread_attr_init(&attr);pthread_attr_setstacksize(&attr,32768);pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);
   pthread_t thread;int ret=pthread_create(&thread,&attr,worker,NULL);pthread_attr_destroy(&attr);

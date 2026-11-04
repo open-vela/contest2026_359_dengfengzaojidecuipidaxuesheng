@@ -1172,6 +1172,8 @@ static char *qpk_load_entry(const struct qpk_entry_s *qpk,
 
 static void qpk_clicked(lv_event_t *e);
 static void glass_chat_back(lv_event_t *e);
+static bool glass_wake_overlay_active(void);
+static void glass_wake_overlay_close(void);
 
 static void qapp_back(lv_event_t *e)
 {
@@ -1672,6 +1674,21 @@ static void desktop_camera_album_service(void)
 
 #include "glass_ui.inc"
 #include "glass_wake_mini.inc"
+static bool glass_wake_overlay_active(void)
+{
+#ifdef GLASS_LOCAL_VOICE
+  if(g_local_wake.root)return true;
+#endif
+  return g_wake_mini.visible||(chat_ball_is_present()&&g_chat_ui.voice_session&&g_chat_ui.voice_from_wake);
+}
+static void glass_wake_overlay_close(void)
+{
+#ifdef GLASS_LOCAL_VOICE
+  local_wake_close();
+#endif
+  wake_mini_close();
+  if(chat_ball_is_present()&&g_chat_ui.voice_session&&g_chat_ui.voice_from_wake)chat_ball_end(NULL);
+}
 #include "glass_ui_probe.inc"
 #include "glass_board_ui.inc"
 
@@ -1682,6 +1699,8 @@ static void desktop_camera_request(enum desktop_camera_command_e command)
   g_camera_command = command;
   pthread_mutex_unlock(&g_camera_command_lock);
 }
+
+
 
 static uint32_t desktop_loop_once(void)
 {
@@ -1773,6 +1792,7 @@ static uint32_t desktop_loop_once(void)
 
   /* Apply worker memory requests on the GUI owner after drawing returns. */
   glass_ui_memory_poll();
+  glass_screensaver_service();
   /* Bound NSH command latency even when LVGL has no timer ready. */
   return idle > 100 ? 100 : (idle ? idle : 1);
 }
@@ -2371,6 +2391,7 @@ glass_boot_stage("touch-init-begin",0);
    * AI admission evicts an idle voice cache before loading resident INT8. */
   lv_obj_invalidate(lv_screen_active());
   lv_refr_now(result.disp);
+  lv_display_trigger_activity(NULL);
   glass_boot_set_ui_ready();glass_boot_stage("first-frame-ready",0);
 
 #if defined(CONFIG_NETUTILS_NETINIT) && !defined(CONFIG_SYSTEM_NSH)
