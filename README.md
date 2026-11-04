@@ -4,6 +4,10 @@
 面向 ESP32-P4 Function-EV-Board，保存 openvela/NuttX 板级与芯片 overlay、图形桌面、
 QuickJS 快应用、Home Assistant 原生集成、构建工具和验证记录。
 
+仓库另收录 [ProgrammableMatrix / JBOX-S3](app/ProgrammableMatrix/README.md)，
+用于 ESP32-S3 与 4 颗 CH446Q 的无线 IO 扩展和矩阵连线，包含固件、Python SDK、
+可视化连线工具及 JBoxScript。该工程使用 ESP-IDF 5.5.x 独立构建。
+
 它不是完整的 NuttX/openvela 源码树，也不是 Home Assistant 官方客户端或小米官方米家客户端。
 阅读代码可直接克隆本仓库；固件构建还需要匹配的外部源码、工具链和具体硬件。
 
@@ -12,6 +16,9 @@ QuickJS 快应用、Home Assistant 原生集成、构建工具和验证记录。
 先阅读[目录说明](#目录导航)，再按目标选择入口：板级适配见 [board](board/README.md)，
 芯片驱动见 [chip](chip/README.md)，应用开发见 [app](app/README.md)，
 快应用见 [quickapp](quickapp/README.md)，构建与提交工具见 [tools](tools/README.md)。
+
+无线矩阵板入口见 [ProgrammableMatrix](app/ProgrammableMatrix/README.md)，
+编译命令见下方 [JBOX-S3 构建](#programmablematrix--jbox-s3-构建)。
 
 当前 v3 应用开发快照位于 [app/espdl-quickapp](app/espdl-quickapp/README.md)。
 Home Assistant 的实际入口、网络限制和实板证据见 [HASS.md](app/espdl-quickapp/HASS.md)。
@@ -50,7 +57,7 @@ Home Assistant 原生页面使用共享服务；米家设备需要先接入用�
 ## 目录导航
 
 ```text
-app/        原生应用、内置资源与 v3 应用开发快照
+app/        原生应用、内置资源、v3 应用快照与 ProgrammableMatrix 独立工程
 board/      开发板与公共板级支持
 chip/       ESP32-P4 架构、驱动及 Espressif 适配
 configs/    桌面配置片段；不能替代板级 configs
@@ -91,12 +98,221 @@ repo sync -c -j8
 
 ## 构建
 
-构建环境以 Linux/WSL 为主，需要 Python 3、Git、构建依赖和匹配的 `riscv32-esp-elf`
+P4/openvela 构建环境以 Linux/WSL 为主，需要 Python 3、Git、构建依赖和匹配的 `riscv32-esp-elf`
 工具链。Node.js 用于宿主 JavaScript 测试。这里不把宿主测试通过称为固件构建通过。
 
-### 当前 P4 rev3.2 复现入口
+### ProgrammableMatrix / JBOX-S3 构建
 
-完整准备输入、SHA256 校验和同参数编译见 [P4 构建复现资料](docs/P4_BUILD_REPRO_2026-10-27.md)。该入口显式启用本轮 PSRAM XIP 配置，不依赖作者电脑上的旧目录。
+源码位于 [app/ProgrammableMatrix](app/ProgrammableMatrix/)，同步自
+[streetartist/ProgrammableMatrix](https://github.com/streetartist/ProgrammableMatrix)，
+上游 `main` 提交固定为 `2ca78dcb9c9b825b943da3b36e7baf19f558d91d`（2026-11-04 同步）。
+完整文件摘要见 [UPSTREAM.json](app/ProgrammableMatrix/UPSTREAM.json)。
+
+目标硬件为 ESP32-S3-WROOM-1-N16R8 + 4×CH446Q。安装 ESP-IDF **5.5.x**，
+在已经启用 ESP-IDF 环境的终端中，从本仓库根目录执行 `idf.py build`。
+Linux / WSL 首次安装与完整编译可直接按以下顺序操作（已有该 IDF 目录时跳过 clone/install）：
+
+```bash
+# 此时位于本仓库根目录；P4 构建虚拟环境与 ESP-IDF 环境请使用不同终端。
+espclaw_repo="$(pwd)"
+sudo apt-get update
+sudo apt-get install -y git wget flex bison gperf python3 python3-pip python3-venv \
+  cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+mkdir -p "$HOME/esp"
+git clone --branch v5.5 --recursive https://github.com/espressif/esp-idf.git \
+  "$HOME/esp/esp-idf-v5.5"
+cd "$HOME/esp/esp-idf-v5.5"
+./install.sh esp32s3
+source ./export.sh
+
+cd "$espclaw_repo/app/ProgrammableMatrix"
+idf.py set-target esp32s3
+idf.py build
+ls -lh build/programmable_matrix_s3.bin build/bootloader/bootloader.bin \
+  build/partition_table/partition-table.bin
+```
+
+Windows 原生终端可在 ESP-IDF 5.5.x 安装器提供的 ESP-IDF PowerShell 中执行：
+
+```powershell
+cd app/ProgrammableMatrix
+idf.py set-target esp32s3
+idf.py build
+```
+
+`sdkconfig.defaults` 提供 16MB Flash、Octal 8MB PSRAM、BLE 配网和 Wi-Fi 默认配置；
+`partitions.csv` 提供 4MB 应用分区。产物位于该子目录的 `build/`，
+包括 `programmable_matrix_s3.bin`。需调整设置时运行 `idf.py menuconfig`。
+
+Python 客户端与可视化工具从该子目录启动：
+
+```powershell
+python client/jbox_gui.py
+```
+
+宿主测试使用 `python -m unittest discover -s tests -p 'test_*.py' -v`；
+本机安装 GCC 后，可运行 `python tests/run_native_tests.py` 检查路由与脚本虚拟机。
+首次配网、GPIO10 授权按钮、引脚映射和接线方法见该工程的
+[README](app/ProgrammableMatrix/README.md)。此处同步保留上游源码，
+P4/openvela 固件仍使用下面的构建入口。
+
+### P4 主固件：从干净目录构建
+
+以下命令面向 **Ubuntu 24.04 x86_64 / 对应 WSL2 环境**，目标为 P4 Function EV Board
+rev3.2、16 MiB Flash、32 MiB PSRAM、Simple Boot。Windows 请先进入 WSL Bash；
+其他 Linux 发行版按自己的包管理器安装相同工具。构建过程不连接串口。
+
+本仓库提供应用与板级 overlay，完整 NuttX/Apps/HAL 输入由锁定附件补齐。
+无需先执行上面的 `repo init`，也无需作者电脑上的 `/home/flash` 或 D 盘目录。
+
+**1. 安装宿主工具并获取主线源码**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential git curl ca-certificates python3 python3-venv \
+  bison flex gperf pkg-config libncurses-dev kconfig-frontends \
+  automake autoconf libtool cmake ninja-build unzip xz-utils
+
+mkdir -p "$HOME/espclaw-work"
+cd "$HOME/espclaw-work"
+git clone --branch dev-ai-contest-2026 \
+  https://github.com/open-vela/contest2026_359_dengfengzaojidecuipidaxuesheng.git source
+cd source
+
+python3 -m venv "$HOME/espclaw-work/host-tools"
+source "$HOME/espclaw-work/host-tools/bin/activate"
+python -m pip install esptool==5.2.0
+command -v kconfig-conf
+esptool.py version
+```
+
+Ubuntu 的 [kconfig-frontends 包](https://packages.ubuntu.com/noble/kconfig-frontends) 位于
+universe 软件源；安装找不到时先启用该源。Python 需提供 `tarfile.data_filter`。
+重复构建时进入已有 `source`，重新激活上述虚拟环境即可，不必重复 clone。
+
+**2. 下载固定工具链和 OpenH264，核对摘要**
+
+```bash
+mkdir -p "$HOME/espclaw-work/downloads" "$HOME/espclaw-work/toolchains"
+
+curl --fail --location --retry 3 \
+  https://github.com/espressif/crosstool-NG/releases/download/esp-14.2.0_20251107/riscv32-esp-elf-14.2.0_20251107-x86_64-linux-gnu.tar.gz \
+  --output "$HOME/espclaw-work/downloads/gcc14.tar.gz"
+printf '%s  %s\n' \
+  051403b578f5c76ab5fbadb5171ec580df7695b16657a97d27e728b92ba64854 \
+  "$HOME/espclaw-work/downloads/gcc14.tar.gz" | sha256sum --check
+# 上一条校验成功后再解压；首次安装到新的工具链目录。
+tar -xzf "$HOME/espclaw-work/downloads/gcc14.tar.gz" \
+  -C "$HOME/espclaw-work/toolchains"
+
+curl --fail --location --retry 3 \
+  https://github.com/cisco/openh264/archive/refs/tags/v2.6.0.tar.gz \
+  --output "$HOME/espclaw-work/downloads/openh264-2.6.0.tar.gz"
+printf '%s  %s\n' \
+  558544ad358283a7ab2930d69a9ceddf913f4a51ee9bf1bfb9e377322af81a69 \
+  "$HOME/espclaw-work/downloads/openh264-2.6.0.tar.gz" | sha256sum --check
+
+export TOOLCHAIN="$HOME/espclaw-work/toolchains/riscv32-esp-elf/bin"
+export PATH="$TOOLCHAIN:$PATH"
+riscv32-esp-elf-gcc --version
+```
+
+工具链来自 [Espressif 固定 Release](https://github.com/espressif/crosstool-NG/releases/tag/esp-14.2.0_20251107)，
+使用 GCC 14.2.0 及其 ILP32F 库；不要替换成宿主 GCC 或其他版本的交叉编译器。
+逐条执行并确认下载、摘要检查成功后继续，网络失败时不跳过校验。
+
+**3. 一条命令准备输入并编译基础配置**
+
+```bash
+python3 tools/build_p4_from_readme.py \
+  --toolchain "$TOOLCHAIN" \
+  --archive "$HOME/espclaw-work/downloads/openh264-2.6.0.tar.gz" \
+  --cache "$HOME/espclaw-work/input-cache" \
+  --inputs "$HOME/espclaw-work/inputs" \
+  --workspace "$HOME/espclaw-work/build-base" \
+  --output "$HOME/espclaw-work/out/base" \
+  --jobs 6
+```
+
+新增入口 [build_p4_from_readme.py](tools/build_p4_from_readme.py) 依次调用
+[prepare_p4_repro_inputs.py](tools/prepare_p4_repro_inputs.py) 和
+[build_p4_repro.py](tools/build_p4_repro.py)，下载三份固定输入并校验长度、SHA-256、
+逐文件清单和安全解压路径，再使用当前 checkout 的源码构建。
+追加 `--dry-run` 只打印两条命令，不下载、不编译；追加 `--offline` 从已有 cache 准备输入。
+独立输入目录与编译目录不可互相嵌套，脚本拒绝混用。
+
+该基础配置启用 USB 相机、PSRAM XIP、硬件 JPEG、以太网共享、BLE 八连接测试配置和
+LCD 背光；**不是带齐离线双 AI/ASR/TTS 模型的 board109 完整运行环境**。
+完整锁定清单、离线准备及配置说明见 [P4 复现文档](docs/P4_BUILD_REPRO_2026-10-27.md)。
+
+**4. board109 完整功能配置**
+
+已有兼容的完整输入时，使用下面的完整命令。先将四个输入路径改为实际准备目录；
+`P4_BASELINE` 应指向兼容的已准备 NuttX/Apps 基线根目录，不能指向本 overlay 仓库。
+语音 SDK、离线模型和配套 C6 固件需另外准备，基础输入下载器不会自动提供这些全部材料。
+
+```bash
+export P4_BASELINE=/path/to/compatible-prepared-p4-baseline
+export SPEECH_RUNTIME=/path/to/speech-port/prepared
+export ESP_TTS_PREPARED=/path/to/esp-tts-prepared
+export LOCAL_VOICE_SDK=/path/to/local-voice/wake-sdk
+
+python3 tools/build_board109.py \
+  --baseline "$P4_BASELINE" \
+  --workspace "$HOME/espclaw-work/build-board109" \
+  --toolchain "$TOOLCHAIN" \
+  --archive "$HOME/espclaw-work/downloads/openh264-2.6.0.tar.gz" \
+  --speech-runtime "$SPEECH_RUNTIME" \
+  --esp-tts-prepared "$ESP_TTS_PREPARED" \
+  --local-voice-sdk "$LOCAL_VOICE_SDK" \
+  --source-revision "$(git rev-parse HEAD)" \
+  --output "$HOME/espclaw-work/out/board109" \
+  --jobs 6
+```
+
+[build_board109.py](tools/build_board109.py) 展开完整语音/ASR 加速、PIE、SD SPI DMA、
+显示、USB、网络和 BLE 参数，调用 [build_bilibili_v3.py](tools/build_bilibili_v3.py)。
+现有 Windows/WSL 准备环境的展开命令见 [BOARD109.md](docs/BOARD109.md)；
+SD 模型安装约束见 [LOCAL-VOICE.md](app/espdl-quickapp/LOCAL-VOICE.md)。
+`--source-revision` 记录实际源码提交，不会替你切换到历史109源码。
+
+**5. 查收产物与准备 SD 资源**
+
+两种 P4 入口的输出目录均包含 `nuttx.bin`、`nuttx.elf`、`resolved.config` 和
+`BUILD-METADATA.json`。例如完整配置构建后：
+
+```bash
+ls -lh "$HOME/espclaw-work/out/board109/"{nuttx.bin,nuttx.elf,resolved.config,BUILD-METADATA.json}
+sha256sum "$HOME/espclaw-work/out/board109/nuttx.bin"
+grep -E '^CONFIG_ESP32P4_PSRAM_XIP=|^CONFIG_ESP32P4_FLASH_AUTO_SUSPEND=' \
+  "$HOME/espclaw-work/out/board109/resolved.config"
+python3 tools/generate_app_store.py --check
+```
+
+构建器保留 BSS、启动复制、分区及链接检查；新构建会生成新的 BLE 测试身份，
+镜像摘要不必与历史候选相同。SD 界面资源按 [board109 安装说明](docs/BOARD109.md#sd-resources-and-models)
+复制 `materials/board109-ui/desktop-assets/v2/` 的内容到卡上对应目录，保留已有数据。
+模型权重单独按说明安装；仅复制 UI 素材不能启用离线推理。
+本节不自动烧录，烧录位置与应用/数据边界须按下文核对。
+
+### App Store 云端服务构建
+
+此目标运行在 Linux 服务器，与 P4 固件分别构建。在仓库根目录执行：
+
+```bash
+# 在当前终端内生成管理员令牌，不把令牌写入仓库或打印到日志。
+export STORE_ADMIN_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+docker compose -f cloud/app_store/compose.yaml build
+docker compose -f cloud/app_store/compose.yaml up -d
+curl --fail http://127.0.0.1:8080/healthz
+```
+
+Compose 默认仅监听本机 `127.0.0.1:8080`，SQLite 数据卷持久化。管理员页面为
+`http://127.0.0.1:8080/admin`；设备联网使用自己的 HTTPS 服务根地址。
+令牌需另存于操作者的私有凭据位置，重启服务时复用，不要每次重新生成。
+发布参考应用、管理页操作和服务端测试见 [云端商店说明](cloud/app_store/README.md)；
+已有反向代理的 systemd 接入脚本在 [deploy/](cloud/app_store/deploy/)，其中
+`connect_existing_proxy.py` 绑定本项目已部署服务器的具体路径，不能原样用于任意主机。
 
 ### 板级 NSH 与开发 overlay
 

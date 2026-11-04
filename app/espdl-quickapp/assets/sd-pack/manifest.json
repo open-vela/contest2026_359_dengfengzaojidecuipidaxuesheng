@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-19",
   "target": "/sdcard/",
-  "scope": "Application runtime assets only: recognition models, global/lyric fonts, offline JIZURA, Grok, Dafeiyu, current ESP-TTS/MultiNet/custom wake resources and a public Mozilla CA bundle. No photos, videos, conversations, recordings, private configuration/trust roots, tests, caches, rollback files or firmware.",
+  "scope": "Application runtime assets only: recognition models, global/lyric fonts, offline JIZURA, Grok, Dafeiyu, current ESP-TTS/MultiNet/custom wake resources, a public Mozilla CA bundle and versioned desktop icon assets. No photos, videos, conversations, recordings, private configuration/trust roots, tests, caches, rollback files or firmware.",
   "packages": [
     {
       "name": "espdl",
@@ -447,6 +447,59 @@
           "sha256": "9cc2a774b5198dcff14d9be1e66091f538975d867ce029a96bce15a55dfd730f"
         }
       ]
+    },
+    {
+      "name": "desktop-icons",
+      "archive": "desktop-icons.zip",
+      "bytes": 321228,
+      "sha256": "a9d590b94090778123f107558ca19318bc1f7d1be360a986fbf1e70b636f31bb",
+      "files": [
+        {
+          "path": "desktop-assets/v2/icons/LICENSE.material-symbols",
+          "bytes": 11558,
+          "sha256": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e"
+        },
+        {
+          "path": "desktop-assets/v2/icons/bitmap_14.a4.gac",
+          "bytes": 9431,
+          "sha256": "b8ae860e31ce1c2349d117e2bb042692f091395fc7ab243a1535c10ab75ffd1c"
+        },
+        {
+          "path": "desktop-assets/v2/icons/bitmap_16.a4.gac",
+          "bytes": 11012,
+          "sha256": "184b6a8f620597c13234ff6a9e781e3d4b0553682a1a3e02f781e60da26f31f5"
+        },
+        {
+          "path": "desktop-assets/v2/icons/bitmap_20.a4.gac",
+          "bytes": 14475,
+          "sha256": "76b0b3d676c3e232d634fcc52d6fa9b3cdae2695c5bd0183349f10ffdbfb1c94"
+        },
+        {
+          "path": "desktop-assets/v2/icons/bitmap_24.a4.gac",
+          "bytes": 17889,
+          "sha256": "d1b86cbe3681862a5915d89b6e2b0ecc10b260505c1281f9d67ee30630fd4bbb"
+        },
+        {
+          "path": "desktop-assets/v2/icons/bitmap_32.a4.gac",
+          "bytes": 22783,
+          "sha256": "697091cf457ffc44c41686d78bedb6615ba5d78a9afd7ff9e8c6dcbb2c85a7bb"
+        },
+        {
+          "path": "desktop-assets/v2/icons/bitmap_64.a4.gac",
+          "bytes": 38589,
+          "sha256": "3d7c3da8d92b1a5990826597d6482d66aa167d1ec2c8e066a5da3268b3af51ac"
+        },
+        {
+          "path": "desktop-assets/v2/icons/manifest.json",
+          "bytes": 1691,
+          "sha256": "6c92f5117e293a63604d4314968917936384c5446ffc8b078843b52a5d9c1e81"
+        },
+        {
+          "path": "desktop-assets/v2/icons/masks.bin.gac",
+          "bytes": 256266,
+          "sha256": "6622c20b4cb64f46ff968d9d28f998eaec820afc05f45e55dc65ed6b09cb6136"
+        }
+      ]
     }
   ],
   "provenance": {
@@ -518,9 +571,19 @@
       "certificates": 121,
       "scope": "Public Mozilla roots from pinned certifi, fetched and verified directly from upstream. This is not a copy of the device Windows-exported trust store. Device configuration and certificates were not changed.",
       "validation": "Host X.509 parse and 256 KiB loader size bound verified; not deployed or tested against live sites on this board."
+    },
+    "desktop-icons": {
+      "runtime_path": "/sdcard/desktop-assets/v2/icons/",
+      "source_manifest": "materials/board109-ui/MANIFEST.json",
+      "source": "candidate104 package, unchanged through109",
+      "repository": "https://github.com/google/material-design-icons",
+      "revision": "10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7",
+      "style": "Material Symbols Rounded",
+      "license": "Apache-2.0; LICENSE.material-symbols retained beside this manifest",
+      "modifications": "Adapted into LVGL bitmap and motion masks by ESPClaw; packaged as the existing compressed runtime assets without regeneration."
     }
   },
-  "updated": "2026-10-27",
+  "updated": "2026-11-04",
   "supplement_sources": {
     "speech/esp-sr/mn7_cn/mn7_data": "https://github.com/espressif/esp-sr/blob/cfdbb52172d4f1b3e5f7469d6c3c6e5dd0738143/model/multinet_model/mn7_cn/mn7_data",
     "speech/esp-sr/mn7_cn/mn7_index": "https://github.com/espressif/esp-sr/blob/cfdbb52172d4f1b3e5f7469d6c3c6e5dd0738143/model/multinet_model/mn7_cn/mn7_index",

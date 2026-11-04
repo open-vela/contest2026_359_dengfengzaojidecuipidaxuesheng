@@ -4,6 +4,14 @@ This file records the third-party source material used by the ESP32-P4
 overlay. It does not replace the license files shipped by the corresponding
 upstream projects.
 
+## ProgrammableMatrix / JBOX-S3
+
+- Source: https://github.com/streetartist/ProgrammableMatrix, branch `main`, commit `2ca78dcb9c9b825b943da3b36e7baf19f558d91d`.
+- Imported on 2026-11-04 into `app/ProgrammableMatrix`, with upstream tracked files unchanged.
+- Scope: ESP32-S3 ESP-IDF firmware, Python client/GUI, JBoxScript, documentation and tests. This is an independently built companion-board project.
+- Per-file SHA-256 values and Git object IDs: `app/ProgrammableMatrix/UPSTREAM.json`.
+- The pinned upstream tree has no standalone LICENSE or NOTICE file; no additional license is assigned by this import. Existing source notices are retained.
+
 ## ESP-DSP ASR vector subset (candidate101)
 
 - Upstream: https://github.com/espressif/esp-dsp at
