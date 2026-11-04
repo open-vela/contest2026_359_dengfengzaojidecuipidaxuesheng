@@ -9,6 +9,32 @@ import shutil
 import subprocess
 import re
 
+def prepare_asr_dsp_vendor(vendor, destination):
+    """Keep dependency scanning self-contained without global IDF headers."""
+    vendor, destination = Path(vendor), Path(destination)
+    if vendor.resolve() == destination.resolve():
+        raise ValueError('ESP-DSP preparation must not modify the pinned input')
+    lock = json.loads((vendor/'UPSTREAM.json').read_text())
+    for row in lock['files']:
+        if hashlib.sha256((vendor/row['path']).read_bytes()).hexdigest() != row['sha256']:
+            raise RuntimeError('Pinned ESP-DSP source changed: '+row['path'])
+    # NuttX's dependency scan omits per-source CFLAGS. Quoted includes inside
+    # the private DSP directory must therefore resolve there as well.
+    for name in ('esp_err.h', 'sdkconfig.h'):
+        if (vendor/name).exists():
+            raise RuntimeError('ESP-DSP compatibility header conflicts with upstream: '+name)
+    shutil.copytree(vendor, destination, dirs_exist_ok=True)
+    for name in ('esp_err.h', 'sdkconfig.h'):
+        shutil.copy2(vendor/'compat'/name, destination/name)
+    for op in ('add', 'sub', 'mul'):
+        name = 'dsps_'+op+'_f32_ansi.c'
+        # Include from the private directory so quoted vendor headers also
+        # work for -M, which does not receive the per-file include flags.
+        (destination.parent/name).write_text(
+            '/* Generated ESP-DSP source wrapper; upstream bytes unchanged. */\n'
+            '#include "esp_dsp/'+name+'"\n')
+    return lock
+
 def storage_layout(config,requested='preserve'):
     layouts={'12m-4m':(0xc00000,0x400000),'14m-2m':(0xe00000,0x200000)}
     if requested!='preserve':
@@ -263,17 +289,14 @@ def main():
         if a.local_asr_accel:block+='CFLAGS += -DGLV_ASR_ACCEL_ENABLED\nCSRCS += local_asr_accel.c local_asr_parallel.c\n'
         if a.local_asr_official_dsp:
             vendor=experimental/'esp_dsp'
-            dsp_lock=json.loads((vendor/'UPSTREAM.json').read_text())
-            for row in dsp_lock['files']:
-                if hashlib.sha256((vendor/row['path']).read_bytes()).hexdigest()!=row['sha256']:raise RuntimeError('Pinned ESP-DSP source changed: '+row['path'])
-            shutil.copytree(vendor,desktop_make.parent/'esp_dsp',dirs_exist_ok=True)
+            dsp_lock=prepare_asr_dsp_vendor(vendor,desktop_make.parent/'esp_dsp')
             for name in ('local_asr_dsp.c','local_asr_dsp.h'):shutil.copy2(experimental/name,desktop_make.parent/name)
             block+='CFLAGS += -DGLV_ASR_OFFICIAL_DSP\nCSRCS += local_asr_dsp.c dsps_add_f32_ansi.c dsps_sub_f32_ansi.c dsps_mul_f32_ansi.c\n'
             private=' -I$(CURDIR)/esp_dsp/compat -I$(CURDIR)/esp_dsp -O3 -fno-fast-math -ffp-contract=off'
             block+='local_asr_dsp.c_CFLAGS +='+private+'\n'
             renamed=' -Ddsps_add_f32_ansi=glv_esp_dsp_add_f32_ansi -Ddsps_sub_f32_ansi=glv_esp_dsp_sub_f32_ansi -Ddsps_mul_f32_ansi=glv_esp_dsp_mul_f32_ansi'
             for op in ('add','sub','mul'):
-                name='dsps_'+op+'_f32_ansi.c';shutil.copy2(vendor/name,desktop_make.parent/name)
+                name='dsps_'+op+'_f32_ansi.c'
                 block+=name+'_CFLAGS +='+private+renamed+'\n'
         if a.local_asr_microphone:
             block+='CFLAGS += -DGLV_ASR_MICROPHONE\nCSRCS += glass_local_capture.c glass_local_capture_device.c\n'
@@ -691,6 +714,13 @@ def main():
                            'sd_manifest_sha256':sha(prepared/'sdcard/speech/manifest.json'),
                            'compile':json.loads((out/'speech/compile.json').read_text()),
                            'tools':{str(f.relative_to(repo)):sha(f) for f in [repo/'tools/build_bilibili_v3.py',repo/'tools/build_speech_runtime.py',repo/'tools/prepare_speech_runtime.py',repo/'tools/prepare_esp_tts.py',repo/'tools/esp_tts_inputs.py']}}
+    if a.local_asr_official_dsp:
+        metadata['local_asr_official_dsp']['dependency_compatibility_headers']={
+            name:sha(desktop_make.parent/'esp_dsp'/name)
+            for name in ('esp_err.h','sdkconfig.h')}
+        metadata['local_asr_official_dsp']['dependency_scoped_sources']={
+            'dsps_'+op+'_f32_ansi.c':sha(desktop_make.parent/('dsps_'+op+'_f32_ansi.c'))
+            for op in ('add','sub','mul')}
     (out/'BUILD-METADATA.json').write_text(json.dumps(metadata,indent=2)+'\n')
     print('Build verified:',out,metadata['sha256']['nuttx.bin'])
 if __name__=='__main__':main()

@@ -138,6 +138,7 @@ char *qpk_board_interfaces(void)
   entry(items,"i2c","7-bit I2C / repeated start","system.i2c / hardware_submit",BOARD_HAS_I2C,NULL,false,"Use capabilities for resolved pins; driver errors are returned, not fabricated readings.");
   entry(items,"spi","SPI master / mode0-3 / 8-bit MSB","system.spi / hardware_submit",BOARD_HAS_SPI,NULL,false,"Use capabilities for resolved pins and bus conflicts.");
   entry(items,"uart","UART / 8N1","system.uart / hardware_submit",BOARD_HAS_UART,"/dev/ttyS0",false,"Extension UART, not the debug console; reads may return partial frames.");
+  entry(items,"jbox","JMX1 / HMAC-SHA256 / TCP4747 + UDP4748","system.jbox / hardware_submit",true,NULL,false,"Optional JBOX-S3 network expansion, 52 nodes/8 nets/18 IO. Discover and select explicitly; bind using the physical button before connecting. No automatic action replay. Null availability means remote presence is unverified.");
   entry(items,"pwm","LEDC / duty or servo pulse","system.pwm / system.servo",BOARD_HAS_PWM,"/dev/pwm0",false,"Use capabilities for channel pins; pulse width does not prove mechanical angle.");
   char *s=cJSON_PrintUnformatted(o);cJSON_Delete(o);return s;
 }

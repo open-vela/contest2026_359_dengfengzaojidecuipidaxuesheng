@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 #ifndef PORTAL_CONFIG_ROOT
 #define PORTAL_CONFIG_ROOT "/data/config"
 #endif
@@ -25,7 +26,7 @@ static bool desktop_dirty;
 static bool config_section_valid(const char *section)
 {
   return section&&(!strcmp(section,"ai")||!strcmp(section,"homeassistant")||!strcmp(section,"music")||
-    !strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"desktop")||!strcmp(section,"localcontrol"));
+    !strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"desktop")||!strcmp(section,"localcontrol")||!strcmp(section,"jbox"));
 }
 static cJSON *load(const char *section)
 {
@@ -71,6 +72,9 @@ static cJSON *defaults(const char *section)
     default_string(o,"secret_key","");
   }
   else if(!strcmp(section,"localcontrol"))default_string(o,"catalog","");
+  else if(!strcmp(section,"jbox")){
+    default_string(o,"host","");default_string(o,"device_id","");default_string(o,"key","");
+  }
   else if(!strcmp(section,"agent")) {
     if(!cJSON_GetObjectItemCaseSensitive(o,"home_control_enabled"))cJSON_AddNumberToObject(o,"home_control_enabled",0);
     if(!cJSON_GetObjectItemCaseSensitive(o,"skills_enabled"))cJSON_AddNumberToObject(o,"skills_enabled",1);
@@ -99,7 +103,8 @@ static const struct field fields[]={
  {"ai","api_key",2048,true},{"ai","base_url",1024,false},{"ai","model",128,false},
  {"ai","backend",32,false},{"ai","system_prompt",1024,false},
  {"homeassistant","url",HASS_URL_CAPACITY-1,false},{"homeassistant","token",HASS_TOKEN_CAPACITY-1,true},{"music","api_key",128,true},
- {"voice","app_id",32,false},{"voice","secret_id",128,true},{"voice","secret_key",128,true}
+ {"voice","app_id",32,false},{"voice","secret_id",128,true},{"voice","secret_key",128,true},
+ {"jbox","host",15,false},{"jbox","device_id",12,false},{"jbox","key",64,true}
 };
 cJSON *portal_config_get(const char *section)
 {
@@ -180,6 +185,13 @@ static int config_save(const char *section,const cJSON *patch)
     if(ha_client<0) { ret=ha_client; goto done; }
 #endif
   }
+  if(!strcmp(section,"jbox")){
+    const char *host=string(o,"host",""),*id=string(o,"device_id",""),*key=string(o,"key","");
+    struct in_addr address;
+    if(inet_pton(AF_INET,host,&address)!=1||!address.s_addr||address.s_addr==INADDR_BROADCAST||
+       IN_MULTICAST(ntohl(address.s_addr))||strlen(id)!=12||strspn(id,"0123456789abcdef")!=12||
+       strlen(key)!=64||strspn(key,"0123456789abcdefABCDEF")!=64)goto done;
+  }
   if(!strcmp(section,"agent"))for(unsigned i=1;i<=AGENT_MCP_SERVERS;i++){
     char key[32];snprintf(key,sizeof(key),"mcp%u_enabled",i);
     if(number(o,key,0)){snprintf(key,sizeof(key),"mcp%u_url",i);if(!string(o,key,"")[0])goto done;}
@@ -208,11 +220,35 @@ done:
 int portal_config_save(const char *section,const cJSON *patch)
 {
   if(!config_section_valid(section)||!cJSON_IsObject(patch))return -EINVAL;
-  bool ai=!strcmp(section,"ai")||!strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"localcontrol");
+  bool ai=!strcmp(section,"ai")||!strcmp(section,"voice")||!strcmp(section,"agent")||!strcmp(section,"localcontrol")||!strcmp(section,"jbox");
   if(ai){int ret=glass_ai_config_begin(10000);if(ret)return ret;}
   int ret=config_save(section,patch);
   if(ai)glass_ai_config_end();
   return ret;
+}
+int portal_jbox_load(struct portal_jbox_config *out)
+{
+  if(!out)return -EINVAL;
+  memset(out,0,sizeof(*out));
+  pthread_mutex_lock(&config_lock);cJSON *o=defaults("jbox");int ret=-EIO;
+  if(o){
+    const char *host=string(o,"host",""),*id=string(o,"device_id",""),*key=string(o,"key","");
+    ret=!*key?-ENOENT:strlen(host)>=sizeof(out->host)||strlen(id)!=12||strlen(key)!=64?-EINVAL:0;
+    if(!ret){strcpy(out->host,host);strcpy(out->device_id,id);strcpy(out->key,key);}
+  }
+  cJSON_Delete(o);pthread_mutex_unlock(&config_lock);return ret;
+}
+int portal_jbox_save(const struct portal_jbox_config *config)
+{
+  if(!config||!memchr(config->host,0,sizeof(config->host))||
+     !memchr(config->device_id,0,sizeof(config->device_id))||!memchr(config->key,0,sizeof(config->key)))return -EINVAL;
+  cJSON *patch=cJSON_CreateObject();if(!patch)return -ENOMEM;
+  int ret=-ENOMEM;
+  if(cJSON_AddStringToObject(patch,"host",config->host)&&cJSON_AddStringToObject(patch,"device_id",config->device_id)&&
+     cJSON_AddStringToObject(patch,"key",config->key))ret=portal_config_save("jbox",patch);
+  cJSON *secret=cJSON_GetObjectItemCaseSensitive(patch,"key");
+  if(cJSON_IsString(secret))memset(secret->valuestring,0,strlen(secret->valuestring));
+  cJSON_Delete(patch);return ret;
 }
 int portal_ai_load(struct portal_ai_config *out)
 {

@@ -33,6 +33,10 @@ static void check(const char *model)
 }
 int main(int argc,char **argv)
 {
+  if(argc==2&&!strcmp(argv[1],"jbox")){
+    struct portal_jbox_config jbox;assert(!portal_jbox_load(&jbox));
+    assert(!strcmp(jbox.host,"127.0.0.1")&&!strcmp(jbox.device_id,"aabbccddeeff")&&strlen(jbox.key)==64);return 0;
+  }
   if(argc==2){check(argv[1]);return 0;}
   assert(!patch("{\"model\":\"offline-model\",\"api_key\":\"fixture-secret\",\"base_url\":\"https://model.invalid/v1\"}"));
   assert(flash_writes==1);check("offline-model");
@@ -56,6 +60,23 @@ int main(int argc,char **argv)
   assert(patch("{\"unknown\":1}")==-EINVAL&&patch("{\"model\":\"a\",\"model\":\"b\"}")==-EINVAL);
   assert(portal_config_get("../../data/private")==NULL&&portal_config_get(NULL)==NULL);
   assert(!patch("{}")&&flash_writes==2);
+  struct portal_jbox_config jbox={.host="127.0.0.1",.device_id="aabbccddeeff",
+    .key="000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"},loaded;
+  assert(portal_jbox_load(&loaded)==-ENOENT);
+  assert(!portal_jbox_save(&jbox)&&flash_writes==3);
+  assert(!portal_jbox_save(&jbox)&&flash_writes==3);
+  assert(!portal_jbox_load(&loaded)&&!strcmp(jbox.key,loaded.key));
+  redacted=portal_config_get("jbox");wire=cJSON_PrintUnformatted(redacted);
+  assert(wire&&!strstr(wire,jbox.key)&&!cJSON_GetObjectItemCaseSensitive(redacted,"key")&&
+    cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(redacted,"key_set")));free(wire);cJSON_Delete(redacted);
+  child=fork();assert(child>=0);
+  if(!child){execl(argv[0],argv[0],"jbox",(char *)NULL);_exit(127);}
+  assert(waitpid(child,&status,0)==child&&WIFEXITED(status)&&!WEXITSTATUS(status));
+  strcpy(jbox.host,"127.0.0.2");fail_write=true;assert(portal_jbox_save(&jbox)==-ENOSPC);fail_write=false;
+  assert(!portal_jbox_load(&loaded)&&!strcmp(loaded.host,"127.0.0.1")&&flash_writes==3);
+  strcpy(jbox.host,"255.255.255.255");assert(portal_jbox_save(&jbox)==-EINVAL&&flash_writes==3);
+  strcpy(jbox.host,"127.0.0.1");jbox.key[0]='z';assert(portal_jbox_save(&jbox)==-EINVAL&&flash_writes==3);
+  puts("JBOX_STORAGE_OK: redacted persistent binding; no-op writes skipped; failed writes preserve old key; IPv4/key validation");
   puts("PORTAL_STORAGE_OK: Flash authoritative with/without SD; fresh-process persistence; identical saves skip writes; failed save retains old config; secrets and validation preserved");
   return 0;
 }
