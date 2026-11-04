@@ -104,7 +104,7 @@ def main():
     p.add_argument('--source-revision',help='Explicit 40-hex source revision for Windows-mounted Git worktrees')
     p.add_argument('--usb-camera',action='store_true',help='Include the dedicated P4 HS/UTMI UVC MJPEG host alongside the existing CSI camera')
     p.add_argument('--psram-xip',action='store_true',help='Opt-in experimental P4 Simple Boot text/rodata PSRAM XIP; requires dedicated trial workspace and physical validation')
-    p.add_argument('--lcd-backlight',action='store_true',help='Reserve PWM0/GPIO26 for factory LCD J6 PWM brightness (5 kHz, single channel)')
+    p.add_argument('--lcd-backlight',action='store_true',help='Reserve PWM0/GPIO26 for factory LCD J6 PWM brightness (50 kHz, single channel)')
     p.add_argument('--hardware-jpeg',action='store_true',help='Opt-in native P4 JPEG decoder with shared PPA/DMA2D ownership; requires image and display validation')
     p.add_argument('--video-blit',action='store_true',help='Opt-in synchronous PPA/DMA2D image blit inside LVGL ownership, with non-halting stage timers')
     p.add_argument('--ethernet-share',action='store_true',help='Opt-in eth0 to SoftAP NAT44 with resident wired DHCP ownership')
@@ -271,7 +271,10 @@ def main():
     make=desktop_make.read_text()
     from prepare_video_framebuffer import apply as prepare_video_framebuffer
     video_framebuffer_sources=prepare_video_framebuffer(root/'nuttx',a.video_blit)
-    backlight_sources={'implementation':'screen_pwm LEDC PWM0','enabled':a.lcd_backlight}
+    backlight_sources={'enabled':False,'prepared_sha256':{}}
+    if a.lcd_backlight:
+        from prepare_p4_lcd_pwm import apply as prepare_lcd_pwm
+        backlight_sources=prepare_lcd_pwm(root/'nuttx')
     make=make.split('# BEGIN OPTIONAL LOCAL SPEECH')[0].rstrip()+'\n'
     if 'CFLAGS += -DGLASS_SAFE_RESET' not in make:
         make+='\nCFLAGS += -DGLASS_SAFE_RESET\n'
@@ -439,7 +442,7 @@ def main():
             else:s+='\n'+name+'='+str(value)+'\n'
         if cfg.read_text()!=s:cfg.write_text(s)
     if a.lcd_backlight:
-        for key,value in [('PWM','y'),('ESPRESSIF_LEDC','y'),('ESPRESSIF_LEDC_TIMER0','y'),('ESPRESSIF_LEDC_TIMER0_CHANNELS','1'),('ESPRESSIF_LEDC_TIMER0_RESOLUTION','13'),('ESPRESSIF_LEDC_CHANNEL0_PIN','26')]:
+        for key,value in [('PWM','y'),('ESPRESSIF_LEDC','y'),('ESPRESSIF_LEDC_TIMER0','y'),('ESPRESSIF_LEDC_TIMER0_CHANNELS','1'),('ESPRESSIF_LEDC_TIMER0_RESOLUTION','9'),('ESPRESSIF_LEDC_CHANNEL0_PIN','26')]:
             name='CONFIG_'+key;pattern=r'^(?:'+name+r'=.*|# '+name+r' is not set)$'
             s=re.sub(pattern,name+'='+value,s,flags=re.M) if re.search(pattern,s,re.M) else s+'\n'+name+'='+value+'\n'
         if 'CONFIG_PWM_MULTICHAN=y' in s:p.error('LCD backlight requires the prepared single-channel PWM ABI')
@@ -517,7 +520,7 @@ def main():
     # preparation; individual transform receipts can describe earlier stages.
     prepared_kernel_names=(set(psram_xip_sources)|set(safe_reset_sources)|
         set(reset_display_sources['prepared_sha256'])|set(video_framebuffer_sources)|
-        {sd_read_diagnostics['source']}|set(local_session_guard['sources']))
+        {sd_read_diagnostics['source']}|set(local_session_guard['sources'])|set(backlight_sources['prepared_sha256']))
     prepared_kernel_sources={name:hashlib.sha256((root/'nuttx'/name).read_bytes()).hexdigest()
                              for name in sorted(prepared_kernel_names)}
     sd_read_diagnostics['sha256']=prepared_kernel_sources[sd_read_diagnostics['source']]
@@ -667,7 +670,7 @@ def main():
               'tts_backend':a.tts_backend if a.speech_runtime else None,'ebss':hex(int(bss.group(1),16)),
               'usb_camera':a.usb_camera,
               'factory_header':a.factory_header,
-              'lcd_backlight':{'enabled':a.lcd_backlight,'pin':26 if a.lcd_backlight else None,'device':'/dev/pwm0' if a.lcd_backlight else None,'frequency':5000,'minimum_percent':10,'startup_percent':100},
+              'lcd_backlight':{'enabled':a.lcd_backlight,'pin':26 if a.lcd_backlight else None,'device':'/dev/pwm0' if a.lcd_backlight else None,'frequency':50000,'minimum_percent':10,'startup_percent':100},
               'esp_tts_voice_storage':a.esp_tts_storage if a.esp_tts_prepared else None,
               'compiler':subprocess.check_output([str(tc/'riscv32-esp-elf-gcc'),'--version'],text=True).splitlines()[0],
               'flash_offset':'0x2000','program_limit':hex(program_limit),'vision_models_sd_only':True,'data_offset':hex(data_offset),'data_size':hex(data_size),'flash_layout':f'{data_offset//0x100000}m-firmware-{data_size//0x100000}m-data','board_tested':False,'l2_cache_kb':a.l2_kb,

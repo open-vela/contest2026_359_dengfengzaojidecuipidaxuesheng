@@ -3,14 +3,22 @@
 #include <nuttx/config.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <stdint.h>
 
 /* PWM0 is exclusively the factory LCD's J6 PWM -> J1 GPIO26 route.
  * FS USB must keep its existing GPIO26/27 display ownership guard. */
 #if defined(CONFIG_PWM) && defined(CONFIG_ESPRESSIF_LEDC_TIMER0) && \
     CONFIG_ESPRESSIF_LEDC_TIMER0_CHANNELS == 1 && \
-    CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN == 26 && !defined(CONFIG_PWM_MULTICHAN)
+    CONFIG_ESPRESSIF_LEDC_CHANNEL0_PIN == 26 && \
+    CONFIG_ESPRESSIF_LEDC_TIMER0_RESOLUTION == 9 && !defined(CONFIG_PWM_MULTICHAN)
 #define GLASS_PWM_BACKLIGHT 1
 #endif
+
+struct glass_backlight_signal
+{
+  uint32_t frequency,source_hz,divider,resolution,duty_ticks;
+  uint32_t samples,high_samples,transitions,elapsed_us;
+};
 
 struct glass_backlight_status
 {
@@ -19,6 +27,8 @@ struct glass_backlight_status
   unsigned percent;
   unsigned duty;
   int error;
+  struct glass_backlight_signal signal;
+  int signal_error;
 };
 
 #ifdef GLASS_PWM_BACKLIGHT
