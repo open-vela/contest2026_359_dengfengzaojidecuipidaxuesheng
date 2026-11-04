@@ -117,11 +117,15 @@ static void store_ui_prompt(bool cloud)
   store_ui_button(shade,"取消",192,146,312,false,store_ui_dialog_close,0);
   store_ui_button(shade,cloud?"保存地址":"搜索",520,146,312,true,store_ui_search_apply,0);
   lv_obj_t *keyboard=lv_keyboard_create(shade);g_store_ui.keyboard=keyboard;
-  lv_obj_set_pos(keyboard,164,210);lv_obj_set_size(keyboard,860,358);
+  /* Keep the matrix and IME bar inside the content area (verified board fix). */
+  lv_obj_set_align(keyboard,LV_ALIGN_TOP_LEFT);
+  lv_obj_set_pos(keyboard,164,244);lv_obj_set_size(keyboard,860,324);
   glass_ime_attach(keyboard,zh_font(20),!cloud,detail_ink(),detail_soft(),detail_accent());
   glass_ime_set_voice_enabled(keyboard,false);glass_ime_set_target(keyboard,input);
 }
 static void store_ui_search(lv_event_t *e){(void)e;store_ui_prompt(false);}
+static void store_ui_search_clear(lv_event_t *e)
+{(void)e;g_store_ui.query[0]=0;g_store_ui.page=0;g_store_ui.selected[0]=0;store_ui_draw();}
 static void store_ui_cloud_settings(lv_event_t *e){(void)e;store_ui_prompt(true);}
 static void store_ui_section(lv_event_t *e)
 {
@@ -317,6 +321,7 @@ static void store_ui_draw(void)
     lv_obj_t *eyebrow=home_text(body,"APP STORE",24,14,400,12,detail_muted());lv_obj_set_style_text_letter_space(eyebrow,2,0);
     detail_text(body,s->headline,24,42,520,32,detail_ink());
   }else detail_text(body,store_ui_sections[g_store_ui.section],24,22,400,32,detail_ink());
+  if(g_store_ui.query[0])store_ui_pill(body,"清空搜索",414,26,132,store_ui_search_clear,0);
   store_ui_pill(body,g_store_ui.query[0]?"修改搜索":"搜索应用",558,26,166,store_ui_search,0);
   lv_obj_t *refresh=store_ui_pill(body,s->busy?"取消":"刷新",738,26,98,s->busy?store_ui_cancel:store_ui_refresh,0);
   (void)refresh;
@@ -342,6 +347,11 @@ static void store_ui_draw(void)
     detail_text(body,s->busy?"正在读取应用目录…":g_store_ui.query[0]?"没有找到匹配的应用":g_store_ui.section==4?(s->cloud_url[0]?"云端目录暂时没有可用应用":"配置服务地址后，即可浏览云端应用"):g_store_ui.section==2?(s->sd_repository?"仓库已读取，尚无额外应用":"还没有可用的 SD 仓库"):"这里还没有应用",24,top+52,800,24,detail_ink());
     if(g_store_ui.section==2&&s->catalog_error&&!s->busy)detail_text(body,store_ui_error(s->catalog_error),24,top+106,800,20,detail_muted());
     if(g_store_ui.section==4&&s->cloud_error&&!s->busy)detail_text(body,store_ui_error(s->cloud_error),24,top+106,800,20,detail_muted());
+    if(!s->busy){
+      if(g_store_ui.query[0])store_ui_button(body,"清空搜索",24,top+154,220,true,store_ui_search_clear,0);
+      else if(g_store_ui.section==4&&s->cloud_url[0])store_ui_button(body,"刷新",24,top+154,220,true,store_ui_refresh,0);
+      else if(g_store_ui.section==3)store_ui_button(body,"全部应用管理",24,top+154,220,true,store_ui_all_apps,0);
+    }
   }
   for(unsigned n=0;n<page_size&&g_store_ui.page*page_size+n<count;n++){
     unsigned i=indices[g_store_ui.page*page_size+n];struct glass_store_entry *a=&s->entries[i];

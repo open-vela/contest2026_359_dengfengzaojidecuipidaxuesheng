@@ -23,14 +23,14 @@
       <div class="editor-tabs" role="tablist" aria-label="编辑内容"><button id="tab-app" role="tab" aria-selected="true" aria-controls="app-editor">发布应用</button><button id="tab-home" role="tab" aria-selected="false" aria-controls="home-editor" tabindex="-1">首页与海报</button></div>
       <div id="app-editor" role="tabpanel" aria-labelledby="tab-app"><div class="section-heading"><span class="step">01</span><div><h2>让新应用登场</h2><p class="muted small">填写应用信息，右侧即刻呈现。</p></div><span class="tag">草稿</span></div>
       <form id="publish">
-        <label>应用名称<input name="name" placeholder="为你的应用起个名字" required></label>
-        <label>一句话介绍<textarea name="summary" rows="2" placeholder="它能让生活发生什么小改变？" required></textarea></label>
+        <label>应用名称<input name="name" placeholder="为你的应用起个名字" aria-describedby="name-size" required><small class="field-note" id="name-size">0 / 47 字节</small></label>
+        <label>一句话介绍<textarea name="summary" rows="2" placeholder="它能让生活发生什么小改变？" aria-describedby="summary-size" required></textarea><small class="field-note" id="summary-size">0 / 191 字节</small></label>
         <div class="pair"><label>分类<select name="category"><option value="0">实用工具</option><option value="1">专注效率</option><option value="2">轻松趣味</option></select></label><label>应用图标<select name="icon"><option value="grid">通用应用</option><option value="calculator">计算器</option><option value="timer">专注计时</option><option value="counter">随手计数</option></select></label></div>
-        <div class="pair"><label>包名<input name="package" placeholder="store.my_tool" pattern="store\.[a-z0-9_]{1,41}" required></label><label>版本号<input name="version" value="1.0.0" placeholder="1.0.0" required></label></div>
+        <div class="pair"><label>包名<input name="package" placeholder="store.my_tool" pattern="store\.[a-z0-9_]{1,41}" required></label><label>版本号<input name="version" value="1.0.0" placeholder="1.0.0" aria-describedby="version-size" required><small class="field-note" id="version-size">5 / 23 字节</small></label></div>
         <div class="section-divider"><span class="step">02</span><div><h3>装入你的创意</h3><p class="muted small">选择 app.js，或在下方粘贴源码。</p></div></div>
         <label class="file-upload" for="file"><span class="upload-icon" aria-hidden="true">↥</span><strong id="file-label">选择 app.js 文件</strong><span>单文件应用 · 最大 64 KiB</span><input id="file" type="file" accept=".js,text/javascript" aria-label="app.js 文件"></label>
         <details class="source-details" open><summary>源码编辑器 <span id="source-size">0 / 64 KiB</span></summary><label class="sr-only" for="source">完整源码</label><textarea id="source" name="source" rows="7" spellcheck="false" placeholder="// 在这里放入你的 app.js" required></textarea></details>
-        <div class="form-footer"><p>已发布版本会保留。<br>修改应用时，请使用新的版本号。</p><button type="submit" data-admin>发布这个版本 <span aria-hidden="true">↗</span></button></div>
+        <p id="publish-error" class="validation" role="status"></p><div class="form-footer"><p>已发布版本会保留。<br>修改应用时，请使用新的版本号。</p><button id="publish-button" type="submit" data-admin>发布这个版本 <span aria-hidden="true">↗</span></button></div>
       </form></div>
       <div id="home-editor" role="tabpanel" aria-labelledby="tab-home" hidden><div class="section-heading"><span class="step">01</span><div><h2>设计商店的第一眼</h2><p class="muted small">文案、配色与推荐顺序，都由你决定。</p></div></div>
         <label>首页标题<input id="home-headline" placeholder="让日常，轻松一点。"></label><label>首页副标题<input id="home-tagline" placeholder="小而精的应用，恰好满足你的需要。"></label>
@@ -38,7 +38,7 @@
         <div id="feature-editors"></div>
         <details class="source-details"><summary>高级配置 JSON <span>双向同步</span></summary><label class="sr-only" for="home">首页配置 JSON</label><textarea id="home" rows="12" spellcheck="false"></textarea></details>
         <p id="home-error" class="validation" role="status"></p>
-        <div class="form-footer"><p>当前是未保存的编辑预览。<br>保存后，设备刷新商店即可获取。</p><button id="save-home" data-admin>保存首页配置 <span aria-hidden="true">↗</span></button></div>
+        <div class="form-footer"><p>当前是未保存的编辑预览。<br>保存后，设备刷新商店即可获取。</p><button id="reset-home" class="secondary" type="button">恢复已发布配置</button><button id="save-home" data-admin>保存首页配置 <span aria-hidden="true">↗</span></button></div>
       </div>
     </section>
     <aside class="preview-column" aria-label="商店实时预览"><div class="preview-sticky"><div class="row preview-heading"><div><p class="eyebrow">LIVE PREVIEW</p><h2>先看见，再发布<span class="live-dot"></span></h2></div><button class="text-button" id="expand-preview" aria-label="放大预览">放大 ↗</button></div>
@@ -49,7 +49,7 @@
       <div class="preview-tip"><span aria-hidden="true">✳</span><div><strong>小细节，让体验更完整。</strong><p>清晰的名称、简洁的介绍，再加一张恰到好处的海报，好应用从第一眼开始。</p></div></div>
     </div></aside>
   </div>
-  <section class="panel library" id="library"><div class="row library-heading"><div><p class="eyebrow">YOUR COLLECTION</p><h2>应用与版本 <span id="library-count" class="count">—</span></h2><p class="muted small">管理正在上架的应用，也保留每一次创作的版本。</p></div><button id="refresh" class="secondary" data-admin>刷新目录 ↻</button></div><label class="library-search"><span class="sr-only">搜索已发布版本</span><input id="app-search" type="search" placeholder="搜索应用名称、包名或版本…"></label><div id="apps" class="apps"><div class="empty-state"><span aria-hidden="true">▦</span><h3>你的应用，从这里出发</h3><p>连接管理员后，查看与编辑所有发布版本。</p></div></div></section>
+  <section class="panel library" id="library"><div class="row library-heading"><div><p class="eyebrow">YOUR COLLECTION</p><h2>应用与版本 <span id="library-count" class="count">—</span></h2><p class="muted small">管理正在上架的应用，也保留每一次创作的版本。</p></div><button id="refresh" class="secondary" data-admin>刷新目录 ↻</button></div><label class="library-search"><span class="sr-only">搜索已发布版本</span><input id="app-search" type="search" placeholder="搜索应用名称、包名或版本…"></label><div class="pair library-filters"><label>版本状态<select id="app-status"><option value="all">全部版本</option><option value="active">上架中</option><option value="inactive">已下架</option><option value="history">历史版本</option></select></label><label>应用分类<select id="app-category"><option value="all">全部分类</option><option value="0">实用工具</option><option value="1">专注效率</option><option value="2">轻松趣味</option></select></label></div><div id="apps" class="apps"><div class="empty-state"><span aria-hidden="true">▦</span><h3>你的应用，从这里出发</h3><p>连接管理员后，查看与编辑所有发布版本。</p></div></div></section>
   <footer><span>ESPClaw <strong>App Store Studio</strong></span><span>为小屏幕，创造大一点的可能。</span></footer>
 </main>
 <dialog id="preview-dialog" aria-labelledby="dialog-title"><div class="row dialog-heading"><div><p class="eyebrow">STORE PREVIEW</p><h2 id="dialog-title">商店效果预览</h2></div><button class="secondary" id="close-preview">关闭预览 ×</button></div><div id="large-preview-slot"></div><p class="muted small">外观模拟 · 点击卡片查看详情 · 按 Esc 关闭</p></dialog>
