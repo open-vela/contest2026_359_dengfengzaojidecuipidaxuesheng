@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "headline": "让日常，轻松一点。",
+  "tagline": "小而精的应用，恰好满足你的需要。",
+  "featured": [
+    {"package": "store.focus", "title": "让专注，\n自然发生。", "subtitle": "25 分钟，只做好一件事。", "art": "timer", "tone": "forest", "value": "25", "unit": "MINUTES"},
+    {"package": "store.counter", "title": "每一次，\n都算数。", "subtitle": "", "art": "bars", "tone": "sand"}
+  ],
+  "apps": [
+    {"id": "calculator", "package": "store.calculator", "name": "轻量计算器", "version": "1.0.0", "category": 0, "icon": "calculator", "summary": "四则运算、小数与正负数。无需联网，随开随用。"},
+    {"id": "focus", "package": "store.focus", "name": "专注计时", "version": "1.0.0", "category": 1, "icon": "timer", "summary": "25 分钟专注与 5 分钟休息。支持暂停和继续，退出后停止。"},
+    {"id": "counter", "package": "store.counter", "name": "随手计数", "version": "1.0.0", "category": 0, "icon": "counter", "summary": "记录次数、加减与归零。手动保存计数，重开继续。"}
+  ]
+}

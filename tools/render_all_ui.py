@@ -185,7 +185,7 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
       'hass_portal.h','hass_service.h','glass_music.h','glass_lock_photo.h','glass_chat.h','glass_ime.h',
       'glass_device_controls.h','glass_weather.h','glass_settings_service.h','glass_file_service.h','glass_system_monitor.h','glass_voice.h','glass_pinyin.h',
       'glass_ble.h','glass_ble_central.h','glass_status.h','glass_speech.h','qpk_espdl.h','desktop_worker.h','pet_engine.h','pet_lvgl.h','qpk_mjpeg.h']
-    skip={'glass_ime_attach','glass_ime_commit','glass_ime_commit_tree','glass_ime_start_voice','glass_ime_set_target','glass_ime_set_voice_enabled',
+    skip={'qpk_dl_sha256','qpk_dl_sha256_file','glass_ime_attach','glass_ime_commit','glass_ime_commit_tree','glass_ime_start_voice','glass_ime_set_target','glass_ime_set_voice_enabled',
           'desktop_motion_button','qpk_mjpeg_create','qpk_mjpeg_destroy','qpk_mjpeg_probe','qpk_mjpeg_preview_limits',
           'qpk_mjpeg_frame_size','qpk_mjpeg_decode','qpk_mjpeg_decode_software','qpk_mjpeg_decode_region','qpk_mjpeg_decode_view','qpk_mjpeg_decode_preview','qpk_mjpeg_decode_still','qpk_mjpeg_decode_still_fit'}
     photo_api=['glass_lock_photo_request','glass_lock_photo_cancel','glass_lock_photo_take','glass_lock_cover_request','glass_lock_cover_cancel','glass_lock_cover_take','glass_music_artwork_prepare','glass_lock_artwork_stats']
@@ -283,6 +283,11 @@ void local_video_play_path(const char *path){snprintf(review_video_path,sizeof(r
     sources += [desktop/'glass_sd_font.c',desktop/'glass_material.c']
     flags += ['-DGLASS_MATERIAL_ROOT="'+str(repo.parent/'sdcard/desktop-assets/v2')+'"']
     sources += [desktop/'glass_i18n.c']
+    # Production store service uses isolated host volumes, never board paths.
+    flags += ['-DQPK_VOLUME_INTERNAL_ROOT="'+str(out/'store-data/qpk')+'"',
+              '-DQPK_VOLUME_SD_ROOT="'+str(out/'store-sd/qpk')+'"',
+              '-DGLASS_STORE_REPOSITORY="'+str(out/'store-sd/app-store')+'"']
+    sources += [desktop/'glass_app_store.c',desktop/'glass_store_http.c',desktop/'qpk_espdl_sha256.c']
     sources += [desktop/name for name in ['qpk_mjpeg.c','qpk_tjpgd.c']]
     if a.real_music_artwork:sources.append(desktop/'glass_lock_photo.c')
     sources += [repo/'app/bilibili_live/local_album_ui.c',repo/'app/bilibili_live/album_formats.c']

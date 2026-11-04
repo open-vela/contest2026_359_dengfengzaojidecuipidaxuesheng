@@ -24,6 +24,7 @@ MAINSRC = desktop_main.c
 
 CSRCS += glass_file_service.c qpk_storage.c qpk_storage_selftest.c
 CSRCS += glass_qpk_builder.c
+CSRCS += glass_app_store.c glass_store_http.c
 CSRCS += qpk_hardware.c qpk_hw_platform.c qpk_hw_audio.c qpk_audio_store.c qpk_hw_probe.c
 CSRCS += qpk_ble_gatt.c qpk_ble_channel.c
 CSRCS += qpk_usb.c qpk_network.c

@@ -26,6 +26,14 @@ logs/your-github-login/
 # Python bytecode
 __pycache__/
 
+# Cloud store runtime data and local administrator credentials
+/var/app-store/
+/cloud/app_store/var/
+admin-token.txt
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
 # Configure-generated board link; its target is local-workspace specific
 board/esp32p4-common/board
 

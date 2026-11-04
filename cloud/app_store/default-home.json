@@ -1,0 +1,8 @@
+{
+  "headline": "让日常，轻松一点。",
+  "tagline": "小而精的应用，恰好满足你的需要。",
+  "featured": [
+    {"package": "store.focus", "title": "让专注，\n自然发生。", "subtitle": "25 分钟，只做好一件事。", "art": "timer", "tone": "forest", "value": "25", "unit": "MINUTES"},
+    {"package": "store.counter", "title": "每一次，\n都算数。", "art": "bars", "tone": "sand"}
+  ]
+}
