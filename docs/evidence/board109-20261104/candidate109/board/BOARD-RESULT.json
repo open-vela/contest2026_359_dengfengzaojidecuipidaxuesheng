@@ -1,0 +1,85 @@
+{
+  "status": "FLASHED_ASR_COMPUTE_OPTIMIZED_AND_REGRESSION_TESTED",
+  "candidate": 109,
+  "firmware_sha256": "09699b5ba452150e913f5062bf8fd9b344410833c85ecc634e7ddcc7c0bb9085",
+  "updated_at": "2026-11-04T09:15:16.894279+08:00",
+  "model": "Unchanged user-selected Q4/Q8 Zipformer14M",
+  "all_weight_bytes_in_ram": 11609444,
+  "inference_weight_reads": 0,
+  "baseline": {
+    "audio_seconds": 5.1530625,
+    "load_seconds": 19.61,
+    "compute_seconds": 107.12,
+    "worker_seconds": 137.53,
+    "rtf": 20.787638418901384
+  },
+  "samples": [
+    {
+      "sample": 0,
+      "audio_seconds": 5.6115,
+      "load_seconds": 21.48,
+      "compute_seconds": 90.81,
+      "worker_seconds": 123.22,
+      "rtf": 16.182838813151562,
+      "expected_text_matched": true
+    },
+    {
+      "sample": 1,
+      "audio_seconds": 5.1530625,
+      "load_seconds": 19.62,
+      "compute_seconds": 86.01,
+      "worker_seconds": 116.72,
+      "rtf": 16.691045373503623,
+      "expected_text_matched": true
+    }
+  ],
+  "compute_reduction_percent": 19.706870799103804,
+  "total_reduction_percent": 15.13124409219807,
+  "compute_speedup": 1.2454365771421927,
+  "encoder_us": 64720000,
+  "joiner_us": 20150000,
+  "acceleration": {
+    "pie_dots": 69323840,
+    "pie_fallbacks": 0,
+    "selftests": 3,
+    "selftest_failures": 0,
+    "parallel_jobs": 1836,
+    "workers": 1,
+    "parallel_fallbacks": 0,
+    "cpu0": 1836,
+    "cpu1": 1836,
+    "overlap_us": 33880000,
+    "block_loads": 0,
+    "block_hits": 0,
+    "block_bytes": 0,
+    "block_peak": 0
+  },
+  "real_time": false,
+  "automatic_release_verified": true,
+  "cancel_freed_bytes": 10803320,
+  "dual_ai_verified": true,
+  "default_thinking": "Medium",
+  "thinking_maxima": {
+    "Low": 4,
+    "Medium": 5,
+    "High": 6
+  },
+  "data_partition_preserved": true,
+  "sd_original_files_overwritten": false,
+  "source_patch": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate109-asr-compute\\source-change.patch",
+  "host_tests": {
+    "resident_ops": 28,
+    "graph_lifecycle_and_invalid_plans": 22,
+    "full_transcriptions_and_cancel": 5,
+    "unchanged_service_phase_tests_carried_by_source_hash": true
+  },
+  "cold_power_cycle_tested": false,
+  "physical_screen_accepted": false,
+  "microphone_or_human_speech_tested": false,
+  "limitations": [
+    "Two file clips are regression samples, not a broad recognition accuracy evaluation",
+    "Host timings are not used as board performance claims",
+    "Per-op, row and lane profiles are nested and cannot be added",
+    "Resident row preparation now runs inside compute lanes, so nested row-vs-math counters changed attribution"
+  ]
+}

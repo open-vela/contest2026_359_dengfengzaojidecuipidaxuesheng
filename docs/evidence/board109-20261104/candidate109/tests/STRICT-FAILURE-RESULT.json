@@ -1,0 +1,4 @@
+{
+  "passed": true,
+  "scope": "Mandatory full RAM admission rejects insufficient budgets; no partial fallback; cancellation and cleanup, ASan/UBSan."
+}

@@ -1,0 +1,95 @@
+TAP version 13
+# Subtest: starts in wander with a visible pet
+ok 1 - starts in wander with a visible pet
+  ---
+  duration_ms: 2.80887
+  ...
+# Subtest: poke and feed change bubble and meters
+ok 2 - poke and feed change bubble and meters
+  ---
+  duration_ms: 1.081393
+  ...
+# Subtest: chat uses local lexicon
+ok 3 - chat uses local lexicon
+  ---
+  duration_ms: 1.094466
+  ...
+# Subtest: uses native system.pet when hosted
+ok 4 - uses native system.pet when hosted
+  ---
+  duration_ms: 1.490473
+  ...
+# Subtest: navigation keeps every control usable and reflects mode, size and visibility
+ok 5 - navigation keeps every control usable and reflects mode, size and visibility
+  ---
+  duration_ms: 1.436781
+  ...
+# Subtest: theme and bounds 640x400 light=true
+ok 6 - theme and bounds 640x400 light=true
+  ---
+  duration_ms: 4.399891
+  ...
+# Subtest: theme and bounds 640x400 light=false
+ok 7 - theme and bounds 640x400 light=false
+  ---
+  duration_ms: 2.829074
+  ...
+# Subtest: theme and bounds 800x450 light=true
+ok 8 - theme and bounds 800x450 light=true
+  ---
+  duration_ms: 2.665075
+  ...
+# Subtest: theme and bounds 800x450 light=false
+ok 9 - theme and bounds 800x450 light=false
+  ---
+  duration_ms: 2.669751
+  ...
+# Subtest: theme and bounds 1024x504 light=true
+ok 10 - theme and bounds 1024x504 light=true
+  ---
+  duration_ms: 3.601361
+  ...
+# Subtest: theme and bounds 1024x504 light=false
+ok 11 - theme and bounds 1024x504 light=false
+  ---
+  duration_ms: 2.754114
+  ...
+# Subtest: theme and bounds 1024x600 light=true
+ok 12 - theme and bounds 1024x600 light=true
+  ---
+  duration_ms: 3.045848
+  ...
+# Subtest: theme and bounds 1024x600 light=false
+ok 13 - theme and bounds 1024x600 light=false
+  ---
+  duration_ms: 3.451255
+  ...
+# Subtest: unchanged hosted ticks do not rewrite widgets, allocate controls or repeat toast
+ok 14 - unchanged hosted ticks do not rewrite widgets, allocate controls or repeat toast
+  ---
+  duration_ms: 3.894194
+  ...
+# Subtest: seagull loading reports actual success and preserves an already loaded appearance on failure
+ok 15 - seagull loading reports actual success and preserves an already loaded appearance on failure
+  ---
+  duration_ms: 1.809569
+  ...
+# Subtest: standalone and firmware scripts preserve canonical content across LF/CRLF checkouts
+ok 16 - standalone and firmware scripts preserve canonical content across LF/CRLF checkouts
+  ---
+  duration_ms: 10.660431
+  ...
+# Subtest: seagull treats fries as food and answers with its own fries dialogue
+ok 17 - seagull treats fries as food and answers with its own fries dialogue
+  ---
+  duration_ms: 0.959268
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 339.458619

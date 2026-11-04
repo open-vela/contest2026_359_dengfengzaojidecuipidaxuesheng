@@ -189,12 +189,14 @@ test('seagull loading reports actual success and preserves an already loaded app
   assert.match(fallback.toasts.at(-1), /不支持/);
 });
 
-test('generated standalone script and firmware resource match the canonical sources', () => {
+test('standalone and firmware scripts preserve canonical content across LF/CRLF checkouts', () => {
   const data = Buffer.from(code);
-  assert.deepEqual(fs.readFileSync(path.join(root,'dafeiyu/qpk/app.js')), data);
+  const lf = bytes => Buffer.from(bytes.toString('utf8').replace(/\r\n/g,'\n'));
+  assert.deepEqual(lf(fs.readFileSync(path.join(root,'dafeiyu/qpk/app.js'))), lf(data));
   const resource = fs.readFileSync(path.join(root,'dafeiyu_resource.c'),'utf8').split('g_dafeiyu_app_js[] =')[1].split('};')[0];
   const bytes = Buffer.from([...resource.matchAll(/0x([0-9a-f]{2})/g)].map(match=>parseInt(match[1],16)));
-  assert.deepEqual(bytes, Buffer.concat([data,Buffer.from([0])]));
+  assert.equal(bytes.at(-1), 0);
+  assert.deepEqual(lf(bytes.subarray(0,-1)), lf(data));
 });
 
 test('seagull treats fries as food and answers with its own fries dialogue', () => {

@@ -1,0 +1,24 @@
+{
+  "original_receipt_sha256": "9a99f36c8e58cafb34227268b540f8e348bf312c800f7a2d57836e3608c765a3",
+  "scope": "Receipt is scoped to the named candidate; older physical acceptance is not new109 acceptance.",
+  "receipt": {
+    "candidate": "board-bird-lively",
+    "firmware_sha256": "3c79a0091fc032d39d2acf9b8ca6a4fc45aa38b07fb622cc69f38f946d8662ac",
+    "board_written": true,
+    "independent_readback_verified": true,
+    "board_ui_passed": true,
+    "delivery_record": "board-bird-lively/DELIVERY.json",
+    "deployment_record": "board-test/bird-lively/DEPLOYMENT.json",
+    "ui_record": "board-test/bird-lively/UI-RESULT.json",
+    "pwm_changes": false,
+    "supersedes_unflashed_ui_candidates": [
+      "board-nest-pet",
+      "board-nest-video",
+      "board-nest-quiet",
+      "board-nest-touch"
+    ],
+    "rejected_pwm_candidate": "board-nest-pwm",
+    "real_microphone_dialogue_tested": false,
+    "animation_preview": "board-bird-flight/bird-flight-roll.gif"
+  }
+}

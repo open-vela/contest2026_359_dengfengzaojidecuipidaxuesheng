@@ -1,0 +1,7 @@
+{
+  "matched_candidate109": true,
+  "xip": "desktop xip\n[psram-xip] ready=1 protected_cpus=3 flash_entries=4184 text_hash=3e76620e rodata_hash=bf90d579 cache_policy=on spi1_mutex=1\nnsh> \u001b[K",
+  "dual_ai_line": "LOCAL_DUAL_AI selected=0 resident_control=0 thinking=5 model_rounds=0 tool_rounds=0 review_rounds=0",
+  "readonly": true,
+  "reset_or_flash": false
+}

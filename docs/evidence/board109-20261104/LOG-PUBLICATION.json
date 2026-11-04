@@ -47,10 +47,50 @@
       "published": "candidate108/board/startup-ui.filtered.log",
       "lines_retained": 101,
       "policy": "Keep typed ASR/AI/boot/heap receipts; omit Wi-Fi/RPC payloads and untyped transport chatter."
+    },
+    {
+      "candidate": "109",
+      "source": "board/quiet-0/serial.log",
+      "original_sha256": "87deab8d7368048062632185d6655a6016958d0a418eec97df7f301ee67cf325",
+      "published": "candidate109/board/quiet-0/serial.filtered.log",
+      "lines_retained": 115,
+      "policy": "Keep typed ASR/AI/boot/heap receipts; omit Wi-Fi/RPC payloads and untyped transport chatter."
+    },
+    {
+      "candidate": "109",
+      "source": "board/quiet-1/serial.log",
+      "original_sha256": "ff67d40ed87be7beb21fe759462f1523c49ec0593c3bcbe5ca6a150d5ec2e6e7",
+      "published": "candidate109/board/quiet-1/serial.filtered.log",
+      "lines_retained": 117,
+      "policy": "Keep typed ASR/AI/boot/heap receipts; omit Wi-Fi/RPC payloads and untyped transport chatter."
+    },
+    {
+      "candidate": "109",
+      "source": "board/cancel-release/serial.log",
+      "original_sha256": "086beed53c943b10003e45a53718612e52dc602746a08ba81b1953547470eb00",
+      "published": "candidate109/board/cancel-release/serial.filtered.log",
+      "lines_retained": 143,
+      "policy": "Keep typed ASR/AI/boot/heap receipts; omit Wi-Fi/RPC payloads and untyped transport chatter."
+    },
+    {
+      "candidate": "109",
+      "source": "board/dual-ai-tests/serial.log",
+      "original_sha256": "420b5ba5ac5a7b097b2fc7b7fe49ddb744fe1b4b6915ebc22c7f32cd8f483b65",
+      "published": "candidate109/board/dual-ai-tests/serial.filtered.log",
+      "lines_retained": 2483,
+      "policy": "Keep typed ASR/AI/boot/heap receipts; omit Wi-Fi/RPC payloads and untyped transport chatter."
+    },
+    {
+      "candidate": "109",
+      "source": "board/startup-ui.log",
+      "original_sha256": "9fda577217a5e7bb1e5f4fb0f2dff34993b9663d698d02cd1b839e8ff0f33976",
+      "published": "candidate109/board/startup-ui.filtered.log",
+      "lines_retained": 101,
+      "policy": "Keep typed ASR/AI/boot/heap receipts; omit Wi-Fi/RPC payloads and untyped transport chatter."
     }
   ],
   "configuration_backups_included": false,
   "raw_chat_sessions_included": false,
   "network_rpc_payloads_included": false,
-  "json_policy": "Structural receipt copies; Wi-Fi/network RPC chatter removed from string fields. Original source-build byte SHA values retained unchanged."
+  "json_policy": "Structural receipt copies; Wi-Fi/network RPC chatter is removed from string fields. Original source-build byte SHA values are retained unchanged."
 }

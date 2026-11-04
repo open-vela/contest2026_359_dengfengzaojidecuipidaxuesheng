@@ -1,0 +1,109 @@
+{
+  "status": "FLASHED_ASR_COMPUTE_OPTIMIZED_AND_REGRESSION_TESTED",
+  "firmware_sha256": "09699b5ba452150e913f5062bf8fd9b344410833c85ecc634e7ddcc7c0bb9085",
+  "rollback_sha256": "67868ff725af9e03e704a214a19a327aa5b0723bd6511bd4d4b72bf630b159e5",
+  "ble_identity": {
+    "address": "EA:F4:AC:63:99:13",
+    "address_little_endian": [
+      19,
+      153,
+      99,
+      172,
+      244,
+      234
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-AC639913",
+    "store_path": "/data/config/ble_eaf4ac639913.bin",
+    "store_temp": "/data/config/.ble_eaf4ac639913.tmp",
+    "purpose_path": "/data/config/bh_eaf4ac639913.bin",
+    "purpose_temp": "/data/config/.bh_eaf4ac639913.tmp",
+    "header_sha256": "225b8657479e81623c3ac5cf87629d84bbd4da726b86bc46cf7fe7aee50a8cd5"
+  },
+  "model": "Original Q4/Q8 mixed 14M, user selected; unchanged weights",
+  "model_root": "/sdcard/local-voice/models/zipformer14m-q48-ram-20261104",
+  "full_weight_bytes": 11609444,
+  "mode": "All three raw quantized data files required in RAM; SHA verified, backing streams closed; fail if unable to load all, no SD streaming fallback",
+  "model_files": [
+    {
+      "path": "decoder-epoch-99-avg-1.data",
+      "sha256": "c1c6732dd845c83ab958dcb91c75c7255dc0ae01f456581cb94874d297f2c402"
+    },
+    {
+      "path": "decoder-epoch-99-avg-1.plan",
+      "sha256": "f48fb93028754b4ca56715e2487aee14cddbf646bb348f42b1a29aa3714643fc"
+    },
+    {
+      "path": "encoder-epoch-99-avg-1.data",
+      "sha256": "b45438b250f8e42667ad284d71ef17898bc1a3640198968048c16c93b0305cd3"
+    },
+    {
+      "path": "encoder-epoch-99-avg-1.plan",
+      "sha256": "87eb45cb523373ddf77579df9846cd2d568d34d3227cbd8eb921eb460e4b95a5"
+    },
+    {
+      "path": "joiner-epoch-99-avg-1.data",
+      "sha256": "eb1f9735c4123f35d5961f112c54523678a93d45f5d4a1f73f623955b2e96851"
+    },
+    {
+      "path": "joiner-epoch-99-avg-1.plan",
+      "sha256": "e2810ec8b6db2401d93ec42bc3682286f822bb254e1d07bdfde12b576f553954"
+    },
+    {
+      "path": "manifest.bin",
+      "sha256": "4ffe2906892e0cfc46c9c1eb9a5af2edc76900c9d5815901be0c6ebbbe40ff8b"
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "c07d7bb0dd2d4ef75450f28bd4b7b5a632f1d982834072d0777ea1f916b027ea"
+    },
+    {
+      "path": "tokens.bin",
+      "sha256": "44533b617e7d6fd5e1fdc0915a336d404c48d0ea03528020e6270414b3043118"
+    },
+    {
+      "path": "checks/0.wav",
+      "sha256": "668bf8df51a10027b84d5d8816a1ce11ae93545538dc05cfe2aa6811d399c250"
+    },
+    {
+      "path": "checks/1.wav",
+      "sha256": "30edbabea84ca4c076f5b43bb44495f436f6711319c32a200d3fc5c67c1fee1d"
+    },
+    {
+      "path": "notices/Apache-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "notices/model-README.md",
+      "sha256": "515751f07faad368f0863ae41773ff09635eba5920122d549abb8e45d5c88282"
+    }
+  ],
+  "dual_ai_preserved": true,
+  "thinking": "Low4 / Medium5 default / High6 maxima, early finish",
+  "flashed": true,
+  "real_asr_zero_io_verified": true,
+  "physical_timing": [
+    {
+      "sample": 0,
+      "audio_seconds": 5.6115,
+      "load_seconds": 21.48,
+      "compute_seconds": 90.81,
+      "worker_seconds": 123.22,
+      "rtf": 16.182838813151562,
+      "expected_text_matched": true
+    },
+    {
+      "sample": 1,
+      "audio_seconds": 5.1530625,
+      "load_seconds": 19.62,
+      "compute_seconds": 86.01,
+      "worker_seconds": 116.72,
+      "rtf": 16.691045373503623,
+      "expected_text_matched": true
+    }
+  ],
+  "automatic_asr_release_verified": true,
+  "dual_ai_runtime_verified": true,
+  "board_result": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate109-asr-compute\\board\\BOARD-RESULT.json",
+  "updated_at": "2026-11-04T09:15:16.894279+08:00"
+}

@@ -1,0 +1,47 @@
+{
+  "baseline": 108,
+  "source": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate108-full-ram-asr\\board\\quiet-1\\RESULT.json",
+  "audio_seconds": 5.1530625,
+  "worker_seconds": 137.53,
+  "compute_seconds": 107.12,
+  "encoder_seconds": 80.3,
+  "joiner_seconds": 25.78,
+  "decoder_seconds": 0.46,
+  "frontend_seconds": 0.45,
+  "nested_row_decode_and_prepare_seconds": 39.75,
+  "inference_weight_reads": 0,
+  "parallel_jobs": 108,
+  "hypotheses": [
+    "Packed Q4/Q8 still requires row decoding after RAM residency",
+    "32KiB tiles cause large matrices to fail the per-tile dual-core threshold",
+    "Repeated PIE CSR switches for each 32-element dot",
+    "Many convolution channel tiles reload and underutilize a second core"
+  ],
+  "candidate": 109,
+  "changes": [
+    "Verified resident matrix view with two private per-lane row scratch buffers",
+    "One parallel dispatch for whole packed matrix",
+    "Convolution tile admission up to 256KiB with allocation fallback",
+    "Group-scale validation hoisted out of per-element loop; direct immutable cache access",
+    "PIE mode scoped to compute body; interrupts enabled, original context save/selftest retained"
+  ],
+  "limitations": [
+    "Rows, lane math and per-op metrics are nested; do not add them to encoder/joiner times",
+    "Host wall speed is not P4 speed",
+    "Fixed two public samples are regressions, not a recognition accuracy evaluation"
+  ],
+  "measured_109": {
+    "encoder_seconds": 64.72,
+    "joiner_seconds": 20.15,
+    "matrix_conv_gemm_seconds": 70.5,
+    "compute_seconds": 86.01,
+    "total_seconds": 116.72,
+    "parallel_jobs": 1836,
+    "both_cores_affinity_checked": true,
+    "overlap_seconds": 33.88,
+    "activation_quant_seconds": 4.44,
+    "owner_wait_seconds": 6.1,
+    "same_sample_text": true
+  },
+  "interpretation": "Full residency removes weight I/O during inference. General graph execution and dense matrix/convolution arithmetic remain expensive. Larger work units now dispatch both CPU lanes; no weights, vocabulary, frame count or greedy decoder changes. New resident row preparation is included in lane_math, not the old rows counter."
+}

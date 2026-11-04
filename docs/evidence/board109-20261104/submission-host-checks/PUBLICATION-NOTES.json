@@ -1,0 +1,7 @@
+{
+  "bird_js_cases": 17,
+  "portal_js_cases": 28,
+  "result": "passed",
+  "initial_bird_test_issue": "Exact script-byte comparison crossed CRLF/LF normalization; test now canonicalizes only line endings and still verifies the NUL terminator and all script content. Runtime C data and behavior unchanged.",
+  "scope": "Publication host checks; not a fresh firmware or physical deployment."
+}

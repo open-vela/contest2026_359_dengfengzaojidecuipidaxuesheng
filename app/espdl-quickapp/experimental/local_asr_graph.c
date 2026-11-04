@@ -207,16 +207,19 @@ static int read_row_inner(struct glv_asr_graph *g,struct tensor *t,unsigned row,
  }
  size_t groups=t->padded/32,groupbytes=format==1?20u:36u,rowbytes=groups*groupbytes;
  if(rowbytes>g->row_bytes)return -EINVAL;
- int ret=seek_read(g,t->offset+(uint32_t)(row*rowbytes),g->row,rowbytes);if(ret)return ret;
+ const unsigned char *raw=g->cache?g->cache+t->offset+(size_t)row*rowbytes:g->row;
+ if(!g->cache){int ret=seek_read(g,t->offset+(uint32_t)(row*rowbytes),g->row,rowbytes);if(ret)return ret;}
  /* Existing exporter interleaves one FP32 scale with 16/32 value bytes. */
- for(unsigned i=0;i<count;i++){
-   const unsigned char *block=g->row+(i/32)*groupbytes;
-   float scale=f32(block);int value;unsigned at=i%32;
+ for(unsigned group=0;group<groups&&group*32u<count;group++){
+   const unsigned char *block=raw+(size_t)group*groupbytes;
+   float scale=f32(block);if(!glv_finite(scale)||scale<0)return -EBADMSG;
    const unsigned char *q=block+4;
-   if(format==1){unsigned nibble=(q[at/2]>>(4u*(at&1u)))&15u;value=nibble<8?(int)nibble:(int)nibble-16;}
-   else value=q[at]<128?q[at]:(int)q[at]-256;
-   if(!glv_finite(scale)||scale<0)return -EBADMSG;
-   dest[i]=(float)value*scale;
+   unsigned n=count-group*32u;if(n>32)n=32;
+   for(unsigned i=0;i<n;i++){
+     int value;if(format==1){unsigned nibble=(q[i/2]>>(4u*(i&1u)))&15u;value=nibble<8?(int)nibble:(int)nibble-16;}
+     else value=q[i]<128?q[i]:(int)q[i]-256;
+     dest[group*32u+i]=(float)value*scale;
+   }
  }
  return glv_cancel(g->memory);
 }
@@ -244,6 +247,14 @@ static int rows(void *opaque,unsigned row,float *dest,unsigned count)
  return glv_cancel(r->g->memory);
 }
 #ifdef GLV_ASR_ACCEL_ENABLED
+static int resident_rows(void *opaque,struct glv_asr_packed_rows *view)
+{
+ struct row_context *r=opaque;struct tensor *t=r->t;unsigned fmt=t->format&255u;
+ if(!r->g->cache||!(t->flags&CONST)||t->type!=F32||r->batch||(fmt!=1&&fmt!=2))return 0;
+ if(t->padded!=((t->columns+31u)&~31u))return 0;
+ *view=(struct glv_asr_packed_rows){r->g->cache+t->offset,fmt,t->rows,t->columns,t->padded,(size_t)(t->padded/32u)*(fmt==1?20u:36u)};
+ return 1;
+}
 static int prepared_rows_inner(void *opaque,unsigned row,float *dest,int16_t *codes,float *scales,float *l1,unsigned count)
 {
  struct row_context *r=opaque;struct tensor *t=r->t;struct glv_asr_graph *g=r->g;unsigned fmt=t->format&255u;
@@ -251,9 +262,10 @@ static int prepared_rows_inner(void *opaque,unsigned row,float *dest,int16_t *co
  if(t->type!=F32||row>=t->rows||count!=t->columns||t->padded!=((count+31u)&~31u))return -EINVAL;
  size_t groups=t->padded/32,groupbytes=fmt==1?20u:36u,rowbytes=groups*groupbytes;
  if(rowbytes>g->row_bytes)return -EINVAL;select_block(g,t);
- int ret=seek_read(g,t->offset+(uint32_t)(row*rowbytes),g->row,rowbytes);if(ret)return ret;
+ const unsigned char *raw=g->cache?g->cache+t->offset+(size_t)row*rowbytes:g->row;
+ int ret=0;if(!g->cache){ret=seek_read(g,t->offset+(uint32_t)(row*rowbytes),g->row,rowbytes);if(ret)return ret;}
  for(unsigned group=0;group<groups;group++){
-  const unsigned char *block=g->row+(size_t)group*groupbytes;float scale=f32(block);if(!glv_finite(scale)||scale<0)return -EBADMSG;scales[group]=scale;l1[group]=0;
+  const unsigned char *block=raw+(size_t)group*groupbytes;float scale=f32(block);if(!glv_finite(scale)||scale<0)return -EBADMSG;scales[group]=scale;l1[group]=0;
   for(unsigned i=0;i<32;i++){
    unsigned col=group*32+i;int v=0;
    if(col<count){if(fmt==1){unsigned nibble=(block[4+i/2]>>(4u*(i&1u)))&15u;v=nibble<8?(int)nibble:(int)nibble-16;}else v=(int8_t)block[4+i];}
@@ -452,7 +464,7 @@ static int matrix(struct glv_asr_graph *g,struct node *n)
  unsigned k=x->shape->dims[x->shape->rank-1],m=x->shape->dims[x->shape->rank-2];
  struct row_context context={g,w,0,true};struct glv_asr_rows callback={.read=rows,.opaque=&context
 #ifdef GLV_ASR_ACCEL_ENABLED
- ,.prepare=((w->flags&CONST)&&(w->format&255u))?prepared_rows:NULL
+ ,.prepare=((w->flags&CONST)&&(w->format&255u))?prepared_rows:NULL,.resident=resident_rows
 #endif
  };int ret;
  if(n->op==GEMM){
@@ -611,7 +623,7 @@ static int evaluate_inner(struct glv_asr_graph *g,struct node *n)
    memcpy(&c,fields,sizeof(c));
    struct row_context context={g,w,0,false};struct glv_asr_rows callback={.read=rows,.opaque=&context
 #ifdef GLV_ASR_ACCEL_ENABLED
- ,.prepare=((w->flags&CONST)&&(w->format&255u))?prepared_rows:NULL
+ ,.prepare=((w->flags&CONST)&&(w->format&255u))?prepared_rows:NULL,.resident=resident_rows
 #endif
  };
    return glv_asr_conv(g->memory,x->data,x->count,b?b->data:NULL,b?b->count:0,y->data,y->count,&c,&callback);

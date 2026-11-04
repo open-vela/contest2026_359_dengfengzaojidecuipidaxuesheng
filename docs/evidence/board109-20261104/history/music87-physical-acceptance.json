@@ -1,0 +1,28 @@
+{
+  "original_receipt_sha256": "9be735683994c9595071022e0801e728cdd61fc3ac7ff657f7d92c7c36dd8ee1",
+  "scope": "Receipt is scoped to the named candidate; older physical acceptance is not new109 acceptance.",
+  "receipt": {
+    "candidate": 87,
+    "image_sha256": "7dbe9be2086dd5eb946883a1700d0e274973af40d792121983dc5a693aaa96bd",
+    "accepted": true,
+    "status": "USER_ACCEPTED_RETAINED",
+    "accepted_at_utc": "2026-11-03T09:18:51.864168+00:00",
+    "user_statement": "验收已经通过保留这一个版本",
+    "user_confirmed_manual_scroll_during_stationary_test": "有，我刚才在滑动测试",
+    "acceptance_scope": "Current candidate87 and its music artwork/loading/scrolling behavior, based on user physical operation and explicit acceptance",
+    "raw_automated_aggregate_passed": false,
+    "valid_automated_phases_passed": true,
+    "valid_automated_phase_count": 8,
+    "stationary_test_valid": false,
+    "stationary_test_explanation": "User explicitly confirmed manual scrolling during stationary observation; original failed raw result retained without alteration",
+    "sd_prepared_thumbnails": 5,
+    "sd_prepared_masters": 5,
+    "sd_originals_and_audio_retained": true,
+    "source_root": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate87\\source",
+    "verified_source_inputs": 796,
+    "known_measured_main_mini_ready_seconds": 11.89,
+    "measurement_note": "Host action-to-serial-observed-ready upper bound; selected-track latency retained in results, not declared fixed by acceptance",
+    "model_voice_and_ble_acceptance": "Not independently retested by this artwork acceptance",
+    "retention_instruction": "Keep current board on exact candidate87; no further edits, tests, resets or flashing this round"
+  }
+}

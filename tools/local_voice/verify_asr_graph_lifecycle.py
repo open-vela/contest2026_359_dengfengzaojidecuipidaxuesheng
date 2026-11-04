@@ -17,7 +17,9 @@ def main():
     exp=root/'app/espdl-quickapp/experimental';desktop=root/'app/espdl-quickapp/overlay/apps/system/desktop'
     sources=[exp/'local_asr_graph.c',exp/'local_asr_ops.c',desktop/'glass_local_model.c',desktop/'glass_local_sha.c',root/'app/espdl-quickapp/tests/local_asr_graph_host.c']
     exe=out/'asr-graph-lifecycle'
-    subprocess.run(['gcc','-std=gnu11','-O1','-g','-ffp-contract=off','-fno-pie','-no-pie','-fsanitize=address,undefined','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-I'+str(desktop),'-I'+str(exp),*[str(v) for v in sources],'-lm','-o',str(exe)],check=True)
+    # The production 32-bit overflow guard count>SIZE_MAX-4 is constant false
+    # only on this 64-bit host; retain the guard in firmware and other warnings.
+    subprocess.run(['gcc','-std=gnu11','-O1','-g','-ffp-contract=off','-fno-pie','-no-pie','-fsanitize=address,undefined','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-Wno-type-limits','-I'+str(desktop),'-I'+str(exp),*[str(v) for v in sources],'-lm','-o',str(exe)],check=True)
     results=[]
     def test(stem,label,reject=False):
         result=subprocess.run([str(exe),str(stem),*(['reject'] if reject else [])],text=True,capture_output=True,timeout=90)
@@ -39,8 +41,7 @@ def main():
         word('tensor-rank',80+4,9);word('tensor-overflow',80+12,0xffffffff)
         word('tensor-type',80,0xffffffff);word('tensor-conflicting-flags',80+8,3)
         # First decoder constant is the embedding weight (tensor 2).
-        meta=json.loads(plan.with_suffix('.json').read_text(encoding='utf-8'))
-        ci=next(i for i,t in enumerate(meta['tensors']) if t['flags']&1)
+        ci=next(i for i in range(nt) if struct.unpack_from('<I',original,80+i*72+8)[0]&1)
         word('constant-offset',80+ci*72+44,0xffffffff);word('constant-format',80+ci*72+52,3)
         word('constant-row-shape',80+ci*72+56,0xffffffff)
         word('node-arity',node_at+4,0);word('node-output-arity',node_at+8,2)
