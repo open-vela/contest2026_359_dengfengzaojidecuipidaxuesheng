@@ -3,7 +3,7 @@
   "team_id": "contest2026_359_dengfengzaojidecuipidaxuesheng",
   "github_login": "flash555588",
   "generator": "claude-code-collector@1.3.0",
-  "updated_at": "2026-11-01T11:49:59.359585+00:00",
+  "updated_at": "2026-11-04T16:55:40.761617+00:00",
   "sessions": [
     {
       "session_id": "c9148026-9f28-4399-bae9-b25ba504b854",
@@ -1097,9 +1097,9 @@
       "tool": "codex",
       "started_at": "2026-10-28T14:47:24.803Z",
       "last_event_at": "2026-11-01T10:01:41.359Z",
-      "event_count": 1259,
+      "event_count": 1367,
       "file_path": "logs/flash555588/2026-10-28/codex__01a182fa-d0c8-76d0-8c38-8b93fd42657b.jsonl",
-      "collection_mode": "vscode_extension_partial",
+      "collection_mode": "cli",
       "health": "ok",
       "source_segments": [
         {
@@ -1113,16 +1113,48 @@
           "size": 120671078
         }
       ],
-      "redactions": 0
+      "redactions": 0,
+      "source_integrity": {
+        "main_sha256": "46d3d2d29fb926e9cf03307d7b33d5f73e75d124d8a5888cc361232bcb3dd28d",
+        "main_size": 120671078,
+        "captured_at": "2026-11-04T16:53:54.357107+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-28T22-47-18-01a182fa-d0c8-76d0-8c38-8b93fd42657b.jsonl",
+            "sha256": "74297e82caef51b48f80287718f00c1b20ac9f459131bbd7c2f9f0d20c759138",
+            "size": 34921493
+          },
+          {
+            "name": "rollout-2026-10-30T22-10-18-01a18d25-a895-7ac0-b04d-119ed06b3dab.jsonl",
+            "sha256": "d28b759f25ec41ce25defd44717e030b8159daeac437bd7610e867b34204284e",
+            "size": 3756636
+          },
+          {
+            "name": "rollout-2026-10-30T22-10-30-01a18d25-da41-7971-b22e-b233bee13b30.jsonl",
+            "sha256": "bf6f0c198732412a28e5963012ff3e0586900cbce11a1d7df38a19c239ce00a0",
+            "size": 3833627
+          },
+          {
+            "name": "rollout-2026-10-30T22-10-39-01a18d25-fd34-7281-b05e-7b2b12e9e6ae.jsonl",
+            "sha256": "921d5251dda3ed1d147a0be606ed232c279f320a94277b9158e5f21cfc55cc19",
+            "size": 4322345
+          },
+          {
+            "name": "rollout-2026-10-31T00-59-33-01a182fa-d0c8-76d0-8c38-8b93fd42657b_01a18dc0-a05a-75d3-a531-19ce2f0d4479.jsonl",
+            "sha256": "46d3d2d29fb926e9cf03307d7b33d5f73e75d124d8a5888cc361232bcb3dd28d",
+            "size": 120671078
+          }
+        ]
+      }
     },
     {
       "session_id": "01a196cf-2e56-7be0-a687-8f6fb98af013",
       "tool": "codex",
       "started_at": "2026-11-01T11:12:08.396Z",
-      "last_event_at": "2026-11-01T12:00:40.725Z",
-      "event_count": 45,
+      "last_event_at": "2026-11-01T16:21:33.362Z",
+      "event_count": 95,
       "file_path": "logs/flash555588/2026-11-01/codex__01a196cf-2e56-7be0-a687-8f6fb98af013.jsonl",
-      "collection_mode": "vscode_extension_partial",
+      "collection_mode": "cli",
       "health": "ok",
       "source_segments": [
         {
@@ -1131,7 +1163,2165 @@
           "size": 3499999
         }
       ],
-      "redactions": 0
+      "redactions": 0,
+      "source_integrity": {
+        "main_sha256": "3d00917b7b8f61cb10b1c2b7887b5a60ba94a00082b932a04f26c2e015cca6ad",
+        "main_size": 8191592,
+        "captured_at": "2026-11-04T16:53:54.945147+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-01T19-12-02-01a196cf-2e56-7be0-a687-8f6fb98af013.jsonl",
+            "sha256": "3d00917b7b8f61cb10b1c2b7887b5a60ba94a00082b932a04f26c2e015cca6ad",
+            "size": 8191592
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19fae-6e0e-7ba0-af95-1378e789f480",
+      "tool": "codex",
+      "started_at": "2026-11-03T04:33:08.780Z",
+      "last_event_at": "2026-11-03T04:50:11.864Z",
+      "event_count": 17,
+      "file_path": "logs/flash555588/2026-11-03/codex__01a19fae-6e0e-7ba0-af95-1378e789f480.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "fed0d8de25ce867902930e165d057796dc1ae85c9823a8006727dbd0ba0f32ac",
+        "main_size": 1546770,
+        "captured_at": "2026-11-04T16:53:54.229335+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-03T12-32-55-01a19fae-6e0e-7ba0-af95-1378e789f480.jsonl",
+            "sha256": "fed0d8de25ce867902930e165d057796dc1ae85c9823a8006727dbd0ba0f32ac",
+            "size": 1546770
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a17bd5-f340-7c83-8b4c-733804eca999",
+      "tool": "codex",
+      "started_at": "2026-10-27T05:29:46.957Z",
+      "last_event_at": "2026-10-27T07:38:09.014Z",
+      "event_count": 58,
+      "file_path": "logs/flash555588/2026-10-27/codex__01a17bd5-f340-7c83-8b4c-733804eca999.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "59830389c6ca4d5d17ec47cc2d7bde7bc19ecb29576a99d1c9e9c28d725a819e",
+        "main_size": 4997157,
+        "captured_at": "2026-11-04T16:53:54.235657+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-27T13-29-41-01a17bd5-f340-7c83-8b4c-733804eca999.jsonl",
+            "sha256": "59830389c6ca4d5d17ec47cc2d7bde7bc19ecb29576a99d1c9e9c28d725a819e",
+            "size": 4997157
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1813c-a8d6-7a80-9730-0fea9b3cde83",
+      "tool": "codex",
+      "started_at": "2026-10-28T06:39:59.749Z",
+      "last_event_at": "2026-10-28T08:11:12.067Z",
+      "event_count": 16,
+      "file_path": "logs/flash555588/2026-10-28/codex__01a1813c-a8d6-7a80-9730-0fea9b3cde83.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "da40d32052d4c7e0d9d6974503c1823371aac5040f363d1e1f5c904b93e2f737",
+        "main_size": 1525707,
+        "captured_at": "2026-11-04T16:53:54.242839+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-28T14-39-58-01a1813c-a8d6-7a80-9730-0fea9b3cde83.jsonl",
+            "sha256": "da40d32052d4c7e0d9d6974503c1823371aac5040f363d1e1f5c904b93e2f737",
+            "size": 1525707
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a181dd-053a-7912-aac7-6cb6b1f36e66",
+      "tool": "codex",
+      "started_at": "2026-10-28T09:35:11.848Z",
+      "last_event_at": "2026-10-28T11:25:25.567Z",
+      "event_count": 27,
+      "file_path": "logs/flash555588/2026-10-28/codex__01a181dd-053a-7912-aac7-6cb6b1f36e66.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "3edf6b0896e373ee396e65af3a806456e97c220eccceea928f3e4b444672bd40",
+        "main_size": 3273238,
+        "captured_at": "2026-11-04T16:53:54.247701+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-28T17-35-08-01a181dd-053a-7912-aac7-6cb6b1f36e66.jsonl",
+            "sha256": "3edf6b0896e373ee396e65af3a806456e97c220eccceea928f3e4b444672bd40",
+            "size": 3273238
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18279-b806-7ca0-9a19-6247b19b0a91",
+      "tool": "codex",
+      "started_at": "2026-10-28T12:29:31.999Z",
+      "last_event_at": "2026-10-28T13:54:23.394Z",
+      "event_count": 40,
+      "file_path": "logs/flash555588/2026-10-28/codex__01a18279-b806-7ca0-9a19-6247b19b0a91.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "3bd6c736c1adab1e6cdd569ad52a1087ab1c5752e8b6b077a7972071ac9c4600",
+        "main_size": 4147549,
+        "captured_at": "2026-11-04T16:53:54.255535+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-28T20-26-17-01a18279-b806-7ca0-9a19-6247b19b0a91.jsonl",
+            "sha256": "3bd6c736c1adab1e6cdd569ad52a1087ab1c5752e8b6b077a7972071ac9c4600",
+            "size": 4147549
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18336-475a-7e61-b048-6cb9d295dfdc",
+      "tool": "codex",
+      "started_at": "2026-10-28T15:52:23.284Z",
+      "last_event_at": "2026-10-30T07:21:54.116Z",
+      "event_count": 477,
+      "file_path": "logs/flash555588/2026-10-28/codex__01a18336-475a-7e61-b048-6cb9d295dfdc.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ca85dfcb33111b915eca075cf5ca016b683ac0ec8a5c5f2b6e4f52e5c61c8b2c",
+        "main_size": 3918562,
+        "captured_at": "2026-11-04T16:53:54.478874+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-28T23-52-15-01a18336-475a-7e61-b048-6cb9d295dfdc.jsonl",
+            "sha256": "7478ceb9662f6aa65fec16b66871d1438af690f19b57d96402bb908fe77fba5e",
+            "size": 33696039
+          },
+          {
+            "name": "rollout-2026-10-29T18-02-08-01a18336-475a-7e61-b048-6cb9d295dfdc_01a1871c-1952-7111-b722-c02341a3b4c7.jsonl",
+            "sha256": "370df5cc1b6c6995a1115c3f2c930ff95272352df41d62221fd8aea42535fac6",
+            "size": 36556824
+          },
+          {
+            "name": "rollout-2026-10-30T15-12-35-01a18336-475a-7e61-b048-6cb9d295dfdc_01a18ba7-3c8f-7a50-9cf8-c7bc1aed0972.jsonl",
+            "sha256": "ca85dfcb33111b915eca075cf5ca016b683ac0ec8a5c5f2b6e4f52e5c61c8b2c",
+            "size": 3918562
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18896-2c47-7661-b13c-a2b97a9a3313",
+      "tool": "codex",
+      "started_at": "2026-10-29T16:55:36.029Z",
+      "last_event_at": "2026-10-30T06:28:57.583Z",
+      "event_count": 253,
+      "file_path": "logs/flash555588/2026-10-29/codex__01a18896-2c47-7661-b13c-a2b97a9a3313.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "606a0291b224a1a77e852013f5ba4fd6770589c072a58a630aedca8271f090a1",
+        "main_size": 17924169,
+        "captured_at": "2026-11-04T16:53:54.543426+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T00-55-05-01a18896-2c47-7661-b13c-a2b97a9a3313.jsonl",
+            "sha256": "606a0291b224a1a77e852013f5ba4fd6770589c072a58a630aedca8271f090a1",
+            "size": 17924169
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18a6e-246c-7f21-9218-b5212c37f2b7",
+      "tool": "codex",
+      "started_at": "2026-10-30T01:30:45.364Z",
+      "last_event_at": "2026-10-30T01:41:36.680Z",
+      "event_count": 14,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18a6e-246c-7f21-9218-b5212c37f2b7.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "4d043e69bf89c99fcf980aa1be71d8fef3a7493d3487683385af0592ca4c7d8f",
+        "main_size": 999462,
+        "captured_at": "2026-11-04T16:53:54.558306+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T09-30-36-01a18a6e-246c-7f21-9218-b5212c37f2b7.jsonl",
+            "sha256": "4d043e69bf89c99fcf980aa1be71d8fef3a7493d3487683385af0592ca4c7d8f",
+            "size": 999462
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18baf-dbc9-7070-848d-8a12c957ea2c",
+      "tool": "codex",
+      "started_at": "2026-10-30T07:22:10.592Z",
+      "last_event_at": "2026-10-30T16:47:07.310Z",
+      "event_count": 237,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18baf-dbc9-7070-848d-8a12c957ea2c.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "8825b0cecd5bed13f0f02b52428387aeda5483f2b03336c0861e79756781a4ad",
+        "main_size": 2345945,
+        "captured_at": "2026-11-04T16:53:54.564759+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T15-22-00-01a18baf-dbc9-7070-848d-8a12c957ea2c.jsonl",
+            "sha256": "0b6055167bf1eadaac91ca42f15ad4e819eca5d03a5cfc4f63b27f90fe538be1",
+            "size": 10868600
+          },
+          {
+            "name": "rollout-2026-10-30T21-54-46-01a18baf-dbc9-7070-848d-8a12c957ea2c_01a18d17-7349-7f70-bb47-19bdfb41d021.jsonl",
+            "sha256": "7b50d8a02bbf4cb3e63d6aea53dac729e29c9000597fd20617de3c2f4f2b4c0b",
+            "size": 5118278
+          },
+          {
+            "name": "rollout-2026-10-31T00-03-25-01a18baf-dbc9-7070-848d-8a12c957ea2c_01a18d8d-3b6e-71f3-ae51-b52649ee5335.jsonl",
+            "sha256": "8825b0cecd5bed13f0f02b52428387aeda5483f2b03336c0861e79756781a4ad",
+            "size": 2345945
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d25-aa60-7923-ae80-4564844edb4b",
+      "tool": "codex",
+      "started_at": "2026-10-30T14:12:31.941Z",
+      "last_event_at": "2026-10-30T14:21:03.189Z",
+      "event_count": 31,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d25-aa60-7923-ae80-4564844edb4b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "f809b6c951a532d9b4f59940f7d8627f829de906c17219c0e786cfdaa2ecd932",
+        "main_size": 938714,
+        "captured_at": "2026-11-04T16:53:54.581096+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T22-10-18-01a18d25-aa60-7923-ae80-4564844edb4b.jsonl",
+            "sha256": "f809b6c951a532d9b4f59940f7d8627f829de906c17219c0e786cfdaa2ecd932",
+            "size": 938714
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d25-dc4c-7891-8c99-951c6d626192",
+      "tool": "codex",
+      "started_at": "2026-10-30T14:11:18.878Z",
+      "last_event_at": "2026-10-30T14:23:51.455Z",
+      "event_count": 59,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d25-dc4c-7891-8c99-951c6d626192.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "919d4f590cb0e8f2464c444c95fdd80a08cc3f569cc29ab6a0d93c0682d6a04c",
+        "main_size": 1469406,
+        "captured_at": "2026-11-04T16:53:54.587118+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T22-10-31-01a18d25-dc4c-7891-8c99-951c6d626192.jsonl",
+            "sha256": "919d4f590cb0e8f2464c444c95fdd80a08cc3f569cc29ab6a0d93c0682d6a04c",
+            "size": 1469406
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d25-fed8-7151-b548-27248ea6d15b",
+      "tool": "codex",
+      "started_at": "2026-10-30T14:12:45.695Z",
+      "last_event_at": "2026-10-30T14:34:11.289Z",
+      "event_count": 33,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d25-fed8-7151-b548-27248ea6d15b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "e64973d3dd522bb52fd0255857273e1c9fcce30471876677a670036dd0566166",
+        "main_size": 744354,
+        "captured_at": "2026-11-04T16:53:54.592588+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T22-10-40-01a18d25-fed8-7151-b548-27248ea6d15b.jsonl",
+            "sha256": "e64973d3dd522bb52fd0255857273e1c9fcce30471876677a670036dd0566166",
+            "size": 744354
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d2a-6f34-7450-a4cb-51a2c1325dc5",
+      "tool": "codex",
+      "started_at": "2026-10-30T14:15:34.200Z",
+      "last_event_at": "2026-10-30T14:47:12.113Z",
+      "event_count": 60,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d2a-6f34-7450-a4cb-51a2c1325dc5.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "be84cfabb3373d833836ef1d9e5d134e0b59bb6f1ee32bdb60ffc72bdf4823c2",
+        "main_size": 959659,
+        "captured_at": "2026-11-04T16:53:54.598013+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T22-15-31-01a18d2a-6f34-7450-a4cb-51a2c1325dc5.jsonl",
+            "sha256": "be84cfabb3373d833836ef1d9e5d134e0b59bb6f1ee32bdb60ffc72bdf4823c2",
+            "size": 959659
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d47-17c9-7c32-8d4e-64feba37b049",
+      "tool": "codex",
+      "started_at": "2026-10-30T14:46:54.453Z",
+      "last_event_at": "2026-10-30T14:49:30.688Z",
+      "event_count": 19,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d47-17c9-7c32-8d4e-64feba37b049.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ba0c04aa185b3111fd6c242d726487d589519256792dd29af6c2773ece7dc85e",
+        "main_size": 498897,
+        "captured_at": "2026-11-04T16:53:54.601797+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T22-46-49-01a18d47-17c9-7c32-8d4e-64feba37b049.jsonl",
+            "sha256": "ba0c04aa185b3111fd6c242d726487d589519256792dd29af6c2773ece7dc85e",
+            "size": 498897
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d4e-f398-7471-b377-07722177c20c",
+      "tool": "codex",
+      "started_at": "2026-10-30T14:55:28.198Z",
+      "last_event_at": "2026-10-30T15:10:37.357Z",
+      "event_count": 46,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d4e-f398-7471-b377-07722177c20c.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "2c1da679cdba597bbeb796af9819e00cab48291e4c9a084f1388684821df362a",
+        "main_size": 880211,
+        "captured_at": "2026-11-04T16:53:54.605936+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T22-55-24-01a18d4e-f398-7471-b377-07722177c20c.jsonl",
+            "sha256": "2c1da679cdba597bbeb796af9819e00cab48291e4c9a084f1388684821df362a",
+            "size": 880211
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d63-2b1e-7710-a529-e3d59111983f",
+      "tool": "codex",
+      "started_at": "2026-10-30T15:17:31.317Z",
+      "last_event_at": "2026-10-30T15:17:34.297Z",
+      "event_count": 2,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d63-2b1e-7710-a529-e3d59111983f.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "f27f1265318f16918cff75b069a5fcbfb12b868f97450bc453f823f3af01cc18",
+        "main_size": 186252,
+        "captured_at": "2026-11-04T16:53:54.609076+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T23-17-29-01a18d63-2b1e-7710-a529-e3d59111983f.jsonl",
+            "sha256": "f27f1265318f16918cff75b069a5fcbfb12b868f97450bc453f823f3af01cc18",
+            "size": 186252
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d63-3fe8-7511-8819-b161c78d2928",
+      "tool": "codex",
+      "started_at": "2026-10-30T15:17:36.037Z",
+      "last_event_at": "2026-10-30T16:03:11.484Z",
+      "event_count": 92,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d63-3fe8-7511-8819-b161c78d2928.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "faf2706225e53dbff4b298212ef2bbe971b97392f2805f088709d672a3a80b66",
+        "main_size": 1743333,
+        "captured_at": "2026-11-04T16:53:54.616602+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-30T23-17-34-01a18d63-3fe8-7511-8819-b161c78d2928.jsonl",
+            "sha256": "faf2706225e53dbff4b298212ef2bbe971b97392f2805f088709d672a3a80b66",
+            "size": 1743333
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18d8e-6130-7100-b404-33efa74980e4",
+      "tool": "codex",
+      "started_at": "2026-10-30T16:04:45.018Z",
+      "last_event_at": "2026-10-30T16:40:09.488Z",
+      "event_count": 106,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18d8e-6130-7100-b404-33efa74980e4.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "391a024c8ad8864575b3917af16faf6f213b9b7995c744cc748da1bbbc0a75eb",
+        "main_size": 1763197,
+        "captured_at": "2026-11-04T16:53:54.624598+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T00-04-41-01a18d8e-6130-7100-b404-33efa74980e4.jsonl",
+            "sha256": "391a024c8ad8864575b3917af16faf6f213b9b7995c744cc748da1bbbc0a75eb",
+            "size": 1763197
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18dc5-0bae-7c80-a2c4-0277100bc7e5",
+      "tool": "codex",
+      "started_at": "2026-10-30T17:04:25.341Z",
+      "last_event_at": "2026-10-30T18:09:35.955Z",
+      "event_count": 114,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18dc5-0bae-7c80-a2c4-0277100bc7e5.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "79f8043f51f8c2a1f7b9830391ba3b26b27b60231040f4c64a72cf32fc24468f",
+        "main_size": 2459496,
+        "captured_at": "2026-11-04T16:53:54.636793+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T01-04-23-01a18dc5-0bae-7c80-a2c4-0277100bc7e5.jsonl",
+            "sha256": "79f8043f51f8c2a1f7b9830391ba3b26b27b60231040f4c64a72cf32fc24468f",
+            "size": 2459496
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18e03-b9e2-7982-bf11-07da49f859c1",
+      "tool": "codex",
+      "started_at": "2026-10-30T18:12:52.992Z",
+      "last_event_at": "2026-10-30T18:46:05.200Z",
+      "event_count": 108,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18e03-b9e2-7982-bf11-07da49f859c1.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ee50bef45e3270b36a0b2d784b4ab67137fa95e1759d516c4ca7cd0ef0dad9a1",
+        "main_size": 2749347,
+        "captured_at": "2026-11-04T16:53:54.647734+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T02-12-51-01a18e03-b9e2-7982-bf11-07da49f859c1.jsonl",
+            "sha256": "ee50bef45e3270b36a0b2d784b4ab67137fa95e1759d516c4ca7cd0ef0dad9a1",
+            "size": 2749347
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18e22-be09-7a81-bd28-6c65572dc901",
+      "tool": "codex",
+      "started_at": "2026-10-30T18:46:45.695Z",
+      "last_event_at": "2026-10-30T19:42:16.820Z",
+      "event_count": 90,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18e22-be09-7a81-bd28-6c65572dc901.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "5e8bed5e8713859590378ebb0515d101863d1de19f2710c627899c9bbd696ca2",
+        "main_size": 1967661,
+        "captured_at": "2026-11-04T16:53:54.656235+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T02-46-44-01a18e22-be09-7a81-bd28-6c65572dc901.jsonl",
+            "sha256": "5e8bed5e8713859590378ebb0515d101863d1de19f2710c627899c9bbd696ca2",
+            "size": 1967661
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18e57-c553-7e70-bd91-b69ce7f38102",
+      "tool": "codex",
+      "started_at": "2026-10-30T19:44:41.228Z",
+      "last_event_at": "2026-10-30T22:03:47.273Z",
+      "event_count": 110,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18e57-c553-7e70-bd91-b69ce7f38102.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "3adbaddc42f669a8e14d1751355b41ac3b4acdb5b12882704485c715ae6d9d4a",
+        "main_size": 2303850,
+        "captured_at": "2026-11-04T16:53:54.667993+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T03-44-39-01a18e57-c553-7e70-bd91-b69ce7f38102.jsonl",
+            "sha256": "3adbaddc42f669a8e14d1751355b41ac3b4acdb5b12882704485c715ae6d9d4a",
+            "size": 2303850
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18ed9-a46e-73b0-be42-5bb5070bb26d",
+      "tool": "codex",
+      "started_at": "2026-10-30T22:06:32.471Z",
+      "last_event_at": "2026-10-30T22:56:00.704Z",
+      "event_count": 132,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18ed9-a46e-73b0-be42-5bb5070bb26d.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ac102c464a8123d0755e6c70b76501381c82d77139c6757623f34223a67d0429",
+        "main_size": 2665043,
+        "captured_at": "2026-11-04T16:53:54.679498+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T06-06-30-01a18ed9-a46e-73b0-be42-5bb5070bb26d.jsonl",
+            "sha256": "ac102c464a8123d0755e6c70b76501381c82d77139c6757623f34223a67d0429",
+            "size": 2665043
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18f08-57d0-7c53-87d7-975951bed7f3",
+      "tool": "codex",
+      "started_at": "2026-10-30T22:57:32.709Z",
+      "last_event_at": "2026-10-30T23:45:09.106Z",
+      "event_count": 66,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18f08-57d0-7c53-87d7-975951bed7f3.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "82749f4de7381d4b117449117cd51f7bd690117b0c8d2fd4e304bed28e1f0967",
+        "main_size": 1381634,
+        "captured_at": "2026-11-04T16:53:54.687176+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T06-57-31-01a18f08-57d0-7c53-87d7-975951bed7f3.jsonl",
+            "sha256": "82749f4de7381d4b117449117cd51f7bd690117b0c8d2fd4e304bed28e1f0967",
+            "size": 1381634
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18f37-e81e-75d0-979b-3699fc6a7581",
+      "tool": "codex",
+      "started_at": "2026-10-30T23:49:29.819Z",
+      "last_event_at": "2026-10-31T00:34:04.283Z",
+      "event_count": 124,
+      "file_path": "logs/flash555588/2026-10-30/codex__01a18f37-e81e-75d0-979b-3699fc6a7581.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ee2932d96926af2166ea075a14d123dc582475bb2637b6066fee919a46947bcb",
+        "main_size": 2686565,
+        "captured_at": "2026-11-04T16:53:54.697172+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T07-49-28-01a18f37-e81e-75d0-979b-3699fc6a7581.jsonl",
+            "sha256": "ee2932d96926af2166ea075a14d123dc582475bb2637b6066fee919a46947bcb",
+            "size": 2686565
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18f60-d497-7330-9938-4dc1a66402e2",
+      "tool": "codex",
+      "started_at": "2026-10-31T00:34:11.925Z",
+      "last_event_at": "2026-10-31T01:23:16.063Z",
+      "event_count": 60,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a18f60-d497-7330-9938-4dc1a66402e2.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "507cfad4306b7878e3d0e695403ac07a2b060844e14b5a71c5acca3cb0d793a2",
+        "main_size": 1316518,
+        "captured_at": "2026-11-04T16:53:54.705084+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T08-34-10-01a18f60-d497-7330-9938-4dc1a66402e2.jsonl",
+            "sha256": "507cfad4306b7878e3d0e695403ac07a2b060844e14b5a71c5acca3cb0d793a2",
+            "size": 1316518
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18f90-55eb-7df3-993e-16e1d1cbe82a",
+      "tool": "codex",
+      "started_at": "2026-10-31T01:26:05.026Z",
+      "last_event_at": "2026-10-31T02:19:31.565Z",
+      "event_count": 128,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a18f90-55eb-7df3-993e-16e1d1cbe82a.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "50a6607969d21959296f10f32ff088a302e78c8b724f8447aab21996c6a939fe",
+        "main_size": 2757170,
+        "captured_at": "2026-11-04T16:53:54.716013+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T09-26-03-01a18f90-55eb-7df3-993e-16e1d1cbe82a.jsonl",
+            "sha256": "50a6607969d21959296f10f32ff088a302e78c8b724f8447aab21996c6a939fe",
+            "size": 2757170
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18fc1-4a0a-76c0-962e-0add54c07d01",
+      "tool": "codex",
+      "started_at": "2026-10-31T02:19:33.425Z",
+      "last_event_at": "2026-10-31T02:59:16.580Z",
+      "event_count": 48,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a18fc1-4a0a-76c0-962e-0add54c07d01.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "6ba70c50256c57c9f0e3924bb98672cc5ed6e4d31f5d10611300be07ae10fb8b",
+        "main_size": 1063341,
+        "captured_at": "2026-11-04T16:53:54.723268+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T10-19-31-01a18fc1-4a0a-76c0-962e-0add54c07d01.jsonl",
+            "sha256": "6ba70c50256c57c9f0e3924bb98672cc5ed6e4d31f5d10611300be07ae10fb8b",
+            "size": 1063341
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a18fe9-05e2-7600-90ec-cebd173c2466",
+      "tool": "codex",
+      "started_at": "2026-10-31T03:02:57.896Z",
+      "last_event_at": "2026-10-31T03:42:55.072Z",
+      "event_count": 80,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a18fe9-05e2-7600-90ec-cebd173c2466.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "03f27a9c0884dafa9a2af06d2e9c5324dc01d273110075b3bb39d51498ea053c",
+        "main_size": 1770990,
+        "captured_at": "2026-11-04T16:53:54.730557+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T11-02-55-01a18fe9-05e2-7600-90ec-cebd173c2466.jsonl",
+            "sha256": "03f27a9c0884dafa9a2af06d2e9c5324dc01d273110075b3bb39d51498ea053c",
+            "size": 1770990
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1901a-8537-7293-8a40-fe5075bd5c2f",
+      "tool": "codex",
+      "started_at": "2026-10-31T03:57:01.974Z",
+      "last_event_at": "2026-10-31T04:28:00.465Z",
+      "event_count": 64,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a1901a-8537-7293-8a40-fe5075bd5c2f.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "2c313b4e9e5f338054147d8f1bf816fbd018200eb4f9bc97b3e09bc39f924557",
+        "main_size": 1483808,
+        "captured_at": "2026-11-04T16:53:54.738916+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T11-56-59-01a1901a-8537-7293-8a40-fe5075bd5c2f.jsonl",
+            "sha256": "2c313b4e9e5f338054147d8f1bf816fbd018200eb4f9bc97b3e09bc39f924557",
+            "size": 1483808
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19039-dfb0-7cc0-8651-2e44cdf44930",
+      "tool": "codex",
+      "started_at": "2026-10-31T04:31:16.457Z",
+      "last_event_at": "2026-10-31T04:35:53.599Z",
+      "event_count": 20,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a19039-dfb0-7cc0-8651-2e44cdf44930.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "e9291fe4c9177129df9c8b6b393ea95b3f187ce361d9f43dc409b4cec1a37b3f",
+        "main_size": 586881,
+        "captured_at": "2026-11-04T16:53:54.743757+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T12-31-14-01a19039-dfb0-7cc0-8651-2e44cdf44930.jsonl",
+            "sha256": "e9291fe4c9177129df9c8b6b393ea95b3f187ce361d9f43dc409b4cec1a37b3f",
+            "size": 586881
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1903e-229e-7ce3-9935-a85eec234f5c",
+      "tool": "codex",
+      "started_at": "2026-10-31T04:35:55.409Z",
+      "last_event_at": "2026-10-31T05:15:22.955Z",
+      "event_count": 76,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a1903e-229e-7ce3-9935-a85eec234f5c.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "4c77fd2470612580c147e12553241715ddd5a13a643f5f417bc780423807c3b6",
+        "main_size": 1977956,
+        "captured_at": "2026-11-04T16:53:54.750843+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T12-35-53-01a1903e-229e-7ce3-9935-a85eec234f5c.jsonl",
+            "sha256": "4c77fd2470612580c147e12553241715ddd5a13a643f5f417bc780423807c3b6",
+            "size": 1977956
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19064-a902-7b23-be4f-a5f4b32e2535",
+      "tool": "codex",
+      "started_at": "2026-10-31T05:18:00.876Z",
+      "last_event_at": "2026-10-31T06:14:36.142Z",
+      "event_count": 148,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a19064-a902-7b23-be4f-a5f4b32e2535.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "e2c178393ef26e37a62facb4e9a21a81b1a8e151d60e4702b31fc78afb698b66",
+        "main_size": 2943329,
+        "captured_at": "2026-11-04T16:53:54.762165+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T13-17-58-01a19064-a902-7b23-be4f-a5f4b32e2535.jsonl",
+            "sha256": "e2c178393ef26e37a62facb4e9a21a81b1a8e151d60e4702b31fc78afb698b66",
+            "size": 2943329
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19099-027d-7330-833a-232788c0a5e8",
+      "tool": "codex",
+      "started_at": "2026-10-31T06:15:10.914Z",
+      "last_event_at": "2026-10-31T07:24:11.836Z",
+      "event_count": 78,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a19099-027d-7330-833a-232788c0a5e8.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "fdb7ba743b28d449155cac048111cc3a301081ed929ec97ace27b3780db108fc",
+        "main_size": 1527439,
+        "captured_at": "2026-11-04T16:53:54.770153+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T14-15-09-01a19099-027d-7330-833a-232788c0a5e8.jsonl",
+            "sha256": "fdb7ba743b28d449155cac048111cc3a301081ed929ec97ace27b3780db108fc",
+            "size": 1527439
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a190da-3198-7ee2-9952-7335ea1904b1",
+      "tool": "codex",
+      "started_at": "2026-10-31T07:26:23.556Z",
+      "last_event_at": "2026-10-31T08:57:36.044Z",
+      "event_count": 128,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a190da-3198-7ee2-9952-7335ea1904b1.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "17477701792542358f21378a7337d81413932a9ec1446f886744a58476fce8c7",
+        "main_size": 2722730,
+        "captured_at": "2026-11-04T16:53:54.783518+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T15-26-21-01a190da-3198-7ee2-9952-7335ea1904b1.jsonl",
+            "sha256": "17477701792542358f21378a7337d81413932a9ec1446f886744a58476fce8c7",
+            "size": 2722730
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1912d-e42a-75d3-80ad-65ca4eda5ad2",
+      "tool": "codex",
+      "started_at": "2026-10-31T08:57:50.696Z",
+      "last_event_at": "2026-10-31T09:07:41.130Z",
+      "event_count": 32,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a1912d-e42a-75d3-80ad-65ca4eda5ad2.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "014748877659ae6609e61468a0c0d5e6d07b8deda30fc97a63af399428bc7bf3",
+        "main_size": 795188,
+        "captured_at": "2026-11-04T16:53:54.790053+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T16-57-46-01a1912d-e42a-75d3-80ad-65ca4eda5ad2.jsonl",
+            "sha256": "014748877659ae6609e61468a0c0d5e6d07b8deda30fc97a63af399428bc7bf3",
+            "size": 795188
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19139-3192-7692-95d9-0211d95ed910",
+      "tool": "codex",
+      "started_at": "2026-10-31T09:10:08.690Z",
+      "last_event_at": "2026-10-31T10:38:49.711Z",
+      "event_count": 122,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a19139-3192-7692-95d9-0211d95ed910.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "6ac3d57ab8617465cb11a89d05a66ed380c47996ec0cb2244046198002f99fed",
+        "main_size": 2541003,
+        "captured_at": "2026-11-04T16:53:54.799713+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T17-10-07-01a19139-3192-7692-95d9-0211d95ed910.jsonl",
+            "sha256": "6ac3d57ab8617465cb11a89d05a66ed380c47996ec0cb2244046198002f99fed",
+            "size": 2541003
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1916a-ac87-7711-9d32-635215723d70",
+      "tool": "codex",
+      "started_at": "2026-10-31T10:04:22.823Z",
+      "last_event_at": "2026-10-31T10:08:09.904Z",
+      "event_count": 5,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a1916a-ac87-7711-9d32-635215723d70.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "f74f74253b4efbf714a16273f715e29e52d6d2b8ebc0f44503c011493aeff636",
+        "main_size": 770412,
+        "captured_at": "2026-11-04T16:53:54.804113+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T18-04-09-01a1916a-ac87-7711-9d32-635215723d70.jsonl",
+            "sha256": "f74f74253b4efbf714a16273f715e29e52d6d2b8ebc0f44503c011493aeff636",
+            "size": 770412
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19191-9eec-7443-839f-cd0f612b759b",
+      "tool": "codex",
+      "started_at": "2026-10-31T10:46:44.467Z",
+      "last_event_at": "2026-10-31T11:20:39.380Z",
+      "event_count": 52,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a19191-9eec-7443-839f-cd0f612b759b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "423e4de60c353ea25b6f5a2c7e0e8d261407660ca21732d9cbcfa5071d3d71b6",
+        "main_size": 1119198,
+        "captured_at": "2026-11-04T16:53:54.809744+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T18-46-42-01a19191-9eec-7443-839f-cd0f612b759b.jsonl",
+            "sha256": "423e4de60c353ea25b6f5a2c7e0e8d261407660ca21732d9cbcfa5071d3d71b6",
+            "size": 1119198
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a191d3-0b3c-7c91-a330-de34f7a356a6",
+      "tool": "codex",
+      "started_at": "2026-10-31T11:58:13.940Z",
+      "last_event_at": "2026-10-31T12:29:12.445Z",
+      "event_count": 90,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a191d3-0b3c-7c91-a330-de34f7a356a6.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "6ef77f6fc17bac63f5af5884aac22e3ec32109d41b7f02191e347fa70d708eda",
+        "main_size": 1953838,
+        "captured_at": "2026-11-04T16:53:54.817159+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T19-58-09-01a191d3-0b3c-7c91-a330-de34f7a356a6.jsonl",
+            "sha256": "6ef77f6fc17bac63f5af5884aac22e3ec32109d41b7f02191e347fa70d708eda",
+            "size": 1953838
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1923f-b207-7f01-8bbf-3cd7eca71045",
+      "tool": "codex",
+      "started_at": "2026-10-31T13:58:22.914Z",
+      "last_event_at": "2026-11-02T13:24:07.759Z",
+      "event_count": 779,
+      "file_path": "logs/flash555588/2026-10-31/codex__01a1923f-b207-7f01-8bbf-3cd7eca71045.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "74382fae4ffc9f0a194def82457bcc931fcd59b39324979cb1bff522edd5effe",
+        "main_size": 21143712,
+        "captured_at": "2026-11-04T16:53:54.838471+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-10-31T21-56-50-01a1923f-b207-7f01-8bbf-3cd7eca71045.jsonl",
+            "sha256": "a29ece38294ad277bfa6c2dd6f380974aa3ffa5c01378370287e12f40805196d",
+            "size": 4606192
+          },
+          {
+            "name": "rollout-2026-11-01T00-00-14-01a1923f-b207-7f01-8bbf-3cd7eca71045_01a192b0-ac80-72e0-a41e-8542371eb096.jsonl",
+            "sha256": "63ec3073c99738c07bbc7e73e4fd1a821d9186b9aaed4f94df10925121c7fe62",
+            "size": 91758698
+          },
+          {
+            "name": "rollout-2026-11-02T14-07-45-01a1923f-b207-7f01-8bbf-3cd7eca71045_01a19ade-f3fe-7b11-ad04-cfa3b6db00bb.jsonl",
+            "sha256": "74382fae4ffc9f0a194def82457bcc931fcd59b39324979cb1bff522edd5effe",
+            "size": 21143712
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a197ec-a268-7993-adc0-119b7f5f5512",
+      "tool": "codex",
+      "started_at": "2026-11-01T16:23:54.661Z",
+      "last_event_at": "2026-11-02T09:40:35.742Z",
+      "event_count": 15,
+      "file_path": "logs/flash555588/2026-11-01/codex__01a197ec-a268-7993-adc0-119b7f5f5512.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "71609b5f67bcfb4861400982402a0eaddc1b0cb7bf687df029d6efbf5d2e0ddc",
+        "main_size": 2744198,
+        "captured_at": "2026-11-04T16:53:54.955227+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-02T00-23-50-01a197ec-a268-7993-adc0-119b7f5f5512.jsonl",
+            "sha256": "71609b5f67bcfb4861400982402a0eaddc1b0cb7bf687df029d6efbf5d2e0ddc",
+            "size": 2744198
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19bd1-b093-79e0-b9c2-5889e3423f07",
+      "tool": "codex",
+      "started_at": "2026-11-02T10:33:44.097Z",
+      "last_event_at": "2026-11-03T09:19:18.720Z",
+      "event_count": 307,
+      "file_path": "logs/flash555588/2026-11-02/codex__01a19bd1-b093-79e0-b9c2-5889e3423f07.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "9b421e6661943cd9dca72b3b19e42bd0cf4e6a1a9b8f3186cfa0f5d32c141121",
+        "main_size": 30903656,
+        "captured_at": "2026-11-04T16:53:54.979540+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-02T18-32-53-01a19bd1-b093-79e0-b9c2-5889e3423f07.jsonl",
+            "sha256": "ba6f483716ce81e331a8ba0562c9adc6c1115c740cbf4f05f68464f458aa9b3e",
+            "size": 1958577
+          },
+          {
+            "name": "rollout-2026-11-02T19-38-07-01a19bd1-b093-79e0-b9c2-5889e3423f07_01a19c0d-6c92-76c1-bb40-e83a8634e42d.jsonl",
+            "sha256": "845d6c37399b70e0e2b2fdcf9493606b555ebe750e0d115b79a060f521db53a8",
+            "size": 3763637
+          },
+          {
+            "name": "rollout-2026-11-02T20-06-52-01a19bd1-b093-79e0-b9c2-5889e3423f07_01a19c27-bc66-77b2-a054-c917685e96c3.jsonl",
+            "sha256": "6f5ee1208b07df12e1ffbb3489a511d8b5dda21f8a1f799be47c1215eb272b83",
+            "size": 1156291
+          },
+          {
+            "name": "rollout-2026-11-02T20-46-49-01a19bd1-b093-79e0-b9c2-5889e3423f07_01a19c4c-521a-73c2-90bb-c5944f6f42b5.jsonl",
+            "sha256": "133dbeb46dae1cbb7dcdbc5c95b36e29e37b6198bb96598df44be09781f7caf0",
+            "size": 7553270
+          },
+          {
+            "name": "rollout-2026-11-02T23-08-27-01a19bd1-b093-79e0-b9c2-5889e3423f07_01a19ccd-fcb0-7143-83f5-b81e10a4745c.jsonl",
+            "sha256": "9b421e6661943cd9dca72b3b19e42bd0cf4e6a1a9b8f3186cfa0f5d32c141121",
+            "size": 30903656
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19c1c-8c16-76f2-bf1c-1a9d8fa5f33b",
+      "tool": "codex",
+      "started_at": "2026-11-02T11:54:52.828Z",
+      "last_event_at": "2026-11-02T11:58:32.139Z",
+      "event_count": 9,
+      "file_path": "logs/flash555588/2026-11-02/codex__01a19c1c-8c16-76f2-bf1c-1a9d8fa5f33b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "8c1502b9266e84adb02cbc969974d3283d940d51c64e8aa2675bae47c1d915f1",
+        "main_size": 520834,
+        "captured_at": "2026-11-04T16:53:55.007123+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-02T19-54-39-01a19c1c-8c16-76f2-bf1c-1a9d8fa5f33b.jsonl",
+            "sha256": "8c1502b9266e84adb02cbc969974d3283d940d51c64e8aa2675bae47c1d915f1",
+            "size": 520834
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19c41-cf17-70e3-8383-35342e53667f",
+      "tool": "codex",
+      "started_at": "2026-11-02T12:38:20.603Z",
+      "last_event_at": "2026-11-02T15:21:13.526Z",
+      "event_count": 76,
+      "file_path": "logs/flash555588/2026-11-02/codex__01a19c41-cf17-70e3-8383-35342e53667f.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "27294418dc96c685eca78a7888ffef25ff54766e38d4207effa1a332f4906567",
+        "main_size": 7775752,
+        "captured_at": "2026-11-04T16:53:55.014257+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-02T20-35-21-01a19c41-cf17-70e3-8383-35342e53667f.jsonl",
+            "sha256": "27294418dc96c685eca78a7888ffef25ff54766e38d4207effa1a332f4906567",
+            "size": 7775752
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19ea7-4f83-76b1-8a63-5fd2086bf42b",
+      "tool": "codex",
+      "started_at": "2026-11-02T23:46:03.558Z",
+      "last_event_at": "2026-11-04T08:11:14.106Z",
+      "event_count": 694,
+      "file_path": "logs/flash555588/2026-11-02/codex__01a19ea7-4f83-76b1-8a63-5fd2086bf42b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "5f795cd69fc83d9ad37ea092949c56e1840240bc4831ee0014d07ca77f6d2643",
+        "main_size": 9817160,
+        "captured_at": "2026-11-04T16:53:55.031432+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-03T07-45-29-01a19ea7-4f83-76b1-8a63-5fd2086bf42b.jsonl",
+            "sha256": "27daaffb6d6d7d86e07033642f34d1e9a3dd073adb65fccc8c88c68f21b3f38b",
+            "size": 7046712
+          },
+          {
+            "name": "rollout-2026-11-03T10-54-47-01a19ea7-4f83-76b1-8a63-5fd2086bf42b_01a19f54-a7d8-7c50-96d2-391e0275da4d.jsonl",
+            "sha256": "827e3bce83311c9d9f637b470827b462a643504295da632550ed0f61ed9c63a0",
+            "size": 8966841
+          },
+          {
+            "name": "rollout-2026-11-03T15-54-48-01a19ea7-4f83-76b1-8a63-5fd2086bf42b_01a1a067-5514-7cb0-9db1-85d8641f7602.jsonl",
+            "sha256": "7d2a3de64dfef63944191fb7b08cb0ad7169643ddf467a4ddc2ba97eb425c37c",
+            "size": 30114166
+          },
+          {
+            "name": "rollout-2026-11-04T04-12-54-01a19ea7-4f83-76b1-8a63-5fd2086bf42b_01a1a30b-1194-7851-9292-deacb7f9817c.jsonl",
+            "sha256": "1aef91af313c39b27ccc09cb6b28b37e2a6e4970b97e49992bf3a7ae45ad5312",
+            "size": 26517417
+          },
+          {
+            "name": "rollout-2026-11-04T14-02-07-01a19ea7-4f83-76b1-8a63-5fd2086bf42b_01a1a526-84b3-7a82-8d26-3c0a2a2d8178.jsonl",
+            "sha256": "5f795cd69fc83d9ad37ea092949c56e1840240bc4831ee0014d07ca77f6d2643",
+            "size": 9817160
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a19f74-b68b-7b81-be2d-733fbab53b31",
+      "tool": "codex",
+      "started_at": "2026-11-03T03:29:51.303Z",
+      "last_event_at": "2026-11-03T19:49:52.025Z",
+      "event_count": 268,
+      "file_path": "logs/flash555588/2026-11-03/codex__01a19f74-b68b-7b81-be2d-733fbab53b31.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "56eb4f2635711d64eee389a7226d6a725e0efa63624e73999e1f78027dc5de76",
+        "main_size": 177107942,
+        "captured_at": "2026-11-04T16:53:55.188843+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-03T11-29-48-01a19f74-b68b-7b81-be2d-733fbab53b31.jsonl",
+            "sha256": "f5367be9c954e88814041d1a74dec5a82512140a419abec4b6c2ca36da6fd345",
+            "size": 2015238
+          },
+          {
+            "name": "rollout-2026-11-03T12-12-50-01a19f74-b68b-7b81-be2d-733fbab53b31_01a19f9c-1b93-7c42-84ef-a3c274421901.jsonl",
+            "sha256": "4b4a69c727530130d99e802d2c15ea7692b6fc3f473682b82d0fd6165ddc1199",
+            "size": 33192951
+          },
+          {
+            "name": "rollout-2026-11-03T16-55-56-01a19f74-b68b-7b81-be2d-733fbab53b31_01a1a09f-4cb2-7032-a5a8-5aea2435a646.jsonl",
+            "sha256": "56eb4f2635711d64eee389a7226d6a725e0efa63624e73999e1f78027dc5de76",
+            "size": 177107942
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a4af-b570-7cd3-ab44-1d3b69c0c82f",
+      "tool": "codex",
+      "started_at": "2026-11-04T03:52:37.671Z",
+      "last_event_at": "2026-11-04T03:54:13.291Z",
+      "event_count": 6,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a4af-b570-7cd3-ab44-1d3b69c0c82f.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "0a9d1f734a41aa24cfa0345a7f8f5f82bf28755e104a891b7171b2acdd1420ca",
+        "main_size": 546217,
+        "captured_at": "2026-11-04T16:53:55.331972+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T11-52-26-01a1a4af-b570-7cd3-ab44-1d3b69c0c82f.jsonl",
+            "sha256": "0a9d1f734a41aa24cfa0345a7f8f5f82bf28755e104a891b7171b2acdd1420ca",
+            "size": 546217
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a4d8-9443-7872-847a-f1cfff56c8b8",
+      "tool": "codex",
+      "started_at": "2026-11-04T04:37:14.036Z",
+      "last_event_at": "2026-11-04T04:40:47.230Z",
+      "event_count": 6,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a4d8-9443-7872-847a-f1cfff56c8b8.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "461351373af43044e38d82fdaa27a7c606f8ee7f990e633fa48b2555669461ba",
+        "main_size": 444946,
+        "captured_at": "2026-11-04T16:53:55.334830+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T12-36-59-01a1a4d8-9443-7872-847a-f1cfff56c8b8.jsonl",
+            "sha256": "461351373af43044e38d82fdaa27a7c606f8ee7f990e633fa48b2555669461ba",
+            "size": 444946
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a4f8-319e-7f03-80c4-b8ca62867d4b",
+      "tool": "codex",
+      "started_at": "2026-11-04T05:11:36.774Z",
+      "last_event_at": "2026-11-04T13:20:19.259Z",
+      "event_count": 176,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a4f8-319e-7f03-80c4-b8ca62867d4b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "b331091e7462aed3688073e746dc0b83faa66d681c3e6bc89cfe839998277eca",
+        "main_size": 16063314,
+        "captured_at": "2026-11-04T16:53:55.347952+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T13-11-31-01a1a4f8-319e-7f03-80c4-b8ca62867d4b.jsonl",
+            "sha256": "b331091e7462aed3688073e746dc0b83faa66d681c3e6bc89cfe839998277eca",
+            "size": 16063314
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a55e-035f-7bc2-8007-6b2d6364a869",
+      "tool": "codex",
+      "started_at": "2026-11-04T07:02:48.735Z",
+      "last_event_at": "2026-11-04T07:04:53.482Z",
+      "event_count": 6,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a55e-035f-7bc2-8007-6b2d6364a869.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "a96c2d2e2f9fa2618a87c845430c345e24140de06cadca450b69baa853975610",
+        "main_size": 310780,
+        "captured_at": "2026-11-04T16:53:55.360891+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T15-02-44-01a1a55e-035f-7bc2-8007-6b2d6364a869.jsonl",
+            "sha256": "a96c2d2e2f9fa2618a87c845430c345e24140de06cadca450b69baa853975610",
+            "size": 310780
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a55f-065d-74a0-baaa-a4dca3dfe0e1",
+      "tool": "codex",
+      "started_at": "2026-11-04T07:03:55.164Z",
+      "last_event_at": "2026-11-04T16:03:03.645Z",
+      "event_count": 153,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a55f-065d-74a0-baaa-a4dca3dfe0e1.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "aebc0e667a7a49558ab2376612fbb1c0de160107699f17efa22f86e5e2d0e65f",
+        "main_size": 12672549,
+        "captured_at": "2026-11-04T16:53:55.372073+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T15-03-50-01a1a55f-065d-74a0-baaa-a4dca3dfe0e1.jsonl",
+            "sha256": "a5c0c44d0a7471c495ca290809e889483da2ac6a7c37468572de29ddd2654cb4",
+            "size": 59532329
+          },
+          {
+            "name": "rollout-2026-11-04T15-04-12-01a1a55f-5a5e-73b1-8c7c-49f9241a2600.jsonl",
+            "sha256": "6b5f07a9701142f9ca9768ced69e035824372d9bcc085cc4ec8effac1a90455f",
+            "size": 2688019
+          },
+          {
+            "name": "rollout-2026-11-04T15-04-18-01a1a55f-732f-75d0-992e-9071c92692fa.jsonl",
+            "sha256": "5d22b03f7d4f36e4fb5cc74c7b08023884acb6c9a0f5517fc6b68eeb604b6c70",
+            "size": 2582118
+          },
+          {
+            "name": "rollout-2026-11-04T15-04-33-01a1a55f-acfc-7cd1-ad95-2c9f9be36529.jsonl",
+            "sha256": "ca42916fe4b28838b34020d042a3ce4018580d8974e1cd19ecf57b75ae03e5e0",
+            "size": 12744498
+          },
+          {
+            "name": "rollout-2026-11-04T16-53-25-01a1a5c3-595b-7a93-adf6-9e85493bbcf5.jsonl",
+            "sha256": "aebc0e667a7a49558ab2376612fbb1c0de160107699f17efa22f86e5e2d0e65f",
+            "size": 12672549
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a562-8a6e-70f3-ba52-eb44316aaba2",
+      "tool": "codex",
+      "started_at": "2026-11-04T07:10:46.552Z",
+      "last_event_at": "2026-11-04T07:18:16.289Z",
+      "event_count": 14,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a562-8a6e-70f3-ba52-eb44316aaba2.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "c7765fc0df07a46c7fb12431c811284e77170899bcf975a1aacd2fef09b547a1",
+        "main_size": 476380,
+        "captured_at": "2026-11-04T16:53:55.428887+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T15-07-41-01a1a562-8a6e-70f3-ba52-eb44316aaba2.jsonl",
+            "sha256": "c7765fc0df07a46c7fb12431c811284e77170899bcf975a1aacd2fef09b547a1",
+            "size": 476380
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a571-073c-7c00-9412-07c1f966dd11",
+      "tool": "codex",
+      "started_at": "2026-11-04T07:23:36.868Z",
+      "last_event_at": "2026-11-04T08:07:11.780Z",
+      "event_count": 100,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a571-073c-7c00-9412-07c1f966dd11.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "e0c6800c23957ae3d146d4092e7f8bad43882854f93964e40228707036417467",
+        "main_size": 1915946,
+        "captured_at": "2026-11-04T16:53:55.436881+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T15-23-30-01a1a571-073c-7c00-9412-07c1f966dd11.jsonl",
+            "sha256": "e0c6800c23957ae3d146d4092e7f8bad43882854f93964e40228707036417467",
+            "size": 1915946
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a580-758a-73b2-b034-377b36c4fa6b",
+      "tool": "codex",
+      "started_at": "2026-11-04T07:40:24.109Z",
+      "last_event_at": "2026-11-04T09:15:43.012Z",
+      "event_count": 49,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a580-758a-73b2-b034-377b36c4fa6b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "b775e6a1d54f8fd58d374ec2f4575b44f80b53e396f9fc69d9726d8b7a856fdc",
+        "main_size": 576848,
+        "captured_at": "2026-11-04T16:53:55.442101+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T15-40-21-01a1a580-758a-73b2-b034-377b36c4fa6b.jsonl",
+            "sha256": "b775e6a1d54f8fd58d374ec2f4575b44f80b53e396f9fc69d9726d8b7a856fdc",
+            "size": 576848
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5b8-f7a5-7c82-ab81-73846f5e0c22",
+      "tool": "codex",
+      "started_at": "2026-11-04T08:42:09.147Z",
+      "last_event_at": "2026-11-04T09:48:59.552Z",
+      "event_count": 106,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5b8-f7a5-7c82-ab81-73846f5e0c22.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "cbc24a0a196b8b0c5dbd11cd0a35274e43ea485163c1cbf0403ca34fff652eb9",
+        "main_size": 1553311,
+        "captured_at": "2026-11-04T16:53:55.448390+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T16-42-05-01a1a5b8-f7a5-7c82-ab81-73846f5e0c22.jsonl",
+            "sha256": "cbc24a0a196b8b0c5dbd11cd0a35274e43ea485163c1cbf0403ca34fff652eb9",
+            "size": 1553311
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5cb-2e1e-7a80-ad78-c18e29308c98",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:02:01.722Z",
+      "last_event_at": "2026-11-04T09:15:02.339Z",
+      "event_count": 31,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5cb-2e1e-7a80-ad78-c18e29308c98.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "382021b5d796e722780c0ce55dec0ebfed2e6c0fa8f29c111b447f536ece2603",
+        "main_size": 489119,
+        "captured_at": "2026-11-04T16:53:55.452862+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-01-58-01a1a5cb-2e1e-7a80-ad78-c18e29308c98.jsonl",
+            "sha256": "382021b5d796e722780c0ce55dec0ebfed2e6c0fa8f29c111b447f536ece2603",
+            "size": 489119
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5cb-698b-7151-8a6c-97c3bb0eefb6",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:02:16.691Z",
+      "last_event_at": "2026-11-04T09:03:50.663Z",
+      "event_count": 11,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5cb-698b-7151-8a6c-97c3bb0eefb6.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ca74bf1f72911528f66d40b61a84f69b30e5a25cbf5717c27435c211f7bf30c7",
+        "main_size": 191176,
+        "captured_at": "2026-11-04T16:53:55.455590+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-02-14-01a1a5cb-698b-7151-8a6c-97c3bb0eefb6.jsonl",
+            "sha256": "ca74bf1f72911528f66d40b61a84f69b30e5a25cbf5717c27435c211f7bf30c7",
+            "size": 191176
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5cb-d88c-7b10-9fc4-e08c1d556267",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:02:44.726Z",
+      "last_event_at": "2026-11-04T09:13:29.776Z",
+      "event_count": 27,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5cb-d88c-7b10-9fc4-e08c1d556267.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "ff8975b27281791c35c91e52d923d0a16796a01aaec781505d184846863b29c3",
+        "main_size": 475263,
+        "captured_at": "2026-11-04T16:53:55.458821+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-02-42-01a1a5cb-d88c-7b10-9fc4-e08c1d556267.jsonl",
+            "sha256": "ff8975b27281791c35c91e52d923d0a16796a01aaec781505d184846863b29c3",
+            "size": 475263
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5d7-842b-7581-a58d-6e0326d36a69",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:15:30.075Z",
+      "last_event_at": "2026-11-04T09:15:34.951Z",
+      "event_count": 5,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5d7-842b-7581-a58d-6e0326d36a69.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "22fa9ff1df9b882ace135f928220760ccb2d1131a056ee48975d3b3af6723c81",
+        "main_size": 139076,
+        "captured_at": "2026-11-04T16:53:55.461024+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-15-27-01a1a5d7-842b-7581-a58d-6e0326d36a69.jsonl",
+            "sha256": "22fa9ff1df9b882ace135f928220760ccb2d1131a056ee48975d3b3af6723c81",
+            "size": 139076
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5d7-f1c5-7022-b3d2-cdf022355246",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:16:00.686Z",
+      "last_event_at": "2026-11-04T09:18:58.914Z",
+      "event_count": 10,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5d7-f1c5-7022-b3d2-cdf022355246.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "0acd4b15b85cc8dd7611178733419fc84319221ab0a3953310996a2a7bfe6452",
+        "main_size": 267742,
+        "captured_at": "2026-11-04T16:53:55.464342+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-15-55-01a1a5d7-f1c5-7022-b3d2-cdf022355246.jsonl",
+            "sha256": "0acd4b15b85cc8dd7611178733419fc84319221ab0a3953310996a2a7bfe6452",
+            "size": 267742
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5e4-a650-7d63-a1c5-892734d742b7",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:29:50.909Z",
+      "last_event_at": "2026-11-04T09:53:41.449Z",
+      "event_count": 20,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5e4-a650-7d63-a1c5-892734d742b7.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "85df0aae55e874541705953f2148827add74327d17479616e0b43e5d7d00f92e",
+        "main_size": 446288,
+        "captured_at": "2026-11-04T16:53:55.468037+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-29-48-01a1a5e4-a650-7d63-a1c5-892734d742b7.jsonl",
+            "sha256": "85df0aae55e874541705953f2148827add74327d17479616e0b43e5d7d00f92e",
+            "size": 446288
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5e5-b55b-7f90-ba96-2583b439569c",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:31:00.337Z",
+      "last_event_at": "2026-11-04T09:41:45.094Z",
+      "event_count": 9,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5e5-b55b-7f90-ba96-2583b439569c.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "bf5f2e2a8e55a2c45f3c614601ddcae09e86f7b364af96263226d135b01d618a",
+        "main_size": 270610,
+        "captured_at": "2026-11-04T16:53:55.470755+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-30-57-01a1a5e5-b55b-7f90-ba96-2583b439569c.jsonl",
+            "sha256": "bf5f2e2a8e55a2c45f3c614601ddcae09e86f7b364af96263226d135b01d618a",
+            "size": 270610
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5f8-52a6-77a0-9960-4ef4abe30240",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:51:23.633Z",
+      "last_event_at": "2026-11-04T10:49:28.015Z",
+      "event_count": 258,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5f8-52a6-77a0-9960-4ef4abe30240.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "454dbb0e970f377abb58fdb206d39956b187cec16e209869bfca50327cbe3dbe",
+        "main_size": 3525069,
+        "captured_at": "2026-11-04T16:53:55.481872+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-51-17-01a1a5f8-52a6-77a0-9960-4ef4abe30240.jsonl",
+            "sha256": "454dbb0e970f377abb58fdb206d39956b187cec16e209869bfca50327cbe3dbe",
+            "size": 3525069
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a5fe-95d1-7972-b7dd-85d64be94af4",
+      "tool": "codex",
+      "started_at": "2026-11-04T09:58:12.650Z",
+      "last_event_at": "2026-11-04T13:35:50.274Z",
+      "event_count": 46,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a5fe-95d1-7972-b7dd-85d64be94af4.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "69529783bbfc757b3843f6b9f0af00ef96a821b806f488729dcfad2f6449eee3",
+        "main_size": 1097793,
+        "captured_at": "2026-11-04T16:53:55.490129+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T17-58-08-01a1a5fe-95d1-7972-b7dd-85d64be94af4.jsonl",
+            "sha256": "69529783bbfc757b3843f6b9f0af00ef96a821b806f488729dcfad2f6449eee3",
+            "size": 1097793
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a623-d3b9-7b03-b187-926816e7a6d5",
+      "tool": "codex",
+      "started_at": "2026-11-04T10:38:52.209Z",
+      "last_event_at": "2026-11-04T10:51:20.383Z",
+      "event_count": 9,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a623-d3b9-7b03-b187-926816e7a6d5.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "d8936dfb3d52869aea87da2ed6fc3c91ff0f2f2b6ddcd4b8fd82eba4594bcba1",
+        "main_size": 999597,
+        "captured_at": "2026-11-04T16:53:55.493438+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T18-38-48-01a1a623-d3b9-7b03-b187-926816e7a6d5.jsonl",
+            "sha256": "d8936dfb3d52869aea87da2ed6fc3c91ff0f2f2b6ddcd4b8fd82eba4594bcba1",
+            "size": 999597
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a625-2061-74f2-9895-390dca090e53",
+      "tool": "codex",
+      "started_at": "2026-11-04T10:40:19.480Z",
+      "last_event_at": "2026-11-04T10:43:43.260Z",
+      "event_count": 6,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a625-2061-74f2-9895-390dca090e53.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "b734e4df4089fbb499518c3ad9f36c77481d01bcae47647c6ce79bed789af1af",
+        "main_size": 203916,
+        "captured_at": "2026-11-04T16:53:55.496295+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T18-40-13-01a1a625-2061-74f2-9895-390dca090e53.jsonl",
+            "sha256": "b734e4df4089fbb499518c3ad9f36c77481d01bcae47647c6ce79bed789af1af",
+            "size": 203916
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a62d-c063-7443-968b-efa8aa3cfd0f",
+      "tool": "codex",
+      "started_at": "2026-11-04T10:49:43.509Z",
+      "last_event_at": "2026-11-04T11:34:36.307Z",
+      "event_count": 140,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a62d-c063-7443-968b-efa8aa3cfd0f.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "061e847c1f38545a5d7fd1bec9223ef68bd0d421cef0067816bab9b62b5b1f4b",
+        "main_size": 2145892,
+        "captured_at": "2026-11-04T16:53:55.503845+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T18-49-38-01a1a62d-c063-7443-968b-efa8aa3cfd0f.jsonl",
+            "sha256": "061e847c1f38545a5d7fd1bec9223ef68bd0d421cef0067816bab9b62b5b1f4b",
+            "size": 2145892
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a659-4018-7b92-94c8-d9d2c4cfd5ed",
+      "tool": "codex",
+      "started_at": "2026-11-04T11:37:12.495Z",
+      "last_event_at": "2026-11-04T12:42:16.009Z",
+      "event_count": 286,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a659-4018-7b92-94c8-d9d2c4cfd5ed.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "d0d583e2afe47c2703f49eecaadd57fb79da60b09f4c6b1dae75eaf033e150f9",
+        "main_size": 3749411,
+        "captured_at": "2026-11-04T16:53:55.519519+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T19-37-09-01a1a659-4018-7b92-94c8-d9d2c4cfd5ed.jsonl",
+            "sha256": "d0d583e2afe47c2703f49eecaadd57fb79da60b09f4c6b1dae75eaf033e150f9",
+            "size": 3749411
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a695-5311-73e0-8136-8b6119f41883",
+      "tool": "codex",
+      "started_at": "2026-11-04T12:42:50.362Z",
+      "last_event_at": "2026-11-04T13:19:06.276Z",
+      "event_count": 100,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a695-5311-73e0-8136-8b6119f41883.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "7d7586b1e9aff8d36ff3f4101820ed7e1692cf10fcc3a13df2714ddebf9d0e73",
+        "main_size": 1429441,
+        "captured_at": "2026-11-04T16:53:55.527914+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T20-42-46-01a1a695-5311-73e0-8136-8b6119f41883.jsonl",
+            "sha256": "7d7586b1e9aff8d36ff3f4101820ed7e1692cf10fcc3a13df2714ddebf9d0e73",
+            "size": 1429441
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a699-e84d-7fd2-b911-cef41e587a64",
+      "tool": "codex",
+      "started_at": "2026-11-04T12:48:12.720Z",
+      "last_event_at": "2026-11-04T15:33:58.900Z",
+      "event_count": 70,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a699-e84d-7fd2-b911-cef41e587a64.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "93d5d9f496ac48d4d334f4a1ebd111275aeeddbeeeda8c583a094155a32b6a54",
+        "main_size": 8650625,
+        "captured_at": "2026-11-04T16:53:55.539874+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T20-47-47-01a1a699-e84d-7fd2-b911-cef41e587a64.jsonl",
+            "sha256": "93d5d9f496ac48d4d334f4a1ebd111275aeeddbeeeda8c583a094155a32b6a54",
+            "size": 8650625
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a69c-3092-7a83-b8d8-5c84b80c5c7b",
+      "tool": "codex",
+      "started_at": "2026-11-04T12:50:19.286Z",
+      "last_event_at": "2026-11-04T13:46:07.798Z",
+      "event_count": 54,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a69c-3092-7a83-b8d8-5c84b80c5c7b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "3c02c2aa413e5d26f7958d7dd8d3f078feef4b83921328ef86576f39643da604",
+        "main_size": 1112890,
+        "captured_at": "2026-11-04T16:53:55.555050+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T20-50-16-01a1a69c-3092-7a83-b8d8-5c84b80c5c7b.jsonl",
+            "sha256": "3c02c2aa413e5d26f7958d7dd8d3f078feef4b83921328ef86576f39643da604",
+            "size": 1112890
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a6b3-3027-7ba0-a928-ff0946879d58",
+      "tool": "codex",
+      "started_at": "2026-11-04T13:15:37.882Z",
+      "last_event_at": "2026-11-04T16:53:47.327Z",
+      "event_count": 58,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a6b3-3027-7ba0-a928-ff0946879d58.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "7bcfd9375c71ede78de4c4e902aff927b52843642123c1f073df1fecfc1afe7c",
+        "main_size": 125966647,
+        "captured_at": "2026-11-04T16:53:55.635944+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T21-15-23-01a1a6b3-3027-7ba0-a928-ff0946879d58.jsonl",
+            "sha256": "7bcfd9375c71ede78de4c4e902aff927b52843642123c1f073df1fecfc1afe7c",
+            "size": 125966647
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a6b7-1c66-7461-8cb6-2d84e69ecd40",
+      "tool": "codex",
+      "started_at": "2026-11-04T13:19:43.471Z",
+      "last_event_at": "2026-11-04T13:36:02.788Z",
+      "event_count": 8,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a6b7-1c66-7461-8cb6-2d84e69ecd40.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "a6f97e9d11a86a39b8b3daea1d683df8011c7c18a04ee5ec6986aa4e3596a11d",
+        "main_size": 367216,
+        "captured_at": "2026-11-04T16:53:55.713845+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T21-19-40-01a1a6b7-1c66-7461-8cb6-2d84e69ecd40.jsonl",
+            "sha256": "a6f97e9d11a86a39b8b3daea1d683df8011c7c18a04ee5ec6986aa4e3596a11d",
+            "size": 367216
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a6cc-8e96-7843-b92f-e9a32e0a74b2",
+      "tool": "codex",
+      "started_at": "2026-11-04T13:43:08.865Z",
+      "last_event_at": "2026-11-04T13:44:51.805Z",
+      "event_count": 4,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a6cc-8e96-7843-b92f-e9a32e0a74b2.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "9f59fd3a0fc3374382d65158a0c4d9076471581b7f176a5660604c6c5867af3b",
+        "main_size": 223403,
+        "captured_at": "2026-11-04T16:53:55.716677+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T21-43-06-01a1a6cc-8e96-7843-b92f-e9a32e0a74b2.jsonl",
+            "sha256": "9f59fd3a0fc3374382d65158a0c4d9076471581b7f176a5660604c6c5867af3b",
+            "size": 223403
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a6db-6013-7633-8071-9074336a67a1",
+      "tool": "codex",
+      "started_at": "2026-11-04T14:01:01.138Z",
+      "last_event_at": "2026-11-04T15:00:10.653Z",
+      "event_count": 30,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a6db-6013-7633-8071-9074336a67a1.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "26699593f59e9a453d86a3d5e977c15100ea9db332092b7965e3c0a98eca1925",
+        "main_size": 785722,
+        "captured_at": "2026-11-04T16:53:55.720836+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T21-59-17-01a1a6db-6013-7633-8071-9074336a67a1.jsonl",
+            "sha256": "26699593f59e9a453d86a3d5e977c15100ea9db332092b7965e3c0a98eca1925",
+            "size": 785722
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a6db-6156-7ec1-b6ba-99dcda0d432d",
+      "tool": "codex",
+      "started_at": "2026-11-04T14:00:49.189Z",
+      "last_event_at": "2026-11-04T14:56:41.324Z",
+      "event_count": 30,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a6db-6156-7ec1-b6ba-99dcda0d432d.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "3a0148fe780a06df3719c5977dbc317d82dcb2cd024c6155c9cfaed546cff84f",
+        "main_size": 715387,
+        "captured_at": "2026-11-04T16:53:55.724992+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T21-59-18-01a1a6db-6156-7ec1-b6ba-99dcda0d432d.jsonl",
+            "sha256": "3a0148fe780a06df3719c5977dbc317d82dcb2cd024c6155c9cfaed546cff84f",
+            "size": 715387
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a6df-4473-7b50-88fe-b012ae5f7e34",
+      "tool": "codex",
+      "started_at": "2026-11-04T14:03:36.539Z",
+      "last_event_at": "2026-11-04T14:56:09.610Z",
+      "event_count": 14,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a6df-4473-7b50-88fe-b012ae5f7e34.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "9906f92c078155fbd2ef809b7f90196798113269608ebaf6e983a5321911376e",
+        "main_size": 498508,
+        "captured_at": "2026-11-04T16:53:55.728872+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T22-03-32-01a1a6df-4473-7b50-88fe-b012ae5f7e34.jsonl",
+            "sha256": "9906f92c078155fbd2ef809b7f90196798113269608ebaf6e983a5321911376e",
+            "size": 498508
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a707-b5bf-7903-b6e2-0f427fd3ee9e",
+      "tool": "codex",
+      "started_at": "2026-11-04T14:47:55.009Z",
+      "last_event_at": "2026-11-04T14:59:12.370Z",
+      "event_count": 14,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a707-b5bf-7903-b6e2-0f427fd3ee9e.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "f6b1e37a005b809fd8b03aa4b20365858dde4c409fe3a92148e29862b39375e8",
+        "main_size": 1064715,
+        "captured_at": "2026-11-04T16:53:55.731853+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T22-47-43-01a1a707-b5bf-7903-b6e2-0f427fd3ee9e.jsonl",
+            "sha256": "f6b1e37a005b809fd8b03aa4b20365858dde4c409fe3a92148e29862b39375e8",
+            "size": 1064715
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a708-e61a-77b3-8a96-03eeb2c8825b",
+      "tool": "codex",
+      "started_at": "2026-11-04T14:49:03.370Z",
+      "last_event_at": "2026-11-04T14:58:56.011Z",
+      "event_count": 26,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a708-e61a-77b3-8a96-03eeb2c8825b.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "cbaca9b11dec83f3c4da27ed93ae4b6663242c94a82d333739fa3e7928ed7791",
+        "main_size": 492363,
+        "captured_at": "2026-11-04T16:53:55.735631+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T22-49-00-01a1a708-e61a-77b3-8a96-03eeb2c8825b.jsonl",
+            "sha256": "cbaca9b11dec83f3c4da27ed93ae4b6663242c94a82d333739fa3e7928ed7791",
+            "size": 492363
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a718-4e1e-7b63-b3d2-63c6d4be7499",
+      "tool": "codex",
+      "started_at": "2026-11-04T15:05:53.474Z",
+      "last_event_at": "2026-11-04T15:32:25.690Z",
+      "event_count": 26,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a718-4e1e-7b63-b3d2-63c6d4be7499.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "0918dc43e3a16ddca279888aeef7dcb879340e7eff9efa90601cb1621f70bf63",
+        "main_size": 687883,
+        "captured_at": "2026-11-04T16:53:55.741836+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T23-05-50-01a1a718-4e1e-7b63-b3d2-63c6d4be7499.jsonl",
+            "sha256": "0918dc43e3a16ddca279888aeef7dcb879340e7eff9efa90601cb1621f70bf63",
+            "size": 687883
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a718-6906-71d2-ba97-9610b7bc56e5",
+      "tool": "codex",
+      "started_at": "2026-11-04T15:05:57.702Z",
+      "last_event_at": "2026-11-04T16:52:29.925Z",
+      "event_count": 20,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a718-6906-71d2-ba97-9610b7bc56e5.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "028bb4eb8bd29709f028ff5d0f82f36e7bf06af210565abf55f00304080f96db",
+        "main_size": 560878,
+        "captured_at": "2026-11-04T16:53:55.746253+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T23-05-57-01a1a718-6906-71d2-ba97-9610b7bc56e5.jsonl",
+            "sha256": "028bb4eb8bd29709f028ff5d0f82f36e7bf06af210565abf55f00304080f96db",
+            "size": 560878
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a73b-de2d-7d92-ab35-b011fef4df39",
+      "tool": "codex",
+      "started_at": "2026-11-04T15:45:09.674Z",
+      "last_event_at": "2026-11-04T15:51:59.569Z",
+      "event_count": 13,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a73b-de2d-7d92-ab35-b011fef4df39.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "22118278c381ad521b78026cff71cda2bbe8f011dd375d5a68bd469a85fd6c81",
+        "main_size": 902980,
+        "captured_at": "2026-11-04T16:53:55.749022+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T23-44-41-01a1a73b-de2d-7d92-ab35-b011fef4df39.jsonl",
+            "sha256": "22118278c381ad521b78026cff71cda2bbe8f011dd375d5a68bd469a85fd6c81",
+            "size": 902980
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a73d-550e-7a50-a46d-2aeefe343a0a",
+      "tool": "codex",
+      "started_at": "2026-11-04T15:46:20.293Z",
+      "last_event_at": "2026-11-04T15:51:53.271Z",
+      "event_count": 12,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a73d-550e-7a50-a46d-2aeefe343a0a.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "737ea3ff4fc460212f600c9aea38ecaaba391c4425ca7e6118666fc496c53ffe",
+        "main_size": 287357,
+        "captured_at": "2026-11-04T16:53:55.752200+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T23-46-17-01a1a73d-550e-7a50-a46d-2aeefe343a0a.jsonl",
+            "sha256": "737ea3ff4fc460212f600c9aea38ecaaba391c4425ca7e6118666fc496c53ffe",
+            "size": 287357
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a742-929f-7391-870d-75294f67b4c2",
+      "tool": "codex",
+      "started_at": "2026-11-04T15:52:25.541Z",
+      "last_event_at": "2026-11-04T16:18:47.215Z",
+      "event_count": 23,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a742-929f-7391-870d-75294f67b4c2.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "329870bd017bfaec4cacbfe27f2711f24c637fa4594515efa4f8c8ec8374b1d4",
+        "main_size": 2425428,
+        "captured_at": "2026-11-04T16:53:55.756124+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T23-52-00-01a1a742-929f-7391-870d-75294f67b4c2.jsonl",
+            "sha256": "329870bd017bfaec4cacbfe27f2711f24c637fa4594515efa4f8c8ec8374b1d4",
+            "size": 2425428
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a743-b525-7ff0-aa4b-09a58aa177e4",
+      "tool": "codex",
+      "started_at": "2026-11-04T15:53:23.333Z",
+      "last_event_at": "2026-11-04T16:18:39.474Z",
+      "event_count": 68,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a743-b525-7ff0-aa4b-09a58aa177e4.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "db269e84b64f6820d06442736be928a2a22af23f711e8ff496ec9b22dfd4e71d",
+        "main_size": 1104115,
+        "captured_at": "2026-11-04T16:53:55.762940+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-04T23-53-15-01a1a743-b525-7ff0-aa4b-09a58aa177e4.jsonl",
+            "sha256": "db269e84b64f6820d06442736be928a2a22af23f711e8ff496ec9b22dfd4e71d",
+            "size": 1104115
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a74a-6b98-7df2-857a-267758091c64",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:00:35.311Z",
+      "last_event_at": "2026-11-04T16:00:41.279Z",
+      "event_count": 2,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a74a-6b98-7df2-857a-267758091c64.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "1b618c0eda6be0cb1becf7c56f8ee03bdddf300d5e58aa54803c18a902de169b",
+        "main_size": 196963,
+        "captured_at": "2026-11-04T16:53:55.765805+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-00-34-01a1a74a-6b98-7df2-857a-267758091c64.jsonl",
+            "sha256": "1b618c0eda6be0cb1becf7c56f8ee03bdddf300d5e58aa54803c18a902de169b",
+            "size": 196963
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a76d-6ca0-7861-b4c7-9b1890175cea",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:38:53.923Z",
+      "last_event_at": "2026-11-04T16:39:37.662Z",
+      "event_count": 4,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a76d-6ca0-7861-b4c7-9b1890175cea.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "573f6d1f1f68aa1ec1ba95e6667f6bd94fb92dcba4265a989822159f6f1ba504",
+        "main_size": 514385,
+        "captured_at": "2026-11-04T16:53:55.768082+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-38-48-01a1a76d-6ca0-7861-b4c7-9b1890175cea.jsonl",
+            "sha256": "573f6d1f1f68aa1ec1ba95e6667f6bd94fb92dcba4265a989822159f6f1ba504",
+            "size": 514385
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a76f-47b5-7ad0-9f16-6683989b8470",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:40:58.031Z",
+      "last_event_at": "2026-11-04T16:48:32.623Z",
+      "event_count": 10,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a76f-47b5-7ad0-9f16-6683989b8470.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "93f2beab1986274ed1819f07d284d1d2653d78851447cd1367804fd60ae14946",
+        "main_size": 1711081,
+        "captured_at": "2026-11-04T16:53:55.771147+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-40-50-01a1a76f-47b5-7ad0-9f16-6683989b8470.jsonl",
+            "sha256": "93f2beab1986274ed1819f07d284d1d2653d78851447cd1367804fd60ae14946",
+            "size": 1711081
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a771-0e40-7520-9668-513b01c56b02",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:42:49.344Z",
+      "last_event_at": "2026-11-04T16:47:23.047Z",
+      "event_count": 20,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a771-0e40-7520-9668-513b01c56b02.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "71a8c1af9e9a1885e8ccd34636cdc87ef0e66545fc391434d25c5dd7f39eb5ef",
+        "main_size": 414024,
+        "captured_at": "2026-11-04T16:53:55.775100+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-42-46-01a1a771-0e40-7520-9668-513b01c56b02.jsonl",
+            "sha256": "71a8c1af9e9a1885e8ccd34636cdc87ef0e66545fc391434d25c5dd7f39eb5ef",
+            "size": 414024
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a775-45b6-70b0-a7ea-7600541089b8",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:47:25.696Z",
+      "last_event_at": "2026-11-04T16:53:48.211Z",
+      "event_count": 32,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a775-45b6-70b0-a7ea-7600541089b8.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "bfa2b1aacd5d710d0df255babaae95632b8866eb35553d64d4a7656a0c06a6c4",
+        "main_size": 790799,
+        "captured_at": "2026-11-04T16:53:55.778949+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-47-23-01a1a775-45b6-70b0-a7ea-7600541089b8.jsonl",
+            "sha256": "bfa2b1aacd5d710d0df255babaae95632b8866eb35553d64d4a7656a0c06a6c4",
+            "size": 790799
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a778-099c-7e30-8f36-058231f60c1f",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:50:30.586Z",
+      "last_event_at": "2026-11-04T16:53:36.265Z",
+      "event_count": 7,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a778-099c-7e30-8f36-058231f60c1f.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "4d6d273ca71e7ba46f7f9af3aeaf256a92ff279f90aa78b17c5418c5edbc903a",
+        "main_size": 577108,
+        "captured_at": "2026-11-04T16:53:55.781813+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-50-24-01a1a778-099c-7e30-8f36-058231f60c1f.jsonl",
+            "sha256": "4d6d273ca71e7ba46f7f9af3aeaf256a92ff279f90aa78b17c5418c5edbc903a",
+            "size": 577108
+          }
+        ]
+      }
+    },
+    {
+      "session_id": "01a1a778-f84e-7c30-aa46-470dfc3a8a97",
+      "tool": "codex",
+      "started_at": "2026-11-04T16:51:28.847Z",
+      "last_event_at": "2026-11-04T16:51:56.313Z",
+      "event_count": 6,
+      "file_path": "logs/flash555588/2026-11-04/codex__01a1a778-f84e-7c30-aa46-470dfc3a8a97.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "source_integrity": {
+        "main_sha256": "905802205a5061f077a424f277a4ebc41736f6ddca5dd076a4e3ddf65b02b99a",
+        "main_size": 160677,
+        "captured_at": "2026-11-04T16:53:55.784427+00:00",
+        "rollouts": [
+          {
+            "name": "rollout-2026-11-05T00-51-25-01a1a778-f84e-7c30-aa46-470dfc3a8a97.jsonl",
+            "sha256": "905802205a5061f077a424f277a4ebc41736f6ddca5dd076a4e3ddf65b02b99a",
+            "size": 160677
+          }
+        ]
+      }
     }
   ]
 }
