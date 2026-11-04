@@ -118,7 +118,7 @@ int qpk_hw_submit(struct qpk_hw_session *s, const char *operation, const char *a
   struct hw_job *j = calloc(1, sizeof(*j));
   if (!j) { cJSON_Delete(root); return -ENOMEM; }
   atomic_init(&j->progress.cancel, false); atomic_init(&j->progress.finish, false);
-  atomic_init(&j->progress.bytes, 0); atomic_init(&j->progress.elapsed_ms, 0); atomic_init(&j->progress.peak, 0);
+  atomic_init(&j->progress.bytes, 0); atomic_init(&j->progress.elapsed_ms, 0); atomic_init(&j->progress.peak, 0); atomic_init(&j->progress.stage, 0);
   j->arguments = root; strcpy(j->operation, operation);
   pthread_mutex_lock(&s->lock);
   if (s->closing || s->sequence == INT_MAX) {
@@ -146,6 +146,7 @@ char *qpk_hw_poll(struct qpk_hw_session *s, unsigned id)
     cJSON_AddNumberToObject(out, "bytes", atomic_load(&j->progress.bytes));
     cJSON_AddNumberToObject(out, "elapsedMs", atomic_load(&j->progress.elapsed_ms));
     cJSON_AddNumberToObject(out, "peak", atomic_load(&j->progress.peak));
+    cJSON_AddNumberToObject(out, "stage", atomic_load(&j->progress.stage));
   }
   if (!j || (j->done && j->error)) {
     int error = j ? j->error : -ENOENT;

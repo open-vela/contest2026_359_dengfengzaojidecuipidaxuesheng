@@ -317,6 +317,8 @@ static int play_clip(const char *path, const cJSON *a, cJSON *out, struct qpk_hw
     else if (fread(samples, 1, bytes, file) != bytes) { ret = -EIO; break; }
     ret = music_pcm_write(&pcm, samples, frames, channels);
     if (!ret) {
+      unsigned peak=0;for(unsigned i=0;i<frames*channels;i++){int v=samples[i];unsigned level=v<0?(unsigned)-v:(unsigned)v;if(level>peak)peak=level;}
+      atomic_store(&progress->peak,peak);
       remaining -= bytes; submitted += bytes;
       atomic_store(&progress->bytes, submitted > UINT32_MAX ? UINT32_MAX : submitted);
       atomic_store(&progress->elapsed_ms, (uint64_t)pcm.played_samples * 1000 / rate);
@@ -412,14 +414,19 @@ static int recorder_list(cJSON *out,struct qpk_hw_progress *progress)
   return 0;
 }
 
+#include "qpk_recorder_transcript.inc"
+
 int qpk_hw_audio_execute_at(const char *media_root,const char *package,
                            const char *op,const cJSON *a,cJSON *out,
                            struct qpk_hw_progress *progress)
 {
   if(!media_root || !package || !op || !out || !progress)return -EINVAL;
-  if(strcmp(package,"com.openvela.recorder"))
+  if(strcmp(package,"com.openvela.recorder")){
+    if(!strcmp(op,"transcribe")||!strcmp(op,"transcript"))return -EACCES;
     return audio_execute_storage(media_root,package,op,a,out,progress);
+  }
   if(!strcmp(op,"list"))return recorder_list(out,progress);
+  if(!strcmp(op,"transcribe")||!strcmp(op,"transcript"))return recorder_text_execute(op,a,out,progress);
   const cJSON *clip=cJSON_GetObjectItemCaseSensitive(a,"clip");
   if(cJSON_IsString(clip) && !strncmp(clip->valuestring,"flash:",6)){
     if(strcmp(op,"play") && strcmp(op,"info"))return -EROFS;
@@ -430,6 +437,7 @@ int qpk_hw_audio_execute_at(const char *media_root,const char *package,
     int ret=audio_execute_storage(qpk_volume_data_root(QPK_VOLUME_INTERNAL),package,op,args,out,progress);
     cJSON_Delete(args);return ret;
   }
+  if(!strcmp(op,"remove")){int ret=recorder_text_remove(a);if(ret)return ret;}
   if(!strcmp(op,"record") || !strcmp(op,"save"))
     printf("[recorder-route] storage=sd fallback=disabled\n");
   return audio_execute_storage(qpk_volume_data_root(QPK_VOLUME_SD),package,op,a,out,progress);

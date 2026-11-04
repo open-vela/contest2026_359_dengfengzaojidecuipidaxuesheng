@@ -141,7 +141,7 @@ static int chunk(struct glv_asr *a)
     * unknown=2, initial context [-1,0], no beam or hidden language model. */
    if(best!=0&&best!=2){
      size_t size=a->offsets[best+1]-a->offsets[best];
-     if(a->stats.tokens>=512||size>=TEXT-a->used)return -E2BIG;
+     if(a->stats.tokens>=1024||size>=TEXT-a->used)return -E2BIG;
      memcpy(a->text+a->used,a->symbols+a->offsets[best],size);a->used+=size;a->text[a->used]=0;
      unsigned timestamp=a->stats.chunks*8+frame;
      if(a->token&&(ret=a->token(a->opaque,best,timestamp)))return ret;
@@ -202,7 +202,7 @@ int glv_asr_stream_begin(struct glv_asr *a,int (*partial)(void *,const char *,un
 }
 int glv_asr_stream_accept(struct glv_asr *a,const int16_t *pcm,size_t count)
 {
- if(!a||!a->streaming||(!pcm&&count)||count>16000u*60u-a->stream_samples)return -EINVAL;
+ if(!a||!a->streaming||(!pcm&&count)||count>16000u*600u-a->stream_samples)return -EINVAL;
  a->stream_samples+=count;return glv_asr_fbank_stream_accept(a->fbank,pcm,count,feature,a);
 }
 int glv_asr_stream_finish(struct glv_asr *a,char *text,size_t capacity,struct glv_asr_stats *stats)

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-04",
+  "features": [
+    "global wake remains original assistant; local voice stays app scoped",
+    "foreground microphone ownership retires background wake before capture",
+    "local ASR result remains visible without overwriting edited text",
+    "recorder file transcription and audio-time scrolling captions",
+    "SD-only SHA-bound caption cache with cancellation preservation",
+    "real PCM recording/playback waveform and separate pager hit area"
+  ],
+  "host_checks_passed": [
+    "capture handoff and timeout/cancellation",
+    "wake handoff and speech barge",
+    "AI configuration and voice lifecycle",
+    "original wake defaults and service target rejection",
+    "real full-model file ASR with conversation reply/mode isolation",
+    "caption cache invalidation, malformed JSON, SD failure and permissions",
+    "native LVGL light/dark recorder layout with nine clips",
+    "recorder JavaScript workflow and pager click separation"
+  ],
+  "device_checks": {
+    "microphone_live": {
+      "firmware_sha256": "c664e4e6e0e2dc86709a1f837d257112500987a7f845444a9a4a9d2360f989ef",
+      "capture_ms": 12791,
+      "asr_tokens": 48,
+      "user_confirmed_recording_audible": true,
+      "user_confirmed_live_speech": true
+    },
+    "recording_file": {
+      "firmware_sha256": "beb25c112e962f827db5afd0e97ed706784a74772a6c6cff833cdc6bc47f24a1",
+      "duration_ms": 19655,
+      "asr_elapsed_ms": 628460,
+      "asr_tokens": 48,
+      "llm_rounds": 0
+    },
+    "cached_playback": {
+      "firmware_sha256": "3be883d26b00f542da3f73e7c5d8ad7c19d8f797e7708ffbb15d1466d40e0794",
+      "passed": true,
+      "waveform_varied": true,
+      "captions_followed_audio_position": true,
+      "asr_request_unchanged": true,
+      "pager_y": 514,
+      "conversion_button_y": 432,
+      "pager_hit_bottom": 544
+    }
+  },
+  "limitations": {
+    "asr_speed_optimized": false,
+    "realtime_transcription": false,
+    "cold_power_cycle_tested": false
+  },
+  "recording_text_and_audio_included": false
+}

@@ -56,6 +56,7 @@ struct local_service {
 #endif
   uint32_t next,cancel,finish_capture,transcript_request;bool clear_history,desired_wake,desired_enabled;
   char transcript[INPUT_MAX+1];
+  struct glv_file_transcript file;uint32_t file_request;
   uint64_t began,phase_began;
   struct retained_llm kept;bool retire_session;pthread_t owner;
 };
@@ -605,6 +606,67 @@ static int run_microphone_live(struct run *r,struct glv_memory *memory)
  }
  glv_free(text);return ret;
 }
+/* Recorder files use the same permanent ASR owner and cancellation barrier. */
+static int file_partial(void *opaque,const char *text,unsigned tokens,unsigned frames)
+{
+ struct run *r=opaque;int ret=0;pthread_mutex_lock(&lock);
+ if(!publishable_locked(r))ret=-ECANCELED;
+ else {
+  service->state.asr_tokens=tokens;service->state.memory_peak=r->memory->peak;
+  if(tokens&&!service->state.asr_first_token_ms)service->state.asr_first_token_ms=(unsigned)(ms()-r->asr_began)+1;
+  unsigned decoded=frames*40u;if(decoded>service->file.duration_ms)decoded=service->file.duration_ms;
+  service->state.asr_decoded_ms=decoded;service->state.asr_backlog_ms=service->file.duration_ms-decoded;
+  service->state.asr_elapsed_ms=(unsigned)(ms()-r->asr_began);service->state.revision++;
+  size_t before=strlen(service->file.text),after=strlen(text);
+  if(after>=sizeof(service->file.text)||(after>before&&service->file.count>=GLV_FILE_MARKS))ret=-E2BIG;
+  else if(after>before){
+   unsigned at=frames?(frames-1)*40u:0;if(at>service->file.duration_ms)at=service->file.duration_ms;
+   service->file.marks[service->file.count++]=(struct glv_file_mark){at,(uint16_t)after};
+   memcpy(service->file.text,text,after+1);
+  }
+ }
+ pthread_mutex_unlock(&lock);return ret;
+}
+static int run_recording_file(struct run *r,const char *path,struct glv_memory *memory)
+{
+ r->memory=memory;r->voice=true;r->asr_began=ms();phase(r,GLV_CHECKING_ASR);
+ FILE *f=NULL;size_t size=0;struct glv_asr *asr=NULL;int16_t *pcm=NULL;char *text=NULL;
+ bool checked=false;int ret=glv_open_asset(path,&f,&size);unsigned char h[44];unsigned bytes=0;
+ if(!ret&&(size<44||glv_read_exact(f,h,44)))ret=-EBADMSG;
+ if(!ret){
+  bytes=glv_u32(h+40);
+  if(memcmp(h,"RIFF",4)||memcmp(h+8,"WAVEfmt ",8)||memcmp(h+36,"data",4)||
+     glv_u32(h+4)!=size-8||glv_u32(h+16)!=16||h[20]!=1||h[21]||h[22]!=1||h[23]||
+     glv_u32(h+24)!=16000||h[32]!=2||h[33]||h[34]!=16||h[35]||
+     !bytes||(bytes&1u)||bytes!=size-44)ret=-EINVAL;
+  if(!ret&&bytes>16000u*2u*600u)ret=-E2BIG;
+ }
+ if(!ret){pthread_mutex_lock(&lock);memset(&service->file,0,sizeof(service->file));
+  service->file_request=r->request;service->file.duration_ms=bytes/32u;
+  service->state.capture_ms=service->file.duration_ms;pthread_mutex_unlock(&lock);
+  ret=glv_asr_assets_check(memory);checked=true;}
+ if(!ret)ret=glv_cancel(memory);
+ pthread_mutex_lock(&lock);if(checked)service->state.asr_ready=!ret;service->state.asr_error=ret;pthread_mutex_unlock(&lock);
+ if(!ret){r->assets_checked=true;phase(r,GLV_LOADING_ASR);ret=glv_asr_open(&asr,GLV_ASR_RELEASE_ROOT,memory);}
+ if(!ret)ret=glv_asr_prepare_partial(asr);
+ if(!ret){pcm=glv_alloc(memory,3200);text=glv_alloc(memory,GLV_MAX_REPLY);if(!pcm||!text)ret=-ENOMEM;}
+ if(!ret){pthread_mutex_lock(&lock);service->state.asr_streaming=true;service->state.revision++;pthread_mutex_unlock(&lock);
+  phase(r,GLV_TRANSCRIBING);ret=glv_asr_stream_begin(asr,file_partial,r);}
+ for(unsigned at=0;at<bytes&&!ret;){
+  ret=glv_cancel(memory);unsigned n=bytes-at;if(n>3200)n=3200;
+  if(!ret)ret=glv_read_exact(f,pcm,n);
+  if(!ret)ret=glv_asr_stream_accept(asr,pcm,n/2u);at+=n;
+ }
+ if(!ret)ret=glv_asr_stream_finish(asr,text,GLV_MAX_REPLY,NULL);
+ if(!ret&&(!text[0]||cancelled(r)))ret=text[0]?-ECANCELED:-ENODATA;
+ if(ret&&asr)glv_asr_stream_abort(asr);
+ glv_asr_close(asr);if(f)fclose(f);glv_free(pcm);
+ pthread_mutex_lock(&lock);
+ service->state.asr_streaming=false;service->state.asr_error=ret;service->state.asr_elapsed_ms=(unsigned)(ms()-r->asr_began);
+ if(!ret&&publishable_locked(r))snprintf(service->state.detail,sizeof(service->state.detail),"录音转文字完成");
+ r->asr_failed=ret!=0;service->state.revision++;pthread_mutex_unlock(&lock);
+ glv_free(text);return ret;
+}
 #endif
 static int run_microphone(struct run *r,struct glv_memory *memory)
 {
@@ -683,7 +745,8 @@ static void *worker(void *unused)
   printf("LOCAL_VOICE_CPU requested=1 affinity=%d\n",affinity);
 #endif
   (void)unused;FILE *f=fopen(GLV_CONFIG_PATH,"rb");int target=f?fgetc(f):'0',enabled=f?fgetc(f):'1';if(f)fclose(f);
-  pthread_mutex_lock(&lock);service->state.local_wake=target=='1';service->state.wake_enabled=enabled=='1';service->state.config_pending=false;service->state.revision++;pthread_mutex_unlock(&lock);
+  if(target=='1')printf("[local-voice] legacy global target ignored; original assistant retained\n");
+  pthread_mutex_lock(&lock);service->state.local_wake=false; /* Global wake belongs to the original assistant. */service->state.wake_enabled=enabled=='1';service->state.config_pending=false;service->state.revision++;pthread_mutex_unlock(&lock);
   for(;;){
     pthread_mutex_lock(&lock);
     while(!service->job&&!service->retire_session){
@@ -748,6 +811,9 @@ static void *worker(void *unused)
       if(job==10)ret=run_tool_benchmark(&r,input,&memory);else
 #endif
 #ifdef GLV_ASR_EVALUATION
+#if defined(GLV_ASR_STREAMING) && defined(GLV_ASR_MICROPHONE)
+      if(job==15)ret=run_recording_file(&r,input,&memory);else
+#endif
       if(job==5)ret=run_asr_test(&r,input,&memory);else
 #endif
 #ifdef GLV_ASR_MICROPHONE
@@ -816,7 +882,7 @@ int glass_local_voice_start(void)
 static int submit(unsigned job,const char *text,enum glv_mode mode,uint32_t *request)
 {
   if(mode!=GLV_DIALOGUE&&mode!=GLV_READ&&mode!=GLV_CONTROL)return -EINVAL;
-  if((job==1||job==5||job==9||job==12||job==14)&&(!text||!text[0]||strnlen(text,INPUT_MAX+1)>INPUT_MAX))return -EINVAL;
+  if((job==1||job==5||job==9||job==12||job==14||job==15)&&(!text||!text[0]||strnlen(text,INPUT_MAX+1)>INPUT_MAX))return -EINVAL;
   if(!glass_ai_start_enter())return -EBUSY;
   pthread_mutex_lock(&lock);int ret=0;
   if(!service)ret=-ENODEV;
@@ -831,11 +897,28 @@ static int submit(unsigned job,const char *text,enum glv_mode mode,uint32_t *req
     if(job==1||job==5||job==6||job==9||job==10||job==11||job==12||job==13){service->reply[0]=service->transcript[0]=0;service->transcript_request=0;service->finish_capture=0;
       if((job==1||job==9)&&mode==GLV_READ)display_text(service->reply,sizeof(service->reply),service->input,true);
       s->input_level=s->capture_ms=s->asr_tokens=s->asr_first_token_ms=s->asr_elapsed_ms=0;}
-    s->capture_pending=job==6||job==13;if(job==6||job==13)s->asr_error=0;
+    if(job==15){s->input_level=s->capture_ms=s->asr_tokens=s->asr_first_token_ms=s->asr_elapsed_ms=0;}
+    s->capture_pending=job==6||job==13;if(job==6||job==13||job==15)s->asr_error=0;
     service->state.selected_mode=mode;service->mode=mode;service->job=job;s->revision++;
     if(request)*request=s->request;pthread_cond_signal(&changed);
   }
   pthread_mutex_unlock(&lock);glass_ai_start_leave();if(!ret)glv_platform_wake_yield();return ret;
+}
+int glass_local_voice_transcribe_file(const char *path,uint32_t *request)
+{
+#if defined(GLV_ASR_STREAMING) && defined(GLV_ASR_MICROPHONE) && defined(GLV_ASR_EVALUATION)
+ struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);return submit(15,path,s.selected_mode,request);
+#else
+ (void)path;(void)request;return -ENOTSUP;
+#endif
+}
+int glass_local_voice_file_result(uint32_t request,struct glv_file_transcript *out)
+{
+ if(!out)return -EINVAL;pthread_mutex_lock(&lock);int ret=-ESTALE;
+ if(service&&service->state.request==request&&service->file_request==request){
+  ret=service->state.busy?-EAGAIN:service->state.error;if(!ret)*out=service->file;
+ }
+ pthread_mutex_unlock(&lock);return ret;
 }
 int glass_local_voice_send(const char *text,enum glv_mode mode,uint32_t *request)
 {
@@ -1199,7 +1282,7 @@ void glass_local_voice_get(struct glv_snapshot *out,char *reply,size_t cap)
     if(service->phase_began&&out->phase<GLV_PHASE_COUNT)out->stage_ms[out->phase]+=(unsigned)(now-service->phase_began);}}else memset(out,0,sizeof(*out));}
   if(reply&&cap)snprintf(reply,cap,"%s",service&&!service->clear_history?service->reply:"");pthread_mutex_unlock(&lock);}
 bool glass_local_voice_wake_selected(void)
-{pthread_mutex_lock(&lock);bool value=!service||service->state.local_wake;pthread_mutex_unlock(&lock);return value;}
+{pthread_mutex_lock(&lock);bool value=service&&service->state.local_wake;pthread_mutex_unlock(&lock);return value;}
 bool glass_local_voice_wake_enabled(void)
 {pthread_mutex_lock(&lock);bool value=service&&service->state.wake_enabled;pthread_mutex_unlock(&lock);return value;}
 bool glass_local_voice_wake_ready(void)
@@ -1213,7 +1296,7 @@ static int set_wake(bool target,bool value)
     service->state.config_pending=true;service->job=3;service->state.revision++;pthread_cond_signal(&changed);}
   pthread_mutex_unlock(&lock);glass_ai_start_leave();return ret;
 }
-int glass_local_voice_set_wake(bool local){return set_wake(true,local);}
+int glass_local_voice_set_wake(bool local){return local?-EPERM:set_wake(true,false);}
 int glass_local_voice_enable_wake(bool enabled){return set_wake(false,enabled);}
 const char *glass_local_voice_error(int e)
 {
@@ -1223,6 +1306,7 @@ const char *glass_local_voice_error(int e)
   case -ENOSPC:return "SD 卡空间不足，未能完成合成或保存";
   case -ESTALE:return "SD 内容或挂载已变化，请重新发送以校验模型";
   case -E2BIG:return "文本或上下文过长，请新建对话或缩短文本";case -ENOTSUP:return "V2 中文前端暂不支持这段文字";
+  case -EPERM:return "全局唤醒固定使用原助手，本地语音仅在 APP 中使用";
   case -ENOBUFS:return "识别积压过大，录音已停止";
   case -ENODATA:return "未获得有效语音或文字";default:return "本地处理失败，已释放资源";}
 }

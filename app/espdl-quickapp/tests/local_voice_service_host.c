@@ -125,11 +125,11 @@ int main(void)
   assert(!glass_local_voice_check(&request));s=wait_idle();assert(!s.error&&s.models_ready);
   assert(!glass_local_voice_save(&request));s=wait_idle();assert(s.error==-ENODATA);
   assert(!glass_local_voice_set_wake(false));s=wait_idle();assert(!s.error&&!s.local_wake);
-  assert(!glass_local_voice_set_wake(true));s=wait_idle();assert(!s.error&&s.local_wake);
+  assert(glass_local_voice_set_wake(true)==-EPERM);s=wait_idle();assert(!s.error&&!s.local_wake);
   assert(!glass_local_voice_enable_wake(false));s=wait_idle();assert(!s.error&&!s.wake_enabled&&!glass_local_voice_wake_ready());
   assert(!glass_local_voice_set_wake(false));s=wait_idle();assert(!s.error&&!s.wake_enabled&&!s.local_wake);
   assert(!glass_local_voice_enable_wake(true));s=wait_idle();assert(!s.error&&s.wake_enabled&&!s.local_wake);
-  assert(!glass_local_voice_set_wake(true));s=wait_idle();assert(!s.error&&s.wake_enabled&&s.local_wake);
+  assert(glass_local_voice_set_wake(true)==-EPERM);s=wait_idle();assert(!s.error&&s.wake_enabled&&!s.local_wake);
   unsigned elapsed=s.elapsed_ms;uint32_t before=s.request;
   glass_local_voice_wake_failure(-EAGAIN);glass_local_voice_get(&s,NULL,0);assert(s.models_ready);
   atomic_store(&fixture_hold_budget,true);assert(!glass_local_voice_check(&request));

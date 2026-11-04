@@ -32,8 +32,8 @@ static void local_settings_poll(lv_timer_t *timer)
   lv_obj_t *controls[]={ui->wake,ui->target,ui->check};
   for(unsigned i=0;i<3;i++)if(s.busy||s.config_pending)lv_obj_add_state(controls[i],LV_STATE_DISABLED);else lv_obj_remove_state(controls[i],LV_STATE_DISABLED);
   if(s.wake_enabled)lv_obj_add_state(ui->wake,LV_STATE_CHECKED);else lv_obj_remove_state(ui->wake,LV_STATE_CHECKED);
-  lv_dropdown_set_selected(ui->target,s.local_wake?0:1);
-  lv_label_set_text(ui->phrase,s.local_wake?"你好 openvela":"使用原助手的唤醒配置");
+  lv_dropdown_set_selected(ui->target,0);lv_obj_add_state(ui->target,LV_STATE_DISABLED);
+  lv_label_set_text(ui->phrase,"使用原助手的唤醒配置");
   lv_label_set_text(ui->monitor,s.config_pending?"正在保存唤醒设置…":s.wake_enabled?"开启后在后台等待唤醒；其他音频任务使用麦克风时会暂停。":"已关闭全局唤醒，APP 的文字对话和朗读仍可使用。");
   int error=s.error?s.error:!s.models_ready?s.model_error:0;
   char problem[192];const char *asr=local_asr_problem(&s,problem,sizeof(problem));
@@ -45,7 +45,7 @@ static void local_settings_action(lv_event_t *event)
   if(s.busy||s.config_pending)return;
   intptr_t action=(intptr_t)lv_event_get_user_data(event);int ret=0;
   if(action==1)ret=glass_local_voice_enable_wake(lv_obj_has_state(g_local_settings->wake,LV_STATE_CHECKED));
-  else if(action==2)ret=glass_local_voice_set_wake(lv_dropdown_get_selected(g_local_settings->target)==0);
+  else if(action==2)ret=glass_local_voice_set_wake(false);
   else if(action==3)ret=glass_local_voice_check(NULL);
   if(ret)show_toast(glass_local_voice_error(ret));g_local_settings->revision=UINT32_MAX;local_settings_poll(NULL);
 }
@@ -66,7 +66,7 @@ static void glass_local_voice_settings(lv_event_t *event)
   lv_obj_set_width(back_label,GLASS_SIDEBAR_ITEM_WIDTH-24);lv_obj_set_style_text_align(back_label,LV_TEXT_ALIGN_LEFT,0);
   lv_obj_align(back_label,LV_ALIGN_LEFT_MID,12,0);
   detail_text(card,"本地语音",212,30,600,28,detail_ink());
-  detail_text(card,"默认文字对话 · 朗读与唤醒按需启用",212,70,700,16,detail_muted());
+  detail_text(card,"本地语音仅在 APP 中使用 · 全局唤醒使用原助手",212,70,700,16,detail_muted());
   lv_obj_t *tile=detail_tile(card,212,108,788,150);
   detail_text(tile,"全局唤醒",24,22,560,20,detail_ink());
   ui->phrase=detail_text(tile,"",24,59,600,16,detail_muted());
@@ -77,12 +77,12 @@ static void glass_local_voice_settings(lv_event_t *event)
   lv_obj_add_event_cb(ui->wake,local_settings_action,LV_EVENT_VALUE_CHANGED,(void *)1);
   tile=detail_tile(card,212,278,788,106);
   detail_text(tile,"唤醒后打开",24,22,340,20,detail_ink());
-  detail_text(tile,"可随时切回原助手",24,60,340,14,detail_muted());
+  detail_text(tile,"固定使用原助手",24,60,340,14,detail_muted());
   ui->target=lv_dropdown_create(tile);glass_input_style(ui->target);
   lv_obj_set_pos(ui->target,420,28);lv_obj_set_size(ui->target,340,44);
   lv_obj_set_style_text_font(ui->target,home_font(16),0);
   lv_obj_set_style_text_font(ui->target,glass_icon_font(16),LV_PART_INDICATOR);
-  lv_dropdown_set_options(ui->target,"本地语音 APP\n原助手");
+  lv_dropdown_set_options(ui->target,"原助手");
   lv_obj_t *list=lv_dropdown_get_list(ui->target);
   lv_obj_set_style_text_font(list,home_font(16),0);lv_obj_set_style_text_color(list,lv_color_hex(detail_ink()),0);
   lv_obj_set_style_bg_color(list,lv_color_hex(detail_paper()),0);
@@ -91,7 +91,7 @@ static void glass_local_voice_settings(lv_event_t *event)
   detail_text(tile,"模型资源",24,20,540,20,detail_ink());
   ui->status=detail_text(tile,"",24,62,560,14,detail_muted());
   ui->check=detail_button(tile,"完整检查",620,28,140,local_settings_action,(void *)3);
-  detail_text(card,"本地 APP 不使用云端转写；选择原助手后沿用原助手的语音设置。",212,536,788,14,detail_muted());
+  detail_text(card,"本地 APP 使用离线转写与朗读；全局唤醒沿用原助手的语音设置。",212,536,788,14,detail_muted());
   ui->timer=lv_timer_create(local_settings_poll,200,NULL);local_settings_poll(NULL);
 }
 static void local_ui_poll(lv_timer_t *timer);
@@ -139,17 +139,22 @@ static void local_ui_poll(lv_timer_t *timer)
   if(!changed&&(!s.busy||ui->elapsed_second==seconds))return;
   ui->revision=s.revision;ui->elapsed_second=seconds;
   if(changed){
-    if((ui->transcript_request!=s.request||s.busy)&&glass_local_voice_get_transcript(s.request,ui->transcript,sizeof(ui->transcript))){
-      if(strcmp(lv_textarea_get_text(ui->input),ui->transcript))lv_textarea_set_text(ui->input,ui->transcript);ui->transcript_request=s.request;
-    }
+    char transcript[sizeof(ui->transcript)];
+    bool received=glass_local_voice_get_transcript(s.request,transcript,sizeof(transcript));
+    /* Update only for new ASR text; later phase changes must keep user edits. */
+    if(received&&(ui->transcript_request!=s.request||strcmp(ui->transcript,transcript)))
+      lv_textarea_set_text(ui->input,transcript);
+    snprintf(ui->transcript,sizeof(ui->transcript),"%s",transcript);ui->transcript_request=s.request;
     if(s.asr_streaming)lv_label_set_text(ui->output,ui->transcript[0]?ui->transcript:"请说话，正在流式识别……");
     else if(ui->reply[0])lv_label_set_text(ui->output,ui->reply);
+    else if(ui->transcript[0])lv_label_set_text(ui->output,ui->transcript);
     else lv_label_set_text(ui->output,ui->mode==GLV_READ?"输入中文，使用你的 V2 声音朗读。":ui->mode==GLV_CONTROL?"例如：打开台灯、关闭床头灯、查询台灯状态。\n只操作已注册清单中的设备。":"你好，我是本地语音。\n输入文字开始一段离线对话。");
     int error=s.error?s.error:(!s.busy&&ui->mode!=GLV_READ&&!s.models_ready?s.model_error:0);
     const char *detail=!s.error&&error?"请检查 SD 模型后重试":s.detail;
     char state[256];snprintf(state,sizeof(state),"%s%s%s",error?glass_local_voice_error(error):local_phase_text(s.phase),detail[0]?" · ":"",detail);
     if(!error&&s.phase==GLV_PREFILL&&s.progress_total)
       snprintf(state,sizeof(state),"处理输入 · %u%% · 完成后开始回答",s.progress_done*100/s.progress_total);
+    if(s.capture_pending&&!s.asr_streaming)snprintf(state,sizeof(state),"%s · 麦克风尚未开始，请等待聆听提示",local_phase_text(s.phase));
     if(s.asr_streaming)snprintf(state,sizeof(state),"%s · 录音 %.1f秒 · 已识别 %.1f秒 · 积压 %.1f秒",s.capture_active?"边录边转写":s.capture_pending?"准备麦克风":"录音已结束，继续识别",s.capture_ms/1000.f,s.asr_decoded_ms/1000.f,s.asr_backlog_ms/1000.f);
     if(s.error==-ECANCELED&&s.cancel_source==GLV_CANCEL_CONFIG)
       snprintf(state,sizeof(state),"设置变更，已停止本次任务");
@@ -179,7 +184,7 @@ static void local_ui_poll(lv_timer_t *timer)
   lv_label_set_text(ui->footer,recording?"边说边转写；停顿或结束录音后提交最终文字。单次最长60秒。":ui->mode==GLV_READ?"V2 声音按需加载 · 24 kHz · 可随时停止":ui->mode==GLV_CONTROL?"按清单执行；状态回读匹配后完成即结束。":"纯文字回答 · 点击朗读回答或语音输入时再准备语音功能");
   if(s.asr_streaming)lv_label_set_text(ui->footer,s.capture_active?"边说边转写；结束后提交最终文字。单次最长60秒。":s.capture_pending?"正在准备麦克风，请稍候。":"录音已结束，正在完成剩余转写；可点击停止取消。");
   if(s.wake_enabled)lv_obj_add_state(ui->wake,LV_STATE_CHECKED);else lv_obj_remove_state(ui->wake,LV_STATE_CHECKED);
-  lv_label_set_text(lv_obj_get_child(ui->target,0),s.local_wake?"目标：本地语音":"目标：原助手");
+  lv_label_set_text(lv_obj_get_child(ui->target,0),"目标：原助手");lv_obj_add_state(ui->target,LV_STATE_DISABLED);
 }
 static void local_action(lv_event_t *event)
 {
@@ -190,7 +195,7 @@ static void local_action(lv_event_t *event)
   else if(action==4)ret=glass_local_voice_check(&g_local_ui->request);
   else if(action==5)ret=glass_local_voice_enable_wake(lv_obj_has_state(g_local_ui->wake,LV_STATE_CHECKED));
   else if(action==6)ret=glass_local_voice_save(&g_local_ui->request);
-  else if(action==7)ret=glass_local_voice_set_wake(!glass_local_voice_wake_selected());
+  else if(action==7)ret=glass_local_voice_set_wake(false);
   else if(action==8){
     local_keyboard_close();struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
     if(s.busy&&s.phase==GLV_RECORDING)ret=glass_local_voice_finish_capture(s.request);
@@ -238,13 +243,13 @@ static void glass_local_voice_open(lv_event_t *event)
 #endif
   local_sidebar_update();
   detail_text(card,"全局唤醒",24,270,116,16,detail_ink());
-  detail_text(card,"你好 openvela",24,299,116,14,detail_muted());
+  detail_text(card,"原助手",24,299,116,14,detail_muted());
   ui->wake=lv_switch_create(card);lv_obj_set_pos(ui->wake,24,338);lv_obj_set_size(ui->wake,52,28);
   lv_obj_set_style_bg_color(ui->wake,lv_color_hex(detail_accent()),LV_PART_INDICATOR|LV_STATE_CHECKED);
   lv_obj_set_style_bg_opa(ui->wake,LV_OPA_COVER,LV_PART_INDICATOR|LV_STATE_CHECKED);
   lv_obj_add_event_cb(ui->wake,local_action,LV_EVENT_VALUE_CHANGED,(void *)5);
   detail_text(card,"关闭后停止后台监听",24,382,116,14,detail_muted());
-  ui->target=detail_button(card,"目标：本地语音",GLASS_SIDEBAR_PAD,418,GLASS_SIDEBAR_ITEM_WIDTH,local_action,(void *)7);
+  ui->target=detail_button(card,"目标：原助手",GLASS_SIDEBAR_PAD,418,GLASS_SIDEBAR_ITEM_WIDTH,local_action,(void *)7);
   ui->check=detail_button(card,"完整检查",GLASS_SIDEBAR_PAD,478,GLASS_SIDEBAR_ITEM_WIDTH,local_action,(void *)4);
   ui->heading=detail_text(card,"普通对话",212,30,520,28,detail_ink());
   detail_text(card,"Thinking",810,8,190,14,detail_muted());

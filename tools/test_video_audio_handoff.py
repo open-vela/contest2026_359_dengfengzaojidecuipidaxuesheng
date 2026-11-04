@@ -26,6 +26,7 @@ static atomic_uint g_pcm_foreground_waiters;
 static atomic_bool background,release_requested,holder_ready;
 static unsigned opens,yields,owner_stops;
 static int forced_error;
+static int (*glass_local_voice_yield_model)(unsigned);
 bool music_pcm_foreground_pending(void);
 int music_pcm_session_trylock(void);
 void music_pcm_session_unlock(void);

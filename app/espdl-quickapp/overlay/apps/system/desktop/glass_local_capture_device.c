@@ -25,15 +25,10 @@ static pthread_mutex_t capture_entry=PTHREAD_MUTEX_INITIALIZER;
 static struct glv_memory *capture_memory;
 static uint64_t capture_ms(void *unused)
 {(void)unused;struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return (uint64_t)t.tv_sec*1000+t.tv_nsec/1000000;}
+static bool capture_cancel(void *opaque)
+{return glv_cancel(opaque)!=0;}
 static int capture_session(void)
-{
-  uint64_t until=capture_ms(NULL)+5000;
-  for(;;){
-    int ret=glv_cancel(capture_memory);if(ret)return ret;
-    ret=music_pcm_session_trylock();if(ret!=-EBUSY)return ret;
-    if(capture_ms(NULL)>=until)return -ETIMEDOUT;usleep(10000);
-  }
-}
+{return music_pcm_capture_lock(5000,capture_cancel,capture_memory);}
 #define VOICE_CAPTURE_CANCELLED() (glv_cancel(capture_memory)!=0)
 #define VOICE_CAPTURE_LOCK() capture_session()
 #include "glass_voice_capture.inc"
