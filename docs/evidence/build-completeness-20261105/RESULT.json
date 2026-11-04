@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-05T02:49:24.858767+08:00",
+  "result": "PASSED",
+  "scope": "P4 public locked-input base profile; clean objects; full compile, link and image generation",
+  "overlay_source_revision": "1903de28c99ef8edfed8daa4d0ba133ff275c506",
+  "builder_fix_was_uncommitted_during_build": true,
+  "builder_normalized_lf_sha256": "e3567f8a71b306729bc6d181ef8a8e01f7fade08c3e24616a6572601ce7928ce",
+  "compiled_units": 2962,
+  "firmware_bytes": 8156160,
+  "sha256": {
+    "nuttx.bin": "35dcc05ed6ce11d8e73352f2a3926f37e0d8c79611a60b8674de140876471c51",
+    "nuttx.elf": "0f936a319498c3efc89006fb86737725181def54813d5bc73605ea7e27901856",
+    "resolved.config": "0409c2d5baf7cfe0f7c3517119a3a8d3a18bd75a7cf6b703202b59001745f460"
+  },
+  "ebss": "0x4ffa253c",
+  "compiler": "riscv32-esp-elf-gcc (crosstool-NG esp-14.2.0_20251107) 14.2.0",
+  "psram_xip": true,
+  "flash_layout": "12m-firmware-4m-data",
+  "flash_offset": "0x2000",
+  "program_limit": "0xc00000",
+  "data_offset": "0xc00000",
+  "data_size": "0x400000",
+  "kconfig_relocation_tests": {
+    "windows": 5,
+    "linux": 5,
+    "passed": true
+  },
+  "issue_fixed": "Generated Kconfig retained absolute includes into older author workspaces; all local includes now resolve in the isolated tree. The deleted historical directories were unavailable during the successful build.",
+  "new_firmware_flashed": false,
+  "board109_full_local_voice_profile_tested": false,
+  "limitations": [
+    "The full local voice SDK and external model installation are separate prerequisites; this validates the documented base profile.",
+    "Host build and image guards do not replace physical board acceptance."
+  ]
+}

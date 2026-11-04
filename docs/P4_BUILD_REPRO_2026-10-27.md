@@ -70,6 +70,12 @@ python3 tools/build_p4_repro.py \
 
 输出包括 `nuttx.bin`、`nuttx.elf`、`resolved.config` 和 `BUILD-METADATA.json`。应在配置中确认 `CONFIG_ESP32P4_PSRAM_XIP=y`，并核对元数据的 PSRAM XIP 状态、源码/依赖摘要和分区边界。
 
+构建器会把生成的 Kconfig 中指向旧 `apps/`、`nuttx/` 工作区的绝对引用重定位到本次独立目录，
+包括历史准备目录多次继承后残留的更早前缀。需要的本地 Kconfig 缺失时直接报错，不依赖作者机器上仍存在的旧编译树。
+重定位只改独立构建目录，不改锁定输入。回归检查为 `python3 tools/test_kconfig_relocation.py`。
+2026-11-05 在删除旧工作区后完成一次清理对象后的全量基础配置构建，记录见
+[编译完整性验证](evidence/build-completeness-20261105/RESULT.json)；该验证不包含完整离线语音 SDK 配置或实板烧录。
+
 每次构建会生成新的合法蓝牙测试身份，因此即使源代码与依赖相同，镜像 SHA256 也会改变；不应要求重编译后等于旧镜像 `32e718bf…`。
 
 ## 硬件及验收边界

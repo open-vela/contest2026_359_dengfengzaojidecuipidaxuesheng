@@ -9,6 +9,38 @@ import shutil
 import subprocess
 import re
 
+def relocate_kconfig_sources(root, baseline):
+    """Resolve generated includes locally, including roots older than baseline."""
+    root, baseline = Path(root).resolve(), Path(baseline).resolve()
+    pattern = re.compile(r'''(?m)^(\s*(?:source|rsource|osource|orsource)\s+)(["'])(/[^"'\n]+)\2''')
+    for tree in ('apps', 'nuttx'):
+        for path in (root/tree).rglob('*'):
+            if not path.name.lstrip('.').startswith('Kconfig') or not path.is_file() or path.is_symlink():
+                continue
+            original = path.read_text()
+            text = original.replace(str(baseline), str(root))
+            def local_include(match):
+                prefix, quote, include = match.groups()
+                if '$' in include:
+                    return match.group(0)
+                for name in sorted(('apps', 'nuttx'), key=lambda n: include.rfind('/'+n+'/'), reverse=True):
+                    marker = '/'+name+'/'
+                    if marker not in include:
+                        continue
+                    suffix = include.rsplit(marker, 1)[1]
+                    if '..' in Path(suffix).parts:
+                        raise ValueError('Escaping Kconfig include: '+include)
+                    target = root/name/suffix
+                    if not target.resolve().is_relative_to(root):
+                        raise ValueError('External Kconfig include target: '+str(target))
+                    if not target.is_file() and prefix.strip() not in ('osource', 'orsource'):
+                        raise FileNotFoundError('Kconfig input missing in prepared workspace: '+str(target))
+                    return prefix+quote+target.as_posix()+quote
+                return match.group(0)
+            text = pattern.sub(local_include, text)
+            if text != original:
+                path.write_text(text)
+
 def prepare_asr_dsp_vendor(vendor, destination):
     """Keep dependency scanning self-contained without global IDF headers."""
     vendor, destination = Path(vendor), Path(destination)
@@ -165,11 +197,7 @@ def main():
     marker.write_text(str(base)+'\n')
     # Generated Kconfig files embed absolute source paths. Relocate all of
     # them before olddefconfig, otherwise options resolve in the old tree.
-    for folder in ['apps','nuttx']:
-        for f in (root/folder).rglob('Kconfig*'):
-            if f.is_file() and not f.is_symlink():
-                data=f.read_bytes();updated=data.replace(str(base).encode(),str(root).encode())
-                if updated!=data:f.write_bytes(updated)
+    relocate_kconfig_sources(root, base)
     # Apply only the requested current overlay, preserving the external tree.
     overlay=repo/'app/espdl-quickapp/overlay'
     radio_sources=[repo/'tools/c6'/name for name in
@@ -469,6 +497,7 @@ def main():
           base/'tls-build-espdl/tf-psa-crypto/core/libtfpsacrypto.a']
     for name in ['libstdc++.a','libsupc++.a','libgcc.a']:
         libs.append(Path(subprocess.check_output([str(tc/'riscv32-esp-elf-g++'),*abi,'-print-file-name='+name],text=True).strip()))
+    relocate_kconfig_sources(root, base)
     run(['make','olddefconfig',cross],cwd=root/'nuttx')
     config=cfg.read_text()
     if a.sd_spi_dma:
