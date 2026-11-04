@@ -4,16 +4,21 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "glass_local_model.h"
-enum glv_phase {GLV_IDLE,GLV_CHECKING,GLV_LOADING_LLM,GLV_GENERATING,GLV_FRONTEND,GLV_LOADING_TTS,GLV_SYNTHESIZING,GLV_SPEAKING,GLV_STOPPING,GLV_FAILED,GLV_LOADING_ASR,GLV_TRANSCRIBING,GLV_RECORDING,GLV_CHECKING_ASR,GLV_TOKENIZING,GLV_PREFILL,GLV_PHASE_COUNT};
+enum glv_phase {GLV_IDLE,GLV_CHECKING,GLV_LOADING_LLM,GLV_GENERATING,GLV_FRONTEND,GLV_LOADING_TTS,GLV_SYNTHESIZING,GLV_SPEAKING,GLV_STOPPING,GLV_FAILED,GLV_LOADING_ASR,GLV_TRANSCRIBING,GLV_RECORDING,GLV_CHECKING_ASR,GLV_TOKENIZING,GLV_PREFILL,GLV_CONTROLLING,GLV_PHASE_COUNT};
 enum glv_cancel_source {GLV_CANCEL_NONE,GLV_CANCEL_API,GLV_CANCEL_UI_STOP,GLV_CANCEL_UI_NEW,GLV_CANCEL_CLI_STOP,GLV_CANCEL_CLI_NEW,GLV_CANCEL_CONFIG,GLV_CANCEL_VIEW_CLOSE,GLV_CANCEL_STORAGE,GLV_CANCEL_UNATTRIBUTED,GLV_CANCEL_AUDIO};
-enum glv_mode {GLV_DIALOGUE,GLV_READ};
+enum glv_mode {GLV_DIALOGUE,GLV_READ,GLV_CONTROL};
 struct glv_snapshot {
   uint32_t request,revision;enum glv_phase phase;
+  enum glv_mode selected_mode;
+  unsigned thinking_rounds,model_rounds,review_rounds,tool_rounds;
+  bool resident_control_model;
   bool busy,models_ready,asr_ready,local_wake,wake_enabled,config_pending;
   int error,model_error;unsigned tokens,elapsed_ms,first_token_ms,first_audio_ms;
   size_t memory_peak;char detail[128];
   int asr_error;unsigned input_level,capture_ms,asr_tokens,asr_first_token_ms,asr_elapsed_ms;
   bool capture_pending;
+  bool asr_streaming,capture_active;
+  unsigned asr_decoded_ms,asr_backlog_ms;
   enum glv_cancel_source cancel_source;
   enum glv_phase cancel_phase;
   unsigned cancel_ms,stage_ms[GLV_PHASE_COUNT],progress_done,progress_total;
@@ -41,11 +46,16 @@ struct glv_snapshot {
 };
 /* Initialize only from the persistent desktop task, before opening CLI entrypoints. */
 int glass_local_voice_start(void);
+/* Volatile, idle-only controls; changing mode never sends or replays input. */
+int glass_local_voice_select(enum glv_mode);
+int glass_local_voice_thinking(unsigned rounds);
+int glass_local_voice_thinking_benchmark(unsigned index,uint32_t *request);
 int glass_local_voice_send(const char *,enum glv_mode,uint32_t *);
 /* Diagnostic fixed text synthesis, same buffering but no audio device open. */
 int glass_local_voice_tts_benchmark(const char *,uint32_t *);
 /* Fixed, manifest-bound tool-model diagnostic. Generates text; no execution/audio. */
 int glass_local_voice_tool_benchmark(unsigned,uint32_t *);
+int glass_local_voice_tool_cached_benchmark(unsigned,uint32_t *);
 int glass_local_voice_tts_kernel(bool);
 int glass_local_voice_tts_parallel(bool);
 /* Volatile diagnostic only, default off; explicit FMA changes FP rounding. */
@@ -71,12 +81,14 @@ int glass_local_voice_q4_backend(unsigned);
 /* Staged board gate, not the microphone entry and does not set asr_ready. */
 int glass_local_voice_asr_test(unsigned,uint32_t *);
 int glass_local_voice_listen(uint32_t *);
+int glass_local_voice_listen_control(uint32_t *);
 int glass_local_voice_finish_capture(uint32_t);
 bool glass_local_voice_get_transcript(uint32_t,char *,size_t);
 void glass_local_voice_stop(uint32_t);
 void glass_local_voice_cancel(void);
 /* Retire retained model state on its owner worker; never free from the UI. */
 void glass_local_voice_release(void);
+int glass_local_voice_yield_idle_model(unsigned timeout_ms);
 int glass_local_voice_yield_model(unsigned);
 /* First cancellation cause wins; stale request IDs cannot cancel a new job. */
 void glass_local_voice_stop_from(uint32_t,enum glv_cancel_source);

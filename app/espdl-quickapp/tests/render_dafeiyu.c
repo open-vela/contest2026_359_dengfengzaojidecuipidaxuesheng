@@ -28,20 +28,20 @@ int main(int argc,char **argv)
     g_desktop.light_theme=theme==0;glass_rebuild();
     for(unsigned cycle=0;cycle<30;cycle++){
       launch_builtin_dafeiyu_qapp(NULL);
-      assert(!qpk_review_eval("const fixturePet=createPet();let fixtureMaid=false;Object.assign(system.pet,fixturePet,{getState(){return Object.assign(fixturePet.getState(),{appearance:fixtureMaid?'maid':'fallback'});},loadAppearance(){fixtureMaid=true;return true;}});Dafeiyu.tick()"));
+      assert(!qpk_review_eval("const fixturePet=createPet();let fixtureMaid=false;Object.assign(system.pet,fixturePet,{getState(){return Object.assign(fixturePet.getState(),{appearance:fixtureMaid?'seagull':'fallback'});},loadAppearance(){fixtureMaid=true;return true;}});Dafeiyu.tick()"));
       unsigned widgets=qpk_runtime_widget_count();assert(widgets>20&&widgets<100);
       review_click("跟随");
       assert(!qpk_review_eval("if(Dafeiyu.getState().mode!=='follow')throw Error('mode')"));
-      if(!cycle)review_capture(display,"dafeiyu-company","大肥鱼 · 陪伴");
-      review_click("喂食");review_click("小鱼干");
+      if(!cycle)review_capture(display,"dafeiyu-company","海鸥 · 陪伴");
+      review_click("喂食");review_click("薯条");
       assert(!qpk_review_eval("if(Dafeiyu.getState().hunger>=28)throw Error('feed')"));
-      if(!cycle)review_capture(display,"dafeiyu-food","大肥鱼 · 喂食");
-      review_click("外观");review_click("加载女仆装");
-      assert(!qpk_review_eval("if(Dafeiyu.getState().appearance!=='maid')throw Error('maid')"));
-      if(!cycle)review_capture(display,"dafeiyu-appearance","大肥鱼 · 外观（服务夹具）");
+      if(!cycle)review_capture(display,"dafeiyu-food","海鸥 · 喂食");
+      review_click("外观");review_click("恢复海鸥形象");
+      assert(!qpk_review_eval("if(Dafeiyu.getState().appearance!=='seagull')throw Error('seagull')"));
+      if(!cycle)review_capture(display,"dafeiyu-appearance","海鸥 · 外观（服务夹具）");
       review_click("设置");review_click("大");review_click("隐藏桌宠");
       assert(!qpk_review_eval("if(Dafeiyu.getState().visible||Dafeiyu.getState().size!=='large')throw Error('settings')"));
-      if(!cycle)review_capture(display,"dafeiyu-settings","大肥鱼 · 设置");
+      if(!cycle)review_capture(display,"dafeiyu-settings","海鸥 · 设置");
       assert(qpk_runtime_widget_count()==widgets);
       panel_hide(NULL);assert(!qpk_runtime_running());
       assert(lv_obj_get_child_count(g_desktop.panel)==0);

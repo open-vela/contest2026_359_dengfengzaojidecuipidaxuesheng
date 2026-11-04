@@ -8,7 +8,7 @@ def main():
     for name in ('artifacts','asr-release','release','output'):p.add_argument('--'+name,type=Path,required=True)
     a=p.parse_args();root=Path(__file__).resolve().parents[2];out=a.output.resolve();out.mkdir(parents=True,exist_ok=False)
     d=root/'app/espdl-quickapp/overlay/apps/system/desktop';e=root/'app/espdl-quickapp/experimental'
-    sources=[d/('glass_local_'+v+'.c') for v in ('model','sha','tokenizer','assets','llm','tts','frontend','voice','asr')]
+    sources=[d/('glass_local_'+v+'.c') for v in ('model','sha','tokenizer','assets','llm','w8a8','tts','frontend','voice','asr')]
     sources.extend(e/(v+'.c') for v in ('local_asr','local_asr_graph','local_asr_ops','local_asr_fbank'))
     sources.append(root/'app/espdl-quickapp/tests/local_microphone_worker_host.c')
     source_hashes={str(s.relative_to(root)):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources}
@@ -27,7 +27,7 @@ def main():
             subprocess.run([str(exe),'%08x'%digest],stdout=log,stderr=subprocess.STDOUT,check=True,timeout=600)
         print((out/'run.log').read_text(encoding='utf-8')[-2400:],flush=True)
     assert source_hashes=={str(s.relative_to(root)):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources},'Test sources changed while running; repeat against an immutable snapshot'
-    report=dict(passed=True,scope='ASAN/UBSAN actual persistent worker -> real manifest-bound Zipformer sample -> real Q4 EdgeIdiot text only; capture/card are fakes; zero playback, no physical/human acceptance',source_sha256=source_hashes)
+    report=dict(passed=True,scope='ASAN/UBSAN actual persistent worker -> real manifest-bound Zipformer sample -> real resident W8A8 EdgeIdiot text only; capture/card are fakes; zero playback, no physical/human acceptance',source_sha256=source_hashes)
     (out/'VERIFICATION.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
 
 if __name__=='__main__':main()

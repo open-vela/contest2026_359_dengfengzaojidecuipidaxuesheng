@@ -9,21 +9,15 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <time.h>
 #include "../overlay/apps/system/desktop/glass_portal.h"
 
 static unsigned short fixture_port;
 static atomic_bool fixture_stop,fixture_block_bind;
 static atomic_int fixture_fault,fixture_send_budget=-1;
-static atomic_uint fixture_listener_error_budget;
-static atomic_uint fixture_clock_ms,fixture_download_budget;
-static atomic_bool fixture_advance_download;
 static atomic_uint fixture_faults,fixture_listener_closes;
 static pthread_t fixture_thread;
 static void *fixture_pending;
 static int fixture_held=-1;
-static char fixture_file[]="/tmp/portal-transfer-XXXXXX";
-static int fixture_clock_gettime(clockid_t,struct timespec *);
 static int fixture_poll(struct pollfd *,nfds_t,int);
 static int fixture_close(int);
 static int fixture_bind(int,const struct sockaddr *,socklen_t);
@@ -38,7 +32,6 @@ static int fixture_detach(pthread_t);
 #define send fixture_send
 #define pthread_create fixture_create
 #define pthread_detach fixture_detach
-#define clock_gettime fixture_clock_gettime
 #ifndef PORTAL_HTTP_SOURCE
 #define PORTAL_HTTP_SOURCE "../overlay/apps/system/desktop/glass_portal_http.c"
 #endif
@@ -49,14 +42,6 @@ static int fixture_detach(pthread_t);
 #undef send
 #undef pthread_create
 #undef pthread_detach
-#undef clock_gettime
-
-static int fixture_clock_gettime(clockid_t clock,struct timespec *value)
-{
-  int ret=clock_gettime(clock,value);
-  if(!ret&&clock==CLOCK_MONOTONIC)value->tv_sec+=atomic_load(&fixture_clock_ms)/1000;
-  return ret;
-}
 
 static int fixture_create(pthread_t *thread,const pthread_attr_t *attr,
                            void *(*entry)(void *),void *arg)
@@ -80,13 +65,6 @@ static int fixture_bind(int fd,const struct sockaddr *address,socklen_t size)
 }
 static ssize_t fixture_send(int fd,const void *buffer,size_t size,int flags)
 {
-  if(size>=8&&!memcmp(buffer,"HTTP/1.1",8)&&memmem(buffer,size,"Content-Disposition:",20)) {
-    int64_t budget=io_deadline-milliseconds();
-    atomic_store(&fixture_download_budget,budget>0?(unsigned)budget:0);
-    /* Simulate an active transfer crossing the old 120-second deadline.
-     * Monotonic time advances after header readiness; no wall-clock sleep. */
-    if(atomic_exchange(&fixture_advance_download,false))atomic_fetch_add(&fixture_clock_ms,125000);
-  }
   int budget=atomic_load(&fixture_send_budget);
   if(budget==0) {
     atomic_store(&fixture_send_budget,-1);errno=ECONNRESET;return -1;
@@ -104,12 +82,6 @@ static int fixture_poll(struct pollfd *events,nfds_t count,int timeout)
       for(unsigned i=0;i<PENDING_CLIENTS;i++) close_client(pending+i);
       int fd=atomic_exchange(&listener,-1);if(fd>=0)close(fd);
       free(pending);fixture_pending=NULL;pthread_exit(NULL);
-    }
-    if(events[0].fd>=0&&atomic_load(&fixture_listener_error_budget)>0) {
-      atomic_fetch_sub(&fixture_listener_error_budget,1);
-      fixture_faults++;
-      for(nfds_t i=0;i<count;i++)events[i].revents=0;
-      events[0].revents=POLLERR;return 1;
     }
     int fault=atomic_exchange(&fixture_fault,0);
     if(fault) {
@@ -153,13 +125,7 @@ cJSON *portal_config_get(const char *section)
 int portal_config_save(const char *section,const cJSON *patch)
 { (void)section;(void)patch;assert(false);return -EINVAL; }
 int portal_public_path(const char *path,char *out,size_t size)
-{
-  if(!strcmp(path,"files/native-transfer.bin"))
-    return snprintf(out,size,"%s",fixture_file)>=(int)size?-ENAMETOOLONG:0;
-  assert(false);return -EINVAL;
-}
-int portal_public_write_path(const char *path,char *out,size_t size)
-{ return portal_public_path(path,out,size); }
+{ (void)path;(void)out;(void)size;assert(false);return -EINVAL; }
 int portal_install_target(const char *path,char *out,size_t size)
 { (void)path;(void)out;(void)size;assert(false);return -EINVAL; }
 int portal_install_begin(const cJSON *value,char *error,size_t size)
@@ -171,11 +137,6 @@ static void report(const char *code)
 {
   int fd=atomic_load(&listener),flags=fd>=0?fcntl(fd,F_GETFD):-1;
   unsigned clients=0,clients_cloexec=0;
-  unsigned streak=0,recoveries=0;
-#ifdef LISTENER_POLL_FAULT_LIMIT
-  streak=atomic_load(&portal_poll_fault_streak);
-  recoveries=atomic_load(&portal_poll_recoveries);
-#endif
   struct pending_client *pending=fixture_pending;
   if(pending)for(unsigned i=0;i<PENDING_CLIENTS;i++)if(pending[i].fd>=0) {
     clients++;int value=fcntl(pending[i].fd,F_GETFD);
@@ -184,22 +145,16 @@ static void report(const char *code)
   printf("{\"port\":%u,\"code\":\"%s\",\"listener\":%d,\"listener_cloexec\":%s,"
     "\"accepts\":%u,\"closes\":%u,\"active\":%u,\"errors\":%u,\"error\":%d,"
     "\"stage\":%u,\"listener_closes\":%u,\"faults\":%u,\"clients\":%u,"
-    "\"clients_cloexec\":%u,\"held\":%s,\"poll_streak\":%u,\"http_recoveries\":%u,"
-    "\"download_budget_ms\":%u,\"transfer_clock_ms\":%u}\n",fixture_port,code?code:"",fd,
+    "\"clients_cloexec\":%u,\"held\":%s}\n",fixture_port,code?code:"",fd,
     flags>=0&&(flags&FD_CLOEXEC)?"true":"false",atomic_load(&portal_accepts),
     atomic_load(&portal_closes),atomic_load(&portal_active),atomic_load(&portal_errors),
     atomic_load(&portal_last_error),atomic_load(&portal_stage),
     atomic_load(&fixture_listener_closes),atomic_load(&fixture_faults),clients,
-    clients_cloexec,fixture_held>=0?"true":"false",streak,recoveries,
-    atomic_load(&fixture_download_budget),atomic_load(&fixture_clock_ms));fflush(stdout);
+    clients_cloexec,fixture_held>=0?"true":"false");fflush(stdout);
 }
 
 int main(void)
 {
-  int transfer=mkstemp(fixture_file);assert(transfer>=0);
-  char block[65536];memset(block,0x5a,sizeof(block));
-  for(unsigned i=0;i<128;i++)assert(write(transfer,block,sizeof(block))==sizeof(block));
-  close(transfer);
   /* Reserve an ephemeral port, then let unmodified service_start bind it. */
   int fd=socket(AF_INET,SOCK_STREAM,0);assert(fd>=0);
   struct sockaddr_in address={.sin_family=AF_INET,.sin_addr.s_addr=htonl(INADDR_LOOPBACK)};
@@ -211,12 +166,10 @@ int main(void)
   char command[80];
   while(fgets(command,sizeof(command),stdin)) {
     if(!strncmp(command,"STOP",4)) break;
-    if(!strncmp(command,"LISTENERERRS ",13))atomic_store(&fixture_listener_error_budget,strtoul(command+13,NULL,10));
-    else if(!strncmp(command,"LISTENERERR",11))atomic_store(&fixture_fault,1);
+    if(!strncmp(command,"LISTENERERR",11))atomic_store(&fixture_fault,1);
     else if(!strncmp(command,"CLIENTERR",9))atomic_store(&fixture_fault,2);
     else if(!strncmp(command,"POLL_EBADF",10))atomic_store(&fixture_fault,3);
     else if(!strncmp(command,"TRUNCATE",8))atomic_store(&fixture_send_budget,2048);
-    else if(!strncmp(command,"ADVANCE_DOWNLOAD",16))atomic_store(&fixture_advance_download,true);
     else if(!strncmp(command,"INVALID_BLOCK",13)) {
       atomic_store(&fixture_block_bind,true);fd=atomic_load(&listener);if(fd>=0)close(fd);
     } else if(!strncmp(command,"INVALID",7)) {
@@ -236,6 +189,5 @@ int main(void)
   atomic_store(&fixture_block_bind,false);
   if(fixture_held>=0)close(fixture_held);
   atomic_store(&fixture_stop,true);assert(!pthread_join(fixture_thread,NULL));
-  assert(!unlink(fixture_file));
   portal_session_close();return 0;
 }

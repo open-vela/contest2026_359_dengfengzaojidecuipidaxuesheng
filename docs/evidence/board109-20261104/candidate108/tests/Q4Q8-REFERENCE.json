@@ -1,0 +1,13 @@
+{
+  "model": "old Q4/Q8 mixed; scalar baseline with unchanged original weight SHA",
+  "cases": [
+    {
+      "id": "0",
+      "text": "对我做了介绍那么我想说的是大家如果对我的研究感兴趣"
+    },
+    {
+      "id": "1",
+      "text": "重点呢想谈三个问题首先就是这一轮全球金融动能的表现"
+    }
+  ]
+}

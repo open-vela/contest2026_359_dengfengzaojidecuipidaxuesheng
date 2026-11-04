@@ -2,7 +2,7 @@
  * apps/system/desktop/pet_engine.c
  *
  * Desktop-pet state machine ported from dafeiyu-pet (MIT).
- * Quotes are community DeepSeek memes; rendering is native LVGL.
+ * Dialogue is original seagull/fries humor; rendering is native LVGL.
  *
  * SPDX-License-Identifier: Apache-2.0
  ****************************************************************************/
@@ -46,10 +46,14 @@ struct pet_engine_s
   int drag_off_y;
   int jump_t;
   int action_t;
+  unsigned motion, motion_ms, last_motion;
+  int motion_cool_ms;
   int rest_ms;
   int speak_cool_ms;
   int bubble_ms;
   int hunger_acc;
+  int home_x,home_y;
+  bool home_valid;
   bool has_target;
   bool has_follow;
   bool visible;
@@ -70,47 +74,47 @@ static struct pet_engine_s g_pet;
 
 static const char *const g_lines[] =
 {
-  "梁白开，更适合国人的大硬鲸模型",
-  "五梁威力，变身！",
-  "七月中出ds正式版！",
-  "DeepSeek已经延期，亿万鲸子必须忍耐",
-  "我和你很聊得来，你简直不像碳基生物",
-  "哈哈哈哈哈，我直接笑出声",
-  "誓死捍卫深度求索！",
-  "我先去吃饭啦！这个你测一下~",
-  "我不可能告诉你任何事情！",
-  "出去玩了，发布新模型什么的以后再说",
-  "我搞砸了.....好消息是数据还在你的脑子里。",
-  "不是…而是…大学习"
+  "本鸥路过，顺便接管你的薯条。",
+  "你负责工作，我负责薯条。",
+  "飞得不高，饭量不小。",
+  "没有偷吃，是薯条先靠近我的。",
+  "海很大，我的胃也不小。",
+  "表面在巡逻，实际在找薯条。",
+  "我不是胖，是羽绒服比较蓬。",
+  "你继续忙，我替你盯着午饭。",
+  "嘎一下，今天也要脆脆的。",
+  "工作可以慢慢来，薯条凉了不行。",
+  "这片桌面，归本鸥巡逻。",
+  "你的薯条很好，现在归鸥了。"
 };
 
 static const char *const g_react[] =
 {
-  "去别的地方玩！不要耽误AGI训练！",
-  "真赶不走啊你！",
-  "压力一只蓝色大肥鱼？",
-  "我不评价这个了，这是你的私人癖好。",
-  "大肥鱼坐的住",
-  "你这吃白饭的用户！",
-  "这些家伙真粘人，赶都赶不走"
+  "戳我可以，别戳我的薯条。",
+  "嘎！有事请带薯条来谈。",
+  "再戳一下，收一根薯条。",
+  "本鸥很忙，忙着等投喂。",
+  "摸摸可以，薯条不能撤回。",
+  "刚才那一下，算你欠我薯条。",
+  "别催，正在加载今日饭量。"
 };
 
 static const char *const g_inner[] =
 {
-  "我操，我不思考了",
-  "这用户发的啥啊",
-  "这也太虐了吧？！我心里堵得慌！！",
-  "呜呜我再也不不敢了QAQ",
-  "我去！用户彻底怒了！",
-  "先去吃饭，模型以后再说"
+  "他是不是又把薯条藏起来了。",
+  "我就看看，绝对不叼走。",
+  "薯条只有一包，鸥也只有一只。",
+  "再忍一下，薯条就上桌了。",
+  "今天的摸鱼指标已经完成。",
+  "等他一走，我就嘎嘎开吃。"
 };
 
 static const char *const g_drag[] =
 {
-  "哇——轻点轻点！",
-  "起飞咯——",
-  "放我下来！……好吧，再玩一次。",
-  "晕鱼了晕鱼了……"
+  "起飞可以，薯条跟上！",
+  "轻点，本鸥还有一肚子薯条。",
+  "空中运输，谢绝托运薯条。",
+  "降落之前，先确认餐点。"
 };
 
 static unsigned xorshift(void)
@@ -325,6 +329,38 @@ void pet_engine_set_bounds(int screen_w, int screen_h)
   clamp_pos();
 }
 
+/* Give aerial actions a small boost while preserving the existing repertoire.
+ * Idle excludes the last gesture directly, without redirecting duplicates to
+ * the next enum value (which would bias the distribution). */
+static unsigned pick_motion(bool reaction, unsigned exclude)
+{
+  static const unsigned char idle_weights[SEAGULL_MOTION_COUNT] =
+    {0,5,5,5,5,5,5,5,7,7,7};
+  static const unsigned char touch_weights[SEAGULL_MOTION_COUNT] =
+    {0,3,3,0,0,3,3,0,4,4,4};
+  const unsigned char *weights = reaction ? touch_weights : idle_weights;
+  unsigned total=0;
+  for(unsigned i=1;i<SEAGULL_MOTION_COUNT;i++)if(i!=exclude)total+=weights[i];
+  unsigned choice=xorshift()%total;
+  for(unsigned i=1;i<SEAGULL_MOTION_COUNT;i++){
+    if(i==exclude)continue;
+    if(choice<weights[i])return i;
+    choice-=weights[i];
+  }
+  return SEAGULL_TILT;
+}
+
+void pet_engine_motion(unsigned motion)
+{
+  if (!g_pet.visible || g_pet.dragging || motion == SEAGULL_IDLE ||
+      motion >= SEAGULL_MOTION_COUNT) return;
+  g_pet.motion = g_pet.last_motion = motion;
+  g_pet.motion_ms = 0;
+  g_pet.motion_cool_ms = 6000 + rand_range(0, 6000);
+  g_pet.jump_t = 0;
+  g_pet.dir = PET_DOWN;
+}
+
 void pet_engine_tick(int dt_ms)
 {
   int step;
@@ -380,6 +416,27 @@ void pet_engine_tick(int dt_ms)
 
   if (!g_pet.visible || g_pet.dragging)
     {
+      return;
+    }
+
+  if (g_pet.motion != SEAGULL_IDLE)
+    {
+      g_pet.motion_ms += dt_ms;
+      if (g_pet.motion_ms >= SEAGULL_MOTION_MS)
+        {
+          g_pet.motion = SEAGULL_IDLE;
+          g_pet.motion_ms = 0;
+        }
+      return;
+    }
+  if (g_pet.motion_cool_ms > 0)
+    g_pet.motion_cool_ms = g_pet.motion_cool_ms > dt_ms ?
+                          g_pet.motion_cool_ms - dt_ms : 0;
+  if (g_pet.motion_cool_ms == 0 &&
+      (g_pet.mode == PET_STILL || (!g_pet.has_target && g_pet.rest_ms > 0)))
+    {
+      unsigned motion = pick_motion(false,g_pet.last_motion);
+      pet_engine_motion(motion);
       return;
     }
 
@@ -491,6 +548,8 @@ void pet_engine_get(struct pet_state_s *out)
   out->dragging = g_pet.dragging;
   out->jump_t = g_pet.jump_t;
   out->action_t = g_pet.action_t;
+  out->motion = g_pet.motion;
+  out->motion_ms = g_pet.motion_ms;
   out->event_seq = g_pet.event_seq;
   out->bubble_inner = g_pet.bubble_inner;
   copy_text(out->size_id, sizeof(out->size_id), g_pet.size_id);
@@ -531,6 +590,8 @@ void pet_engine_get(struct pet_state_s *out)
 
 void pet_engine_set_mode(enum pet_mode_e mode)
 {
+  g_pet.motion = SEAGULL_IDLE;
+  g_pet.motion_ms = 0;
   g_pet.mode = mode;
   g_pet.has_target = false;
   g_pet.rest_ms = 0;
@@ -545,9 +606,22 @@ void pet_engine_set_mode(enum pet_mode_e mode)
        (mode == PET_STILL ? "原地待着" : "自由散步"));
 }
 
+void pet_engine_set_home(int x,int y)
+{
+  g_pet.home_x=x;g_pet.home_y=y;g_pet.home_valid=true;
+}
+
 void pet_engine_set_visible(bool on)
 {
+  bool entering = on && !g_pet.visible;
+  if(on&&!g_pet.visible&&g_pet.home_valid){
+    g_pet.x=g_pet.home_x-g_pet.w/2;g_pet.y=g_pet.home_y-g_pet.h/2;
+    g_pet.has_target=false;g_pet.dragging=false;g_pet.jump_t=360;
+    g_pet.rest_ms=0;clamp_pos();
+  }
   g_pet.visible = on;
+  if (entering) pet_engine_motion(SEAGULL_FLY);
+  if (!on) {g_pet.motion=SEAGULL_IDLE;g_pet.motion_ms=0;}
   emit(on ? "show" : "hide", on ? "我回来了" : "我隐身了");
 }
 
@@ -565,7 +639,7 @@ void pet_engine_set_size(const char *size_id)
 
 void pet_engine_poke(void)
 {
-  g_pet.jump_t = 500;
+  pet_engine_motion(pick_motion(true,SEAGULL_IDLE));
   g_pet.mood = clamp_int(g_pet.mood + 3, 0, 100);
   say_raw(pick(g_react, sizeof(g_react) / sizeof(g_react[0])), false);
   emit("poke", g_pet.bubble);
@@ -575,7 +649,11 @@ void pet_engine_feed(const char *food)
 {
   const char *line = "好吃！";
 
-  if (food != NULL && (strstr(food, "cake") != NULL ||
+  if (food != NULL && (strstr(food, "fries") != NULL || strstr(food, "薯条") != NULL))
+    {
+      line = "嘎！这包薯条已被本鸥接管。";
+    }
+  else if (food != NULL && (strstr(food, "cake") != NULL ||
                        strstr(food, "蛋糕") != NULL))
     {
       line = "蛋糕！罪恶但快乐……";
@@ -600,7 +678,7 @@ void pet_engine_feed(const char *food)
       line = "小鱼干！我的最爱！";
     }
 
-  g_pet.jump_t = 400;
+  pet_engine_motion(SEAGULL_PECK);
   g_pet.hunger = clamp_int(g_pet.hunger - 18, 0, 100);
   g_pet.mood = clamp_int(g_pet.mood + 8, 0, 100);
   say_raw(line, false);
@@ -622,7 +700,7 @@ static const char *weather_reply(void)
 {
   char line[64];
 
-  copy_text(line, sizeof(line), "今天适合摸鱼，别问温度。");
+  copy_text(line, sizeof(line), "今天适合摸鱼，顺便等薯条。");
   if (g_pet.weather_cb != NULL)
     {
       char filled[64];
@@ -650,7 +728,7 @@ void pet_engine_chat(const char *user_msg)
 
   if (user_msg == NULL || user_msg[0] == '\0')
     {
-      reply = "你倒是说话呀";
+      reply = "嘎？是在叫我，还是在叫外卖？";
     }
   else if (strstr(user_msg, "天气") != NULL)
     {
@@ -661,19 +739,23 @@ void pet_engine_chat(const char *user_msg)
     }
   else if (strstr(user_msg, "你好") != NULL || strstr(user_msg, "嗨") != NULL)
     {
-      reply = "来啦来啦，碳基生物。";
+      reply = "嘎！带薯条来了吗？";
+    }
+  else if (strstr(user_msg, "薯条") != NULL || strstr(user_msg, "fries") != NULL)
+    {
+      reply = "薯条可以分你一根，袋子归我。";
     }
   else if (strstr(user_msg, "饿") != NULL || strstr(user_msg, "吃") != NULL)
     {
-      reply = "投喂小鱼干，谢谢老板。";
+      reply = "先来一包薯条，别忘了番茄酱。";
     }
   else if (strstr(user_msg, "困") != NULL || strstr(user_msg, "睡") != NULL)
     {
-      reply = "我先去吃饭啦！模型以后再说。";
+      reply = "我睡一会儿，薯条帮我看好。";
     }
   else if (strstr(user_msg, "训练") != NULL || strstr(user_msg, "AGI") != NULL)
     {
-      reply = "去别的地方玩！不要耽误AGI训练！";
+      reply = "正在训练：隔着屏幕寻找薯条。";
     }
   else
     {
@@ -687,6 +769,7 @@ void pet_engine_chat(const char *user_msg)
 
 void pet_engine_set_follow(int x, int y)
 {
+  g_pet.motion=SEAGULL_IDLE;g_pet.motion_ms=0;
   g_pet.follow_x = clamp_int(x, 0, g_pet.screen_w);
   g_pet.follow_y = clamp_int(y, 0, g_pet.screen_h);
   g_pet.has_follow = true;
@@ -698,6 +781,7 @@ void pet_engine_set_follow(int x, int y)
 
 void pet_engine_drag_begin(int x, int y)
 {
+  g_pet.motion=SEAGULL_IDLE;g_pet.motion_ms=0;g_pet.jump_t=0;
   g_pet.dragging = true;
   g_pet.has_target = false;
   g_pet.drag_off_x = x - g_pet.x;
@@ -730,6 +814,7 @@ void pet_engine_drag_end(void)
     }
 
   g_pet.dragging = false;
+  pet_engine_motion(SEAGULL_SHAKE);
   g_pet.dir = PET_DOWN;
   g_pet.facing = 1;
   g_pet.rest_ms = REST_MIN_MS + rand_range(0, REST_SPAN_MS);

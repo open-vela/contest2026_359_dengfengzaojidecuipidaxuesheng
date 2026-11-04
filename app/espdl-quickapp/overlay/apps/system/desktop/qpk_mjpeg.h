@@ -21,6 +21,10 @@ size_t qpk_mjpeg_frame_size(void *decoder);
 int qpk_mjpeg_decode(void *decoder, uint8_t *input, size_t size, size_t capacity,
                      uint16_t *output, unsigned width, unsigned height,
                      unsigned expected_width, unsigned expected_height);
+/* Reduced cached artwork: never allocate a full-size hardware DMA frame. */
+int qpk_mjpeg_decode_software(void *decoder, uint8_t *input, size_t size, size_t capacity,
+                              uint16_t *output, unsigned width, unsigned height,
+                              unsigned expected_width, unsigned expected_height);
 /* Decode only the image region of a wider framebuffer, preserving controls. */
 int qpk_mjpeg_decode_region(void *decoder, uint8_t *input, size_t size, size_t capacity,
                            uint16_t *output, unsigned width, unsigned height, unsigned stride,

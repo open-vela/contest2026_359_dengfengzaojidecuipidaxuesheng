@@ -13,3 +13,6 @@ void local_video_draw_status(void (*emit)(const char *,...));
 bool local_video_back(lv_obj_t *owner);
 
 void local_video_view(lv_obj_t *parent,const lv_font_t *font,const char *path,lv_event_cb_t back);
+
+/* Read-only LVGL-thread query; never changes player state. */
+bool local_video_fullscreen_active(void);

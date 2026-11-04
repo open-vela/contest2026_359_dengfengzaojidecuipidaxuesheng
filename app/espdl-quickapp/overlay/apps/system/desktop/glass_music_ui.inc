@@ -1,11 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "glass_music.h"
 #include "glass_ime.h"
+#include "glass_music_favorite_cache.h"
 struct music_full_ui;
 struct music_seek_ui {
   lv_obj_t *elapsed;
   unsigned track, duration;
   bool dragging;
+};
+
+struct music_artwork_ui {
+  struct music_cover_view views[GLASS_COVER_THUMBNAIL_COUNT];
+  lv_obj_t *hosts[MUSIC_FAVORITES_MAX];
+  uint32_t retry_at;
+  uint32_t last_used[GLASS_COVER_THUMBNAIL_COUNT];
 };
 
 static struct {
@@ -17,9 +25,10 @@ static struct {
   lv_timer_t *timer, *sync_timer;
   struct music_snapshot *snapshot;
   struct music_cover_view cover;
+  struct music_artwork_ui *artwork;
   struct music_seek_ui seek;
   unsigned search_revision, favorite_count;
-  bool favorites, valid, return_apps;
+  bool favorites, valid, return_apps, list_valid, list_searching;
   uint32_t primary, secondary, surface, accent, background;
 } g_music_ui;
 
@@ -302,7 +311,10 @@ static void music_ui_row(lv_obj_t *list, const struct music_song *song, unsigned
   lv_obj_t *row=glass_box(list,0,y,494,92,g_music_ui.surface,18);
   music_ui_edge(row,LV_OPA_10);
   glass_clickable(row,music_ui_play,(void *)(uintptr_t)index);
-  music_ui_sleeve(row,14,14,64,12);
+  lv_obj_t *art=music_ui_sleeve(row,14,14,64,12);
+  if(g_music_ui.favorites&&index&&index<=MUSIC_FAVORITES_MAX)
+    g_music_ui.artwork->hosts[index-1]=art;
+  else if(!g_music_ui.favorites&&!index)g_music_ui.artwork->hosts[0]=art;
   music_ui_text(row,song->name,94,18,320,20,g_music_ui.primary);
   char meta[sizeof(song->artist)+sizeof(song->album)+8];
   snprintf(meta,sizeof(meta),"%s%s%s",song->artist[0]?song->artist:glass_tr("未知歌手"),song->album[0]?" · ":"",song->album);
@@ -316,6 +328,11 @@ static void music_ui_row(lv_obj_t *list, const struct music_song *song, unsigned
 static void music_ui_list(void)
 {
   if (!g_music_ui.list) return;
+  for(unsigned i=0;i<GLASS_COVER_THUMBNAIL_COUNT;i++) {
+    music_cover_reset(&g_music_ui.artwork->views[i]);
+    memset(&g_music_ui.artwork->views[i],0,sizeof(g_music_ui.artwork->views[i]));
+  }
+  memset(g_music_ui.artwork->hosts,0,sizeof(g_music_ui.artwork->hosts));
   lv_obj_clean(g_music_ui.list);
   lv_obj_scroll_to_y(g_music_ui.list,0,LV_ANIM_OFF);
   for (unsigned i=0;i<2;i++) {
@@ -323,6 +340,9 @@ static void music_ui_list(void)
     music_ui_nav_style(g_music_ui.nav[i],selected);
   }
   struct music_snapshot *s=g_music_ui.snapshot;
+  g_music_ui.search_revision=s->search_revision;
+  g_music_ui.favorite_count=s->favorite_count;
+  g_music_ui.list_searching=s->searching;g_music_ui.list_valid=true;
   lv_label_set_text(g_music_ui.heading,g_music_ui.favorites?glass_tr("收藏的声音"):glass_tr("听见好时光"));
   lv_label_set_text(g_music_ui.subtitle,g_music_ui.favorites?glass_tr("收藏后自动缓存歌曲和封面到 SD 卡"):glass_tr("一首好歌，一段只属于你的时间。"));
   if (g_music_ui.favorites) {
@@ -354,6 +374,60 @@ static void music_ui_list(void)
   }
 }
 
+static bool music_ui_cover_visible(lv_obj_t *host)
+{
+  if(!host||!g_music_ui.list)return false;
+  lv_area_t viewport,bounds;lv_obj_get_coords(g_music_ui.list,&viewport);lv_obj_get_coords(host,&bounds);
+  return bounds.y2>=viewport.y1&&bounds.y1<=viewport.y2;
+}
+static void music_ui_favorite_covers(const struct music_now_playing *playing)
+{
+  if(!g_music_ui.list||!g_music_ui.artwork)return;
+  lv_obj_update_layout(g_music_ui.list);
+  struct music_artwork_ui *art=g_music_ui.artwork;
+  uint32_t now=lv_tick_get();bool retry=now-art->retry_at>=5000;
+  if(retry)art->retry_at=now;
+  lv_obj_t *visible[GLASS_COVER_THUMBNAIL_COUNT];unsigned rows[GLASS_COVER_THUMBNAIL_COUNT],used=0;
+  bool pinned[GLASS_COVER_THUMBNAIL_COUNT]={false};
+  unsigned count=g_music_ui.favorites?g_music_ui.snapshot->favorite_count:g_music_ui.snapshot->has_result?1:0;
+  /* Pin every still-visible binding before choosing any eviction. Assigning
+   * slots by viewport order used to recycle all shared rows after a scroll. */
+  for(unsigned i=0;i<count&&used<GLASS_COVER_THUMBNAIL_COUNT;i++){
+    lv_obj_t *host=art->hosts[i];if(!music_ui_cover_visible(host))continue;
+    visible[used]=host;rows[used++]=i;
+    for(unsigned k=0;k<GLASS_COVER_THUMBNAIL_COUNT;k++)if(art->views[k].host==host)pinned[k]=true;
+  }
+  for(unsigned j=0;j<used;j++){
+    unsigned slot=GLASS_COVER_THUMBNAIL_COUNT;
+    for(unsigned k=0;k<GLASS_COVER_THUMBNAIL_COUNT;k++)if(art->views[k].host==visible[j]){slot=k;break;}
+    if(slot==GLASS_COVER_THUMBNAIL_COUNT){
+      uint32_t oldest=0;
+      for(unsigned k=0;k<GLASS_COVER_THUMBNAIL_COUNT;k++){
+        if(pinned[k])continue;
+        if(!art->views[k].host){slot=k;break;}
+        uint32_t age=now-art->last_used[k];
+        if(slot==GLASS_COVER_THUMBNAIL_COUNT||age>oldest){slot=k;oldest=age;}
+      }
+      if(slot==GLASS_COVER_THUMBNAIL_COUNT)continue;
+      music_cover_reset(&art->views[slot]);memset(&art->views[slot],0,sizeof(art->views[slot]));
+      art->views[slot].host=visible[j];
+    }
+    pinned[slot]=true;art->last_used[slot]=now;
+    struct music_cover_view *view=&art->views[slot];view->owner=GLASS_COVER_THUMBNAIL_FIRST+slot;
+    unsigned i=rows[j];struct music_now_playing cover={.track_id=i+1};
+    const struct music_song *song=g_music_ui.favorites?&g_music_ui.snapshot->favorites[i]:&g_music_ui.snapshot->result;
+    if(glass_music_is_favorite(g_music_ui.snapshot,song)){
+      if(music_favorite_cover_url(song,cover.cover_url))continue;
+    }else if(playing->cover_url[0]&&!strcmp(playing->name,song->name)&&!strcmp(playing->artist,song->artist))
+      memcpy(cover.cover_url,playing->cover_url,sizeof(cover.cover_url));
+    else if(glass_music_artwork_url(song,cover.cover_url,sizeof(cover.cover_url)))continue;
+    if(retry&&view->done&&!view->canvas){view->done=view->requested=false;view->retry_at=0;}
+    music_cover_tick(view,&cover);
+  }
+  /* Retain the bounded off-screen slots as a small cache. Only a newly
+   * visible row may evict a non-visible binding; shared rows never blink. */
+}
+
 static void music_ui_refresh(lv_timer_t *timer)
 {
   LV_UNUSED(timer);
@@ -361,9 +435,6 @@ static void music_ui_refresh(lv_timer_t *timer)
   if(!g_music_ui.full&&!glass_ui_can_paint(g_music_ui.root)){g_music_ui.valid=false;return;}
   music_full_fonts_poll();
   unsigned previous_revision=g_music_ui.snapshot->revision;
-  unsigned previous_search=g_music_ui.snapshot->search_revision;
-  unsigned previous_count=g_music_ui.snapshot->favorite_count;
-  bool searching=g_music_ui.snapshot->searching;
   int storage_error=g_music_ui.snapshot->storage_error;
   glass_music_get(g_music_ui.snapshot);
   struct music_snapshot *s=g_music_ui.snapshot;
@@ -373,12 +444,14 @@ static void music_ui_refresh(lv_timer_t *timer)
    * defer covered-page widgets and artwork until the full-screen view closes. */
   if(g_music_ui.full){g_music_ui.valid=false;return;}
   music_cover_tick(&g_music_ui.cover,&now);
+  music_ui_favorite_covers(&now);
   /* Settings can change the master while the track is paused, without a
    * music revision. Keep the control current before the song-data shortcut. */
   if (!lv_obj_has_state(g_music_ui.volume,LV_STATE_PRESSED)&&lv_slider_get_value(g_music_ui.volume)!=(int)s->volume)
     lv_slider_set_value(g_music_ui.volume,s->volume,LV_ANIM_OFF);
   if (g_music_ui.valid && s->revision==previous_revision) return;
-  if (!g_music_ui.valid || s->search_revision!=previous_search || s->favorite_count!=previous_count || s->searching!=searching) music_ui_list();
+  if (!g_music_ui.list_valid || s->search_revision!=g_music_ui.search_revision ||
+      s->favorite_count!=g_music_ui.favorite_count || s->searching!=g_music_ui.list_searching) music_ui_list();
   if (s->storage_error && s->storage_error!=storage_error) show_toast(s->storage_error==-ENOSPC?glass_tr("收藏空间已满"):glass_tr("收藏未保存，请检查存储"));
   if(g_music_ui.favorites) {
     if(s->offline_caching)
@@ -413,6 +486,8 @@ static void music_ui_deleted(lv_event_t *e)
   LV_UNUSED(e);
   music_full_close(NULL);
   music_cover_reset(&g_music_ui.cover);
+  if(g_music_ui.artwork)for(unsigned i=0;i<GLASS_COVER_THUMBNAIL_COUNT;i++)music_cover_reset(&g_music_ui.artwork->views[i]);
+  free(g_music_ui.artwork);
   if (g_music_ui.timer) lv_timer_delete(g_music_ui.timer);
   if (g_music_ui.sync_timer) lv_timer_delete(g_music_ui.sync_timer);
   free(g_music_ui.snapshot);
@@ -434,10 +509,20 @@ static void glass_music_app(lv_obj_t *card,bool return_apps)
    */
   struct music_snapshot *snapshot=calloc(1,sizeof(*snapshot));
   if(!snapshot){show_toast(glass_tr("音乐页面内存不足"));return;}
+  struct music_artwork_ui *artwork=calloc(1,sizeof(*artwork));
+  if(!artwork){free(snapshot);show_toast(glass_tr("音乐封面内存不足"));return;}
+  /* A card can be rebuilt without deleting the card itself. Retire its
+   * overlay, worker generations, borrowed images and timers before deleting
+   * children; LV_EVENT_DELETE on the card does not run for lv_obj_clean. */
+  if(g_music_ui.root==card){
+    lv_obj_remove_event_cb(card,music_ui_deleted);
+    music_ui_deleted(NULL);
+  }
   lv_obj_clean(card);
   free(g_music_ui.snapshot);
   memset(&g_music_ui,0,sizeof(g_music_ui));
   g_music_ui.snapshot=snapshot;
+  g_music_ui.artwork=artwork;
   g_music_ui.root=card;
   g_music_ui.return_apps=return_apps;
   bool light=g_desktop.light_theme;
@@ -519,6 +604,8 @@ static void glass_music_app(lv_obj_t *card,bool return_apps)
   g_music_ui.bottom_artist=music_ui_text(bar,glass_tr("让好音乐，陪伴此刻"),70,39,112,14,g_music_ui.secondary);
   lv_label_set_long_mode(g_music_ui.bottom_title,LV_LABEL_LONG_DOT);
   lv_label_set_long_mode(g_music_ui.bottom_artist,LV_LABEL_LONG_DOT);
+  lv_obj_set_height(g_music_ui.bottom_title,LV_MIN(28,lv_font_get_line_height(lv_obj_get_style_text_font(g_music_ui.bottom_title,0))));
+  lv_obj_set_height(g_music_ui.bottom_artist,LV_MIN(22,lv_font_get_line_height(lv_obj_get_style_text_font(g_music_ui.bottom_artist,0))));
   music_ui_button(bar,LV_SYMBOL_PREV,234,16,36,36,g_music_ui.surface,music_ui_skip,(void *)-1,true);
   lv_obj_t *play=music_ui_button(bar,LV_SYMBOL_PLAY,276,12,44,44,g_music_ui.accent,music_ui_toggle,NULL,true);
   g_music_ui.play_label=lv_obj_get_child(play,0);

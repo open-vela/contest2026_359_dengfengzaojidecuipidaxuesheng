@@ -243,3 +243,33 @@ glv_tts_int8_context_probe:
     addi sp,sp,32
     ret
     .size glv_tts_int8_context_probe,.-glv_tts_int8_context_probe
+
+/* LLM-only, aligned vectors; one exact signed32 group per32 codes.
+ * FP32 integer*activation_scale, then *weight_scale, then ascending add.
+ * Caller owns/enables PIE; q0/q1 caller-saved, no overread or stack use. */
+    .section .text.glv_llm_dot_groups_pie,"ax",@progbits
+    .align 2
+    .global glv_llm_dot_groups_pie
+    .type glv_llm_dot_groups_pie,@function
+glv_llm_dot_groups_pie:
+    fmv.s ft0,fa0
+    fmv.w.x fa0,zero
+1:
+    esp.zero.xacc
+    esp.vld.128.ip q0,a0,16
+    esp.vld.128.ip q1,a1,16
+    esp.vmulas.s8.xacc.ld.ip q0,a0,16,q0,q1
+    esp.vld.128.ip q1,a1,16
+    esp.vmulas.s8.xacc q0,q1
+    li a4,0
+    esp.srs.s.xacc a5,a4
+    fcvt.s.w ft1,a5
+    flw ft2,0(a2)
+    fmul.s ft1,ft1,ft2
+    fmul.s ft1,ft1,ft0
+    fadd.s fa0,fa0,ft1
+    addi a2,a2,4
+    addi a3,a3,-1
+    bnez a3,1b
+    ret
+    .size glv_llm_dot_groups_pie,.-glv_llm_dot_groups_pie

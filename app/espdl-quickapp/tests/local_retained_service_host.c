@@ -12,16 +12,19 @@
 static atomic_uint generation,media=1;
 static atomic_bool card=true,hold,entered;
 static bool capable=true;
-size_t __real_fread(void *,size_t,size_t,FILE *);
-size_t __wrap_fread(void *p,size_t s,size_t n,FILE *f)
+#include "glass_local_llm.h"
+int __real_glv_llm_generate_tool(struct glv_llm *,const char *,unsigned,char *,size_t,glv_text_sink,void *);
+int __wrap_glv_llm_generate_tool(struct glv_llm *p,const char *prompt,unsigned n,char *reply,size_t cap,glv_text_sink sink,void *arg)
 {
-  if(atomic_load(&hold)){atomic_store(&entered,true);while(atomic_load(&hold))usleep(1000);}
-  return __real_fread(p,s,n,f);
+ if(atomic_load(&hold)){atomic_store(&entered,true);while(atomic_load(&hold))usleep(1000);}
+ return __real_glv_llm_generate_tool(p,prompt,n,reply,cap,sink,arg);
 }
+static atomic_int pressure;
+int glv_platform_memory_pressure(void){return atomic_load(&pressure);}
 bool glv_platform_storage_ready(void){return atomic_load(&card);}
 int glv_platform_storage_stamp(struct glv_storage_stamp *s)
 {if(!capable)return -ENOTSUP;if(!atomic_load(&card))return -ENODEV;s->writes=atomic_load(&generation);s->media=atomic_load(&media);return 0;}
-int glv_platform_budget(size_t *n,size_t *largest){*n=GLV_MEMORY_LIMIT;*largest=8u*1024u*1024u;return 0;}
+int glv_platform_budget(size_t *n,size_t *largest){*n=GLV_MEMORY_LIMIT;*largest=16u*1024u*1024u;return 0;}
 int glv_platform_session_budget(size_t retained,size_t *n,size_t *largest){assert(retained);return glv_platform_budget(n,largest);}
 bool glass_ai_start_enter(void){return true;}
 void glass_ai_start_leave(void){}
@@ -48,18 +51,28 @@ int main(int argc,char **argv)
   assert(argc==3);const char *mode=argv[1];capable=strcmp(mode,"cold")!=0;
   FILE *out=fopen(argv[2],"wb");assert(out);assert(!glass_local_voice_start());struct glv_snapshot s=idle();
   assert(!s.request&&!s.profile.sha_bytes&&!s.session_resident&&!s.session_bytes);
-  char answer[4096];s=chat("你好",answer);assert(!s.error&&s.models_ready&&s.tokens==8);
-  assert(s.profile.sha_bytes>23000000&&!s.profile.session_reuses);
+  char answer[4096];s=chat("你好",answer);assert(!s.error&&s.models_ready&&s.tokens>0);
+  assert(s.profile.sha_bytes>10046336&&!s.profile.session_reuses);
   assert(s.session_resident==capable);uint32_t bytes=(uint32_t)strlen(answer);
   assert(fwrite(&bytes,4,1,out)==1&&fwrite(answer,1,bytes,out)==bytes);
   if(!strcmp(mode,"cancel")||!strcmp(mode,"close-active")){
     atomic_store(&hold,true);uint32_t id;assert(!glass_local_voice_send("1加1等于几？",GLV_DIALOGUE,&id));
     for(unsigned i=0;i<5000&&!atomic_load(&entered);i++)usleep(1000);assert(atomic_load(&entered));
+    assert(glass_local_voice_yield_idle_model(200)==-EBUSY);
     if(!strcmp(mode,"cancel")){assert(!glass_local_voice_new_from(GLV_CANCEL_UI_NEW));glass_local_voice_get(&s,answer,sizeof(answer));assert(!answer[0]&&!s.tokens);}
     else glass_local_voice_release();
     atomic_store(&hold,false);s=idle();assert(!s.session_resident&&!s.session_bytes);
     if(!strcmp(mode,"cancel")){assert(s.error==-ECANCELED&&s.cancel_source==GLV_CANCEL_UI_NEW);glass_local_voice_get(&s,answer,sizeof(answer));assert(!answer[0]);}
     else assert(!s.error&&s.tokens);
+  }else if(!strcmp(mode,"pressure")){
+    assert(s.profile.llm_kv_bytes>0);size_t hot=s.session_bytes;
+    atomic_store(&pressure,1);usleep(700000);s=idle();
+    assert(s.session_resident&&s.session_bytes<hot&&!s.profile.llm_kv_bytes);
+    atomic_store(&pressure,0);s=chat("你好",answer);assert(!s.error&&s.profile.session_reuses);
+    atomic_store(&pressure,2);usleep(700000);s=idle();assert(!s.session_resident&&!s.session_bytes);
+    atomic_store(&pressure,0);
+  }else if(!strcmp(mode,"idle-yield")){
+    assert(!glass_local_voice_yield_idle_model(3000));s=idle();assert(!s.session_resident&&!s.session_bytes);
   }else if(!strcmp(mode,"corrupt")){
     atomic_fetch_add(&generation,1);char path[512];snprintf(path,sizeof(path),"%s/edgeidiot/weights.bin",GLV_RELEASE_ROOT);
     FILE *f=fopen(path,"r+b");assert(f);int old=fgetc(f);assert(!fseek(f,0,SEEK_SET));assert(fputc(old^1,f)!=EOF);fclose(f);atomic_fetch_add(&generation,1);

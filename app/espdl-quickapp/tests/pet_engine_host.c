@@ -52,6 +52,13 @@ int main(void)
   expect(strstr(state.bubble, "小鱼干") != NULL, "feed fish");
   expect(state.hunger < 28, "feed lowers hunger");
 
+  pet_engine_feed("fries");
+  pet_engine_get(&state);
+  expect(strstr(state.bubble, "薯条") != NULL, "feed fries");
+  pet_engine_chat("我的薯条呢");
+  pet_engine_get(&state);
+  expect(strstr(state.last_reply, "薯条") != NULL, "chat fries");
+
   pet_engine_feed("cake");
   pet_engine_get(&state);
   expect(strstr(state.bubble, "蛋糕") != NULL, "feed cake");
@@ -65,7 +72,7 @@ int main(void)
 
   pet_engine_chat("你好呀");
   pet_engine_get(&state);
-  expect(strstr(state.last_reply, "碳基") != NULL, "chat hello");
+  expect(strstr(state.last_reply, "薯条") != NULL, "chat hello");
   expect(state.bubble[0] != '\0', "chat bubble");
 
   pet_engine_chat("今天天气怎么样");

@@ -22,6 +22,7 @@
 #define lv_tiny_ttf_create_data_ex sd_ttf_create_data_ex
 #define lv_tiny_ttf_create_data sd_ttf_create_data
 #include <lvgl/src/libs/tiny_ttf/lv_tiny_ttf.c>
+#include "glass_material_font.inc"
 
 #ifndef GLASS_SD_FONT_PATH
 #define GLASS_SD_FONT_PATH SD_FONT_DEFAULT_PATH

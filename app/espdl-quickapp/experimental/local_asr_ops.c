@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "local_asr_ops.h"
+#ifdef GLV_ASR_OFFICIAL_DSP
+#include "local_asr_dsp.h"
+#endif
+#ifdef GLV_ASR_ACCEL_ENABLED
+#include "local_asr_accel.h"
+#endif
 #include <errno.h>
 #include <limits.h>
 #include <stdint.h>
@@ -23,6 +29,9 @@ int glv_asr_matmul(struct glv_memory *memory,const float *x,size_t nx,float *y,s
   if(!product(m,k,&ax)||!product(m,n,&ay)||!product(k,sizeof(float),&bytes))return -EOVERFLOW;
   if(ax>nx||ay>ny||overlap(x,ax,y,ay))return -EINVAL;
   int ret=glv_cancel(memory);if(ret)return ret;
+#ifdef GLV_ASR_ACCEL_ENABLED
+  if(!memory->asr_reference){ret=glv_asr_accel_matmul(memory,x,y,m,k,n,rows);if(ret!=1)return ret;ret=0;}
+#endif
   float *weight=glv_alloc(memory,bytes);if(!weight)return -ENOMEM;
   for(unsigned o=0;o<n&&!ret;o++){
     ret=rows->read(rows->opaque,o,weight,k);if(ret)break;
@@ -69,14 +78,54 @@ int glv_asr_binary(struct glv_memory *memory,enum glv_asr_binary op,const float 
     dx[i]=vx==1?0:a;dz[i]=vz==1?0:b;
     if(!product(a,vx,&a)||!product(b,vz,&b)||!product(count,dims[i],&count))return -EOVERFLOW;
   }
-  if(ny<count||overlap(x,ax,y,count)||overlap(z,az,y,count))return -EINVAL;
+  if(ny<count||(overlap(x,ax,y,count)&&!(x==y&&ax==count))||(overlap(z,az,y,count)&&!(z==y&&az==count)))return -EINVAL;
+  if(!count)return glv_cancel(memory);
+  /* Coalesce the maximal suffix where both operands are contiguous or
+   * scalar. Broadcast coordinates then advance once per run, not per value.
+   * Interior broadcast axes end the run, preserving e.g.[B,1,C]+[1,T,C]. */
+  unsigned inner=rank,stepx=0,stepz=0;size_t span=1;bool selected=false;
+  for(unsigned r=rank;r>0;r--){unsigned d=r-1;
+    if(dims[d]==1){inner=d;continue;}
+    if(!selected){if(dx[d]>1||dz[d]>1)break;stepx=(unsigned)dx[d];stepz=(unsigned)dz[d];selected=true;}
+    else if(dx[d]!=(size_t)stepx*span||dz[d]!=(size_t)stepz*span)break;
+    span*=dims[d];inner=d;
+  }
+  if(!memory->asr_reference&&span>=8){
+    size_t coordinate[8]={0},ix=0,iz=0;
+    for(size_t base=0;base<count;base+=span){
+      for(size_t at=0;at<span;){unsigned n=span-at>1024?1024:(unsigned)(span-at);
+        if((ret=glv_cancel(memory)))return ret;
+        const float *a=x+ix+at*stepx,*b=z+iz+at*stepz;float *out=y+base+at;ret=1;
+#ifdef GLV_ASR_OFFICIAL_DSP
+        ret=glv_asr_dsp_binary(memory,op,a,b,out,n,stepx,stepz);
+#endif
+        if(ret<0)return ret;
+        if(ret==1)for(unsigned i=0;i<n;i++){
+          float u=a[i*stepx],v=b[i*stepz];
+          switch(op){case GLV_ASR_ADD:out[i]=u+v;break;case GLV_ASR_SUB:out[i]=u-v;break;
+            case GLV_ASR_MUL:out[i]=u*v;break;case GLV_ASR_DIV:out[i]=u/v;break;case GLV_ASR_POW:out[i]=powf(u,v);break;}
+        }
+        at+=n;
+      }
+      for(unsigned r=inner;r>0;r--){unsigned d=r-1;
+        coordinate[d]++;ix+=dx[d];iz+=dz[d];if(coordinate[d]<dims[d])break;
+        coordinate[d]=0;ix-=dx[d]*dims[d];iz-=dz[d]*dims[d];
+      }
+    }
+    return glv_cancel(memory);
+  }
+  size_t coordinate[8]={0},ix=0,iz=0;
   for(size_t i=0;i<count;i++){
     if(!(i&1023)&&(ret=glv_cancel(memory)))return ret;
-    size_t q=i,ix=0,iz=0;for(unsigned r=rank;r>0;r--){unsigned d=r-1;size_t c=q%dims[d];q/=dims[d];ix+=c*dx[d];iz+=c*dz[d];}
     float u=x[ix],v=z[iz],result=0;
     switch(op){case GLV_ASR_ADD:result=u+v;break;case GLV_ASR_SUB:result=u-v;break;
       case GLV_ASR_MUL:result=u*v;break;case GLV_ASR_DIV:result=u/v;break;case GLV_ASR_POW:result=powf(u,v);break;}
     y[i]=result;
+    for(unsigned r=rank;r>0;r--){unsigned d=r-1;
+      coordinate[d]++;ix+=dx[d];iz+=dz[d];
+      if(coordinate[d]<dims[d])break;
+      coordinate[d]=0;ix-=dx[d]*dims[d];iz-=dz[d]*dims[d];
+    }
   }return glv_cancel(memory);
 }
 int glv_asr_softmax(struct glv_memory *memory,const float *x,size_t nx,const struct glv_asr_shape *shape,unsigned axis,float *y,size_t ny)
@@ -149,6 +198,9 @@ int glv_asr_conv(struct glv_memory *memory,const float *x,size_t nx,const float 
      count>UINT_MAX||!product(count,sizeof(float),&bytes))return -EOVERFLOW;
   if(ax>nx||ay>ny||overlap(x,ax,y,ay)||(bias&&(nbias<c->outputs||overlap(bias,c->outputs,y,ay))))return -EINVAL;
   int ret=glv_cancel(memory);if(ret)return ret;
+#ifdef GLV_ASR_ACCEL_ENABLED
+  if(!memory->asr_reference){ret=glv_asr_accel_conv(memory,x,bias,y,c,rows,(unsigned)count,(unsigned)height,(unsigned)width);if(ret!=1)return ret;ret=0;}
+#endif
   float *weight=glv_alloc(memory,bytes);if(!weight)return -ENOMEM;
   for(unsigned o=0;o<c->outputs&&!ret;o++){
     ret=rows->read(rows->opaque,o,weight,(unsigned)count);if(ret)break;

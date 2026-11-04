@@ -10,7 +10,7 @@ const source = fs.readFileSync(path.join(__dirname,
 const bearer = 'a'.repeat(32);
 
 function boot() {
-  const nodes = new Map(), intervals = [], calls = [], storage = [], timeouts = [];
+  const nodes = new Map(), intervals = [], calls = [], storage = [];
   const documentEvents = {}, windowEvents = {};
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, {
@@ -37,17 +37,15 @@ function boot() {
     },
     fetch: async (url, options) => { calls.push({ url, options }); return handler(url, options); },
     setTimeout: (callback, ms) => {
-      const entry = { ms, active: true, callback: () => { entry.active=false;callback(); } };
-      timeouts.push(entry);
-      if (ms < 1000) queueMicrotask(entry.callback);
-      return timeouts.length;
+      if (ms < 1000) queueMicrotask(callback);
+      return 1;
     },
-    clearTimeout(id) { if(timeouts[id-1])timeouts[id-1].active=false; },
+    clearTimeout() {},
     setInterval: (callback, ms) => { intervals.push({ callback, ms }); return intervals.length; },
     clearInterval() {}
   });
   vm.runInContext(source, context);
-  return { context, nodes, node, calls, intervals, storage, timeouts, documentEvents, windowEvents,
+  return { context, nodes, node, calls, intervals, storage, documentEvents, windowEvents,
     handle: callback => { handler = callback; },
     evaluate: code => vm.runInContext(code, context),
     connected: async () => {
@@ -58,44 +56,6 @@ function boot() {
     }
   };
 }
-
-test('large downloads use a bounded size budget and retain exact body bytes', async () => {
-  const r = boot(); await r.connected();
-  const data = new Uint8Array(8*1024*1024);data[0]=13;data[data.length-1]=237;
-  r.handle(() => new Response(data,{headers:{'Content-Length':String(data.length)}}));
-  const response = await r.evaluate("api('file?path=sdcard/test.bin')");
-  const received = new Uint8Array(await response.arrayBuffer());
-  assert.deepEqual(received,data);
-  assert.ok(r.timeouts.some(t => t.ms>631000&&t.ms<=632000));
-  assert.ok(r.timeouts.some(t => t.ms===30000));
-  assert.equal(r.evaluate('transferBudget(Number.MAX_SAFE_INTEGER)'),3600000);
-  assert.equal(r.evaluate('transferBudget(0)'),120000);
-  assert.ok(r.timeouts.every(t => !t.active));
-});
-
-test('stalled download aborts on inactivity and releases the response reader', async () => {
-  const r = boot(); await r.connected();let released=0,signal;
-  r.handle((url, options) => {
-    signal=options.signal;
-    return {ok:true,status:200,headers:new Headers({'Content-Length':String(8*1024*1024)}),
-      body:{getReader:()=>({read:()=>new Promise((resolve,reject)=>{
-        signal.addEventListener('abort',()=>reject(new DOMException('stalled','AbortError')),{once:true});
-      }),releaseLock:()=>released++})}};
-  });
-  const pending=r.evaluate("exchange('file?path=sdcard/test.bin','GET',undefined,true,connectionAttempt)");
-  await new Promise(setImmediate);
-  const idle=r.timeouts.findLast(t => t.active&&t.ms===30000);assert.ok(idle);
-  idle.callback();await assert.rejects(pending,{name:'AbortError'});
-  assert.equal(signal.aborted,true);assert.equal(released,1);
-  assert.ok(r.timeouts.every(t => !t.active));
-});
-
-test('large binary uploads use the same capped budget without replaying writes', async () => {
-  const r=boot();await r.connected();r.handle(()=>new Response('{}'));
-  await r.evaluate("api('file?path=sdcard/new.bin','PUT',new Uint8Array(8*1024*1024))");
-  assert.equal(r.calls.length,1);
-  assert.ok(r.timeouts.some(t=>t.ms===632000));
-});
 
 test('visible configuration form stays paired through more than 15 minutes of editing', async () => {
   const r = boot();

@@ -1,0 +1,67 @@
+{
+  "status": "FLASHED_RUNTIME_AND_RAM_RELEASE_VERIFIED",
+  "candidate": 108,
+  "firmware_sha256": "67868ff725af9e03e704a214a19a327aa5b0723bd6511bd4d4b72bf630b159e5",
+  "updated_at": "2026-11-04T08:46:28.575888+08:00",
+  "full_weight_bytes": 11609444,
+  "model": "User-selected unchanged old Q4/Q8 mixed Zipformer14M",
+  "strict_full_residency": true,
+  "zero_inference_reads": true,
+  "raw_weights_compressed": false,
+  "samples": [
+    {
+      "sample": 0,
+      "audio_seconds": 5.6115,
+      "worker_seconds": 143.72,
+      "expected_text_matched": true,
+      "successful": true,
+      "full_cached_bytes": 11609444,
+      "metrics_parser_failed": "'result'",
+      "limitation": "Concurrent NSH status and ASR printf corrupted metric lines; use quiet sample1 for exact zero-inference-read and compute measurements."
+    },
+    {
+      "sample": 1,
+      "audio_seconds": 5.1530625,
+      "load_seconds": 19.61,
+      "compute_seconds": 107.12,
+      "worker_seconds": 137.53,
+      "rtf": 20.787638418901384,
+      "expected_text_matched": true
+    }
+  ],
+  "automatic_release": {
+    "normal_completion": true,
+    "cancellation": true,
+    "cancel_freed_bytes": 10636232,
+    "evidence": [
+      "tests/FULL-RAM-RESULT.json",
+      "tests/STRICT-FAILURE-RESULT.json",
+      "board/quiet-1/RESULT.json",
+      "board/cancel-release/RESULT.json"
+    ],
+    "lifecycle": "Retire ASR helpers and capture owner, close all three graphs and buffers, retain transcript, then LLM/tools/TTS; next request reloads weights."
+  },
+  "dual_ai_regression_passed": true,
+  "thinking_default": "Medium",
+  "thinking_maxima": {
+    "Low": 4,
+    "Medium": 5,
+    "High": 6
+  },
+  "data_partition_preserved": true,
+  "sd_original_files_overwritten": false,
+  "startup_and_four_lock_pages_passed": true,
+  "sd_dma_errors": 0,
+  "sd_dma_timeouts": 0,
+  "real_time": false,
+  "microphone_or_human_speech_tested": false,
+  "cold_power_cycle_tested": false,
+  "physical_screen_accepted": false,
+  "previous_failed_candidate": {
+    "candidate": 107,
+    "rolled_back_to": 105,
+    "evidence": "../candidate107-full-ram-asr/board/BOARD-RESULT.json"
+  },
+  "current_board_candidate": 108,
+  "source_root": "D:\\vela-data\\edgeidiot-9m9-20261102\\candidate108-full-ram-asr\\source"
+}

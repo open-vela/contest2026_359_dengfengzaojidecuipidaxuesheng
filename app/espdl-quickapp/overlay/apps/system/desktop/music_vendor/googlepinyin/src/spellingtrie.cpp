@@ -276,6 +276,12 @@ bool SpellingTrie::construct(const char* spelling_arr, size_t item_size,
   if (spelling_arr == NULL)
     return false;
 
+  // Retire the previous owned trie before rebuilding after idle reclaim.
+  // The existing caller serializes decoder open/close against active search.
+  if (root_ != NULL) { free_son_trie(root_); delete root_; root_ = NULL; }
+  if (dumb_node_ != NULL) { delete dumb_node_; dumb_node_ = NULL; }
+  if (splitter_node_ != NULL) { delete splitter_node_; splitter_node_ = NULL; }
+
   memset(h2f_start_, 0, sizeof(uint16) * kFullSplIdStart);
   memset(h2f_num_, 0, sizeof(uint16) * kFullSplIdStart);
 

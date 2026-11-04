@@ -26,6 +26,15 @@ struct weather_scene
   bool night, compact, painted, full_page;
 };
 
+static struct weather_scene *material_weather_scenes[8];
+void glass_weather_material_pressure(bool active)
+{
+ for(unsigned i=0;i<8;i++){struct weather_scene *s=material_weather_scenes[i];if(!s||!s->object)continue;
+  if(active){if(s->pixels)lv_image_cache_drop(&s->image);free(s->pixels);s->pixels=NULL;s->pixel_capacity=0;memset(&s->image,0,sizeof(s->image));s->asset=WEATHER_ART_NONE;s->painted=false;}
+  lv_obj_invalidate(s->object);
+ }
+}
+
 static struct
 {
   struct weather_scene scene;
@@ -217,12 +226,14 @@ static void weather_scene_deleted(lv_event_t *e)
 {
   struct weather_scene *s=lv_event_get_user_data(e);
   weather_scene_release(s);s->object=NULL;
+  for(unsigned i=0;i<8;i++)if(material_weather_scenes[i]==s)material_weather_scenes[i]=NULL;
 }
 
 static void weather_scene_attach(struct weather_scene *s,lv_obj_t *parent,
                                  int w,int h,bool compact)
 {
   memset(s,0,sizeof(*s));s->compact=compact;s->asset=WEATHER_ART_NONE;
+  for(unsigned i=0;i<8;i++)if(!material_weather_scenes[i]){material_weather_scenes[i]=s;break;}
   s->object=glass_box(parent,0,0,w,h,0x35516b,20);
   lv_obj_remove_flag(s->object,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(s->object,weather_scene_draw,LV_EVENT_DRAW_MAIN,s);
@@ -240,7 +251,9 @@ static void weather_scene_update(struct weather_scene *s,
                                  const struct glass_weather_snapshot *w,bool night)
 {
   enum weather_sky_kind kind=weather_sky(w);
-  if(!s->object||(s->painted&&s->kind==kind&&s->night==night))return;
+  if(!s->object)return;
+  if(gmat_under_pressure()){weather_scene_release(s);s->asset=WEATHER_ART_NONE;s->painted=false;return;}
+  if(s->painted&&s->kind==kind&&s->night==night)return;
   unsigned asset=weather_art_for_sky(kind,night);
   bool replace=asset!=s->asset||(!s->painted&&asset<WEATHER_ART_NONE);
   if(replace){
@@ -257,7 +270,8 @@ static void weather_scene_update(struct weather_scene *s,
       }
       void *decoder=qpk_mjpeg_create();
       if(s->pixels&&decoder){
-        int ret=qpk_mjpeg_decode_still(decoder,p->data,p->size,s->pixels,p->w,p->h);
+        void *jpeg=gmat_acquire(p->id,0,p->size);
+        int ret=jpeg?qpk_mjpeg_decode_still(decoder,jpeg,p->size,s->pixels,p->w,p->h):-EIO;gmat_release(jpeg);
         if(ret==0){
           s->decodes++;
           s->image.header.magic=LV_IMAGE_HEADER_MAGIC;
@@ -270,7 +284,7 @@ static void weather_scene_update(struct weather_scene *s,
       if(!s->image.data)weather_scene_release(s);
     }else weather_scene_release(s);
   }
-  s->kind=kind;s->night=night;s->painted=true;
+  s->kind=kind;s->night=night;s->painted=asset>=WEATHER_ART_NONE||s->pixels!=NULL;
   lv_obj_invalidate(s->object);
 }
 
@@ -289,7 +303,8 @@ static void weather_home_update(const struct glass_weather_snapshot *w,bool stal
   if(!g_weather_home.city)return;
   bool changed=weather_home_data_changed(w)||
     g_weather_home.state!=w->state||g_weather_home.valid!=w->valid||
-    g_weather_home.stale!=stale||g_weather_home.night!=night;
+    g_weather_home.stale!=stale||g_weather_home.night!=night||
+    (!g_weather_home.scene.painted&&!gmat_under_pressure());
   if(changed){
     weather_text(g_weather_home.city,w->valid&&w->data.location[0]?w->data.location:glass_tr("当地天气"));
     weather_text(g_weather_home.status,weather_status(w,stale));

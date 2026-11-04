@@ -1,0 +1,377 @@
+{
+  "runtime_root": "/sdcard/desktop-assets/v2",
+  "files": [
+    {
+      "path": "fonts/default.otf.gac",
+      "bytes": 1859600,
+      "sha256": "5d831a3aabbb5312f8d532c3a3d818394ea2138cb149d8eed402fc98cd2e27ed"
+    },
+    {
+      "path": "weather/weather_art_0_0.jpg.gac",
+      "bytes": 9427,
+      "sha256": "46034982f9c6bce01d8b044a1b106021ac963de9a377627885d6066ff25d221c"
+    },
+    {
+      "path": "weather/weather_art_0_1.jpg",
+      "bytes": 39302,
+      "sha256": "d355f707c79e0d6fa8381444b3d7c7ca9e3d0ae32becbb6ae1a0e0f940adef05"
+    },
+    {
+      "path": "weather/weather_art_0_2.jpg",
+      "bytes": 16663,
+      "sha256": "4c67e3eff4c4c4cd5c56eaba96caa5c2d0c8d29762d68cfdbe99baca07124776"
+    },
+    {
+      "path": "weather/weather_art_0_3.jpg.gac",
+      "bytes": 6030,
+      "sha256": "4db8b843ec2bd5c6f87007a36f6a48e53694f2826fcd251bba376fe18e66aeca"
+    },
+    {
+      "path": "weather/weather_art_0_4.jpg",
+      "bytes": 25117,
+      "sha256": "cd2da2faa4a40589407e9c2dbfa6b2386923226d081b97ab3be52fe1d67713db"
+    },
+    {
+      "path": "weather/weather_art_0_5.jpg",
+      "bytes": 21377,
+      "sha256": "5f820ca6f3fb19c0af1767e723b83fc939974611525683e58c5c1cc88aabc747"
+    },
+    {
+      "path": "weather/weather_art_0_6.jpg",
+      "bytes": 25402,
+      "sha256": "0e61b7fe4fea0965e0a23408c904f430065b3407f0058055d34d5e74edc01b3e"
+    },
+    {
+      "path": "weather/weather_art_0_7.jpg",
+      "bytes": 26871,
+      "sha256": "7399484d8192d3f5ba75bd5804f3298f26621b56edcbaec7d8111f4c27f39d41"
+    },
+    {
+      "path": "weather/weather_art_0_8.jpg",
+      "bytes": 28574,
+      "sha256": "ece1e119c170a38e03c0db93bcf2822acef100ba95739e2fecb7585e9e34bdc7"
+    },
+    {
+      "path": "weather/weather_art_0_9.jpg",
+      "bytes": 39163,
+      "sha256": "d75525e71003fcd48c669d360306c4779f7b1dbdeab52855a281504a7c9ac42c"
+    },
+    {
+      "path": "weather/weather_art_0_10.jpg",
+      "bytes": 31727,
+      "sha256": "47e94b784901986120f02e33f46d0bf5f5ea6b3adfdaf6d27857f02c42482af8"
+    },
+    {
+      "path": "weather/weather_art_0_11.jpg",
+      "bytes": 12652,
+      "sha256": "c1fea040ac9217223214e6d3091b9ca027120bc067f2f8ffa83413aff52b332e"
+    },
+    {
+      "path": "weather/weather_art_0_12.jpg",
+      "bytes": 11596,
+      "sha256": "7e6a8893bd82df8ede75b8a8cb8022098e9c2d1317ac70dfc70f7754d525f778"
+    },
+    {
+      "path": "weather/weather_art_0_13.jpg",
+      "bytes": 25763,
+      "sha256": "1af407b1be2ee9d9dd7816b98b90a4dfba5c0504c19aa56e7941b94a0ee61c85"
+    },
+    {
+      "path": "weather/weather_art_0_14.jpg",
+      "bytes": 16815,
+      "sha256": "4d5490e84c4b49328a0f20ccd64153fdb30aca2ac6f62d9fb479ac5e8026af72"
+    },
+    {
+      "path": "weather/weather_art_0_15.jpg",
+      "bytes": 23211,
+      "sha256": "36b66abe0a2de04c68f35da080f2ca24a3d4a6b98836da604f3bc9214ff9859c"
+    },
+    {
+      "path": "weather/weather_art_0_16.jpg",
+      "bytes": 28697,
+      "sha256": "2dbc0aeefee0be90356bc75e1ec639423dbed846c2b0af98bd53f0c4e8687b73"
+    },
+    {
+      "path": "weather/weather_art_0_17.jpg",
+      "bytes": 34298,
+      "sha256": "d5d00605badf249f182d293fa41716d7d68306293255ff47cd3a3beb43e0bacd"
+    },
+    {
+      "path": "weather/weather_art_0_18.jpg",
+      "bytes": 28285,
+      "sha256": "42e6f7c72b67caeb9da12ca74bbeb18f4f693bdcc803be246834acf10436174c"
+    },
+    {
+      "path": "weather/weather_art_0_19.jpg",
+      "bytes": 35605,
+      "sha256": "062e3b57c103c100afde2f1a226f03cd0ca4a1d1e78c78f24f51257f3631506d"
+    },
+    {
+      "path": "weather/weather_art_0_20.jpg",
+      "bytes": 29954,
+      "sha256": "61173a094b68a5df1aa09e4f8a90ed2650ea342aca91443eba89f5685db3a469"
+    },
+    {
+      "path": "weather/weather_art_0_21.jpg",
+      "bytes": 32794,
+      "sha256": "1342bc8f3fe4cd1ce2f001a423e553ff2c96e82ee744e0e16a819955abb12b5e"
+    },
+    {
+      "path": "weather/weather_art_0_22.jpg",
+      "bytes": 37761,
+      "sha256": "9de07dd5c01c5dec8df225bb8f0990d83544235ebbc3e9755797126143d93280"
+    },
+    {
+      "path": "weather/weather_art_0_23.jpg",
+      "bytes": 33477,
+      "sha256": "f4af51ae23bedbcadea3a05a9ee7381493ee03740ce1730a155e690b15ddd95e"
+    },
+    {
+      "path": "weather/weather_art_0_24.jpg",
+      "bytes": 16018,
+      "sha256": "de51ceb9196afde345979ec785851059e64be48192228f3158207acde4c75dda"
+    },
+    {
+      "path": "weather/weather_art_0_25.jpg",
+      "bytes": 25574,
+      "sha256": "a34e10cc8f290a6608b4840746e81b73fec1b0bf29205aafa54ed98cb4542b30"
+    },
+    {
+      "path": "weather/weather_art_0_26.jpg",
+      "bytes": 33995,
+      "sha256": "6e8b69a200790809ab96dfb59664a271470fef7a03e3f9e66a96761686c68a70"
+    },
+    {
+      "path": "weather/weather_art_0_27.jpg",
+      "bytes": 30951,
+      "sha256": "dd0227ede24a42a752585701813b0e7fbf748cb251bfe427b798d2a1890a2d1d"
+    },
+    {
+      "path": "weather/weather_art_0_28.jpg",
+      "bytes": 23264,
+      "sha256": "1e157897b5b3bf34ef85e5df987f0c249772e7fd32b3b8a6d6dd92bccc8e4805"
+    },
+    {
+      "path": "weather/weather_art_0_29.jpg",
+      "bytes": 33057,
+      "sha256": "589aa2bdc7cda0f745b5d4c942b4eb8d24732e1c4ee17ba740036826169b8acf"
+    },
+    {
+      "path": "weather/weather_art_1_0.jpg.gac",
+      "bytes": 5424,
+      "sha256": "cf5d16f6e80b151a166d1ebbbe563a50950ffcdaa5259912d2d76e65ba39e4da"
+    },
+    {
+      "path": "weather/weather_art_1_1.jpg",
+      "bytes": 20703,
+      "sha256": "db94bd25de9746ab0a8f7137b875c131a19f547db6721b2b9e62643435a288d8"
+    },
+    {
+      "path": "weather/weather_art_1_2.jpg",
+      "bytes": 8633,
+      "sha256": "117c3db8c25c31f2ea4471d25ed8faaaa75ac8f69ebdf15e252c7a454f7f51ea"
+    },
+    {
+      "path": "weather/weather_art_1_3.jpg.gac",
+      "bytes": 3335,
+      "sha256": "bdadcb96e240ecb2ed1bdcdef8a6efa89458314334320fe897982ae70b29d1ee"
+    },
+    {
+      "path": "weather/weather_art_1_4.jpg",
+      "bytes": 13623,
+      "sha256": "83cacd1fd783cd35f6dbeeb45d5dc054a2b69b471cfb8c17eb57992bbcb13c9a"
+    },
+    {
+      "path": "weather/weather_art_1_5.jpg",
+      "bytes": 11213,
+      "sha256": "60572e65b584cdfe5aa32981922e303204222908ebef5907b8f6c12e2807012a"
+    },
+    {
+      "path": "weather/weather_art_1_6.jpg",
+      "bytes": 12599,
+      "sha256": "ff9ad06dbc2152a20bfa2b44bfe31b398f2711a24a46c760a4d21f68b4124b3a"
+    },
+    {
+      "path": "weather/weather_art_1_7.jpg",
+      "bytes": 13789,
+      "sha256": "d45dd9ec4df55cef7e55e52651b7ffc0286fd12e5b537c1f56f2f9a594316c26"
+    },
+    {
+      "path": "weather/weather_art_1_8.jpg",
+      "bytes": 15036,
+      "sha256": "dc4261cf07d69b1f8f32e56d7db6c76093ef780d1e0d80477d414e34b65c4c49"
+    },
+    {
+      "path": "weather/weather_art_1_9.jpg",
+      "bytes": 19089,
+      "sha256": "4e6ad725028e9195a6b92cb59d2d7676f71a6d8d21b8f4700094704f98db09b5"
+    },
+    {
+      "path": "weather/weather_art_1_10.jpg",
+      "bytes": 15464,
+      "sha256": "523bb4357c6e386d130b16769339897ca7c3ea27f9415446e1a7489cb5ec8a21"
+    },
+    {
+      "path": "weather/weather_art_1_11.jpg.gac",
+      "bytes": 6882,
+      "sha256": "d7d284e083005d44c08dc81638fd635333f1c58ead92112b4db6dfd5f70a5e0d"
+    },
+    {
+      "path": "weather/weather_art_1_12.jpg",
+      "bytes": 6446,
+      "sha256": "6b6e85e435e9e555e002d5efacdfc85f5712baa9fbee6db0fca1000d2298bb81"
+    },
+    {
+      "path": "weather/weather_art_1_13.jpg",
+      "bytes": 13817,
+      "sha256": "e6eff8f520141b3d7d0f8c5a23d6cb29e15f8e8d8af2cafa3fa9cb77dd1b9b31"
+    },
+    {
+      "path": "weather/weather_art_1_14.jpg",
+      "bytes": 9055,
+      "sha256": "48709292f4579df0e8d416713548570aeacd8f6171045e182711acf9aad83595"
+    },
+    {
+      "path": "weather/weather_art_1_15.jpg",
+      "bytes": 12015,
+      "sha256": "7849be6b11d7266ebd84a59753c23ffc6ddb5bf46febf521eae7bd0fbc355ea7"
+    },
+    {
+      "path": "weather/weather_art_1_16.jpg",
+      "bytes": 14421,
+      "sha256": "99a4f5a2f11ee4cdb69983f58c7153cb171999ca7ce00be9aef47885fc5a0273"
+    },
+    {
+      "path": "weather/weather_art_1_17.jpg",
+      "bytes": 16424,
+      "sha256": "50f17d99d3d2e5f4516a013628ec33d8b2254929cb9a2065bcfbe1ff2ef15d7a"
+    },
+    {
+      "path": "weather/weather_art_1_18.jpg",
+      "bytes": 14354,
+      "sha256": "a09ff980dbc87431849350c00cbedf9c2529a9c686b3307f7f285e2dc3de3ba2"
+    },
+    {
+      "path": "weather/weather_art_1_19.jpg",
+      "bytes": 18358,
+      "sha256": "1addfeda7ba66d94ee332c1641571177112d4757d87c2f6a08de09c5aaa329fc"
+    },
+    {
+      "path": "weather/weather_art_1_20.jpg",
+      "bytes": 14727,
+      "sha256": "1a7a46d352fb8acd3c6603005b3afdfef0fff11f5ec5f06a0f87860143c036cd"
+    },
+    {
+      "path": "weather/weather_art_1_21.jpg",
+      "bytes": 17249,
+      "sha256": "7d34c65f79d8797c501ef4a7c419b725c30eec9a938d77508436ce3ab3c80262"
+    },
+    {
+      "path": "weather/weather_art_1_22.jpg",
+      "bytes": 17439,
+      "sha256": "906bcde213df3a5d98a1dd3e44e338e6fe253f3590f9d0e3e0f62d3ea3726392"
+    },
+    {
+      "path": "weather/weather_art_1_23.jpg",
+      "bytes": 15992,
+      "sha256": "5472a2cb2bfee00aae2149f6bb22a59d1a55d49d670fc015c3648da37f711551"
+    },
+    {
+      "path": "weather/weather_art_1_24.jpg",
+      "bytes": 8731,
+      "sha256": "4900217e77cf0b997c1ddf247abd0b99374292faf334ab9ecbcb5942a3e29fbb"
+    },
+    {
+      "path": "weather/weather_art_1_25.jpg",
+      "bytes": 13772,
+      "sha256": "974c7f5c1b999b81c90371be0da8edfe7e722cf7d61986bca31040c0aa39a6a7"
+    },
+    {
+      "path": "weather/weather_art_1_26.jpg",
+      "bytes": 17954,
+      "sha256": "f1454c802a915cdb5ec3fb80b167b6727f6109455709617f468583e73495e2a6"
+    },
+    {
+      "path": "weather/weather_art_1_27.jpg",
+      "bytes": 16295,
+      "sha256": "fd0ae443e0d377e1e2b12e100fe49d083dbbdcf0baf816e0efc78110449fd4b8"
+    },
+    {
+      "path": "weather/weather_art_1_28.jpg",
+      "bytes": 12111,
+      "sha256": "73f61d6f0447c94a242ccc44b5e051ef8e1052e5cdb96f73a8dd5c3f6ac42ce2"
+    },
+    {
+      "path": "weather/weather_art_1_29.jpg",
+      "bytes": 16850,
+      "sha256": "40cd001f91bcfcfc6a8988d4898d463106a74f98df52211e9edae0b39f965b74"
+    },
+    {
+      "path": "wallpapers/lock_wallpaper_0.jpg.gac",
+      "bytes": 3139,
+      "sha256": "3fe76a7eebb7124f9167e0dced0bea364ada9a65834b66479cbaf382fff68c5a"
+    },
+    {
+      "path": "wallpapers/lock_wallpaper_1.jpg.gac",
+      "bytes": 5033,
+      "sha256": "8989e9b89bb6af0f7dfa90677b51073b6c7a61806158bdddb55691c4ebe4c565"
+    },
+    {
+      "path": "wallpapers/lock_wallpaper_2.jpg.gac",
+      "bytes": 3450,
+      "sha256": "d0a5da9d36907351c5c4283bb55f3f79153fcf80d7a4e6e5674f55bc318418e7"
+    },
+    {
+      "path": "wallpapers/lock_wallpaper_3.jpg.gac",
+      "bytes": 3812,
+      "sha256": "1948f00978876482f2bb1380ea7167d39b6fe29bf972b2115f71546115d780fb"
+    },
+    {
+      "path": "icons/masks.bin.gac",
+      "bytes": 256266,
+      "sha256": "6622c20b4cb64f46ff968d9d28f998eaec820afc05f45e55dc65ed6b09cb6136"
+    },
+    {
+      "path": "icons/bitmap_14.a4.gac",
+      "bytes": 9431,
+      "sha256": "b8ae860e31ce1c2349d117e2bb042692f091395fc7ab243a1535c10ab75ffd1c"
+    },
+    {
+      "path": "icons/bitmap_16.a4.gac",
+      "bytes": 11012,
+      "sha256": "184b6a8f620597c13234ff6a9e781e3d4b0553682a1a3e02f781e60da26f31f5"
+    },
+    {
+      "path": "icons/bitmap_20.a4.gac",
+      "bytes": 14475,
+      "sha256": "76b0b3d676c3e232d634fcc52d6fa9b3cdae2695c5bd0183349f10ffdbfb1c94"
+    },
+    {
+      "path": "icons/bitmap_24.a4.gac",
+      "bytes": 17889,
+      "sha256": "d1b86cbe3681862a5915d89b6e2b0ecc10b260505c1281f9d67ee30630fd4bbb"
+    },
+    {
+      "path": "icons/bitmap_32.a4.gac",
+      "bytes": 22783,
+      "sha256": "697091cf457ffc44c41686d78bedb6615ba5d78a9afd7ff9e8c6dcbb2c85a7bb"
+    },
+    {
+      "path": "icons/bitmap_64.a4.gac",
+      "bytes": 38589,
+      "sha256": "3d7c3da8d92b1a5990826597d6482d66aa167d1ec2c8e066a5da3268b3af51ac"
+    },
+    {
+      "path": "fonts/heading.ttf.gac",
+      "bytes": 166630,
+      "sha256": "444b4bc8d61b420249ee0af25bb1639a4b512bd3fe2c22cf8ca64cd7b088682b"
+    },
+    {
+      "path": "input/pinyin.dict.gac",
+      "bytes": 868552,
+      "sha256": "e1364deda1defdfbbeccd828d7d605fffe16393008f5a281f47080017b89200a"
+    }
+  ],
+  "source": "candidate104 package, unchanged through109",
+  "assets": 74
+}

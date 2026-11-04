@@ -63,8 +63,6 @@ int portal_config_save(const char *section,const cJSON *patch)
 {(void)section;(void)patch;assert(false);return -EINVAL;}
 int portal_public_path(const char *path,char *out,size_t capacity)
 {(void)path;(void)out;(void)capacity;assert(false);return -EINVAL;}
-int portal_public_write_path(const char *path,char *out,size_t capacity)
-{return portal_public_path(path,out,capacity);}
 int portal_install_target(const char *path,char *out,size_t capacity)
 {(void)path;(void)out;(void)capacity;assert(false);return -EINVAL;}
 int portal_install_begin(const cJSON *manifest,char *error,size_t capacity)
@@ -81,7 +79,7 @@ struct request_s
 static int fixture_listener;
 static char reply[8192];
 static const char fixture_bearer[]="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-static const char fixture_authorization[]="Bearer " "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+static const char fixture_authorization[]="Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 static void write_all(int fd,const char *data,size_t length)
 {
@@ -170,7 +168,7 @@ int main(void)
   o=request((struct request_s){.method="POST",.path="/api/network/connect",.body=valid},401,0,0);cJSON_Delete(o);
   o=request((struct request_s){.method="GET",.path="/api/network",.authorization="Basic fixture"},401,0,0);cJSON_Delete(o);
   o=request((struct request_s){.method="POST",.path="/api/network/connect",.body=valid,
-    .authorization="Bearer " "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},401,0,0);cJSON_Delete(o);
+    .authorization="Bearer bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},401,0,0);cJSON_Delete(o);
   session_expires=fixture_seconds;
   o=request((struct request_s){.method="GET",.path="/api/network",.authorization=fixture_authorization},401,0,0);cJSON_Delete(o);
   o=request((struct request_s){.method="POST",.path="/api/network/connect",.body=valid,

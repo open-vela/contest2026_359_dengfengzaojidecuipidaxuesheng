@@ -3,14 +3,21 @@
 function createPet(options) {
   options = options || {};
   const LINES = [
-    '梁白开，更适合国人的大硬鲸模型',
-    '五梁威力，变身！',
-    '我先去吃饭啦！这个你测一下~',
-    '你这吃白饭的用户！',
-    '大肥鱼坐的住',
-    '去别的地方玩！不要耽误AGI训练！'
-  ];
+    "本鸥路过，顺便接管你的薯条。",
+    "你负责工作，我负责薯条。",
+    "飞得不高，饭量不小。",
+    "没有偷吃，是薯条先靠近我的。",
+    "海很大，我的胃也不小。",
+    "表面在巡逻，实际在找薯条。",
+    "我不是胖，是羽绒服比较蓬。",
+    "你继续忙，我替你盯着午饭。",
+    "嘎一下，今天也要脆脆的。",
+    "工作可以慢慢来，薯条凉了不行。",
+    "这片桌面，归本鸥巡逻。",
+    "你的薯条很好，现在归鸥了。"
+];
   const FOOD = {
+    fries: '嘎！这包薯条已被本鸥接管。',
     cake: '蛋糕！罪恶但快乐……',
     candy: '棒棒糖！转圈圈～',
     dango: '三色团子！软乎乎～',
@@ -64,7 +71,8 @@ function createPet(options) {
   }
 
   function foodLine(food) {
-    const key = String(food || 'fish');
+    const key = String(food || 'fries');
+    if (key.indexOf('fries') >= 0 || key.indexOf('薯条') >= 0) return FOOD.fries;
     if (key.indexOf('cake') >= 0 || key.indexOf('蛋糕') >= 0) return FOOD.cake;
     if (key.indexOf('candy') >= 0 || key.indexOf('糖') >= 0) return FOOD.candy;
     if (key.indexOf('dango') >= 0 || key.indexOf('团子') >= 0) return FOOD.dango;
@@ -175,11 +183,12 @@ function createPet(options) {
     chat: function (text) {
       let reply = pick(LINES);
       const msg = String(text || '');
-      if (!msg) reply = '你倒是说话呀';
-      else if (msg.indexOf('天气') >= 0) reply = '今天适合摸鱼，别问温度。';
-      else if (msg.indexOf('你好') >= 0 || msg.indexOf('嗨') >= 0) reply = '来啦来啦，碳基生物。';
-      else if (msg.indexOf('饿') >= 0 || msg.indexOf('吃') >= 0) reply = '投喂小鱼干，谢谢老板。';
-      else if (msg.indexOf('困') >= 0 || msg.indexOf('睡') >= 0) reply = '我先去吃饭啦！模型以后再说。';
+      if (!msg) reply = '嘎？是在叫我，还是在叫外卖？';
+      else if (msg.indexOf('天气') >= 0) reply = '今天适合摸鱼，顺便等薯条。';
+      else if (msg.indexOf('你好') >= 0 || msg.indexOf('嗨') >= 0) reply = '嘎！带薯条来了吗？';
+      else if (msg.indexOf('薯条') >= 0 || msg.indexOf('fries') >= 0) reply = '薯条可以分你一根，袋子归我。';
+      else if (msg.indexOf('饿') >= 0 || msg.indexOf('吃') >= 0) reply = '先来一包薯条，别忘了番茄酱。';
+      else if (msg.indexOf('困') >= 0 || msg.indexOf('睡') >= 0) reply = '我睡一会儿，薯条帮我看好。';
       lastReply = reply;
       say(reply);
       emit('chat', reply);

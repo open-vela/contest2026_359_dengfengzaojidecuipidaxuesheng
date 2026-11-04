@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "cases": [
+    "valid",
+    "late",
+    "missing",
+    "corrupt"
+  ],
+  "scope": "Actual LVGL material font/image code and owner pressure, temporary host-only SD fixtures; late font corruption, no-card and corrupted package; stable font, raster fallback and builtin pinyin bytes checked; no physical card writes"
+}

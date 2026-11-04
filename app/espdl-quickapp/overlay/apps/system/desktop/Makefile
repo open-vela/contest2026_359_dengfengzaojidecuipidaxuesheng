@@ -66,6 +66,11 @@ CFLAGS += -DGLASS_AI_CONFIG_ENABLED
 ifeq ($(GLASS_LOCAL_VOICE),1)
 CFLAGS += -DGLASS_LOCAL_VOICE
 CSRCS += glass_local_model.c glass_local_sha.c glass_local_assets.c glass_local_tokenizer.c
+CSRCS += glass_local_w8a8.c
+ifneq ($(CONFIG_SYSTEM_HASS),)
+CFLAGS += -DGLASS_LOCAL_CONTROL
+CSRCS += glass_local_control.c
+endif
 CSRCS += glass_local_llm.c glass_local_frontend.c glass_local_tts.c glass_local_voice.c glass_local_platform.c
 glass_local_model.c_CFLAGS += -O2 -ffp-contract=off
 glass_local_llm.c_CFLAGS += -O2 -ffp-contract=off
@@ -75,7 +80,7 @@ CSRCS += glass_chat_service.c glass_chat_store.c glass_agent.c glass_agent_confi
 CSRCS += glass_board_music.c
 CSRCS += glass_board_assistant.c glass_assistant_platform.c
 CSRCS += glass_vision.c qpk_camera_clip.c glass_camera_observation.c
-CSRCS += glass_grok.c glass_grok_state.c
+CSRCS += glass_grok.c glass_grok_state.c glass_seagull.c glass_seagull_data.c
 CSRCS += glass_code_font.c
 CSRCS += glass_sd_font.c
 CSRCS += glass_i18n.c
@@ -91,4 +96,8 @@ CSRCS += hass_qjs.c hass_portal.c glass_board_home.c
 CFLAGS += -I$(APPDIR)/system/hass
 endif
 
+CSRCS += glass_material.c glass_boot.c
+
 include $(APPDIR)/Application.mk
+
+glass_local_w8a8.c_CFLAGS += -O2 -ffp-contract=off

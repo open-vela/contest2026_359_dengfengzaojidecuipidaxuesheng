@@ -1,0 +1,2821 @@
+{
+  "mode": "0",
+  "actual_board": true,
+  "microphone": false,
+  "household_actions": false,
+  "observations": [
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 1,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 0,
+        "elapsed_ms": 470,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 1,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 0,
+        "elapsed_ms": 5530,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 1,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 0,
+        "elapsed_ms": 10120,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 1,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 0,
+        "elapsed_ms": 14760,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 10,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 183728,
+        "elapsed_ms": 19380,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 10,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 183728,
+        "elapsed_ms": 24450,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 10,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 183728,
+        "elapsed_ms": 29060,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 10,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 183728,
+        "elapsed_ms": 33680,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 11936768,
+        "elapsed_ms": 38390,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 11936768,
+        "elapsed_ms": 43380,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 11936768,
+        "elapsed_ms": 48140,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 11936768,
+        "elapsed_ms": 52750,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 11936768,
+        "elapsed_ms": 57370,
+        "first_token_ms": 0,
+        "first_audio_ms": 0,
+        "tokens": 0
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 62720,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 1
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 67330,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 1
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 71950,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 2
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 76570,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 3
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 81640,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 3
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 86250,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 90870,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 95480,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 100560,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 105180,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 109800,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 114600,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 6
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 119960,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 8
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 124570,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 8
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 129180,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 8
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 133710,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 10
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 138760,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 10
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 143330,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 12
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 147980,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 12
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 152870,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 12
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 158060,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 13
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 162670,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 13
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 167280,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 14
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 171890,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 14
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 176980,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 17
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 181590,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 17
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 186200,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 17
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 190810,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 21
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 195880,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 21
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 200510,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 22
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 205120,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 22
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 209700,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 22
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 214790,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 25
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 219390,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 25
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 223990,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 25
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 228580,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 233630,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 238240,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 242850,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 247480,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 252520,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 11,
+        "busy": 1,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 257150,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 0,
+        "fnv": 811
+      }
+    },
+    {
+      "LOCAL_VOICE": {
+        "request": 1,
+        "phase": 0,
+        "busy": 0,
+        "ready": 0,
+        "asr": 0,
+        "local_wake": 1,
+        "enabled": 1,
+        "pending": 0,
+        "error": 0,
+        "model_error": 0,
+        "peak": 12405144,
+        "elapsed_ms": 258660,
+        "first_token_ms": 60331,
+        "first_audio_ms": 0,
+        "tokens": 26
+      },
+      "LOCAL_VOICE_ASR": {
+        "error": 0,
+        "level": 0,
+        "capture_ms": 0,
+        "tokens": 0,
+        "first_token_ms": 0,
+        "elapsed_ms": 0,
+        "text_bytes": 0,
+        "fnv": 811
+      },
+      "LOCAL_VOICE_ASR_STREAM": {
+        "active": 0,
+        "streaming": 0,
+        "decoded_ms": 0,
+        "backlog_ms": 0
+      },
+      "LOCAL_DUAL_AI": {
+        "selected": 1,
+        "resident_control": 0,
+        "thinking": 5,
+        "model_rounds": 0,
+        "tool_rounds": 0,
+        "review_rounds": 0
+      },
+      "LOCAL_VOICE_TEXT": {
+        "bytes": 78,
+        "fnv": 16556
+      }
+    }
+  ],
+  "heaps": [
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968    7472184   17955784    8147616   17938296   5366     10 Umem\n     110064      61672      48392      64824      46680    262      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968    5257456   20170512    8147616   17938296   4631     87 Umem\n     110064      62856      47208      64824      45640    268      6 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968    5471272   19956696    8147616   17938296   4611     75 Umem\n     110064      62192      47872      64824      46160    264      7 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16988288    8439680   17282272    7755592   4737     80 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16974784    8453184   17282272    7755592   4694     83 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16961416    8466552   17282272    7755592   4704     81 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   17133240    8294728   17305672    7755592   4734     81 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16980560    8447408   17305672    7755592   4695     84 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16967144    8460824   17305672    7755592   4705     85 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16990904    8437064   17305672    7755592   4674     84 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   17007280    8420688   17305672    7755592   4694     89 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   17006968    8421000   17306592    7755592   4715     81 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16959016    8468952   17306592    7755592   4687     88 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   16960960    8467008   17306592    7755592   4703     86 Umem\n     110064      62440      47624      64824      45640    265      8 Kmem",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968   17024336    8403632   17306592    7755592   4736     90 Umem\n     110064      62488      47576      64824      45640    267      7 Kmem\nnsh> \u001b[K",
+    "free\n      total       used       free    maxused    maxfree  nused  nfree name\n   25427968    7454920   17973048   17306592   15999296   4758     41 Umem\n     110064      62784      47280      64992      46680    272      5 Kmem\n\nBOOT_STAGE ms=332nsh> \u001b[K"
+  ],
+  "xip_bound": true,
+  "before": {
+    "LOCAL_VOICE": {
+      "request": 0,
+      "phase": 0,
+      "busy": 0,
+      "ready": 0,
+      "asr": 0,
+      "local_wake": 1,
+      "enabled": 1,
+      "pending": 0,
+      "error": 0,
+      "model_error": 0,
+      "peak": 0,
+      "elapsed_ms": 0,
+      "first_token_ms": 0,
+      "first_audio_ms": 0,
+      "tokens": 0
+    },
+    "LOCAL_VOICE_ASR": {
+      "error": 0,
+      "level": 0,
+      "capture_ms": 0,
+      "tokens": 0,
+      "first_token_ms": 0,
+      "elapsed_ms": 0,
+      "text_bytes": 0,
+      "fnv": 811
+    },
+    "LOCAL_VOICE_ASR_STREAM": {
+      "active": 0,
+      "streaming": 0,
+      "decoded_ms": 0,
+      "backlog_ms": 0
+    },
+    "LOCAL_DUAL_AI": {
+      "selected": 0,
+      "resident_control": 0,
+      "thinking": 5,
+      "model_rounds": 0,
+      "tool_rounds": 0,
+      "review_rounds": 0
+    },
+    "LOCAL_VOICE_TEXT": {
+      "bytes": 0,
+      "fnv": 811
+    }
+  },
+  "request": 1,
+  "completed": {
+    "LOCAL_VOICE": {
+      "request": 1,
+      "phase": 0,
+      "busy": 0,
+      "ready": 0,
+      "asr": 0,
+      "local_wake": 1,
+      "enabled": 1,
+      "pending": 0,
+      "error": 0,
+      "model_error": 0,
+      "peak": 12405144,
+      "elapsed_ms": 258660,
+      "first_token_ms": 60331,
+      "first_audio_ms": 0,
+      "tokens": 26
+    },
+    "LOCAL_VOICE_ASR": {
+      "error": 0,
+      "level": 0,
+      "capture_ms": 0,
+      "tokens": 0,
+      "first_token_ms": 0,
+      "elapsed_ms": 0,
+      "text_bytes": 0,
+      "fnv": 811
+    },
+    "LOCAL_VOICE_ASR_STREAM": {
+      "active": 0,
+      "streaming": 0,
+      "decoded_ms": 0,
+      "backlog_ms": 0
+    },
+    "LOCAL_DUAL_AI": {
+      "selected": 1,
+      "resident_control": 0,
+      "thinking": 5,
+      "model_rounds": 0,
+      "tool_rounds": 0,
+      "review_rounds": 0
+    },
+    "LOCAL_VOICE_TEXT": {
+      "bytes": 78,
+      "fnv": 16556
+    }
+  },
+  "wall_seconds": 262.5335186999291,
+  "LOCAL_ASR_STREAM_BENCH": {
+    "sample": 0,
+    "samples": 89784,
+    "load_us": 21640000,
+    "compute_us": 220470000,
+    "tail_us": 22800000,
+    "first_us": 22210000,
+    "resident": 1794020,
+    "inference_reads": 24822,
+    "peak": 12405144,
+    "budget": 16777216,
+    "result": 0
+  },
+  "LOCAL_ASR_ACCEL": {
+    "pie_dots": 36586160,
+    "pie_fallbacks": 0,
+    "selftests": 1,
+    "selftest_failures": 0,
+    "parallel_jobs": 114,
+    "workers": 1,
+    "parallel_fallbacks": 0,
+    "cpu0": 114,
+    "cpu1": 114,
+    "overlap_us": 5230000,
+    "block_loads": 1729,
+    "block_hits": 396321,
+    "block_bytes": 119544960,
+    "block_peak": 389120
+  },
+  "LOCAL_ASR_IO": {
+    "sample": 0,
+    "bytes": 135377960,
+    "reads": 25060,
+    "seeks": 5422,
+    "packed_cache": 1794020,
+    "result": 0
+  },
+  "ASR_HOT": {
+    "peak": 8388608,
+    "hits": 492005,
+    "evictions": 0
+  },
+  "ASR_DSP": {
+    "included": 1,
+    "calls": 49207,
+    "elements": 24496576,
+    "selftests": 1,
+    "fallbacks": 0
+  },
+  "ASR_TIMING": {
+    "io": 135180000,
+    "rows_including_io": 45910000,
+    "quant": 0,
+    "lane_math": 4040000,
+    "owner_wait": 950000,
+    "encoder": 201370000,
+    "decoder": 4100000,
+    "joiner": 14330000,
+    "frontend": 590000
+  },
+  "audio_seconds": 5.6115,
+  "compute_seconds": 220.47,
+  "rtf": 39.28896017107725,
+  "compute_realtime": false,
+  "successful_transcription": true,
+  "exception": "[('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('0', '811c9dc5'), ('78', '16556ef3')]"
+}

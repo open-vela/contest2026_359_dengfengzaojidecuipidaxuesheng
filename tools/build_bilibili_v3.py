@@ -57,6 +57,9 @@ def main():
     p.add_argument('--esp-tts-prepared',type=Path,help='Pinned ESP-TTS libraries/voice; use as the normal Chinese speech backend')
     p.add_argument('--local-voice-sdk',type=Path,help='Prepared SD-externalized EI SDK; enable the independent offline voice app')
     p.add_argument('--local-asr-evaluation',action='store_true',help='Include fixed Zipformer C runtime and worker-only SD sample gate; microphone ASR stays unready')
+    p.add_argument('--local-asr-streaming',action='store_true',help='RAM-only concurrent capture, incremental Zipformer, provisional transcript and bounded backlog')
+    p.add_argument('--local-asr-accel',action='store_true',help='ASR packed blocks, persistent dual-core helper and guarded two-piece S16 PIE; requires ASR and TTS PIE kernel')
+    p.add_argument('--local-asr-official-dsp',action='store_true',help='Pinned ESP-DSP float vector kernels and coalesced ASR broadcasting; no HWLP or model requantization')
     p.add_argument('--local-asr-microphone',action='store_true',help='Enable RAM-only microphone -> Zipformer -> local dialogue pipeline (requires ASR evaluation)')
     p.add_argument('--local-q4-pie',action='store_true',help='Include opt-in Q4/A16 PIE backend; default remains scalar, runtime selftest required')
     p.add_argument('--local-tts-pie',action='store_true',help='Experimental native V2 W8A16 vocoder; weights stay on SD, selftest per request')
@@ -87,6 +90,7 @@ def main():
     p.add_argument('--dsi-flash-reload',action='store_true',help='Rejected physical experiment; retained to reject old deployment commands')
     p.add_argument('--factory-header',action='store_true',help='Use factory P4X J1 pins, reserving GPIO0/1 for XTAL32K: I2C1=2/3, SPI2=6/3/4/5, PWM0=2')
     a=p.parse_args();repo=Path(__file__).resolve().parent.parent
+    if a.local_asr_official_dsp and not a.local_asr_accel:p.error('--local-asr-official-dsp requires --local-asr-accel')
     if a.sd_spi_hz>25000000:
         p.error('40 MHz SD SPI failed native card mounting; production builds remain at 20 MHz. The isolated candidate61 experiment is retained for diagnosis.')
     if a.ble_connections==8 and not a.ble_eight_test:
@@ -103,6 +107,8 @@ def main():
     if a.esp_tts_prepared and not a.speech_runtime:p.error('--esp-tts-prepared requires --speech-runtime')
     if a.local_voice_sdk and not a.speech_runtime:p.error('--local-voice-sdk requires --speech-runtime for shared audio ownership')
     if a.local_asr_evaluation and not a.local_voice_sdk:p.error('--local-asr-evaluation requires --local-voice-sdk')
+    if a.local_asr_streaming and not a.local_asr_microphone:p.error('--local-asr-streaming requires --local-asr-microphone')
+    if a.local_asr_accel and not (a.local_asr_evaluation and a.local_tts_pie):p.error('--local-asr-accel requires --local-asr-evaluation and --local-tts-pie')
     if a.local_asr_microphone and not a.local_asr_evaluation:p.error('--local-asr-microphone requires --local-asr-evaluation')
     if a.local_q4_pie and not a.local_voice_sdk:p.error('--local-q4-pie requires --local-voice-sdk')
     if a.local_tts_pie and not a.local_voice_sdk:p.error('--local-tts-pie requires --local-voice-sdk')
@@ -147,6 +153,8 @@ def main():
                for f in folder.rglob('*') if f.is_file()]+radio_sources
         if a.local_asr_evaluation:
             files.extend(f for f in (repo/'app/espdl-quickapp/experimental').iterdir() if f.name.startswith('local_asr') and f.suffix in ('.c','.h'))
+        if a.local_asr_official_dsp:
+            files.extend(f for f in (repo/'app/espdl-quickapp/experimental/esp_dsp').rglob('*') if f.is_file())
         if a.local_q4_pie:
             files.extend(repo/'app/espdl-quickapp/experimental'/n for n in ('local_q4_pie.c','local_q4_pie.h','local_q4_dot_p4.S','local_q8_pie.c','local_q8_pie.h'))
         if a.local_tts_pie:
@@ -248,12 +256,29 @@ def main():
         make='GLASS_LOCAL_VOICE = 1\n'+make+'\nCFLAGS += -DGLASS_LOCAL_VOICE\n'
     if a.local_asr_evaluation:
         experimental=repo/'app/espdl-quickapp/experimental'
-        for name in ('local_asr','local_asr_graph','local_asr_fbank','local_asr_ops'):
+        asr_names=('local_asr','local_asr_graph','local_asr_fbank','local_asr_ops')+(('local_asr_accel','local_asr_parallel') if a.local_asr_accel else ())
+        for name in asr_names:
             for suffix in ('.c','.h'):shutil.copy2(experimental/(name+suffix),desktop_make.parent/(name+suffix))
         block='\nCFLAGS += -DGLV_ASR_EVALUATION\nCSRCS += glass_local_asr.c local_asr.c local_asr_graph.c local_asr_fbank.c local_asr_ops.c\n'
+        if a.local_asr_accel:block+='CFLAGS += -DGLV_ASR_ACCEL_ENABLED\nCSRCS += local_asr_accel.c local_asr_parallel.c\n'
+        if a.local_asr_official_dsp:
+            vendor=experimental/'esp_dsp'
+            dsp_lock=json.loads((vendor/'UPSTREAM.json').read_text())
+            for row in dsp_lock['files']:
+                if hashlib.sha256((vendor/row['path']).read_bytes()).hexdigest()!=row['sha256']:raise RuntimeError('Pinned ESP-DSP source changed: '+row['path'])
+            shutil.copytree(vendor,desktop_make.parent/'esp_dsp',dirs_exist_ok=True)
+            for name in ('local_asr_dsp.c','local_asr_dsp.h'):shutil.copy2(experimental/name,desktop_make.parent/name)
+            block+='CFLAGS += -DGLV_ASR_OFFICIAL_DSP\nCSRCS += local_asr_dsp.c dsps_add_f32_ansi.c dsps_sub_f32_ansi.c dsps_mul_f32_ansi.c\n'
+            private=' -I$(CURDIR)/esp_dsp/compat -I$(CURDIR)/esp_dsp -O3 -fno-fast-math -ffp-contract=off'
+            block+='local_asr_dsp.c_CFLAGS +='+private+'\n'
+            renamed=' -Ddsps_add_f32_ansi=glv_esp_dsp_add_f32_ansi -Ddsps_sub_f32_ansi=glv_esp_dsp_sub_f32_ansi -Ddsps_mul_f32_ansi=glv_esp_dsp_mul_f32_ansi'
+            for op in ('add','sub','mul'):
+                name='dsps_'+op+'_f32_ansi.c';shutil.copy2(vendor/name,desktop_make.parent/name)
+                block+=name+'_CFLAGS +='+private+renamed+'\n'
         if a.local_asr_microphone:
             block+='CFLAGS += -DGLV_ASR_MICROPHONE\nCSRCS += glass_local_capture.c glass_local_capture_device.c\n'
-        for name in ('local_asr','local_asr_graph','local_asr_fbank','local_asr_ops'):
+        if a.local_asr_streaming:block+='CFLAGS += -DGLV_ASR_STREAMING\nCSRCS += glass_local_capture_stream.c\n'
+        for name in asr_names:
             block+=name+'.c_CFLAGS += -O2 -ffp-contract=off\n'
         anchor='include $(APPDIR)/Application.mk'
         if make.count(anchor)!=1:raise RuntimeError('Cannot locate desktop application source-rule expansion')
@@ -626,7 +651,8 @@ def main():
               'sha256':{name:sha(out/name) for name in ['nuttx.bin','nuttx.elf','resolved.config']},
               'reused_libraries':{str(lib):sha(Path(lib)) for lib in libs if Path(lib).is_file()},
               'source_sha256':copied_source_hashes,
-              'local_asr':{'evaluation_enabled':a.local_asr_evaluation,'microphone_enabled':a.local_asr_microphone,'plan_abi':'GLA1-1','tokens_abi':'GLT1-1','microphone_ready':False,'board_tested':False},
+              'local_asr':{'evaluation_enabled':a.local_asr_evaluation,'microphone_enabled':a.local_asr_microphone,'streaming_enabled':a.local_asr_streaming,'plan_abi':'GLA1-2','compatible_plan_abis':['GLA1-1','GLA1-2'],'model_quantization':'published dynamic UINT8/INT8 with retained FP32 tensors','tokens_abi':'GLT1-1','microphone_ready':False,'board_tested':False,'packed_blocks':a.local_asr_accel,'persistent_parallel_worker':a.local_asr_accel,'acceleration_enabled':a.local_asr_accel,'pie_activation':'S16 high plus S16 residual, guarded FP32 fallback'},
+              'local_asr_official_dsp':{'included':a.local_asr_official_dsp,'upstream_revision':dsp_lock['revision'] if a.local_asr_official_dsp else None,'kernel_set':['dsps_add_f32_ansi','dsps_sub_f32_ansi','dsps_mul_f32_ansi'] if a.local_asr_official_dsp else [],'hwlp_enabled':False,'model_requantized':False},
               'local_q8_pie':{'included':a.local_q4_pie,'activation_bits':16,'selftest_required':True,'default_enabled':False,'bulk_rows':True,'board_tested':False},
               'local_q4_pie':{'included':a.local_q4_pie,'default_bits':0,'selftest_required':True,'board_tested':False},
               'local_tts_pie':{'included':a.local_tts_pie,'activation_bits':16,'weight_bits':8,'selftest_required':True,'board_tested':False,'batch_default':True,'guarded_reciprocal':True,'polyphase_upsample':True,'dot_unroll':4,'interleaved_output_positions':4,'bitwise_finite':True,'fused_mac_load':True},

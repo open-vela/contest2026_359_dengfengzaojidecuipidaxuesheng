@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps/system/desktop/pet_lvgl.c
  *
- * Always-on floating whale overlay.  Other apps talk to the engine via
+ * Always-on floating seagull overlay.  Other apps talk to the engine via
  * system.pet; this file only draws and handles drag/poke.
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -14,6 +14,7 @@
 #include "glass_voice.h"
 #include "pet_engine.h"
 #include "pet_sprites.h"
+#include "glass_seagull.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -64,6 +65,8 @@ struct pet_ui_s
   bool bubble_inner_valid;
   int sprite_view;
   int sprite_size;
+  int turn_pose;
+  uint32_t turn_at;
   struct pet_state_s rendered;
   int rendered_top_offset;
   int rendered_root_x;
@@ -118,79 +121,47 @@ static void set_blobs_hidden(bool hidden)
     }
 }
 
-static unsigned pet_size_index(const struct pet_state_s *state)
-{
-  if (strcmp(state->size_id, "small") == 0)
-    {
-      return 0;
-    }
 
-  if (strcmp(state->size_id, "large") == 0)
-    {
-      return 2;
-    }
 
-  return 1;
-}
 
-static enum pet_sprite_view_e pet_sprite_view(const struct pet_state_s *state)
-{
-  if (state->dir == PET_UP)
-    {
-      return PET_SPRITE_UP;
-    }
-
-  if (state->dir == PET_LEFT)
-    {
-      return PET_SPRITE_LEFT;
-    }
-
-  if (state->dir == PET_RIGHT)
-    {
-      return PET_SPRITE_RIGHT;
-    }
-
-  return PET_SPRITE_DOWN;
-}
 
 static void layout_sprite(const struct pet_state_s *state, int top_offset)
 {
-  enum pet_sprite_view_e view = pet_sprite_view(state);
-  unsigned size_index = pet_size_index(state);
-  const struct pet_sprite_image_s *image =
-    pet_sprites_get(&g_ui.sprites, view, size_index);
-
-  if (image == NULL)
-    {
-      lv_obj_add_flag(g_ui.sprite, LV_OBJ_FLAG_HIDDEN);
-      set_blobs_hidden(false);
-      layout_parts(state, top_offset);
-      return;
-    }
-
-  set_blobs_hidden(true);
-  lv_obj_remove_flag(g_ui.sprite, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_size(g_ui.root, state->w, state->h + top_offset);
-  if (g_ui.sprite_view != (int)view || g_ui.sprite_size != (int)size_index)
-    {
-      if (g_ui.sprite_dsc.data != NULL)
-        {
-          lv_image_cache_drop(&g_ui.sprite_dsc);
-        }
-      memset(&g_ui.sprite_dsc, 0, sizeof(g_ui.sprite_dsc));
-      g_ui.sprite_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-      g_ui.sprite_dsc.header.cf = LV_COLOR_FORMAT_RGB565A8;
-      g_ui.sprite_dsc.header.w = image->width;
-      g_ui.sprite_dsc.header.h = image->height;
-      g_ui.sprite_dsc.header.stride = image->width * 2u;
-      g_ui.sprite_dsc.data_size = image->data_size;
-      g_ui.sprite_dsc.data = image->data;
-      lv_image_set_src(g_ui.sprite, &g_ui.sprite_dsc);
-      g_ui.sprite_view = view;
-      g_ui.sprite_size = size_index;
-    }
-
-  lv_obj_set_pos(g_ui.sprite, (state->w - image->width) / 2, top_offset);
+  unsigned target=state->dir==PET_LEFT?0:state->dir==PET_RIGHT?8:4;
+  unsigned index;
+  uint32_t now=lv_tick_get();
+  if(g_ui.turn_pose!=(int)target&&now-g_ui.turn_at>=80){
+    g_ui.turn_pose+=g_ui.turn_pose<(int)target?1:-1;g_ui.turn_at=now;
+  }
+  index=state->dir==PET_UP?SEAGULL_REAR:SEAGULL_YAW_BASE+(unsigned)g_ui.turn_pose;
+  if(state->dir==PET_DOWN&&g_ui.turn_pose==4&&state->action_t>0)index=8; /* happy */
+  struct seagull_pose pose=seagull_motion_pose(SEAGULL_IDLE,0);
+  if(state->motion && !state->dragging && g_ui.turn_pose==4){
+    pose=seagull_motion_pose(state->motion,state->motion_ms);
+    index=pose.index;
+  }
+  if(g_ui.sprite_view!=(int)index){
+    lv_image_cache_drop(&g_ui.sprite_dsc);
+    if(glass_seagull_decode(index,g_ui.sprites.storage,SEAGULL_SIDE)!=0)return;
+    memset(&g_ui.sprite_dsc,0,sizeof(g_ui.sprite_dsc));
+    g_ui.sprite_dsc.header.magic=LV_IMAGE_HEADER_MAGIC;
+    g_ui.sprite_dsc.header.cf=LV_COLOR_FORMAT_RGB565A8;
+    g_ui.sprite_dsc.header.w=g_ui.sprite_dsc.header.h=SEAGULL_SIDE;
+    g_ui.sprite_dsc.header.stride=SEAGULL_SIDE*2;
+    g_ui.sprite_dsc.data_size=SEAGULL_BYTES;
+    g_ui.sprite_dsc.data=g_ui.sprites.storage;
+    lv_image_set_src(g_ui.sprite,&g_ui.sprite_dsc);
+    g_ui.sprite_view=(int)index;
+  }
+  set_blobs_hidden(true);lv_obj_remove_flag(g_ui.sprite,LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_size(g_ui.root,state->w,state->h+top_offset);
+  int side=state->w<state->h?state->w:state->h;
+  lv_image_set_pivot(g_ui.sprite,64,64);
+  lv_image_set_scale_x(g_ui.sprite,side*pose.sx/SEAGULL_SIDE);
+  lv_image_set_scale_y(g_ui.sprite,side*pose.sy/SEAGULL_SIDE);
+  lv_image_set_rotation(g_ui.sprite,(pose.angle+3600)%3600);
+  lv_image_set_antialias(g_ui.sprite,true);
+  lv_obj_set_pos(g_ui.sprite,state->w/2-64,top_offset+state->h/2-64);
 }
 
 static lv_obj_t *make_blob(lv_obj_t *parent, uint32_t color, int radius)
@@ -692,7 +663,7 @@ static void pet_event_cb(lv_event_t *e)
             {
               lv_timer_delete(g_ui.click_timer);
               g_ui.click_timer = NULL;
-              pet_engine_feed("fish");
+              pet_engine_feed("fries");
               pet_lvgl_sync();
             }
           else
@@ -800,21 +771,11 @@ int pet_lvgl_create(lv_obj_t *parent, const lv_font_t *font_zh)
   lv_obj_add_flag(g_ui.sprite, LV_OBJ_FLAG_HIDDEN);
   g_ui.sprite_view = -1;
   g_ui.sprite_size = -1;
-  {
-    char error[96];
-    int ret = pet_sprites_load(PET_SPRITE_PATH, &g_ui.sprites,
-                               error, sizeof(error));
-    if (ret == 0)
-      {
-        printf("desktop: pet sprites loaded from %s (%lu bytes)\n",
-               PET_SPRITE_PATH, (unsigned long)g_ui.sprites.storage_size);
-      }
-    else
-      {
-        printf("desktop: pet sprites unavailable (%s); using fallback\n",
-               error);
-      }
-  }
+  g_ui.turn_pose=4;
+  g_ui.sprites.storage=malloc(SEAGULL_BYTES);
+  if(!g_ui.sprites.storage){pet_lvgl_destroy();return -1;}
+  g_ui.sprites.storage_size=SEAGULL_BYTES;
+
 
   g_ui.timer = lv_timer_create(pet_timer_cb, PET_TICK_MS, NULL);
   if (g_ui.timer == NULL)
@@ -907,7 +868,11 @@ void pet_lvgl_sync(void)
                    state.h != g_ui.rendered.h ||
                    state.dir != g_ui.rendered.dir ||
                    state.facing != g_ui.rendered.facing ||
-                   top_offset != g_ui.rendered_top_offset;
+                   state.motion != g_ui.rendered.motion ||
+                   state.motion_ms/SEAGULL_MOTION_FRAME_MS != g_ui.rendered.motion_ms/SEAGULL_MOTION_FRAME_MS ||
+                   top_offset != g_ui.rendered_top_offset ||
+                   (state.action_t>0)!=(g_ui.rendered.action_t>0) ||
+                   g_ui.turn_pose!=(state.dir==PET_LEFT?0:state.dir==PET_RIGHT?8:4);
   if (layout_changed && g_ui.sprites.storage != NULL)
     {
       layout_sprite(&state, top_offset);
@@ -918,12 +883,17 @@ void pet_lvgl_sync(void)
     }
 
   jump = state.jump_t > 0 ? (state.jump_t / 30) : 0;
+  struct seagull_pose motion_pose=seagull_motion_pose(state.motion,state.motion_ms);
+  int side=state.w<state.h?state.w:state.h;
+  int root_x=state.x+motion_pose.x*side/128;
   root_y = state.y - top_offset - jump;
+  root_y+=motion_pose.y*side/128;
+  if(root_y<0)root_y=0;
   if (!g_ui.rendered_valid || !was_visible ||
-      state.x != g_ui.rendered_root_x || root_y != g_ui.rendered_root_y)
+      root_x != g_ui.rendered_root_x || root_y != g_ui.rendered_root_y)
     {
-      lv_obj_set_pos(g_ui.root, state.x, root_y);
-      g_ui.rendered_root_x = state.x;
+      lv_obj_set_pos(g_ui.root, root_x, root_y);
+      g_ui.rendered_root_x = root_x;
       g_ui.rendered_root_y = root_y;
     }
 
@@ -980,9 +950,7 @@ bool pet_lvgl_is_open(void)
 }
 
 bool pet_lvgl_uses_sd_sprites(void)
-{
-  return g_ui.sprites.storage != NULL;
-}
+{ return false; /* Appearance is built into the firmware. */ }
 
 size_t pet_lvgl_sprite_bytes(void)
 {
@@ -993,34 +961,7 @@ size_t pet_lvgl_sprite_bytes(void)
  * current image alive until the entire replacement has passed validation. */
 int pet_lvgl_reload_sprites(void)
 {
-  struct pet_sprite_bundle_s next = {0};
-  char error[96];
-  int ret;
-
-  if (!pet_lvgl_is_open())
-    {
-      return -ENODEV;
-    }
-
-  ret = pet_sprites_load(PET_SPRITE_PATH, &next, error, sizeof(error));
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  /* Detach LVGL and its cache before releasing the old pixel storage. */
-  lv_image_set_src(g_ui.sprite, NULL);
-  if (g_ui.sprite_dsc.data != NULL)
-    {
-      lv_image_cache_drop(&g_ui.sprite_dsc);
-    }
-
-  memset(&g_ui.sprite_dsc, 0, sizeof(g_ui.sprite_dsc));
-  pet_sprites_unload(&g_ui.sprites);
-  g_ui.sprites = next;
-  g_ui.sprite_view = -1;
-  g_ui.sprite_size = -1;
-  g_ui.rendered_valid = false;
-  pet_lvgl_sync();
-  return 0;
+  if(!pet_lvgl_is_open())return -ENODEV;
+  g_ui.sprite_view=-1;g_ui.turn_pose=4;g_ui.rendered_valid=false;
+  pet_lvgl_sync();return 0;
 }

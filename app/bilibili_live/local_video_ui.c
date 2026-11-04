@@ -214,6 +214,9 @@ void local_video_draw_status(void (*emit)(const char *,...))
     emit("VIDEO_PIXELS paused=1 ready=1 samples=%u matches=%u nonblack=%u yoffset=%u\n",samples,matches,nonblack,(unsigned)plane.yoffset);
   }
 }
+bool local_video_fullscreen_active(void)
+{return fullscreen&&lv_obj_is_visible(fullscreen);}
+
 static void fullscreen_exit(lv_event_t *e)
 {
   (void)e;if(!fullscreen)return;

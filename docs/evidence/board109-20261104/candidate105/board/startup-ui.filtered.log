@@ -1,0 +1,83 @@
+COMMAND desktop boot-status
+BOOT_STATUS active=1 ui_ready=1 events=24
+BOOT_STAGE ms=0 delta=0 stage=desktop-entry result=0
+BOOT_STAGE ms=0 delta=0 stage=console-created result=0
+BOOT_STAGE ms=0 delta=0 stage=console-running result=0
+BOOT_STAGE ms=0 delta=0 stage=touch-init-begin result=0
+BOOT_STAGE ms=0 delta=0 stage=lvgl-init-begin result=0
+BOOT_STAGE ms=0 delta=0 stage=lvgl-init-end result=0
+BOOT_STAGE ms=0 delta=0 stage=display-init-begin result=0
+BOOT_STAGE ms=110 delta=110 stage=display-init-end result=0
+BOOT_STAGE ms=110 delta=0 stage=photo-store-init-begin result=0
+BOOT_STAGE ms=110 delta=0 stage=photo-store-init-end result=0
+BOOT_STAGE ms=110 delta=0 stage=basic-ui-create-begin result=0
+BOOT_STAGE ms=230 delta=120 stage=basic-ui-create-end result=0
+BOOT_STAGE ms=430 delta=200 stage=first-frame-ready result=0
+BOOT_STAGE ms=450 delta=20 stage=network-start-begin result=0
+BOOT_STAGE ms=450 delta=0 stage=network-start-end result=0
+BOOT_STAGE ms=480 delta=30 stage=storage-weather-start-begin result=0
+BOOT_STAGE ms=480 delta=0 stage=storage-weather-start-end result=0
+BOOT_STAGE ms=500 delta=20 stage=assistant-start-begin result=0
+BOOT_STAGE ms=500 delta=0 stage=assistant-start-end result=0
+BOOT_STAGE ms=520 delta=20 stage=local-voice-start-begin result=0
+BOOT_STAGE ms=520 delta=0 stage=local-voice-start-end result=0
+BOOT_STAGE ms=550 delta=30 stage=materials-background-enabled result=0
+BOOT_STAGE ms=570 delta=20 stage=font-background-read-begin result=0
+BOOT_STAGE ms=15310 delta=14740 stage=font-background-read-end result=0
+COMMAND free
+   25427968    7315600   18112368    7495064   18025568   4396     12 Umem
+     110064      61672      48392      64824      46680    262      8 Kmem
+COMMAND desktop ui unlock
+COMMAND desktop ui home
+COMMAND desktop ui lock
+COMMAND desktop ui lock-status
+COMMAND desktop ui lock-next
+COMMAND desktop ui lock-status
+COMMAND desktop ui lock-next
+COMMAND desktop ui lock-status
+COMMAND desktop ui lock-next
+COMMAND desktop ui lock-status
+COMMAND desktop ui lock-next
+COMMAND desktop ui unlock
+COMMAND desktop ui home
+COMMAND desktop ui font-status
+COMMAND desktop local-voice status
+LOCAL_VOICE request=0 phase=0 busy=0 ready=0 asr=0 local_wake=1 enabled=1 pending=0 error=0 model_error=0 peak=0 elapsed_ms=0 first_token_ms=0 first_audio_ms=0 tokens=0
+LOCAL_DUAL_AI selected=0 resident_control=0 thinking=5 model_rounds=0 tool_rounds=0 review_rounds=0
+LOCAL_RESIDENT_BYTES bytes=0 kv_bytes=0 reserve=2097152
+LOCAL_ASR_DSP included=1 calls=0 elements=0 selftests=0 fallbacks=0
+LOCAL_LLM_9M9 parameters=9870560 weight_bits=8 activation_bits=8 calls=0 dots=0 selftests=0
+LOCAL_LLM_HOT ticks_per_us=400 matrix=0 quant=0 rows=0 checks=0 compute=0 prepare=0 fast_rows=0 checkpoints=0
+LOCAL_LLM_SPEC blocks=0 drafted=0 accepted=0 fallbacks=0 previous=0 prompt=0
+LOCAL_LLM_ATTENTION qk=0 softmax=0 value=0 head=0 direct_rows=0 repack=0
+LOCAL_LLM_BLOCK loads=0 hits=0 read_bytes=0 peak_bytes=0
+LOCAL_LLM_MORE quant_reuses=0 attention=0 norm=0 activation=0
+LOCAL_VOICE_TEXT bytes=0 fnv=811c9dc5
+LOCAL_VOICE_DIAG request=0 cancel_source=0 cancel_phase=0 cancel_ms=0 check_ms=0 load_ms=0 tokenize_ms=0 prefill_ms=0 decode_ms=0 progress=0 total=0
+LOCAL_VOICE_Q8 included=1 activation_bits=16 gate=0 matrices=0 dots=0
+LOCAL_VOICE_Q4 bits=0 selftest=0 matrices=0 dots=0
+LOCAL_VOICE_LAZY default_text=1 wake_error=0
+LOCAL_VOICE_IO request=0 sha_bytes=0 sha_read_ms=0 sha_compute_ms=0 weight_bytes=0 read_ms=0 seek_ms=0 decode_ms=0 matmul_ms=0 verified_reuses=0 sha_hw=0 sha_hw_files=0 sha_hw_updates=0 sha_hw_selftests=0
+LOCAL_VOICE_CACHE request=0 peak_bytes=0 hits=0 hit_bytes=0
+LOCAL_VOICE_TTS_PAR request=0 enabled=1 jobs=0 cpu0=0 cpu1=0 fallbacks=0 stack_charge=0 elapsed_ms=0 overlap_ms=0 mlp_jobs=0 cache_fb=0 budget_fb=0 reserve_fb=0 fragment_fb=0 mutex_fb=0 setup_fb=0 create_fb=0 last_reason=0 last_error=0 setup_us=0 join_us=0 owner0=0 owner1=0 pin_retries=0
+LOCAL_VOICE_TTS_FMA request=0 enabled=0 upsample_calls=0 rejected=0
+LOCAL_VOICE_TTS_INPUT request=0 enabled=1 max_jobs=0 quant_jobs=0 rounding_fallbacks=0
+LOCAL_VOICE_TTS_PIE_PAR request=0 enabled=1 eligible=0 jobs=0 context_checks=0 scratch_fb=0 rounding_fb=0
+LOCAL_VOICE_TTS_WEIGHT_LUT request=0 enabled=0 rows=0 hits=0 misses=0 rounding_fb=0
+LOCAL_VOICE_TTS_INT8 request=0 enabled=0 benchmark_only=1 calls=0 kept16=0 selftests=0 selftests16=0
+LOCAL_VOICE_TTS_REDUCE request=0 enabled=0 calls=0 selftests=0 frpc: WifiStaGetRssi tx pb=10 tlv=22
+LOCAL_VOICE_TTS_UP_PAIR request=0 enabled=0 calls=0 packed_fb=0 pack_ms=0 compute_ms=0 s0_ms=0 s1_ms=0 s2_ms=0 s3_ms=0
+LOCAL_VOICE_TTS_CLAUSE request=0 enabled=1 planned=0 done=0 first_ms=0 peak_samples=0
+LOCAL_VOICE_TTS_QUANT request=0 enabled=1 calls=0 selftests=0 input_saved=0
+LOCAL_VOICE_TTS_PROFILE request=0 coarse=1
+LOCAL_VOICE_TTS_WINDOWS request=0 planned=1 cap_kib=0 checks=0 skips=0 attempts=0 failed_frames=0 failed_ms=0
+LOCAL_VOICE_TTS_ROWS request=0 bulk=0 reads=0 bulk_rows=0 legacy_rows=0
+LOCAL_VOICE_SESSION request=0 resident=0 pending=0 bytes=0 reused=0 kv_reused=0 prefill_tokens=0
+LOCAL_VOICE_TTS request=0 mel_ms=0 vocoder_ms=0 chunks=0 context_frames=0 output_frames=0 memory_fallbacks=0 pie_ms=0 pie_calls=0 pie_dots=0 pie_selftests=0 samples=0 ready_ms=0
+LOCAL_VOICE_TTS_WORK request=0 single=0 batches=0 input_ms=0 weights_ms=0 pack_ms=0 compute_ms=0 output_ms=0 upsample_ms=0 wave_fnv=0
+LOCAL_VOICE_ASR_STREAM active=0 streaming=0 decoded_ms=0 backlog_ms=0
+LOCAL_VOICE_ASR error=0 level=0 capture_ms=0 tokens=0 first_token_ms=0 elapsed_ms=0 text_bytes=0 fnv=811c9dc5
+COMMAND desktop sd-dma
+COMMAND free
+   25427968    7471792   17956176    8147616   17938296   5358     10 Umem
+     110064      61672      48392      64824      46680    262      8 Kmem

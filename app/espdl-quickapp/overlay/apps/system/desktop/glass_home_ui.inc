@@ -17,17 +17,17 @@ static lv_font_t *g_home_font64;
 
 static void glass_home_fonts_init(const void *data, size_t bytes)
 {
-  g_home_font12 = lv_tiny_ttf_create_data_ex(data, bytes, 12,
+  g_home_font12 = glass_material_font_create(data, bytes, 12,
     LV_FONT_KERNING_NORMAL, 128);
-  g_home_font14 = lv_tiny_ttf_create_data_ex(data, bytes, 14,
+  g_home_font14 = glass_material_font_create(data, bytes, 14,
     LV_FONT_KERNING_NORMAL, 192);
-  g_home_font32 = lv_tiny_ttf_create_data_ex(data, bytes, 32,
+  g_home_font32 = glass_material_font_create(data, bytes, 32,
     LV_FONT_KERNING_NORMAL, 24);
-  g_home_font34 = lv_tiny_ttf_create_data_ex(data, bytes, 34,
+  g_home_font34 = glass_material_font_create(data, bytes, 34,
     LV_FONT_KERNING_NORMAL, 32);
-  g_home_font40 = lv_tiny_ttf_create_data_ex(data, bytes, 40,
+  g_home_font40 = glass_material_font_create(data, bytes, 40,
     LV_FONT_KERNING_NORMAL, 32);
-  g_home_font64 = lv_tiny_ttf_create_data_ex(data, bytes, 64,
+  g_home_font64 = glass_material_font_create(data, bytes, 64,
     LV_FONT_KERNING_NORMAL, 20);
   /* The bundled CJK font has no degree mark. Native fallback avoids a tofu
    * box in temperature labels while keeping all text independently rendered. */
@@ -537,7 +537,7 @@ static void glass_rebuild(void)
   card = home_card(root, 1, 108, 310, 285, 192, light ? 0xe9e2f2 : 0x302a3e);
   lv_obj_set_style_text_color(card,lv_color_hex(ink),0);
   struct glass_grok *home_ball=glass_grok_create_pixel(card,285,!g_desktop.light_theme,zh_font);
-  glass_grok_set_notice_text(home_ball,glass_tr("加载小球…"),glass_tr("小球素材未就绪"));
+  glass_grok_set_notice_text(home_ball,glass_tr("小海鸥准备中…"),glass_tr("小海鸥暂未就绪"));
   glass_grok_set_ambient(home_ball,true);
   glass_grok_set_reduced_motion(home_ball,g_glass.reduced_motion);
   glass_grok_set_obscured_by(home_ball,g_desktop.panel);
