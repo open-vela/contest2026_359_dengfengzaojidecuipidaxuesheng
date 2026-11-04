@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "wifi_provisioning/manager.h"
@@ -26,6 +27,11 @@ static bool did_ble_provision;
 static esp_timer_handle_t reconnect_timer;
 static esp_timer_handle_t ble_window_timer;
 static unsigned reconnect_attempts;
+// One-shot software-reset intent; cold/panic resets never enter provisioning.
+static RTC_NOINIT_ATTR uint32_t serial_provision_magic;
+static RTC_NOINIT_ATTR uint32_t serial_provision_check;
+#define SERIAL_PROVISION_MAGIC 0x4a425057u
+static void start_ble_pairing(void);
 
 bool wifi_is_ready(void){return wifi_bits && (xEventGroupGetBits(wifi_bits)&GOT_IP_BIT);}
 bool wifi_has_credentials(void){return credentials_saved;}
@@ -56,7 +62,7 @@ static void on_event(void *arg,esp_event_base_t event,int32_t id,void *data)
     (void)arg;
     if(event==WIFI_PROV_EVENT){
         switch(id){
-        case WIFI_PROV_START:ESP_LOGI(TAG,"button-authorized BLE pairing started (no code)");break;
+        case WIFI_PROV_START:ESP_LOGI(TAG,"locally authorized BLE pairing started (no code)");break;
         case WIFI_PROV_CRED_RECV:ESP_LOGI(TAG,"Wi-Fi credentials received via BLE");break;
         case WIFI_PROV_CRED_SUCCESS:
             credentials_saved=true;
@@ -95,9 +101,9 @@ static void on_event(void *arg,esp_event_base_t event,int32_t id,void *data)
         reconnect_attempts=0;
         if(esp_timer_is_active(reconnect_timer))esp_timer_stop(reconnect_timer);
         xEventGroupSetBits(wifi_bits,GOT_IP_BIT);
-        // One physical click performs both initial steps: BLE Wi-Fi
+        // One local request performs both initial steps: BLE Wi-Fi
         // provisioning and LAN client binding; never requires UART.
-        if(did_ble_provision && !secrets_is_paired()){
+        if(did_ble_provision){
             did_ble_provision=false;
             net_pair_open(LAN_BIND_WINDOW_SECONDS);
             ESP_LOGI(TAG,"LAN API binding open for %d s",LAN_BIND_WINDOW_SECONDS);
@@ -107,6 +113,10 @@ static void on_event(void *arg,esp_event_base_t event,int32_t id,void *data)
 
 void wifi_ble_start(void)
 {
+    bool serial_provision=esp_reset_reason()==ESP_RST_SW &&
+        serial_provision_magic==SERIAL_PROVISION_MAGIC &&
+        serial_provision_check==~SERIAL_PROVISION_MAGIC;
+    serial_provision_magic=serial_provision_check=0;
     wifi_bits=xEventGroupCreate();
     const esp_timer_create_args_t rargs={.callback=reconnect_callback,.name="wifi-retry"};
     const esp_timer_create_args_t bargs={.callback=ble_window_expired,.name="ble-pair-expiry"};
@@ -128,12 +138,13 @@ void wifi_ble_start(void)
     bool provisioned=false;
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
     credentials_saved=provisioned;
-    if(provisioned){
+    if(provisioned && !serial_provision){
         wifi_prov_mgr_deinit();
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         ESP_ERROR_CHECK(esp_wifi_start());
     }else{
-        ESP_LOGI(TAG,"waiting for active-LOW GPIO10 pairing button; no serial or PoP needed");
+        ESP_LOGI(TAG,"waiting for GPIO10 tap or wired UART command: jbox pair");
+        if(serial_provision)start_ble_pairing();
     }
 }
 
@@ -141,9 +152,27 @@ void wifi_ble_button_short_press(void)
 {
     if(credentials_saved){
         net_pair_open(LAN_BIND_WINDOW_SECONDS);
-        ESP_LOGI(TAG,"physical LAN binding window open for %d seconds",LAN_BIND_WINDOW_SECONDS);
+        ESP_LOGI(TAG,"local LAN binding window open for %d seconds",LAN_BIND_WINDOW_SECONDS);
         return;
     }
+    start_ble_pairing();
+}
+
+void wifi_ble_serial_provision(void)
+{
+    if(provisioning_active)return;
+    if(credentials_saved){
+        // BLE memory was released in this boot. Restart without erasing NVS.
+        serial_provision_magic=SERIAL_PROVISION_MAGIC;
+        serial_provision_check=~SERIAL_PROVISION_MAGIC;
+        ESP_LOGI(TAG,"local serial provisioning: restart; retain saved configuration");
+        esp_restart();
+    }
+    start_ble_pairing();
+}
+
+static void start_ble_pairing(void)
+{
     if(provisioning_active)return;
     uint8_t mac[6];
     ESP_ERROR_CHECK(esp_read_mac(mac,ESP_MAC_WIFI_STA));
@@ -151,8 +180,8 @@ void wifi_ble_button_short_press(void)
     snprintf(name,sizeof name,"JBOX-%02X%02X%02X",mac[3],mac[4],mac[5]);
     provisioning_active=true;
     did_ble_provision=true;
-    // Security 1 negotiates encrypted transport without a PoP. The physical
-    // button/time window is the authorization gate; there is no MITM proof.
+    // Security 1 transport has no PoP; the local button/UART and deadline
+    // authorize provisioning. Starting it retains old NVS credentials.
     esp_err_t e=wifi_prov_mgr_start_provisioning(
         WIFI_PROV_SECURITY_1,NULL,name,NULL);
     if(e==ESP_OK){

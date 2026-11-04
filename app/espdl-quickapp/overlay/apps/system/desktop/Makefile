@@ -29,6 +29,10 @@ CSRCS += qpk_hardware.c qpk_hw_platform.c qpk_hw_audio.c qpk_audio_store.c qpk_h
 CSRCS += qpk_ble_gatt.c qpk_ble_channel.c
 CSRCS += qpk_usb.c qpk_network.c
 CSRCS += qpk_jbox.c qpk_jbox_transport.c
+ifeq ($(CONFIG_SYSTEM_GLASS_BLE)$(CONFIG_SYSTEM_C6_DESKTOP),yy)
+CFLAGS += -DGLASS_JBOX_SETUP
+CSRCS += jbox_wifi.c jbox_wifi_psa.c glass_jbox_setup.c
+endif
 CSRCS += qpk_photo_store.c
 CSRCS += glass_ethernet.c
 CSRCS += qpk_board_interfaces.c

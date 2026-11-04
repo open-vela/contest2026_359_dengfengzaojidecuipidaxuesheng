@@ -166,7 +166,7 @@ int jbox_connect(struct jbox_client **out,const char *host,const uint8_t key[32]
   wipe(data,sizeof(data));wipe(input,sizeof(input));wipe(proof,sizeof(proof));
   if(ret){jbox_close(c);return ret;}c->secured=true;*out=c;return 0;
 }
-int jbox_discover(cJSON *out,unsigned timeout_ms,struct qpk_hw_progress *p)
+static int discover(cJSON *out,const char *host,unsigned timeout_ms,struct qpk_hw_progress *p)
 {
   if(timeout_ms<100||timeout_ms>5000)return -EINVAL;
   cJSON *items=cJSON_AddArrayToObject(out,"devices");if(!items)return -ENOMEM;
@@ -175,7 +175,7 @@ int jbox_discover(cJSON *out,unsigned timeout_ms,struct qpk_hw_progress *p)
   if(setsockopt(fd,SOL_SOCKET,SO_BROADCAST,&yes,sizeof(yes))<0){ret=-errno;goto done;}
   int flags=fcntl(fd,F_GETFL,0);if(flags<0||fcntl(fd,F_SETFL,flags|O_NONBLOCK)<0){ret=-errno;goto done;}
   struct sockaddr_in target={.sin_family=AF_INET,.sin_port=htons(4748)};
-  if(inet_pton(AF_INET,JBOX_DISCOVERY_ADDRESS,&target.sin_addr)!=1){ret=-EINVAL;goto done;}
+  if(inet_pton(AF_INET,host?host:JBOX_DISCOVERY_ADDRESS,&target.sin_addr)!=1){ret=-EINVAL;goto done;}
   static const char query[]="JBOX-DISCOVER";
   if(sendto(fd,query,sizeof(query)-1,0,(struct sockaddr *)&target,sizeof(target))!=(ssize_t)sizeof(query)-1){ret=-errno;goto done;}
   uint64_t deadline=now_ms()+timeout_ms;
@@ -184,6 +184,7 @@ int jbox_discover(cJSON *out,unsigned timeout_ms,struct qpk_hw_progress *p)
     char data[128]={0};struct sockaddr_in peer;socklen_t size=sizeof(peer);
     ssize_t count=recvfrom(fd,data,sizeof(data),0,(struct sockaddr *)&peer,&size);
     if(count<0){if(errno==EAGAIN||errno==EINTR)continue;ret=-errno;break;}
+    if(host&&peer.sin_addr.s_addr!=target.sin_addr.s_addr)continue;
     if(count!=26||memcmp(data,"JBOX-HERE|",10)||data[22]!='|'||data[24]!='|'||
        (data[23]!='0'&&data[23]!='1')||(data[25]!='0'&&data[25]!='1')||
        strspn(data+10,"0123456789abcdefABCDEF")!=12)continue;
@@ -205,4 +206,13 @@ int jbox_discover(cJSON *out,unsigned timeout_ms,struct qpk_hw_progress *p)
     cJSON_AddItemToArray(items,v);
   }
 done:close(fd);return ret;
+}
+int jbox_discover(cJSON *out,unsigned timeout_ms,struct qpk_hw_progress *p)
+{return discover(out,NULL,timeout_ms,p);}
+int jbox_discover_host(cJSON *out,const char *host,unsigned timeout_ms,struct qpk_hw_progress *p)
+{
+  struct in_addr address;
+  if(!host||inet_pton(AF_INET,host,&address)!=1||!address.s_addr||
+     address.s_addr==INADDR_BROADCAST||IN_MULTICAST(ntohl(address.s_addr)))return -EINVAL;
+  return discover(out,host,timeout_ms,p);
 }

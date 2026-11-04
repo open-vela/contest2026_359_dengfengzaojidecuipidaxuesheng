@@ -776,6 +776,9 @@ static void glass_ble_devices_open(lv_event_t *event);
 #include "glass_mouse.inc"
 #include "glass_bluetooth.inc"
 #endif
+#ifdef GLASS_JBOX_SETUP
+#include "glass_jbox_setup_ui.inc"
+#endif
 
 static void glass_bluetooth_page(void *unused)
 {
@@ -822,6 +825,9 @@ static void glass_system_page_async(void *unused)
 #endif
   else if (g_system_page_kind == SETTINGS_PORTAL) glass_portal_open(NULL);
   else if (g_system_page_kind == SETTINGS_ABOUT) about_clicked(NULL);
+#ifdef GLASS_JBOX_SETUP
+  else if (g_system_page_kind == SETTINGS_JBOX) glass_jbox_setup_page(NULL);
+#endif
 #ifdef GLASS_LOCAL_VOICE
   else if (g_system_page_kind == SETTINGS_LOCAL_VOICE) glass_local_voice_settings(NULL);
 #endif
@@ -838,7 +844,7 @@ static void glass_system_page_open(lv_event_t *e)
 {
   if (g_system_page_pending) return;
   uintptr_t kind = (uintptr_t)lv_event_get_user_data(e);
-  if (kind > SETTINGS_LOCAL_VOICE) return;
+  if (kind > SETTINGS_JBOX) return;
   g_system_page_kind = (unsigned int)kind;
   if (lv_async_call(glass_system_page_async, NULL) == LV_RESULT_OK)
     g_system_page_pending = true;

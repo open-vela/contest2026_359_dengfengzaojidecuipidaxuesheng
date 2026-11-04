@@ -6,6 +6,10 @@
 struct jbox_client;
 /* Blocking calls belong to the hardware worker, never the LVGL thread. */
 int jbox_discover(cJSON *out,unsigned timeout_ms,struct qpk_hw_progress *progress);
+/* Native onboarding: resolve only the address returned over the selected
+ * provisioning session; require the UDP response source to match it. */
+int jbox_discover_host(cJSON *out,const char *host,unsigned timeout_ms,
+                       struct qpk_hw_progress *progress);
 int jbox_pair(const char *host,uint8_t key[32],struct qpk_hw_progress *progress);
 int jbox_connect(struct jbox_client **client,const char *host,const uint8_t key[32],
                  unsigned timeout_ms,struct qpk_hw_progress *progress);

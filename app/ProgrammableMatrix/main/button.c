@@ -3,6 +3,8 @@
 #include "wifi_ble.h"
 #include "api.h"
 #include "driver/gpio.h"
+#include "driver/uart.h"
+#include <string.h>
 #include "nvs_flash.h"
 #include "esp_system.h"
 #include "esp_log.h"
@@ -20,6 +22,37 @@
 #define FULL_RESET_TICKS 600
 static const char *TAG="pair-button";
 
+// Wired UART0 is a local authorization surface, never a network command.
+// Parse bounded complete lines; discard oversized/binary lines until newline.
+static void serial_pair_poll(void)
+{
+    static char line[32];
+    static unsigned used;
+    static bool discard;
+    unsigned char bytes[32];
+    int count=uart_read_bytes(UART_NUM_0,bytes,sizeof bytes,0);
+    for(int i=0;i<count;i++){
+        unsigned char ch=bytes[i];
+        if(ch=='\r' || ch=='\n'){
+            line[used]=0;
+            if(!discard && used){
+                if(strcmp(line,"jbox pair")==0){
+                    ESP_LOGI(TAG,"local serial pairing request");
+                    wifi_ble_button_short_press();
+                }else if(strcmp(line,"jbox provision")==0){
+                    ESP_LOGI(TAG,"local serial Wi-Fi provisioning request");
+                    wifi_ble_serial_provision();
+                }else if(strcmp(line,"help")==0){
+                    ESP_LOGI(TAG,"UART commands: jbox pair, jbox provision, help");
+                }else ESP_LOGW(TAG,"unknown UART command");
+            }
+            used=0;discard=false;
+        }else if(ch<32 || ch>126 || used>=sizeof(line)-1){
+            discard=true;
+        }else if(!discard)line[used++]=(char)ch;
+    }
+}
+
 static void button_task(void *unused)
 {
     (void)unused;
@@ -28,6 +61,7 @@ static void button_task(void *unused)
     unsigned same_ticks=0;
     unsigned held_ticks=0;
     while(1){
+        serial_pair_poll();
         bool raw=gpio_get_level(BOARD_PAIR_BUTTON)==0;
         if(raw==raw_prev){if(same_ticks<DEBOUNCE_TICKS)same_ticks++;}
         else{raw_prev=raw;same_ticks=0;}
@@ -55,6 +89,8 @@ static void button_task(void *unused)
 }
 void button_start(void)
 {
+    // Console TX remains polling; only UART0 RX gets a bounded driver buffer.
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0,256,0,0,NULL,0));
     gpio_reset_pin(BOARD_PAIR_BUTTON);
     gpio_config_t config={
         .pin_bit_mask=(1ULL<<BOARD_PAIR_BUTTON),
@@ -65,5 +101,5 @@ void button_start(void)
     };
     ESP_ERROR_CHECK(gpio_config(&config));
     xTaskCreatePinnedToCore(button_task,"pair-button",3072,NULL,5,NULL,0);
-    ESP_LOGI(TAG,"GPIO10 active-low: tap to pair, hold 6s Wi-Fi reset, 12s factory reset");
+    ESP_LOGI(TAG,"GPIO10 active-low: tap to pair, hold 6s Wi-Fi reset, 12s factory reset; UART: jbox pair");
 }

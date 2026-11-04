@@ -94,6 +94,15 @@ static cJSON *board_ui_execute(const char *operation,const cJSON *args)
     board_ui_labels(g_desktop.screen,list,&truncated);board_ui_labels(lv_layer_top(),list,&truncated);
     cJSON_AddBoolToObject(out,"truncated",truncated);cJSON_AddBoolToObject(out,"ok",true);
   } else if(!strcmp(operation,"ui_click")) {
+#ifdef GLASS_JBOX_SETUP
+    /* Native credential transfer / API-key binding is explicitly local UI.
+     * Generic Agent/MCP UI clicks must not bypass the jbox.pair exclusion. */
+    if(g_jbox_setup_ui){
+      cJSON_AddBoolToObject(out,"ok",false);
+      cJSON_AddStringToObject(out,"error","jbox_setup_requires_local_touch");
+      return out;
+    }
+#endif
     const char *label=cJSON_GetObjectItemCaseSensitive(args,"label")->valuestring;
     lv_obj_t *root=g_chat_ui.confirm?g_chat_ui.confirm:g_desktop.toast?g_desktop.toast:g_desktop.dialog?g_desktop.dialog:
       lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN)?g_glass.home:g_desktop.current_card;

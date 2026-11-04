@@ -2,6 +2,8 @@
 
 目标：ESP32-S3-WROOM-1-N16R8 + 4×CH446Q。ESP-IDF **v5.5.x**。
 
+大赛集成版本新增 UART0 本地命令 `jbox pair`／`jbox provision`，可由 P4 自动共享当前 Wi-Fi；操作、边界和测试见 [LOCAL_CHANGES.md](LOCAL_CHANGES.md)。`UPSTREAM.json` 保留首次导入的来源摘要。
+
 短按实体按钮授权临时配网/绑定；手机通过 BLE 给设备送入 Wi-Fi SSID/密码；电脑经局域网发现设备并自动领用、保存设备控制密钥。以后二次连接自动 HMAC 鉴权。
 
 ## 1. 一颗按钮的交互
