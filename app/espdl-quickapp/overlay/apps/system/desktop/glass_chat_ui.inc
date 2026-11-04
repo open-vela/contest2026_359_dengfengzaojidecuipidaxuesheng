@@ -782,6 +782,7 @@ static void chat_ui_deleted(lv_event_t *e)
 static void glass_chat_back(lv_event_t *e)
 {
   LV_UNUSED(e);
+  if(glass_wake_overlay_active()){glass_wake_overlay_close();return;}
   if (g_chat_ui.confirm) chat_ui_confirm_close(NULL);
   else if (g_chat_ui.mode_panel) chat_ui_mode_close(NULL);
   else if (g_chat_ui.editor) chat_ui_editor_close(NULL);

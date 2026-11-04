@@ -60,6 +60,7 @@ static void local_wake_poll(lv_timer_t *timer)
 static void glass_local_voice_woke(void)
 {
   if(g_local_wake.root)return;
+  lv_display_trigger_activity(NULL);
   struct glv_snapshot s;glass_local_voice_get(&s,NULL,0);
   if(s.busy||s.config_pending){show_toast("本地语音正在处理，请等待或停止。");return;}
   enum glv_mode mode=GLV_DIALOGUE;
@@ -86,7 +87,7 @@ static void glass_local_voice_woke(void)
   lv_obj_set_scroll_dir(content,LV_DIR_VER);lv_obj_set_scrollbar_mode(content,LV_SCROLLBAR_MODE_OFF);
   g_local_wake.text=detail_text(content,"我在，请说话。",0,0,332,18,detail_ink());
   lv_label_set_long_mode(g_local_wake.text,LV_LABEL_LONG_WRAP);
-  g_local_wake.bird=glass_grok_create_sprite(root,8,504,72,72,64,!g_desktop.light_theme,zh_font);
+  g_local_wake.bird=glass_grok_create_wake_sprite(root,8,504,zh_font);
   glass_grok_set_reduced_motion(g_local_wake.bird,g_glass.reduced_motion);
   if(g_local_wake.bird){lv_obj_t *bird=glass_grok_root(g_local_wake.bird);lv_obj_add_flag(bird,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_event_cb(bird,local_wake_outside,LV_EVENT_CLICKED,NULL);}
   g_local_wake.timer=lv_timer_create(local_wake_poll,150,NULL);local_wake_poll(NULL);

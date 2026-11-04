@@ -11,5 +11,8 @@ int glass_custom_wake_feed(struct glass_custom_wake *wake,const int16_t *pcm,siz
 unsigned glass_custom_wake_evaluations(const struct glass_custom_wake *wake);
 float glass_custom_wake_score(const struct glass_custom_wake *wake);
 
-/* Training-voice absolute-distance envelope, including a 50% margin. */
-#define GLASS_WAKE_MAX_POSITIVE_DISTANCE 0.95f
+/* Relative increase in the evidence required to accept a wake. */
+#define GLASS_WAKE_ACCEPTANCE_FACTOR 1.03f
+
+/* Require a 3% stronger inverse-distance match inside the training envelope. */
+#define GLASS_WAKE_MAX_POSITIVE_DISTANCE (0.95f / GLASS_WAKE_ACCEPTANCE_FACTOR)

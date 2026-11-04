@@ -257,6 +257,9 @@ static void desktop_ui_probe_service(void)
   else if (!strcmp(command,"lock-status"))
     desktop_ui_probe_print("LOCK_STATUS active=%u page=%u pending=%u timer=%u\n",
       g_lock_ui.root!=NULL,g_lock_page,g_lock_page_pending,g_lock_ui.timer!=NULL);
+  else if (!strcmp(command,"screensaver-status"))
+    desktop_ui_probe_print("SCREENSAVER active=%u idle_ms=%lu timeout_ms=%u\n",
+      g_lock_ui.root!=NULL,(unsigned long)lv_display_get_inactive_time(NULL),GLASS_SCREENSAVER_IDLE_MS);
   else if (!strcmp(command, "pet-status"))
   {
     struct pet_state_s state;pet_engine_get(&state);
@@ -715,7 +718,7 @@ static void desktop_ui_probe_service(void)
 
 static int desktop_ui_probe_request(const char *command)
 {
-  const char *commands[] = {"lock","unlock","lock-next","lock-status","weather", "weather-status", "weather-refresh", "home", "settings", "wifi", "bluetooth", "files", "resources",
+  const char *commands[] = {"lock","unlock","lock-next","lock-status", "screensaver-status","weather", "weather-status", "weather-refresh", "home", "settings", "wifi", "bluetooth", "files", "resources",
     "speech-esp-tts", "speech-esp-tts-play", "speech-esp-tts-export",
     "speech-p4tts-scalar", "speech-p4tts-pie", "speech-p4tts-dual",
     "speech-zh-q8", "speech-zh-q8-play", "speech-zh-q8-pie", "speech-zh-q8-dual",

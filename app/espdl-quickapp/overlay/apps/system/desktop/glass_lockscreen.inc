@@ -4,6 +4,8 @@
  */
 #include "glass_lock_photo.h"
 #include "glass_lock_art.h"
+#define GLASS_SCREENSAVER_IDLE_MS 60000u
+static bool g_lock_idle_open;
 static unsigned g_lock_page,g_lock_target;
 static bool g_lock_page_pending;
 static void lock_page_async(void *unused);
@@ -125,6 +127,7 @@ static void lock_deleted(lv_event_t *e)
 static void lock_unlock(lv_event_t *e)
 {
   LV_UNUSED(e);if(!g_lock_ui.root)return;
+  lv_display_trigger_activity(NULL);
   if(g_lock_page_pending){lv_async_call_cancel(lock_page_async,NULL);g_lock_page_pending=false;}
   lv_indev_t *input=lv_indev_active();if(input)lv_indev_wait_release(input);
   lv_obj_delete(g_lock_ui.root);
@@ -208,8 +211,8 @@ static void glass_lock_open(lv_event_t *e)
   g_lock_ui.shown=calloc(1,sizeof(*g_lock_ui.shown));
   if(!g_lock_ui.shown){show_toast(glass_tr("内存不足，稍后再试"));return;}
   desktop_navigation_cancel();
-  music_full_close(NULL);
-  toast_cancel();dialog_cancel();glass_status_visibility(true);
+  if(!g_lock_idle_open){music_full_close(NULL);dialog_cancel();}
+  toast_cancel();glass_status_visibility(true);
   glass_lock_cover_cancel(GLASS_COVER_MUSIC);g_music_ui.cover.requested=false;
   if(g_music_ui.timer)lv_timer_pause(g_music_ui.timer);
   lv_obj_t *root=glass_box(lv_layer_top(),0,0,1024,600,0x000000,0);
@@ -251,4 +254,16 @@ static void glass_lock_open(lv_event_t *e)
     }
   }
   g_lock_ui.timer=lv_timer_create(lock_refresh,250,NULL);lock_refresh(NULL);
+}
+
+/* Use display input activity. Clock, weather and playback redraws do not
+ * postpone the user's screen saver. Direct camera scanout retains ownership. */
+static void glass_screensaver_service(void)
+{
+  if(g_lock_ui.root||qpk_runtime_camera_busy()||glass_wake_overlay_active()||
+     glass_ai_config_active()||lv_display_get_inactive_time(NULL)<GLASS_SCREENSAVER_IDLE_MS)return;
+  lv_display_trigger_activity(NULL);
+  g_lock_idle_open=true;
+  glass_lock_open(NULL);
+  g_lock_idle_open=false;
 }

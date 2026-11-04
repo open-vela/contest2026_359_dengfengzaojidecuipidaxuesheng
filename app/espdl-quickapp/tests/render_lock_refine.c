@@ -182,6 +182,38 @@ static void check_memory_policy(void)
  gmat_status(&material_stats);assert(!material_stats.pressure&&material_stats.cache_bytes<=65536&&!material_stats.blob_bytes);printf("MATERIAL_UI_OK cache=%zu blobs=%u after_pressure=0\n",material_stats.cache_bytes,material_stats.blobs);
  printf("UI_MEMORY_OK restored=%u line_peak=%u users=%u timeout_balanced=1\n",saved,lock_art_line_peak,atomic_load(&ui_memory_users));
 }
+
+static void check_screensaver_idle(void)
+{
+  for(unsigned page=0;page<4;page++){
+    panel_hide(NULL);
+    if(page==1)glass_settings(NULL);
+    if(page==2)glass_storage_page(NULL);
+    if(page==3)glass_music(NULL);
+    frames(3);
+    lv_obj_t *card=g_desktop.current_card;
+    bool hidden=lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
+    int y=card?lv_obj_get_scroll_y(card):0;
+    lv_display_trigger_activity(NULL);
+    lv_tick_inc(59999);glass_screensaver_service();assert(!g_lock_ui.root);
+    lv_tick_inc(1);glass_screensaver_service();assert(g_lock_ui.root);
+    lv_obj_t *overlay=g_lock_ui.root;glass_screensaver_service();assert(g_lock_ui.root==overlay);
+    assert(g_desktop.current_card==card);
+    lock_unlock(NULL);glass_screensaver_service();assert(!g_lock_ui.root);
+    assert(g_desktop.current_card==card);
+    assert(lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN)==hidden);
+    if(card)assert(lv_obj_get_scroll_y(card)==y);
+    lv_tick_inc(59000);
+    /* Real input restarts the inactivity deadline. */
+    pointer_point=(lv_point_t){900,300};pointer_state=LV_INDEV_STATE_PRESSED;
+    lv_indev_read(pointer_input);
+    pointer_state=LV_INDEV_STATE_RELEASED;lv_indev_read(pointer_input);
+    lv_tick_inc(2000);glass_screensaver_service();assert(!g_lock_ui.root);
+  }
+  panel_hide(NULL);
+  puts("SCREENSAVER_IDLE_OK: 59999/60000ms boundary, input reset, one overlay, unlock grace, original page and scroll preserved");
+}
+
 int main(int argc,char **argv)
 {
   assert(argc==3);review_out=argv[2];
@@ -214,6 +246,7 @@ int main(int argc,char **argv)
   struct tm date={.tm_mon=10,.tm_mday=4,.tm_wday=3};char formatted[80];
   lock_date_format(formatted,sizeof(formatted),&date,GLASS_LANGUAGE_ZH_CN);assert(!strcmp(formatted,"11月4日  星期三"));
   lock_date_format(formatted,sizeof(formatted),&date,GLASS_LANGUAGE_EN);assert(!strcmp(formatted,"Wed, Nov 4"));
+  check_screensaver_idle();
   for(unsigned theme=0;theme<2;theme++){
     g_desktop.light_theme=theme==0;g_glass.reduced_motion=theme==0;glass_rebuild();frames(20);
     unsigned timers=timer_count(),top_objects=objects(lv_layer_top());

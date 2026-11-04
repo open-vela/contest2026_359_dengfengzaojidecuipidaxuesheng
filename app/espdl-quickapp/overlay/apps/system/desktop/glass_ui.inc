@@ -1165,6 +1165,7 @@ static bool g_edge_back_pending;
 static bool g_edge_home_pending;
 static lv_style_prop_t g_edge_translate = LV_STYLE_TRANSLATE_X;
 static bool g_edge_tracking;
+static bool g_edge_wake;
 static lv_point_t g_edge_start;
 static lv_obj_t *g_edge_page;
 static void glass_edge_back_async(void *data);
@@ -1177,7 +1178,7 @@ static void glass_edge_deleted(lv_event_t *event)
 {
   if(g_edge_page==lv_event_get_target(event)){
     lv_async_call_cancel(glass_edge_back_async,NULL);
-    g_edge_page=NULL;g_edge_tracking=false;g_edge_back_pending=false;g_edge_home_pending=false;g_edge_offset=0;
+    g_edge_page=NULL;g_edge_wake=false;g_edge_tracking=false;g_edge_back_pending=false;g_edge_home_pending=false;g_edge_offset=0;
   }
 }
 static void glass_edge_restore(bool animate)
@@ -1197,6 +1198,10 @@ static void glass_edge_back_async(void *data)
   bool home = g_edge_home_pending;
   g_edge_back_pending = false;
   g_edge_home_pending = false;
+  /* A wake gesture owns only the overlay, including an overlay that timed
+   * out between release and async dispatch. Never navigate its parent page. */
+  bool wake=g_edge_wake||glass_wake_overlay_active();g_edge_wake=false;
+  if(wake){glass_wake_overlay_close();return;}
   /* Ignore a gesture if another action changed the page before dispatch. */
   if (g_lock_ui.root || g_edge_page != g_desktop.current_card) return;
   if(home){panel_hide(NULL);return;}
@@ -1227,14 +1232,18 @@ static void glass_edge_event(lv_event_t *e)
   lv_obj_t *strip = lv_event_get_target(e);
   if (code == LV_EVENT_PRESSED)
     {
-      if(g_lock_ui.root||!g_desktop.current_card||g_edge_back_pending)return;
+      if(g_edge_back_pending)return;
+      bool wake=glass_wake_overlay_active();
+      if(!wake&&(g_lock_ui.root||!g_desktop.current_card))return;
       if(g_edge_tracking&&g_edge_input!=input)return;
       glass_edge_restore(false);
-      glass_motion_cancel(g_desktop.current_card);
+      if(!wake)glass_motion_cancel(g_desktop.current_card);
       lv_indev_get_point(input, &g_edge_start);
       g_edge_tracking = true;
       g_edge_strip = strip;g_edge_input=input;
       g_edge_page = g_desktop.current_card;g_edge_offset=0;
+      g_edge_wake=wake;
+      if(wake)return;
       g_edge_translate = (uintptr_t)lv_event_get_user_data(e) == 2 ?
         LV_STYLE_TRANSLATE_Y : LV_STYLE_TRANSLATE_X;
       g_edge_had_offset=lv_obj_get_local_style_prop(g_edge_page,g_edge_translate,&g_edge_saved,0)==LV_STYLE_RES_FOUND;
@@ -1256,7 +1265,7 @@ static void glass_edge_event(lv_event_t *e)
       if(g_edge_page!=g_desktop.current_card){g_edge_tracking=false;return;}
       int threshold=side==2?72:48,drift=side==2?48:64;
       bool directed=side==2?inward>2*cross:2*inward>3*cross;
-      if (cross > drift){g_edge_tracking=false;glass_edge_restore(true);}
+      if (cross > drift){g_edge_tracking=false;g_edge_wake=false;glass_edge_restore(true);}
       else if (inward >= threshold && directed)
         {
           g_edge_tracking = false;
@@ -1271,10 +1280,10 @@ static void glass_edge_event(lv_event_t *e)
       /* Keep text and controls stationary while tracking. Translating an
        * entire page on each input sample rerasterizes SD fonts and delays
        * the next touch read. Commit once after the bounded gesture. */
-      else if(code==LV_EVENT_RELEASED){glass_edge_restore(true);g_edge_tracking=false;}
+      else if(code==LV_EVENT_RELEASED){glass_edge_restore(true);g_edge_tracking=false;g_edge_wake=false;}
     }
   else if ((code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) && input==g_edge_input){
-    if(g_edge_tracking)glass_edge_restore(true);
+    if(g_edge_tracking){glass_edge_restore(true);g_edge_wake=false;}
     g_edge_tracking=false;
   }
 }

@@ -26,6 +26,8 @@ unsigned glass_grok_current(const struct glass_grok *ball);
 bool glass_grok_ready(const struct glass_grok *ball);
 /* Screen-space hit test against the visible sprite alpha, including scale. */
 bool glass_grok_hit_test(const struct glass_grok *ball,int x,int y);
+/* Wake overlay owns two native 64px frames and needs no decoder thread. */
+struct glass_grok *glass_grok_create_wake_sprite(lv_obj_t *parent,int x,int y,glass_grok_font_t font);
 struct glass_grok *glass_grok_create_sprite(lv_obj_t *parent,int x,int y,int width,int height,int diameter,bool black,glass_grok_font_t font);
 /* Reposition/resize a sprite without replacing its reader or animation. */
 bool glass_grok_geometry(struct glass_grok *ball,int x,int y,int width,int height,int diameter);
