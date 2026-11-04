@@ -1,0 +1,15 @@
+services:
+  app-store:
+    build:
+      context: ../..
+      dockerfile: cloud/app_store/Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      STORE_ADMIN_TOKEN: ${STORE_ADMIN_TOKEN:?Set a unique token of at least 32 bytes}
+      STORE_DATABASE: /data/store.sqlite3
+    volumes:
+      - store-data:/data
+    restart: unless-stopped
+volumes:
+  store-data:

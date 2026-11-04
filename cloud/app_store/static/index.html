@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>ESPClaw · 应用发布工作台</title><link rel="stylesheet" href="admin/style.css"></head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#workspace"><span class="brand-mark" aria-hidden="true">e<span>✳</span></span><span>ESPClaw<small>APP STORE STUDIO</small></span></a>
+  <div class="workspace-label">发布工作空间 <span>LOCAL</span></div>
+  <nav aria-label="工作台导航">
+    <a class="nav-link active" href="#workspace"><span aria-hidden="true">▦</span>发布工作台<span class="nav-arrow">↗</span></a>
+    <a class="nav-link" href="#library"><span aria-hidden="true">▤</span>应用与版本</a>
+    <button class="nav-link" id="nav-home"><span aria-hidden="true">◈</span>首页与海报</button>
+  </nav>
+  <div class="sidebar-bottom"><div class="side-note"><span class="connection-dot" id="connection-dot"></span><strong id="connection-label">等待管理员连接</strong><p>用创意丰富桌面，<br>让每个小应用都有用武之地。</p></div><div class="sidebar-foot">ESPClaw 云端商城 <span>v1.0</span></div></div>
+</aside>
+<main id="workspace">
+  <div class="topbar"><span>云端商城 <span class="crumb">/</span> <strong>发布工作台</strong></span><span class="environment"><span class="live-dot"></span>本机服务</span></div>
+  <header class="page-heading"><div><p class="eyebrow">A LITTLE APP. A NEW POSSIBILITY.</p><h1>好应用，值得被看见<span>。</span></h1><p class="muted">从一个想法，到触手可及。为你的桌面发布下一份灵感。</p></div><a class="button secondary" href="#library">管理应用 <span aria-hidden="true">↗</span></a></header>
+  <section class="overview" aria-label="商店概览"><div><span class="stat-icon mint" aria-hidden="true">▦</span><div><strong id="stat-apps">—</strong><span>上架应用</span></div></div><div><span class="stat-icon peach" aria-hidden="true">◈</span><div><strong id="stat-features">—</strong><span>首页推荐</span></div></div><div><span class="stat-icon lilac" aria-hidden="true">↗</span><div><strong id="stat-versions">—</strong><span>已发布版本 <small id="versions-note">连接后可见</small></span></div></div></section>
+  <details class="auth" id="auth-panel" open><summary><span><span class="lock-symbol" aria-hidden="true">⌘</span>管理员连接</span><span class="auth-state" id="auth-state">未连接</span></summary><div class="auth-content"><label for="token">管理员令牌<input id="token" type="password" autocomplete="off" placeholder="粘贴本机管理员令牌"></label><button id="connect">连接管理接口 <span aria-hidden="true">→</span></button><p class="field-note">令牌仅留在当前页面内存，关闭页面后清除。</p></div></details>
+  <p id="status" class="status" role="status" aria-live="polite">正在加载商店目录…</p>
+  <div class="studio-grid">
+    <section class="panel editor-panel" aria-label="内容编辑器">
+      <div class="editor-tabs" role="tablist" aria-label="编辑内容"><button id="tab-app" role="tab" aria-selected="true" aria-controls="app-editor">发布应用</button><button id="tab-home" role="tab" aria-selected="false" aria-controls="home-editor" tabindex="-1">首页与海报</button></div>
+      <div id="app-editor" role="tabpanel" aria-labelledby="tab-app"><div class="section-heading"><span class="step">01</span><div><h2>让新应用登场</h2><p class="muted small">填写应用信息，右侧即刻呈现。</p></div><span class="tag">草稿</span></div>
+      <form id="publish">
+        <label>应用名称<input name="name" placeholder="为你的应用起个名字" required></label>
+        <label>一句话介绍<textarea name="summary" rows="2" placeholder="它能让生活发生什么小改变？" required></textarea></label>
+        <div class="pair"><label>分类<select name="category"><option value="0">实用工具</option><option value="1">专注效率</option><option value="2">轻松趣味</option></select></label><label>应用图标<select name="icon"><option value="grid">通用应用</option><option value="calculator">计算器</option><option value="timer">专注计时</option><option value="counter">随手计数</option></select></label></div>
+        <div class="pair"><label>包名<input name="package" placeholder="store.my_tool" pattern="store\.[a-z0-9_]{1,41}" required></label><label>版本号<input name="version" value="1.0.0" placeholder="1.0.0" required></label></div>
+        <div class="section-divider"><span class="step">02</span><div><h3>装入你的创意</h3><p class="muted small">选择 app.js，或在下方粘贴源码。</p></div></div>
+        <label class="file-upload" for="file"><span class="upload-icon" aria-hidden="true">↥</span><strong id="file-label">选择 app.js 文件</strong><span>单文件应用 · 最大 64 KiB</span><input id="file" type="file" accept=".js,text/javascript" aria-label="app.js 文件"></label>
+        <details class="source-details" open><summary>源码编辑器 <span id="source-size">0 / 64 KiB</span></summary><label class="sr-only" for="source">完整源码</label><textarea id="source" name="source" rows="7" spellcheck="false" placeholder="// 在这里放入你的 app.js" required></textarea></details>
+        <div class="form-footer"><p>已发布版本会保留。<br>修改应用时，请使用新的版本号。</p><button type="submit" data-admin>发布这个版本 <span aria-hidden="true">↗</span></button></div>
+      </form></div>
+      <div id="home-editor" role="tabpanel" aria-labelledby="tab-home" hidden><div class="section-heading"><span class="step">01</span><div><h2>设计商店的第一眼</h2><p class="muted small">文案、配色与推荐顺序，都由你决定。</p></div></div>
+        <label>首页标题<input id="home-headline" placeholder="让日常，轻松一点。"></label><label>首页副标题<input id="home-tagline" placeholder="小而精的应用，恰好满足你的需要。"></label>
+        <div class="row feature-heading"><h3>精选海报 <span class="muted small">最多 2 张</span></h3><button class="text-button" id="add-feature">＋ 添加推荐</button></div>
+        <div id="feature-editors"></div>
+        <details class="source-details"><summary>高级配置 JSON <span>双向同步</span></summary><label class="sr-only" for="home">首页配置 JSON</label><textarea id="home" rows="12" spellcheck="false"></textarea></details>
+        <p id="home-error" class="validation" role="status"></p>
+        <div class="form-footer"><p>当前是未保存的编辑预览。<br>保存后，设备刷新商店即可获取。</p><button id="save-home" data-admin>保存首页配置 <span aria-hidden="true">↗</span></button></div>
+      </div>
+    </section>
+    <aside class="preview-column" aria-label="商店实时预览"><div class="preview-sticky"><div class="row preview-heading"><div><p class="eyebrow">LIVE PREVIEW</p><h2>先看见，再发布<span class="live-dot"></span></h2></div><button class="text-button" id="expand-preview" aria-label="放大预览">放大 ↗</button></div>
+      <div class="preview-controls"><div class="segmented" aria-label="预览内容"><button id="preview-home" aria-pressed="true">商店首页</button><button id="preview-app" aria-pressed="false">应用详情</button></div><button class="theme-toggle" id="preview-theme" aria-label="切换为深色预览" aria-pressed="false">◐ <span>浅色</span></button></div>
+      <div id="preview-slot"><div id="preview-frame" class="preview-frame" aria-label="商店外观模拟预览"><div class="device-top"><span>ESPClaw</span><span>APP STORE <span aria-hidden="true">⌁</span></span></div><div class="device-layout"><div class="device-rail"><strong>应用商店</strong><span class="selected">精选</span><span>分类</span><span>云端商城</span><span class="rail-bottom">返回</span></div><div id="preview-content" class="device-content"></div></div></div></div>
+      <div class="preview-caption"><span><span class="live-dot"></span><span id="preview-state">已发布目录</span></span><span>1024 × 600 · 外观模拟</span></div>
+      <p class="preview-note">点击预览卡片可查看应用详情。这里展示目录与海报外观，应用实际运行效果以设备为准。</p>
+      <div class="preview-tip"><span aria-hidden="true">✳</span><div><strong>小细节，让体验更完整。</strong><p>清晰的名称、简洁的介绍，再加一张恰到好处的海报，好应用从第一眼开始。</p></div></div>
+    </div></aside>
+  </div>
+  <section class="panel library" id="library"><div class="row library-heading"><div><p class="eyebrow">YOUR COLLECTION</p><h2>应用与版本 <span id="library-count" class="count">—</span></h2><p class="muted small">管理正在上架的应用，也保留每一次创作的版本。</p></div><button id="refresh" class="secondary" data-admin>刷新目录 ↻</button></div><label class="library-search"><span class="sr-only">搜索已发布版本</span><input id="app-search" type="search" placeholder="搜索应用名称、包名或版本…"></label><div id="apps" class="apps"><div class="empty-state"><span aria-hidden="true">▦</span><h3>你的应用，从这里出发</h3><p>连接管理员后，查看与编辑所有发布版本。</p></div></div></section>
+  <footer><span>ESPClaw <strong>App Store Studio</strong></span><span>为小屏幕，创造大一点的可能。</span></footer>
+</main>
+<dialog id="preview-dialog" aria-labelledby="dialog-title"><div class="row dialog-heading"><div><p class="eyebrow">STORE PREVIEW</p><h2 id="dialog-title">商店效果预览</h2></div><button class="secondary" id="close-preview">关闭预览 ×</button></div><div id="large-preview-slot"></div><p class="muted small">外观模拟 · 点击卡片查看详情 · 按 Esc 关闭</p></dialog>
+<script src="admin/app.js" defer></script>
+</body></html>
