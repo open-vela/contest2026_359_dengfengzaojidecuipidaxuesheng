@@ -285,7 +285,7 @@ static void home_music_refresh(void)
 {
   if(!g_home_music.root)return;
   struct music_now_playing now;
-  glass_music_now_playing(&now);
+  glass_music_home_now_playing(&now);
   /* Artwork can arrive independently of playback's revision/second tick. */
   if(!glass_page_covers_home()&&glass_ui_can_paint(g_home_music.root))
     music_cover_tick(&g_home_music.cover,&now);

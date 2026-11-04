@@ -580,11 +580,43 @@ static void large_favorite_cache_checks(void)
   assert(!music_cache_writers);
   puts("MUSIC_LARGE_FAVORITE_OK: streamed pinned audio beyond 16MiB verifies byte-for-byte; replaceable cache retains its 16MiB bound; no writer lease leaked");
 }
+static void home_cover_checks(void)
+{
+  struct music_now_playing home,now;
+  glass_music_home_now_playing(&home);assert(!home.cover_url[0]);
+  state.favorite_count=2;
+  strcpy(state.favorites[0].name,"First favorite");strcpy(state.favorites[0].artist,"Demo");
+  strcpy(state.favorites[1].name,"Second favorite");strcpy(state.favorites[1].artist,"Demo");
+  load_favorites();
+  char expected[1024];assert(!music_cover_url(&state.favorites[0],expected,sizeof(expected)));
+  unsigned requests=atomic_load(&audio_requests),generation=play_generation;
+  glass_music_home_now_playing(&home);glass_music_now_playing(&now);
+  assert(!strcmp(home.cover_url,expected)&&!now.cover_url[0]);
+  assert(!home.name[0]&&home.state==MUSIC_IDLE&&play_generation==generation);
+  assert(atomic_load(&audio_requests)==requests);
+  const unsigned char jpeg[]={0xff,0xd8,0xff,0xd9};
+  assert(music_favorite_cover_write(&state.favorites[0],jpeg,sizeof(jpeg)));
+  load_favorites();glass_music_home_now_playing(&home);
+  assert(!music_favorite_cover_url(&state.favorites[0],expected));
+  assert(!strcmp(home.cover_url,expected));
+  music_favorite_cache_forget(&state.favorites[0]);
+  strcpy(state.current.name,"Current track");strcpy(current_cover,"https://fixture/current.jpg");
+  glass_music_home_now_playing(&home);assert(!strcmp(home.cover_url,current_cover));
+  current_cover[0]=0;glass_music_home_now_playing(&home);assert(!home.cover_url[0]);
+  memset(&state.current,0,sizeof(state.current));
+  state.favorites[0]=state.favorites[1];state.favorite_count=1;load_favorites();
+  assert(!music_cover_url(&state.favorites[0],expected,sizeof(expected)));
+  glass_music_home_now_playing(&home);assert(!strcmp(home.cover_url,expected));
+  state.favorite_count=0;load_favorites();glass_music_home_now_playing(&home);
+  assert(!home.cover_url[0]);memset(&state,0,sizeof(state));
+  puts("MUSIC_HOME_COVER_OK: first favorite, pinned cover, current-track priority, list changes, empty list, no playback");
+}
+
 int main(int argc,char **argv)
 {
   setvbuf(stdout,NULL,_IONBF,0);
   if(argc==4 && !strcmp(argv[1],"--lyrics-response"))return live_response(argv[2],argv[3]);
-  assert(argc==3);mp3_path=argv[1];jpeg_path=argv[2];volume_checks();parser_checks();bilingual_checks();stream_checks();cache_checks();audio_cache_checks();large_favorite_cache_checks();
+  assert(argc==3);mp3_path=argv[1];jpeg_path=argv[2];home_cover_checks();volume_checks();parser_checks();bilingual_checks();stream_checks();cache_checks();audio_cache_checks();large_favorite_cache_checks();
   /* Test the public bounded view against the real retained lyric store. */
   assert(!lyrics);lyrics=calloc(1,sizeof(*lyrics));assert(lyrics);
   lyrics->count=MUSIC_LRC_LINES;lyrics_state=MUSIC_LYRICS_READY;

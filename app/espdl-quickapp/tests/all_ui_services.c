@@ -635,6 +635,8 @@ void glass_music_now_playing(struct music_now_playing *out)
  out->revision=s.revision;out->state=s.state;out->position_ms=s.position_ms;out->duration_ms=s.duration_ms;out->volume=s.volume;
  out->can_skip=s.favorite_count>0;out->lyrics_state=s.current.name[0]?MUSIC_LYRICS_MISSING:MUSIC_LYRICS_NONE;
 }
+void glass_music_home_now_playing(struct music_now_playing *out)
+{glass_music_now_playing(out);}
 void glass_music_toggle(void)
 {
  review_music_toggles++;

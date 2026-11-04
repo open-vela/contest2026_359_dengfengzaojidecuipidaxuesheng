@@ -90,14 +90,9 @@ static void lock_art_background(lv_obj_t *root,unsigned page)
  lock_art_bytes+=(unsigned)(sizeof(*source)+lock_art_storage_bytes(&source->rle));
 }
 
-/* Lock typography has a coherent embedded face without changing the user's
- * desktop-wide font selection. The original views are stable for its lifetime. */
+/* Use the stable system font views so an active lock follows font changes. */
 static const lv_font_t *lock_font(const lv_font_t *font)
-{
-  for(unsigned i=0;i<global_font_view_count;i++)
-    if(global_font_views[i].target==font)return &global_font_views[i].embedded;
-  return font;
-}
+{return font;}
 static lv_font_t *lock_display_font;
 static const lv_font_t *lock_display(void)
 {
@@ -105,5 +100,6 @@ static const lv_font_t *lock_display(void)
   if(!lock_display_font)lock_display_font=lv_tiny_ttf_create_data_ex(
     g_desktop_font_start,(size_t)(g_desktop_font_end-g_desktop_font_start),192,LV_FONT_KERNING_NORMAL,24);
 #endif
-  return lock_display_font?lock_display_font:lock_font(g_glass.font72);
+  if(lock_display_font)glass_global_font_bind(lock_display_font,192);
+  return lock_display_font?lock_display_font:g_glass.font72;
 }

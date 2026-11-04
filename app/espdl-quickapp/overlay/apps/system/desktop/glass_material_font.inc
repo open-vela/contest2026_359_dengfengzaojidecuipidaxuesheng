@@ -67,7 +67,15 @@ void glass_material_font_pressure(bool active)
 static void material_font_update_view(struct material_font *m)
 {lv_font_t *actual=m->external?m->external:m->fallback;const lv_font_t *fallback=m->view.fallback;m->view=*actual;m->view.dsc=m;m->view.get_glyph_dsc=material_font_glyph;m->view.get_glyph_bitmap=material_font_bitmap;m->view.release_glyph=material_font_release;m->view.fallback=fallback;}
 bool glass_material_font_refresh(lv_font_t *font)
-{if(!font||font->get_glyph_dsc!=material_font_glyph)return false;struct material_font *m=(struct material_font *)font->dsc;const lv_font_t *fallback=font->fallback;*font=m->view;font->fallback=fallback;return true;}
+{
+ if(!font||font->get_glyph_dsc!=material_font_glyph)return false;
+ struct material_font *m=(struct material_font *)font->dsc;const lv_font_t *fallback=font->fallback;
+ /* The published view can currently contain a selected global family. Rebuild
+  * the default from its owned backend, never copy that overlaid view back. */
+ *font=*(m->external?m->external:m->fallback);font->dsc=m;
+ font->get_glyph_dsc=material_font_glyph;font->get_glyph_bitmap=material_font_bitmap;
+ font->release_glyph=material_font_release;font->fallback=fallback;return true;
+}
 int glass_material_fonts_poll(void)
 {
  int changed=material_font_changed;material_font_changed=false;
