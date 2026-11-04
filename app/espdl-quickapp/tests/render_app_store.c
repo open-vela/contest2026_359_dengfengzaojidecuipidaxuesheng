@@ -105,7 +105,9 @@ int main(int argc,char **argv)
     review_capture(display,"store-search-input","原生搜索输入法");
     lv_textarea_set_text(g_store_ui.query_input,"找不到");store_ui_search_apply(NULL);settle();
     review_capture(display,"store-empty-search","搜索空状态");assert(review_label_find(g_store_ui.view,"没有找到匹配的应用"));
-    g_store_ui.query[0]=0;click_label(g_store_ui.rail,"SD 仓库");
+    click_label(g_store_ui.view,"清空搜索");assert(!g_store_ui.query[0]);
+    assert(review_label_find(g_store_ui.view,"专注计时")&&!review_label_find(g_store_ui.view,"轻量计算器"));
+    click_label(g_store_ui.rail,"SD 仓库");
     review_capture(display,"store-sd-empty","无本地仓库的可恢复空状态");
     sd_fixture();store_ui_refresh(NULL);store_settle();assert(g_store_ui.snapshot->count==8);
     assert(review_label_find(g_store_ui.view,"SD 示例工具 1"));review_capture(display,"store-sd-catalog","有效的 SD 仓库与分页");

@@ -8,7 +8,7 @@ const builtins = [
   {package:'store.focus',name:'专注计时',version:'1.0.0',icon:'timer',category:1,summary:'25 分钟专注与 5 分钟休息。支持暂停和继续，退出后停止。'},
   {package:'store.counter',name:'随手计数',version:'1.0.0',icon:'counter',category:0,summary:'记录次数、加减与归零。手动保存计数，重开继续。'}
 ];
-const state = {connected:false,busy:false,releases:[],apps:[],home:{headline:'',tagline:'',featured:[]},homeDirty:false,homeJsonError:'',view:'home',selected:null};
+const state = {connected:false,busy:false,releases:[],apps:[],home:{headline:'',tagline:'',featured:[]},publishedHome:null,appSaved:'',appTouched:false,homeDirty:false,homeJsonError:'',view:'home',selected:null};
 function node(tag, className='', text) {
   const item = document.createElement(tag);if(className)item.className=className;
   if(text!==undefined)item.textContent=text;return item;
@@ -24,6 +24,8 @@ function updateControls() {
   el('connection-label').textContent=state.connected?'管理员已连接':'等待管理员连接';
   el('auth-state').textContent=state.connected?'已连接 · 可发布与编辑':'未连接';
   el('add-feature').disabled=state.home.featured.length>=2;
+  el('reset-home').disabled=!state.homeDirty||!state.publishedHome||state.busy;
+  el('publish-button').disabled=!state.connected||state.busy||!validatePublication();
 }
 async function request(path,options={}) {
   const response=await fetch(new URL(path,location.href),{...options,cache:'no-store',signal:AbortSignal.timeout(20000)});
@@ -50,6 +52,7 @@ function homeFields(home) {
 }
 function applyCatalog(home,apps) {
   state.apps=apps;
+  state.publishedHome=homeFields(home);
   el('stat-apps').textContent=apps.length;
   el('stat-features').textContent=home.featured.length;
   if(!state.homeDirty) {state.home=homeFields(home);state.homeJsonError='';syncHomeFields();}
@@ -80,6 +83,24 @@ function icon(kind) {
 function draft() {
   const form=el('publish');
   return {package:form.elements.package.value||'store.your_app',name:form.elements.name.value||'你的下一个好应用',version:form.elements.version.value||'1.0.0',summary:form.elements.summary.value||'写下一句话介绍，让用户一眼看懂它的用处。',category:Number(form.elements.category.value),icon:form.elements.icon.value,bytes:bytes(form.elements.source.value)};
+}
+function publicationValues() {
+  const values=Object.fromEntries(new FormData(el('publish')));values.category=Number(values.category);return values;
+}
+function validatePublication() {
+  const values=publicationValues(),errors=[];
+  for(const [key,label,cap] of [['name','应用名称',47],['summary','简介',191],['version','版本号',23],['source','源码',65536]]) {
+    const value=values[key],size=bytes(value),source=key==='source';
+    const invalid=!(source?value.length:value.trim().length)||size>cap||(source?value.includes('\0'):/[\x00-\x1f\x7f]/.test(value));
+    el('publish').elements[key].setAttribute('aria-invalid',String(state.appTouched&&invalid));
+    if(invalid)errors.push(label+'需为 1–'+cap+' UTF-8 字节，且不能包含'+(source?' NUL':'控制字符'));
+    if(!source)el(key+'-size').textContent=size+' / '+cap+' 字节';
+  }
+  const badPackage=!/^store\.[a-z0-9_]{1,41}$/.test(values.package)||builtins.some(app=>app.package===values.package);
+  el('publish').elements.package.setAttribute('aria-invalid',String(state.appTouched&&badPackage));
+  if(badPackage)errors.push('包名请使用 store. 加小写字母、数字或下划线，并避开内置应用包名');
+  el('publish-error').textContent=state.appTouched?(errors[0]||''):'';
+  return !errors.length;
 }
 function setView(view,selected=null) {state.view=view;state.selected=selected;renderPreview();}
 function renderPreview() {
@@ -181,8 +202,12 @@ function validateHome() {
 function renderLibrary() {
   const list=el('apps');list.replaceChildren();
   const query=el('app-search').value.toLowerCase().trim();
-  const visible=state.releases.filter(app=>[app.name,app.package,app.version].some(text=>text.toLowerCase().includes(query)));
-  if(!visible.length){const empty=node('div','empty-state');empty.append(node('span','','▦'),node('h3','',query?'没有找到匹配的版本':'你的应用，从这里出发'),node('p','',query?'试试其他名称、包名或版本号。':state.connected?'发布第一个应用，为桌面带来新可能。':'连接管理员后，查看与编辑所有发布版本。'));list.append(empty);return;}
+  const filter=el('app-status').value,category=el('app-category').value;
+  const visible=state.releases.filter(app=>[app.name,app.package,app.version].some(text=>text.toLowerCase().includes(query))&&
+    (filter==='all'||(filter==='active'&&app.current&&app.active)||(filter==='inactive'&&app.current&&!app.active)||(filter==='history'&&!app.current))&&
+    (category==='all'||app.category===Number(category)));
+  el('library-count').textContent=visible.length+' / '+state.releases.length;
+  if(!visible.length){const filtered=query||filter!=='all'||category!=='all',empty=node('div','empty-state');empty.append(node('span','','▦'),node('h3','',filtered?'没有找到匹配的版本':'你的应用，从这里出发'),node('p','',filtered?'试试其他名称、包名、版本号或筛选条件。':state.connected?'发布第一个应用，为桌面带来新可能。':'连接管理员后，查看与编辑所有发布版本。'));list.append(empty);return;}
   for(const app of visible) {
     const row=node('article','release'),body=node('div','release-content'),heading=node('div','release-heading');heading.append(node('h3','',app.name),node('span','version','v'+app.version),node('span','tag'+(app.active?'':' inactive'),app.current?(app.active?'上架中':'已下架'):'历史版本'));
     const details=node('details'),date=new Date(app.created);details.append(node('summary','','版本信息与校验摘要'),node('code','','SHA-256 '+app.sha256),node('p','',Number.isNaN(date.getTime())?'':date.toLocaleString('zh-CN')));
@@ -192,15 +217,21 @@ function renderLibrary() {
       if(app.active&&!confirm('将 '+app.name+' 从公开目录下架？已发布的版本文件仍保留。'))return;
       await api('apps/'+encodeURIComponent(app.package)+(app.active?'':'/restore'),{method:app.active?'DELETE':'POST'});await refresh();status(app.active?'应用已下架；原版本仍保留':'应用已重新上架');
     })));
+    for(const button of [...actions.children].slice(1)){button.dataset.admin='';button.disabled=!state.connected||state.busy;}
     row.append(icon(app.icon),body,actions);list.append(row);
   }
 }
 async function editRelease(app) {
   if(el('publish').elements.source.value&&!confirm('载入已有版本会替换当前应用草稿，是否继续？'))return;
+  const previous=JSON.stringify(publicationValues());
   const source=await (await request('v1/blobs/'+app.sha256+'/app.js')).text(),form=el('publish');
+  if(JSON.stringify(publicationValues())!==previous)throw Error('读取期间草稿已修改，已保留新编辑；请再次选择要编辑的版本');
   for(const key of ['package','name','summary','category','icon'])form.elements[key].value=app[key];
-  const version=/^(\d+)\.(\d+)\.(\d+)$/.exec(app.version);form.elements.version.value=version?version[1]+'.'+version[2]+'.'+(Number(version[3])+1):'';
-  form.elements.source.value=source;el('file').value='';el('file-label').textContent='已载入 '+app.name+' 的源码';updateSourceSize();selectEditor(false);
+  // Editing an older release must not suggest an already published version.
+  const versions=state.releases.filter(item=>item.package===app.package).map(item=>/^(\d+)\.(\d+)\.(\d+)$/.exec(item.version)).filter(Boolean);
+  versions.sort((a,b)=>{for(let i=1;i<=3;i++){if(BigInt(a[i])!==BigInt(b[i]))return BigInt(a[i])>BigInt(b[i])?-1:1;}return 0;});
+  const version=versions[0];form.elements.version.value=version?version[1]+'.'+version[2]+'.'+(BigInt(version[3])+1n):'';
+  form.elements.source.value=source;state.appTouched=true;el('file').value='';el('file-label').textContent='已载入 '+app.name+' 的源码';updateSourceSize();selectEditor(false);
   el('app-editor').scrollIntoView({behavior:'smooth',block:'start'});form.elements.name.focus({preventScroll:true});status('已载入 '+app.name+' '+app.version+'；修改后按新版本发布，原版本保留');
 }
 function updateSourceSize() {el('source-size').textContent=(bytes(el('publish').elements.source.value)/1024).toFixed(1)+' / 64 KiB';}
@@ -209,22 +240,28 @@ el('token').addEventListener('input',()=>{state.connected=false;updateControls()
 el('token').addEventListener('keydown',event=>{if(event.key==='Enter')run(refresh);});
 el('file').addEventListener('change',()=>run(async()=>{
   const file=el('file').files[0];if(!file)return;if(file.size>65536)throw Error('app.js 超过 64 KiB');
-  const source=await file.text();if(bytes(source)>65536||source.includes('\0'))throw Error('源码需为不含 NUL 的 UTF-8 文字，最大 64 KiB');
-  el('publish').elements.source.value=source;el('file-label').textContent=file.name;updateSourceSize();setView('app');status('已载入源码，请核对应用信息后发布');
+  let source;try{source=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}catch{throw Error('文件不是有效的 UTF-8，请转换编码后重试');}
+  if(bytes(source)>65536||source.includes('\0'))throw Error('源码需为不含 NUL 的 UTF-8 文字，最大 64 KiB');
+  el('publish').elements.source.value=source;state.appTouched=true;el('file-label').textContent=file.name;updateSourceSize();setView('app');status('已载入源码，请核对应用信息后发布');
 }));
-el('publish').addEventListener('input',()=>{updateSourceSize();setView('app');});
-el('publish').addEventListener('change',()=>setView('app'));
+el('publish').addEventListener('input',()=>{state.appTouched=true;updateSourceSize();setView('app');updateControls();});
+el('publish').addEventListener('change',()=>{state.appTouched=true;setView('app');updateControls();});
 el('publish').addEventListener('submit',event=>{
   event.preventDefault();run(async()=>{
-    const values=Object.fromEntries(new FormData(event.target));values.category=Number(values.category);
-    if(bytes(values.source)>65536||values.source.includes('\0'))throw Error('源码需为不含 NUL 的 UTF-8 文字，最大 64 KiB');
-    const result=await api('apps',{method:'POST',body:JSON.stringify(values)});await refresh();setView('app',result.application);status(result.already_published?'版本已存在，上架状态保持原样':'已发布 '+result.application.name+' '+result.application.version);
+    if(!validatePublication())throw Error(el('publish-error').textContent);
+    const values=publicationValues(),snapshot=JSON.stringify(values);
+    const result=await api('apps',{method:'POST',body:snapshot});
+    if(JSON.stringify(publicationValues())===snapshot)state.appSaved=snapshot;
+    await refresh();
+    const changed=JSON.stringify(publicationValues())!==snapshot;
+    setView('app',changed?null:result.application);status((result.already_published?'版本已存在，上架状态保持原样':'已发布 '+result.application.name+' '+result.application.version)+(changed?'；后续编辑仍是未发布草稿':''));
   });
 });
 el('save-home').addEventListener('click',()=>run(async()=>{
   if(!validateHome())throw Error(el('home-error').textContent);
   // Snapshot the submitted draft: edits made during the request must not be discarded.
   const snapshot=JSON.stringify(state.home),raw=el('home').value,result=await api('home',{method:'PUT',body:snapshot});
+  state.publishedHome=homeFields(result.home);
   if(JSON.stringify(state.home)===snapshot&&el('home').value===raw&&!state.homeJsonError){state.homeDirty=false;state.home=homeFields(result.home);syncHomeFields();}
   el('stat-features').textContent=result.home.featured.length;renderPreview();status(state.homeDirty?'首页已保存；后续修改仍是未保存草稿':'首页配置已保存；设备刷新后获取');
 }));
@@ -249,4 +286,13 @@ el('expand-preview').addEventListener('click',()=>{el('large-preview-slot').appe
 el('close-preview').addEventListener('click',()=>el('preview-dialog').close());
 el('preview-dialog').addEventListener('close',()=>{el('preview-slot').append(el('preview-frame'));el('expand-preview').focus({preventScroll:true});});
 el('app-search').addEventListener('input',renderLibrary);
+for(const id of ['app-status','app-category'])el(id).addEventListener('change',renderLibrary);
+el('reset-home').addEventListener('click',()=>{
+  if(!state.publishedHome||!confirm('放弃未保存的首页修改，恢复当前已发布的配置？'))return;
+  state.home=homeFields(state.publishedHome);state.homeDirty=false;state.homeJsonError='';syncHomeFields();validateHome();setView('home');updateControls();status('已恢复当前已发布的首页配置');
+});
+window.addEventListener('beforeunload',event=>{
+  if(state.homeDirty||JSON.stringify(publicationValues())!==state.appSaved){event.preventDefault();event.returnValue='';}
+});
+state.appSaved=JSON.stringify(publicationValues());
 updateControls();renderPreview();loadPublic();
