@@ -1,0 +1,66 @@
+{
+  "task": "肉眼可见的调光持续闪烁",
+  "target_frequency_hz": 50000,
+  "resolution_bits": 9,
+  "minimum_percent": 10,
+  "full_scale": 65536,
+  "previous_firmware_restored": true,
+  "first_candidate": {
+    "sha256": "861fb01f3232798620c79f89e00bd1e2805be4d68a9f42fd870889e6047b0e39",
+    "accepted": false,
+    "reason": "Immediate readback sampled old duty during asynchronous startup latch",
+    "data_preserved": true
+  },
+  "fixes": [
+    "50kHz within ETA1611 recommended range",
+    "LCD-only standard unsigned 16.16 duty; full scale constant high",
+    "bounded hardware duty latch wait before readback",
+    "actual register clock/divider/duty readback and GPIO26 input sampling"
+  ],
+  "host_driver_and_app_tests_passed": true,
+  "build": "passed",
+  "flash": {
+    "flashed_verified": true,
+    "independent_app_readback": true,
+    "data_partition_preserved": true,
+    "reset_boot_verified": true
+  },
+  "electrical": {
+    "passed": true,
+    "frequency_hz": 50000,
+    "source_hz": 40000000,
+    "divider": 400,
+    "bits": 9,
+    "full_scale_ticks": 512,
+    "full_brightness_high_samples": 2000,
+    "full_brightness_edges": 0,
+    "direct_levels": [
+      10,
+      25,
+      50,
+      75,
+      100,
+      50
+    ],
+    "native_slider_levels": [
+      11,
+      50,
+      100,
+      50
+    ]
+  },
+  "optical": {
+    "accepted": true,
+    "user_feedback": "持续频闪已消失",
+    "scope": "用户针对当前 50% 及拖动到低亮度后的肉眼观察确认"
+  },
+  "cold_power_cycle_tested": false,
+  "ble_pairing_tested": false,
+  "reference": "https://www.eta-semi.com/wp-content/uploads/2022/03/ETA1611_V1.6-1.pdf",
+  "firmware_sha256": "973d4a26d226c3fc405d99cecdd3b14e5318d991b9d08bd7976916578a3603b4",
+  "elf_and_source_audit": "passed",
+  "task_completed": true,
+  "schema_version": 1,
+  "date": "2026-11-04",
+  "note": "Sanitized acceptance summary; no firmware binary, raw audio, transcript or private serial logs included."
+}

@@ -4,10 +4,14 @@
 
 `tools/build_bilibili_v3.py --lcd-backlight` 将 LEDC timer0/channel0 配置为屏幕专用 GPIO26；`tools/build_p4_repro.py` 的完整配置显式带此参数。PWM0 不再作为应用或 Agent 的通用扩展通道，实际可用通道以 `hardware_capabilities` 为准。通用构建未选择该参数时保留原 PWM0/GPIO2。
 
-控制面板的亮度滑块使用 5 kHz 硬件 PWM，范围为 10%–100%。拖动即时改变背光，丢失触摸时恢复本次拖动之前确认的亮度；驱动失败显示“调节失败”。100% 使用 65535，占空比不使用会在驱动 uint16_t 转换时归零的 65536。启动默认为 100%，当前只保存本次开机的亮度，不在拖动时写 Flash。
+控制面板的亮度滑块使用 50 kHz、9 位硬件 PWM，范围为 10%–100%。拖动即时改变背光，丢失触摸时恢复本次拖动之前确认的亮度；驱动失败显示“调节失败”。屏幕专用路径按 NuttX unsigned 16.16 占空比换算，100% 使用 65536，并输出恒高；其他 LEDC 路由保留原行为。启动默认为 100%，当前只保存本次开机的亮度，不在拖动时写 Flash。
 
 PWM 文件描述符由常驻桌面任务组持有。设置仅在桌面启动/LVGL 回调执行；NSH 的 `desktop backlight-status` 只读取线程安全的状态快照，不跨任务组访问 PWM fd。
 
 主机验证：`python3 tools/test_backlight.py --output <host-output>`；`tools/test_board_interfaces.py` 包含背光通道不可被应用发现的配置用例。实板验证还需核对构建配置、PWM0 节点、状态回执，并观察实体屏幕的低/中/高亮度及恢复；软件回执不能替代屏幕观察。
 
 官方接线说明：https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/user_guide.html
+
+调光信号通过 P4_LCD_PWM_GETSTATE 读取硬件时钟、分频、分辨率及占空比，并在普通线程中进行 2000 次 GPIO26 输入采样；不屏蔽中断。状态中的 BACKLIGHT_SIGNAL 独立报告探针错误，不能把配置频率当作光学频闪验收。资料：[ETA1611 推荐 25–100 kHz](https://www.eta-semi.com/wp-content/uploads/2022/03/ETA1611_V1.6-1.pdf)。
+
+LEDC 占空比异步生效：采样前在普通线程中等待硬件当前占空比等于已提交值，最多 5000 次 1 微秒等待；超时单独报告，不把旧占空比样本当作新亮度。
