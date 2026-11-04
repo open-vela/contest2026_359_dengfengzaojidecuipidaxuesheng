@@ -41,3 +41,5 @@ app/espdl-quickapp/overlay/apps/system/desktop/fonts/LICENSE-NotoSansSC.txt -tex
 
 # Keep embedded Portal bytes stable across Windows and Unix checkouts.
 app/espdl-quickapp/overlay/apps/system/desktop/portal/* text eol=lf
+
+tools/build_p4_from_readme.py text eol=lf
