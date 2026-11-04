@@ -40,6 +40,8 @@ struct music_now_playing {
   bool pause_requested, favorite, can_skip, lyrics_started;
 };
 void glass_music_now_playing(struct music_now_playing *out);
+/* Home-only artwork fallback to the first favorite before a track is selected. */
+void glass_music_home_now_playing(struct music_now_playing *out);
 #define MUSIC_LYRICS_WINDOW 9
 /* Bounded, owned copy for a virtual lyric viewport; never exposes parser RAM. */
 struct music_lyrics_window {

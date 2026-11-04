@@ -61,6 +61,7 @@ static unsigned lyrics_generation;
 static struct music_lrc *lyrics;
 static enum music_lyrics_state lyrics_state;
 static char current_cover[1024];
+static char first_favorite_cover[1024];
 static bool player_active;
 static unsigned play_generation, search_generation;
 static unsigned seek_revision, seek_position_ms;
@@ -504,6 +505,16 @@ done:
   return ret;
 }
 
+/* Resolve on a worker, never read the SD cache on the GUI refresh path. */
+static void favorite_preview_cover(const struct music_song *song,char url[1024])
+{
+  url[0]=0;
+  if(!song)return;
+  if(music_favorite_cover_available(song))
+    (void)music_favorite_cover_url(song,url);
+  else if(music_cover_url(song,url,1024))url[0]=0;
+}
+
 static void load_favorites(void)
 {
   char *json = malloc(QPK_STORAGE_VALUE_MAX + 1);
@@ -533,6 +544,7 @@ static void load_favorites(void)
   }
   state.storage_error = ret == -ENOENT ? 0 : ret;
   free(json);
+  favorite_preview_cover(state.favorite_count?&state.favorites[0]:NULL,first_favorite_cover);
 }
 
 static void *search_worker(void *unused)
@@ -581,8 +593,11 @@ static void *search_worker(void *unused)
         else { memmove(songs+1, songs, count*sizeof(*songs)); songs[0] = song; count++; ret = 0; }
         if (!ret) ret = save_favorites(songs, count);
       }
+      char preview[1024]={0};
+      if(!ret)favorite_preview_cover(count?&songs[0]:NULL,preview);
       pthread_mutex_lock(&lock);
       if (!ret) { memcpy(state.favorites, songs, count*sizeof(*songs)); state.favorite_count = count;
+        memcpy(first_favorite_cover,preview,sizeof(first_favorite_cover));
         favorite_cache_revision++;pthread_cond_broadcast(&wake); }
       state.storage_error = ret; state.revision++;
       pthread_mutex_unlock(&lock);
@@ -789,8 +804,14 @@ static void *favorite_worker(void *unused)
       int ret=favorite_cache_one(&songs[i]);
       printf("[music] offline item=%08lx result=%d\n",(unsigned long)music_track_key(songs[i].name,songs[i].artist),ret);
       bool artwork_ready=music_favorite_cover_available(&songs[i]);
+      char preview[1024]={0};
+      if(artwork_ready)(void)music_favorite_cover_url(&songs[i],preview);
+      else if(music_cover_url(&songs[i],preview,sizeof(preview)))preview[0]=0;
       pthread_mutex_lock(&lock);
       if(glass_music_is_favorite(&state,&songs[i])) {
+        if(state.favorite_count&&!strcmp(state.favorites[0].name,songs[i].name)&&
+           !strcmp(state.favorites[0].artist,songs[i].artist))
+          memcpy(first_favorite_cover,preview,sizeof(first_favorite_cover));
         if((ret==-ECANCELED||ret==-EBUSY)&&favorite_pauses)favorite_retry_pending=true;
         if(artwork_ready&&!strcmp(state.current.name,songs[i].name)&&
            !strcmp(state.current.artist,songs[i].artist))
@@ -1085,7 +1106,7 @@ void glass_music_start(void)
   pthread_mutex_unlock(&lock);
 }
 
-void glass_music_now_playing(struct music_now_playing *out)
+static void music_read_now_playing(struct music_now_playing *out,bool home)
 {
   if(!out)return;
   pthread_mutex_lock(&lock);
@@ -1094,6 +1115,8 @@ void glass_music_now_playing(struct music_now_playing *out)
   memcpy(out->artist,state.current.artist,sizeof(out->artist));
   memcpy(out->album,state.current.album,sizeof(out->album));
   memcpy(out->cover_url,current_cover,sizeof(out->cover_url));out->track_id=play_generation;
+  if(home&&!state.current.name[0])
+    memcpy(out->cover_url,first_favorite_cover,sizeof(out->cover_url));
   out->revision=state.revision;out->state=state.state;
   out->position_ms=state.position_ms;out->duration_ms=state.duration_ms;
   out->volume=glass_speaker_volume();out->pause_requested=want_pause;
@@ -1110,6 +1133,12 @@ void glass_music_now_playing(struct music_now_playing *out)
   }
   pthread_mutex_unlock(&lock);
 }
+
+void glass_music_now_playing(struct music_now_playing *out)
+{music_read_now_playing(out,false);}
+
+void glass_music_home_now_playing(struct music_now_playing *out)
+{music_read_now_playing(out,true);}
 
 void glass_music_lyrics_read(unsigned first, struct music_lyrics_window *out)
 {

@@ -33,10 +33,10 @@ struct lyric_font_pool {
 };
 struct lyric_font_file { unsigned face;uint32_t position; };
 static struct lyric_font_pool *lyric_fonts;
-static const unsigned lyric_counts[SD_FONT_SIZES]={32,48,48,64,64,16,16,16,16,8,12,4};
+static const unsigned lyric_counts[SD_FONT_SIZES]={32,48,48,64,64,16,16,16,16,8,12,4,4};
 /* Only the active global face gets the text-page budget. Others retain the
  * bounded lyric budget; descriptor addresses remain stable for live labels. */
-static const unsigned lyric_global_counts[SD_FONT_SIZES]={128,192,384,512,384,96,96,96,64,24,32,4};
+static const unsigned lyric_global_counts[SD_FONT_SIZES]={128,192,384,512,384,96,96,96,64,24,32,4,4};
 static unsigned lyric_global_face;
 static bool lyric_memory_trimmed;
 void glass_lyric_font_set_global(unsigned index)

@@ -9,7 +9,7 @@ struct glass_global_font_view {
   lv_font_t coverage;
   unsigned pixels;
 };
-#define GLOBAL_FONT_VIEW_COUNT 14
+#define GLOBAL_FONT_VIEW_COUNT 16
 static struct glass_global_font_view *global_font_views;
 static unsigned global_font_view_count;
 static bool global_fonts_initialized;

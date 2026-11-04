@@ -183,6 +183,31 @@ static void check_memory_policy(void)
  printf("UI_MEMORY_OK restored=%u line_peak=%u users=%u timeout_balanced=1\n",saved,lock_art_line_peak,atomic_load(&ui_memory_users));
 }
 
+static void check_lock_system_fonts(void)
+{
+ global_font_restore_checked=true;global_font_save_pending=false;
+ glass_global_fonts_init();
+ assert(!glass_lyric_font_request(4));
+ for(unsigned i=0;i<5000&&glass_lyric_font_state(4)!=3;i++){glass_lyric_font_poll();usleep(1000);}
+ assert(glass_lyric_font_state(4)==3);
+ global_font_selected=global_font_requested=4;glass_global_fonts_apply();
+ for(unsigned page=0;page<4;page++){
+  page_ready(page);lv_obj_t *text=page==0?g_lock_ui.calendar:page==1?g_lock_ui.artist:page==2?g_lock_ui.weather_meta:g_lock_ui.photo_date;
+  assert(text&&lv_obj_get_style_text_font(text,0)==g_desktop.font20);
+  assert(g_desktop.font20->dsc==glass_lyric_font_get(4,20)->dsc);
+  if(page==0||page==2){lv_obj_t *large=page==0?g_lock_ui.clock:g_lock_ui.weather_temp;assert(lv_obj_get_style_text_font(large,0)==lock_display_font);assert(lock_display_font->dsc==glass_lyric_font_get(4,192)->dsc);}
+  const lv_font_t *stable=lv_obj_get_style_text_font(text,0);void *chosen=(void *)stable->dsc;
+  global_font_selected=global_font_requested=0;glass_global_fonts_apply();frames(2);
+  assert(lv_obj_get_style_text_font(text,0)==stable&&stable->dsc!=chosen);
+  global_font_selected=global_font_requested=4;glass_global_fonts_apply();frames(2);
+  assert(lv_obj_get_style_text_font(text,0)==stable&&stable->dsc==chosen);
+  lv_obj_update_layout(text);assert(lv_obj_get_height(text)>=stable->line_height);
+  if(page==0)review_capture(lv_display_get_default(),"lock-system-font","锁屏跟随系统所选字体");
+  lock_unlock(NULL);frames(2);
+ }
+ global_font_selected=global_font_requested=0;glass_global_fonts_apply();
+ puts("LOCK_SYSTEM_FONT_OK: clock192/date/music/weather/photo use selected family; active changes and default restore preserve stable font pointers");
+}
 static void check_screensaver_idle(void)
 {
   for(unsigned page=0;page<4;page++){
@@ -195,7 +220,7 @@ static void check_screensaver_idle(void)
     bool hidden=lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN);
     int y=card?lv_obj_get_scroll_y(card):0;
     lv_display_trigger_activity(NULL);
-    lv_tick_inc(59999);glass_screensaver_service();assert(!g_lock_ui.root);
+    lv_tick_inc(299999);glass_screensaver_service();assert(!g_lock_ui.root);
     lv_tick_inc(1);glass_screensaver_service();assert(g_lock_ui.root);
     lv_obj_t *overlay=g_lock_ui.root;glass_screensaver_service();assert(g_lock_ui.root==overlay);
     assert(g_desktop.current_card==card);
@@ -203,7 +228,7 @@ static void check_screensaver_idle(void)
     assert(g_desktop.current_card==card);
     assert(lv_obj_has_flag(g_desktop.panel,LV_OBJ_FLAG_HIDDEN)==hidden);
     if(card)assert(lv_obj_get_scroll_y(card)==y);
-    lv_tick_inc(59000);
+    lv_tick_inc(299000);
     /* Real input restarts the inactivity deadline. */
     pointer_point=(lv_point_t){900,300};pointer_state=LV_INDEV_STATE_PRESSED;
     lv_indev_read(pointer_input);
@@ -211,7 +236,7 @@ static void check_screensaver_idle(void)
     lv_tick_inc(2000);glass_screensaver_service();assert(!g_lock_ui.root);
   }
   panel_hide(NULL);
-  puts("SCREENSAVER_IDLE_OK: 59999/60000ms boundary, input reset, one overlay, unlock grace, original page and scroll preserved");
+  puts("SCREENSAVER_IDLE_OK: 299999/300000ms boundary, input reset, one overlay, unlock grace, original page and scroll preserved");
 }
 
 int main(int argc,char **argv)
@@ -246,6 +271,7 @@ int main(int argc,char **argv)
   struct tm date={.tm_mon=10,.tm_mday=4,.tm_wday=3};char formatted[80];
   lock_date_format(formatted,sizeof(formatted),&date,GLASS_LANGUAGE_ZH_CN);assert(!strcmp(formatted,"11月4日  星期三"));
   lock_date_format(formatted,sizeof(formatted),&date,GLASS_LANGUAGE_EN);assert(!strcmp(formatted,"Wed, Nov 4"));
+  check_lock_system_fonts();
   check_screensaver_idle();
   for(unsigned theme=0;theme<2;theme++){
     g_desktop.light_theme=theme==0;g_glass.reduced_motion=theme==0;glass_rebuild();frames(20);

@@ -27,7 +27,7 @@
 #ifndef GLASS_SD_FONT_PATH
 #define GLASS_SD_FONT_PATH SD_FONT_DEFAULT_PATH
 #endif
-#define SD_FONT_SIZES 12
+#define SD_FONT_SIZES 13
 #define SD_FONT_PAGE_BYTES 4096u
 #define SD_FONT_PAGE_COUNT 32u
 struct sd_font_page {
@@ -49,8 +49,8 @@ struct sd_font_state {
 };
 /* Keep descriptors/caches in PSRAM, not scarce internal static RAM. */
 static struct sd_font_state *sd_fonts;
-static const unsigned sd_sizes[SD_FONT_SIZES]={12,14,16,20,28,32,34,40,48,64,72,128};
-static const unsigned sd_counts[SD_FONT_SIZES]={48,64,96,128,128,24,24,24,32,16,24,4};
+static const unsigned sd_sizes[SD_FONT_SIZES]={12,14,16,20,28,32,34,40,48,64,72,128,192};
+static const unsigned sd_counts[SD_FONT_SIZES]={48,64,96,128,128,24,24,24,32,16,24,4,4};
 struct sd_font_file { uint32_t position; };
 #include "glass_font_choice.inc"
 

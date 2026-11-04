@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-04",
+  "firmware_sha256": "3be883d26b00f542da3f73e7c5d8ad7c19d8f797e7708ffbb15d1466d40e0794",
+  "host_checks_passed": [
+    "first favorite artwork fallback, current-track priority, changed/empty favorite list, no autoplay",
+    "four lock pages follow chosen system font",
+    "active font changes and default restore retain stable font pointers",
+    "material default-font backend restored independently of published selected-family view",
+    "192px clock size retained",
+    "five-minute idle boundary, input reset, page restore and balanced memory/timers"
+  ],
+  "device_checks": {
+    "app_readback_verified": true,
+    "data_partition_preserved": true,
+    "reset_boot_verified": true,
+    "home_cover_ready_before_any_selected_track": true,
+    "system_font_selection_preserved": true,
+    "font_sizes_ready": 13,
+    "lock_opened": true,
+    "screensaver_timeout_ms": 300000
+  },
+  "limitations": {
+    "physical_lock_font_visual_acceptance": false,
+    "cold_power_cycle_tested": false
+  }
+}

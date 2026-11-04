@@ -4,7 +4,7 @@
  */
 #include "glass_lock_photo.h"
 #include "glass_lock_art.h"
-#define GLASS_SCREENSAVER_IDLE_MS 60000u
+#define GLASS_SCREENSAVER_IDLE_MS 300000u
 static bool g_lock_idle_open;
 static unsigned g_lock_page,g_lock_target;
 static bool g_lock_page_pending;
@@ -24,6 +24,7 @@ static struct {
   time_t second;
   struct tm local;
   bool time_valid,valid;
+  unsigned font_selection;
 } g_lock_ui;
 
 static void lock_text_set(lv_obj_t *label,const char *before,const char *after,bool force)
@@ -68,6 +69,7 @@ static void lock_clock_update(time_t utc)
 static void lock_refresh(lv_timer_t *timer)
 {
   LV_UNUSED(timer);if(!glass_ui_can_paint(g_lock_ui.root))return;
+  if(g_lock_ui.font_selection!=global_font_selected){g_lock_ui.font_selection=global_font_selected;g_lock_ui.weather_valid=false;}
   if(g_lock_page==0)lock_clock_update(time(NULL));
   else if(g_lock_page==2){lock_weather_update();return;}
   else if(g_lock_page==3){lock_photo_update();return;}
@@ -166,7 +168,7 @@ static lv_obj_t *lock_label(lv_obj_t *parent,const char *text,int x,int y,int w,
   lv_obj_t *label=glass_text(parent,text,x,y,w,size,color);
   lv_obj_set_style_text_font(label,lock_font(lv_obj_get_style_text_font(label,0)),0);
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
-  lv_obj_set_height(label,lv_obj_get_style_text_font(label,0)->line_height);
+  lv_obj_set_height(label,LV_SIZE_CONTENT);
   lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   return label;
 }
