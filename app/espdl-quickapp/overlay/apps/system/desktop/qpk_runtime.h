@@ -59,6 +59,8 @@ int qpk_runtime_camera_video_action(unsigned action);
 bool qpk_runtime_camera_poll(void);
 /* UI thread: consume an album request only after display and writer release. */
 bool qpk_runtime_camera_take_album(void);
+/* Consume navigation only after capture, recording and scanout are retired. */
+bool qpk_runtime_camera_take_exit(void);
 /* Board diagnostics: forward one pointer update to an app that registered
  * ui.onTouch(), using fractions of the app content. Returns 1 when delivered.
  */

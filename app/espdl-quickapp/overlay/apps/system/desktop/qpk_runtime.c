@@ -2328,6 +2328,7 @@ static JSValue js_prompt_input(JSContext *context,
       goto err_input;
     }
 
+  glass_ime_prepare_input(g_qpk.input_textarea);
   lv_obj_set_pos(g_qpk.input_textarea, 24, 76);
   lv_obj_set_size(g_qpk.input_textarea, root_width - 48, 52);
   lv_textarea_set_one_line(g_qpk.input_textarea, true);
@@ -4000,6 +4001,15 @@ bool qpk_runtime_camera_take_album(void)
   pthread_mutex_unlock(&g_camera_lock);
   return ready;
 }
+bool qpk_runtime_camera_take_exit(void)
+{
+  if(qpk_video_status(NULL)==3)return false;
+  pthread_mutex_lock(&g_camera_lock);
+  bool ready=g_camera_state==QPK_CAMERA_IDLE&&!g_camera_redraw&&g_camera_ui_action==2;
+  if(ready)g_camera_ui_action=0;
+  pthread_mutex_unlock(&g_camera_lock);
+  return ready;
+}
 
 static JSValue js_camera_photo_status(JSContext *context, JSValueConst self,
                                       int argc, JSValueConst *argv)
@@ -4844,7 +4854,8 @@ bool qpk_runtime_camera_poll(void)
 {
   qpk_camera_service_start();
   static bool armed;
-  static int pressed,zoom_start,zoom_down;
+  static int pressed,zoom_start,zoom_down,edge_side;
+  static lv_point_t edge_start;
   static lv_point_t point;
   bool failed;
   bool retry;
@@ -4880,6 +4891,7 @@ bool qpk_runtime_camera_poll(void)
       qpk_camera_filters_set(false);
       armed = false;
       pressed = 0;
+      edge_side = 0;
     }
   else
     {
@@ -4900,12 +4912,22 @@ bool qpk_runtime_camera_poll(void)
                 {
                   if (data.state == LV_INDEV_STATE_RELEASED) armed = true;
                 }
+              else if(pressed&&camera_reference_exit_gesture(edge_side,edge_start.x,edge_start.y,point.x,point.y))
+                {
+                  pthread_mutex_lock(&g_camera_lock);g_camera_ui_action=2;pthread_mutex_unlock(&g_camera_lock);
+                  qpk_camera_stop();armed=false;pressed=0;edge_side=0;break;
+                }
               else if (data.state == LV_INDEV_STATE_PRESSED)
                 {
                   if (pressed == 0){
+                    edge_side=point.y>=580?3:point.x<28?1:point.x>=996?2:0;
+                    edge_start=point;
                     pressed=hit?hit:-1;
                     if(pressed==5){zoom_down=point.y;zoom_start=camera_reference_zoom_index(qpk_camera_zoom_percent());}
                   }
+                  int dx=point.x-edge_start.x,dy=point.y-edge_start.y;
+                  int cross=abs(edge_side==3?dx:dy);
+                  if(cross>(edge_side==3?48:64))edge_side=0;
                   if(pressed==5){
                     if(point.x<680||point.x>=784)pressed=-1;
                     else qpk_camera_zoom_set(camera_reference_zoom_values[
@@ -4923,7 +4945,8 @@ bool qpk_runtime_camera_poll(void)
                   pressed = 0;
                   if(action==4)qpk_video_mode(!qpk_video_selected());
                   if(qpk_camera_filter_action(action))action=0;
-                  if(action==3||action==7){
+                  edge_side=0;
+                  if(action==2||action==3||action==7){
                     pthread_mutex_lock(&g_camera_lock);if(!g_camera_ui_action)g_camera_ui_action=action;pthread_mutex_unlock(&g_camera_lock);
                   }
                   if(action==1){

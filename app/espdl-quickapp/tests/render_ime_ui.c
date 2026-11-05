@@ -3,6 +3,8 @@
 #include "render_all_ui.c"
 #undef main
 extern void review_pinyin_fixture(unsigned);
+extern void review_pinyin_loading_fixture(bool);
+extern unsigned review_pinyin_prepare_count(void);
 extern void review_chat_dialog_fixture(bool),review_voice_text_fixture(const char *);
 extern double qpk_review_number(const char *);
 static unsigned failures;
@@ -68,11 +70,21 @@ int main(int argc,char **argv)
     panel_hide(NULL);g_desktop.light_theme=theme==0;glass_rebuild();
     lv_obj_t *card=qapp_page_prepare("输入法检查");assert(card);qapp_page_commit(card);
     lv_obj_t *first=lv_textarea_create(card),*second=lv_textarea_create(card);
+    unsigned prepares=review_pinyin_prepare_count();
     lv_obj_set_pos(first,32,40);lv_obj_set_size(first,460,60);glass_input_style(first);
+    CHECK(review_pinyin_prepare_count()==prepares+1,"input field must prepare the dictionary before a keyboard exists");
+    lv_obj_t *dropdown=lv_dropdown_create(card);glass_input_style(dropdown);
+    CHECK(review_pinyin_prepare_count()==prepares+1,"styling a dropdown must not preload the dictionary");
+    lv_obj_delete(dropdown);
     lv_obj_set_pos(second,516,40);lv_obj_set_size(second,460,60);glass_input_style(second);lv_textarea_set_password_mode(second,true);
     lv_obj_t *keyboard=lv_keyboard_create(card);glass_keyboard_style(keyboard);lv_obj_set_size(keyboard,824,240);lv_obj_align(keyboard,LV_ALIGN_TOP_LEFT,100,260);
     lv_keyboard_set_textarea(keyboard,first);glass_ime_attach(keyboard,zh_font(20),true,theme_primary(),theme_surface(),theme_accent());
-    lv_obj_t *bar=lv_obj_get_child(card,-1);lv_obj_update_layout(card);review_pinyin_fixture(40);ime_test_type(keyboard,"ni");
+    lv_obj_t *bar=lv_obj_get_child(card,-1);lv_obj_update_layout(card);review_pinyin_fixture(40);
+    review_pinyin_loading_fixture(true);ime_test_type(keyboard,"ni");ime_test_key(keyboard," ");
+    CHECK(!lv_textarea_get_text(first)[0],"loading must preserve composition on space instead of committing raw Pinyin");
+    review_pinyin_loading_fixture(false);lv_tick_inc(100);lv_timer_handler();
+    CHECK(review_find(bar,"候选1"),"loaded decoder must refresh candidates without another keystroke");
+    glass_ime_commit(keyboard);lv_textarea_set_text(first,"");ime_test_type(keyboard,"ni");
     ime_test_contrast(keyboard);
     review_capture(display,"ime-chinese","输入法 · 中文候选");
     lv_obj_t *candidate=review_find(bar,"候选1");assert(candidate);

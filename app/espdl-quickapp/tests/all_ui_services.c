@@ -487,9 +487,14 @@ int glass_wifi_service_submit(enum c6_desktop_operation operation,
 {return c6_desktop_worker_submit(NULL,operation,ssid,password);}
 /* The keyboard/IME UI is production code; dictionary/voice backends stay offline. */
 static unsigned review_pinyin_count;
+static bool review_pinyin_loading;
+static unsigned review_pinyin_prepares;
+unsigned review_pinyin_prepare_count(void){return review_pinyin_prepares;}
+bool glass_pinyin_init(void){review_pinyin_prepares++;return !review_pinyin_loading;}
+void review_pinyin_loading_fixture(bool loading){review_pinyin_loading=loading;}
 static char review_pinyin_input[33];
 void review_pinyin_fixture(unsigned count){review_pinyin_count=count;}
-unsigned glass_pinyin_search(const char *input){snprintf(review_pinyin_input,sizeof(review_pinyin_input),"%s",input?input:"");return input&&input[0]?review_pinyin_count:0;}
+unsigned glass_pinyin_search(const char *input){snprintf(review_pinyin_input,sizeof(review_pinyin_input),"%s",input?input:"");return input&&input[0]&&!review_pinyin_loading?review_pinyin_count:0;}
 bool glass_pinyin_candidate(unsigned index,char *out,size_t capacity){if(index>=review_pinyin_count){if(capacity)out[0]=0;return false;}snprintf(out,capacity,"候选%u",index+1);return true;}
 bool glass_pinyin_choose(unsigned index,char *out,size_t capacity,unsigned *consumed)
 {if(!review_pinyin_input[0]||!glass_pinyin_candidate(index,out,capacity))return false;*consumed=strlen(review_pinyin_input);return true;}

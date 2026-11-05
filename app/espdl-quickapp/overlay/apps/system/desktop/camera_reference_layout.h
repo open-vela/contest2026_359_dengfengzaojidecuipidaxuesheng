@@ -101,3 +101,13 @@ static int camera_reference_zoom_drag(int start,int down,int current)
 {return camera_reference_zoom_clamp(start+(down-current)/48);}
 static int camera_reference_zoom_tap(int y)
 {return camera_reference_zoom_clamp(3-(y-172)/64);}
+
+/* Match the shell's side/back and bottom/home thresholds during direct video. */
+static bool camera_reference_exit_gesture(int side,int x0,int y0,int x,int y)
+{
+  int dx=x-x0,dy=y-y0;
+  int inward=side==3?-dy:side==2?-dx:dx;
+  int cross=side==3?dx:dy;if(cross<0)cross=-cross;
+  return side&&cross<=(side==3?48:64)&&inward>=(side==3?72:48)&&
+         (side==3?inward>2*cross:2*inward>3*cross);
+}

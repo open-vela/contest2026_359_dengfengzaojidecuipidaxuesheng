@@ -17,6 +17,8 @@ struct ime {
   char input[33], labels[5][100];
   unsigned page, count, slots;
   bool chinese, password, syncing;
+  bool awaiting_candidates;
+  lv_timer_t *candidate_timer;
 #ifdef CONFIG_SYSTEM_DESKTOP
   lv_obj_t *voice;
   lv_timer_t *voice_timer;
@@ -26,6 +28,10 @@ struct ime {
 #endif
 };
 static void ime_key(lv_event_t *e);
+void glass_ime_prepare_input(lv_obj_t *input)
+{
+  if(input&&lv_obj_check_type(input,&lv_textarea_class))glass_pinyin_init();
+}
 static bool ime_sync_target(struct ime *ime);
 static void ime_target_deleted(lv_event_t *e);
 static void ime_parent_changed(lv_event_t *e);
@@ -58,6 +64,7 @@ static void ime_render(struct ime *ime)
 #endif
     lv_label_set_text(ime->composition,ime->password?"密码":ime->input[0]?ime->input:ime->chinese?"拼音":"英文");
   ime->count = composing&&ime->input[0] ? glass_pinyin_search(ime->input) : 0;
+  ime->awaiting_candidates=composing&&ime->input[0]&&!ime->count&&!glass_pinyin_init();
   int width=lv_obj_get_width(ime->keyboard), start=width>700?200:128;
 #ifdef CONFIG_SYSTEM_DESKTOP
   int end=142;
@@ -121,6 +128,14 @@ static bool ime_sync_target(struct ime *ime)
   ime->target=target;ime->password=password;
   if(target)lv_obj_add_event_cb(target,ime_target_deleted,LV_EVENT_DELETE,ime);
   reset_ime(ime);ime->syncing=false;return false;
+}
+
+static void ime_candidates_poll(lv_timer_t *timer)
+{
+  struct ime *ime=lv_timer_get_user_data(timer);
+  if(ime->awaiting_candidates&&lv_obj_is_visible(ime->keyboard)){
+    if(ime_sync_target(ime))ime_render(ime);
+  }
 }
 
 void glass_ime_set_target(lv_obj_t *keyboard,lv_obj_t *target)
@@ -273,6 +288,7 @@ static void ime_key(lv_event_t *e)
   }
   if (!strcmp(text,LV_SYMBOL_BACKSPACE) && ime->input[0]) { ime->input[strlen(ime->input)-1]=0; ime->page=0; ime_render(ime); return; }
   if ((!strcmp(text," ") || !strcmp(text,"Enter") || !strcmp(text,LV_SYMBOL_NEW_LINE) || !strcmp(text,LV_SYMBOL_OK)) && ime->input[0]) {
+    if(ime->awaiting_candidates)return;
     if(ime->count) choose_ime(ime,ime->page*ime->slots);
     else glass_ime_commit(ime->keyboard);
     /* First confirmation commits composition; second submits the form. */
@@ -292,6 +308,7 @@ static void ime_bar_deleted(lv_event_t *e)
 static void ime_deleted(lv_event_t *e)
 {
   struct ime *ime=lv_event_get_user_data(e);
+  if(ime->candidate_timer)lv_timer_delete(ime->candidate_timer);
   if(ime->target)lv_obj_remove_event_cb_with_user_data(ime->target,ime_target_deleted,ime);
   lv_obj_remove_event_cb_with_user_data(lv_obj_get_parent(ime->keyboard),ime_parent_changed,ime);
 #ifdef CONFIG_SYSTEM_DESKTOP
@@ -528,6 +545,7 @@ void glass_ime_attach(lv_obj_t *keyboard, const lv_font_t *font, bool chinese, u
   ime->voice_allowed=true;
 #endif
   ime->keyboard=keyboard; ime->chinese=chinese;
+  if(chinese)glass_pinyin_init();
   glass_pinyin_reset();
   lv_obj_update_layout(keyboard);
   int width=lv_obj_get_width(keyboard);
@@ -564,4 +582,5 @@ void glass_ime_attach(lv_obj_t *keyboard, const lv_font_t *font, bool chinese, u
   lv_obj_add_event_cb(lv_obj_get_parent(keyboard),ime_parent_changed,LV_EVENT_CHILD_CHANGED,ime);
   ime_single_click(keyboard);
   ime_sync_target(ime);ime_layout(ime);
+  ime->candidate_timer=lv_timer_create(ime_candidates_poll,80,ime);
 }

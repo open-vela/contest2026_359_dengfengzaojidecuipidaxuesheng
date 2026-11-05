@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "upstream_base": "6763ca7df04702d02019ac6178dd5844ab3e23e6",
+  "scope": "Host validation of the integrated submission source; physical board results remain bound to image 7fc37780.",
+  "checks": [
+    {
+      "name": "test_ime_preload.py",
+      "passed": true
+    },
+    {
+      "name": "test_camera_exit.py",
+      "passed": true
+    },
+    {
+      "name": "test_camera_boundary.py",
+      "passed": true
+    },
+    {
+      "name": "test_camera_sync.py (64/128-byte cache lines and handoff)",
+      "passed": true
+    },
+    {
+      "name": "render_ime_ui.c via render_all_ui.py (ASan/UBSan)",
+      "passed": true
+    },
+    {
+      "name": "test_portal_network.py (45 real loopback HTTP cases, ASan/UBSan)",
+      "passed": true
+    },
+    {
+      "name": "check_package.py",
+      "passed": true
+    },
+    {
+      "name": "check_submission.py",
+      "passed": true
+    }
+  ],
+  "source_sha256_lf": {
+    "app/espdl-quickapp/overlay/apps/system/desktop/camera_reference_layout.h": "5479d0153d260e4374d27bb73a78e51ed838cf300b2ec62e8737a48599ee82e6",
+    "app/espdl-quickapp/overlay/apps/system/desktop/desktop_main.c": "1cb1c769e69c77f71a9f54a3efa115d40e749c60f23731a3a8af8962df3cefc6",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ime.c": "470626b027f1a081b70bff179a43385dd04de7280b2b6182cd7cba9f85f3c081",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ime.h": "ebf50341147e5609a280a215426648d3cf44ebb2f3727ced29b973cfe829efb7",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_local_voice_ui.inc": "b2ef3c4f32bea5e3d6805a6239ebc3db45d1abf1df2ec112ec20ea05b376e044",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_pinyin.cpp": "837f03e1fb3920a56f117520b83082dba721e9c15a6ae20f07f3fe61fccf2b30",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_pinyin.h": "c228f59dd547867822d0644b6c4050bce4ca06b165c3165f4721a7c7d0edc0f8",
+    "app/espdl-quickapp/overlay/apps/system/desktop/glass_ui.inc": "5db08df1fdee8f3fdb61ab809f854319eb1ab24979cb6a9cc2911e6a72b448d3",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_runtime.c": "e94ca6bc6789056bbbae616a77768eba7a795c7abc9f7385ee0b3e0d93fbabd4",
+    "app/espdl-quickapp/overlay/apps/system/desktop/qpk_runtime.h": "1d5223f2ad92e1f3ddd79edeab9189f3e5b65a2bcae2f2046b57802cefcb0fa6",
+    "app/espdl-quickapp/tests/all_ui_services.c": "6b5d0b78fec51259e791424687b9e9a53628f326e6eb015cfdd4f56251093ec7",
+    "app/espdl-quickapp/tests/portal_network_host.c": "e131413e75d04ca440541a07c4e928104d4d1a026d56962ad9d78e5c516ae5b1",
+    "app/espdl-quickapp/tests/render_ime_ui.c": "b1ab6f77fb06fa1f39c9183b5b50c155792bf10e222ca62e3876d86642592f54",
+    "tools/render_all_ui.py": "888d3d37b138dcf568a1edda938f9bfed2a9ef3ac8a3aa2081c0b9818e8c47e7",
+    "tools/test_ime_preload.py": "5e8e6b889a6c645aacb279772dfa35828afd09d2859dbd63d43808f16237e856",
+    "tools/test_camera_exit.py": "afd635db82fdd0022d88a67dc93064df8843b7a6dc2898877289754ee233ffdf"
+  },
+  "fixture_maintenance": "Synthetic repeated-letter Bearer fixtures use adjacent C literals with identical wire bytes. The fixture now fails closed if the existing write-path helper is reached unexpectedly."
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/camera_reference_layout.h",
+    "before": "ab1d73464990316e15451e990e4b22230dda437e7fc740522ef3d82efb38d4ca",
+    "after": "7af38203b301780598e4723a36649ff184ee89fcc3fbeebdf925b436f8ab3cab"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/desktop_main.c",
+    "before": "5a3017691f24b4a6d06bda4f5180ff113a88c44d5da0e90b2fb0962b5e1c5a2b",
+    "after": "95b9d8a7cb86d1818ef614c628634baa565d7291fa9685fc78967551021a2776"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/glass_ime.c",
+    "before": "3301767bd2f311982ae6f04dd84f56788cbeba2ddd80f279310d70a22599359b",
+    "after": "470626b027f1a081b70bff179a43385dd04de7280b2b6182cd7cba9f85f3c081"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/glass_ime.h",
+    "before": "157c1ef4bc887b0fcacdaa770039d9d0fb3163d6e50ea49c9cc64bb7dad083ef",
+    "after": "52f174b8f86230816b819de525ba2ac3a0421a6d71110b83dd4c0742b25e1976"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/glass_local_voice_ui.inc",
+    "before": "ec259dceb0e607aef3a802085667914116e323365e5028811e2f83c473f9579e",
+    "after": "b6a1cfc7379cbaf74a7ba32d073881785cab2f6db0b0dc5dfb196df2b604b2d7"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/glass_pinyin.cpp",
+    "before": "95773078b77adb3f9b6d26ea199e87a95d39bf691001c020d7a3adbd11825611",
+    "after": "f850bbba40e9996c695961d8b4ebf350b162e4eb658f9400d5b235621bd92358"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/glass_pinyin.h",
+    "before": "558fd4e881022294b8dcb74e3e8a8bf3951975402e571645509e8496ac2ced01",
+    "after": "40771896d8cd58a1cbc522118ce2dd65c02ee7d6e48d860a24de3220d4010d0f"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/glass_ui.inc",
+    "before": "e0a2ca8f378f93ec6629e188a2a9f22457cfc5f89d28bf84cf5a678a2927ce50",
+    "after": "f17f940a9108cbe246a654ddb24fd643e09ac517e74221302f2ecb4468bea29c"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/qpk_runtime.c",
+    "before": "e32ffbff3a0e715abf845f9edf1d1caa9ef18c90577cf010316a65d877af971d",
+    "after": "e94ca6bc6789056bbbae616a77768eba7a795c7abc9f7385ee0b3e0d93fbabd4"
+  },
+  {
+    "file": "app/espdl-quickapp/overlay/apps/system/desktop/qpk_runtime.h",
+    "before": "d94a319bc12a8a74f9b3ed19e903518cd8c85c4e057f8d8dbf81c024218af4c6",
+    "after": "74dd6dd7f0f5229d294d77250000899677be69486898341558d51923f2d515be"
+  },
+  {
+    "file": "app/espdl-quickapp/tests/all_ui_services.c",
+    "before": "de7cc15879c1d00727ebcd2f3b1a3406adf3aeb36adfccf1ca20178246b3fa05",
+    "after": "7973f18db74d433cf58fc76785e46f7dd410972daa01adfd7bba1ff137daa927"
+  },
+  {
+    "file": "app/espdl-quickapp/tests/render_ime_ui.c",
+    "before": "1b9ff4263c04acfc8a759f44948f8b9b6bcaf4bec466e61a6b0380964e9a2441",
+    "after": "dd9afa34e7bc213fccd66bf886bd8079405b390dc68e6e9b56bc7114dd24075d"
+  },
+  {
+    "file": "tools/build_bilibili_v3.py",
+    "before": "6eb791cddbf632ab39f434cc8c4d92740a1381420b66523f605375b095535bd2",
+    "after": "183239e2cb6e652a200981820140848918e165551cfba2e9aae18448caa9485a"
+  },
+  {
+    "file": "tools/render_all_ui.py",
+    "before": "afb7e0b0ccf3dd228924dc5cffa529c6a52d9c28fbd71d489d357b7ef48e5241",
+    "after": "888d3d37b138dcf568a1edda938f9bfed2a9ef3ac8a3aa2081c0b9818e8c47e7"
+  }
+]

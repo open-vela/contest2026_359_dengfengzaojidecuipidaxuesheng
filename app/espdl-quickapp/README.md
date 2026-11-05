@@ -2,6 +2,9 @@
 
 ESPClaw 开发入口：[agent.md](agent.md) · [Harness 框架](HARNESS.md) · [默认 CSI／USB 多模态摄像头](MULTIMODAL-CAMERA.md)。
 
+输入框现在会提前在后台准备拼音词库，预览相机的返回操作会在采集与显示交接完成后直接退出。
+本次 `7fc37780` 镜像的输入法与 CSI 实板结果、测试命令及验证范围见[验收记录](../../docs/evidence/ime-camera-preload-20261105/README.md)。
+
 图标精修与单次交互动效见 [ICONS.md](ICONS.md)：含设计参考、SVG 导出、光学尺寸、
 原生 LVGL 入口和宿主验证方法。此项尚未烧录验收。
 
