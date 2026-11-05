@@ -248,10 +248,15 @@ USB 音频／HID 输入使用有界队列，断开报告ENODEV，旧代次ESTALE
 | `uartSetup({generation,bus,tx,rx,baud:115200,parity:0,stopbits:1})` | bus0/1映射S3 UART1/2；300～921600 baud，矩阵 IO 最高460800；parity0无、1奇、2偶；stopbits1/2 |
 | `uartWrite({generation,bus,data})` / `uartRead({generation,bus,length:512,timeoutMs:100})` / `uartClose({generation,bus})` | 最多4096B，读等待0～500 ms；读取可能是半帧，写返回已发送 bytes |
 | `functionLoad({generation,slot:0,arguments:0,code:[...]})` | 上传已编译的 JBoxScript 字节码，4个槽，每槽最多4096B、4字节对齐；函数参数0～4；不是在P4执行外部源码 |
-| `functionCall({generation,slot:0,ios:[]})` / `functionClear({generation,slot:0})` | 调用／清除S3函数；IO参数不能重复，返回最多128个 uint32 values |
+| `functionCompile({generation,slot:0,source})` 或 `functionCompile({generation,slot:0,program:"dht11"})` | 恰好提供 source／program 之一；原生有界编译器将 fn 文本或经审阅的 DHT11 示例编译并上传 S3。返回 compiled/uploaded/executed:false、name、parameters、instructions；此时没有采样。源码最多32768字节，1024指令／4参数／16局部变量／8层块／32层表达式；超预算与语法错误不发送 LOAD |
+| `functionCall({generation,slot:0,ios:[],delayMs:0})` / `functionClear({generation,slot:0})` | 调用／清除S3函数；IO参数不能重复，返回最多128个 uint32 values。delayMs 为调用前0～5000ms可取消等待，仅执行一次，不是循环／重试 |
 | `safe({generation})` | 让扩展板清空矩阵、函数和外设，连接保留；新任务仍需显式重新配置 |
 
 首次绑定必须由用户短按 S3 的 GPIO10 开窗，再在可信主板应用显式调用 `system.jbox.pair({host,deviceId})`，或本机控制台 `desktop jbox-bind <IPv4> <12位设备ID>`。`pair` 只提供给用户应用，不在助手硬件操作清单中；只返回 saved，不返回密钥。绑定配置写入主板 Flash，沿用配置保存的 AI 停机协调与重复写跳过。配对交换遵循上游明文 LAN 协议，只用于可信局域网；不开放工厂重置接口。
+
+`caps.boardMap` 返回 CN1/CN2 每行 `[奇数脚,偶数脚,node]`。相邻奇偶脚物理直通：CN1-1/2=node0、3/4=node1……39/40=node19；CN2-1/2=node20……39/40=node39。node40..48=EXT1..9=IO0..8，实际 S3 GPIO 使用 caps.ioGpios；node49=5V、50=3.3V、51=GND。GPIO10 为配对键，GPIO43/44 为控制台，不可当扩展IO。不能把5V与3.3V/GND接成同一网络，也不能把电源轨直接路由到信号IO。
+
+DHT11 使用 `functionCompile({generation,program:"dht11"})`，再 `functionCall({generation,ios:[dataIO],delayMs:2000})`；模板在 S3 上用 RMT capture、40位解码及校验和，成功 values 为 `[温度摄氏度×10,相对湿度百分比×10]`。需要已更新的S3 RMT固件；v1 caps没有报告指令集版本，不能据此假定支持。上电后至少等2秒，成功读数间隔至少2秒；失败不自动重发。路由必须来自本次用户接线，不能沿用示例位置。用户明确 VCC=CN1-1、DATA=CN1-3、GND=CN1-5 时，仅映射为node0/1/2；若文档与现场确认5V供电且DATA上拉3.3V，可配置供电[0,49]、数据[1,48]（IO8=GPIO9）、地[2,51]。先读现有网络，routeSet会替换全部网络，不能覆盖无关电路。上传成功不代表传感器测量成功。
 
 所有连接后的操作必须携带当前 `generation`。传输、HMAC、帧格式错误和超时立即关闭连接；取消任务也关闭本会话；任何情况下不自动重连重发动作。`remoteStatus` 是扩展板原始业务错误码，不能当作本机 errno。连接只代表鉴权成功，GPIO 回执不证明外部电路工作。主板应用退出或硬件控制器释放时关闭长连接；助手正常完成后控制器可保留长连接，明确 `safe`／`disconnect`／`hardware_release` 才释放。硬件断网检测时间取决于 TCP 与对端 keepalive，不能宣称瞬间高阻。
 

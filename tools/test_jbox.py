@@ -14,6 +14,7 @@ import select
 import socket
 import struct
 import subprocess
+import sys
 import threading
 import time
 import unittest
@@ -250,6 +251,43 @@ class ProtocolTests(unittest.TestCase):
         self.assertLess(client.call('caps',generation=2)['error'],0)
         self.assertEqual(peer.requests,[])
 
+    def test_connector_mapping_and_native_script_upload(self):
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app/ProgrammableMatrix'))
+        from client.jbox_lang import compile_function
+        client,peer=self.connect()
+        caps=client.call('caps',generation=1)
+        for index in range(20):
+            self.assertEqual(caps['boardMap']['CN1'][index],[index*2+1,index*2+2,index])
+            self.assertEqual(caps['boardMap']['CN2'][index],[index*2+1,index*2+2,index+20])
+        source='fn read(data){open_drain(data);release(data);emit(sample(data));}'
+        result=client.call('functionCompile',generation=1,slot=2,source=source)
+        self.assertEqual(result['error'],0)
+        self.assertTrue(result['compiled'] and result['uploaded'])
+        self.assertFalse(result['executed'])
+        self.assertEqual(result['parameters'],['data'])
+        expected=compile_function(source)
+        self.assertEqual(peer.requests[-1],(0x80,struct.pack('<BBH',2,1,len(expected.code)//4)+expected.code))
+        result=client.call('functionCompile',generation=1,program='dht11')
+        self.assertEqual(result['error'],0)
+        dht=(Path(__file__).resolve().parents[1]/'app/ProgrammableMatrix/client/programs/dht11.jbox').read_text()
+        expected=compile_function(dht)
+        self.assertEqual(peer.requests[-1],(0x80,struct.pack('<BBH',0,1,len(expected.code)//4)+expected.code))
+        self.assertFalse(any(cmd==0x81 for cmd,_ in peer.requests))
+        before=list(peer.requests)
+        for options in [{},{'source':source,'program':'dht11'},{'source':123},
+                        {'program':'other'},{'source':'fn bad(){sleep_ms(999);}'},
+                        {'source':source,'arguments':2}]:
+            self.assertLess(client.call('functionCompile',generation=1,**options)['error'],0)
+        self.assertEqual(peer.requests,before)
+
+    def test_script_settle_delay_cancel_does_not_call_sensor(self):
+        client,peer=self.connect()
+        self.assertLess(client.call('functionCall',generation=1,ios=[8],delayMs=5001)['error'],0)
+        result=client.call('functionCall',generation=1,ios=[8],delayMs=2000,_cancelAfterMs=30)
+        self.assertLess(result['error'],0)
+        self.assertFalse(result['connected'])
+        self.assertEqual(peer.requests,[])
+
     def test_unknown_device_identity_and_live_connection(self):
         client,peer = self.connect()
         self.assertLess(client.call('connect')['error'],0)
@@ -380,7 +418,7 @@ def main():
                     str(d/'qpk_espdl_sha256.c'),'-o',str(sha_object)],check=True)
     subprocess.run(['gcc',*flags,
                     str(root/'app/espdl-quickapp/tests/jbox_client_host.c'),str(d/'qpk_jbox.c'),
-                    str(d/'qpk_jbox_transport.c'),str(sha_object),
+                    str(d/'qpk_jbox_transport.c'),str(d/'jbox_script.c'),str(sha_object),
                     str(a.apps/'netutils/cjson/cJSON/cJSON.c'),'-o',str(EXE)],check=True)
     os.environ['ASAN_OPTIONS']='detect_leaks=1'
     os.environ['UBSAN_OPTIONS']='halt_on_error=1'

@@ -1,5 +1,7 @@
 #include "script_service.h"
 #include "script_vm.h"
+#include "script_capture.h"
+#include "driver/gpio.h"
 #include "peripherals.h"
 #include "board.h"
 #include "esp_rom_sys.h"
@@ -44,26 +46,32 @@ int script_load(unsigned slot,unsigned argc,const uint8_t *code,size_t bytes)
     }
     free(p);return rc;
 }
-typedef struct {uint8_t args[SCRIPT_MAX_ARGS];uint32_t generation;} call_ctx;
+typedef struct {uint8_t args[SCRIPT_MAX_ARGS],modes[SCRIPT_MAX_ARGS];uint32_t generation;} call_ctx;
 static uint32_t now_us(void *ctx){(void)ctx;return (uint32_t)esp_timer_get_time();}
 static int cancelled(void *ctx){return ((call_ctx*)ctx)->generation!=generation;}
 static int set_mode(void *ctx,unsigned arg,unsigned mode)
 {
     call_ctx *c=ctx;
-    return io_config(c->args[arg],mode,mode==2?1:0,mode==2?1:0);
+    int rc=io_config(c->args[arg],mode,mode==2?1:0,mode==2?1:0);
+    if(rc==J_OK)c->modes[arg]=mode;
+    return rc;
 }
 static int write_pin(void *ctx,unsigned arg,unsigned level)
 {
-    unsigned io=((call_ctx*)ctx)->args[arg];
-    return io_write_mask(1u<<io,level<<io);
+    call_ctx *c=ctx;
+    if(c->modes[arg]!=1 && c->modes[arg]!=2)return J_BUSY;
+    return gpio_set_level(BOARD_IO_GPIOS[c->args[arg]],level)==ESP_OK?J_OK:J_HARDWARE;
 }
 static int read_pin(void *ctx,unsigned arg,unsigned *level)
 {
-    unsigned io=((call_ctx*)ctx)->args[arg];
-    uint32_t levels=0;
-    int rc=io_read_mask(1u<<io,&levels);
-    *level=(levels>>io)&1;
-    return rc;
+    call_ctx *c=ctx;
+    *level=gpio_get_level(BOARD_IO_GPIOS[c->args[arg]]);
+    return J_OK;
+}
+static int capture(void *ctx,unsigned arg,unsigned idle_us,script_pulse_t *pulses,size_t *count)
+{
+    call_ctx *c=ctx;
+    return script_capture(c->args[arg],idle_us,pulses,count,cancelled,ctx);
 }
 static void delay_us(void *ctx,unsigned us){(void)ctx;esp_rom_delay_us(us);}
 static void sleep_ms(void *ctx,unsigned ms){(void)ctx;vTaskDelay(pdMS_TO_TICKS(ms)+1);}
@@ -90,12 +98,12 @@ int script_call(unsigned slot,const uint8_t *args,size_t argc,uint32_t *result,s
     for(size_t i=0;rc==J_OK && i<argc;i++){
         if(!io_valid(args[i]) || (used&(1u<<args[i])))rc=J_BAD_ARG;
         else if(leases[args[i]] || modes[args[i]]==3)rc=J_BUSY;
-        else {ctx.args[i]=args[i];used|=1u<<args[i];}
+        else {ctx.args[i]=args[i];ctx.modes[i]=modes[args[i]];used|=1u<<args[i];}
     }
     if(rc==J_OK){
         const script_backend_t b={.ctx=&ctx,.now_us=now_us,.mode=set_mode,
             .write=write_pin,.read=read_pin,.delay_us=delay_us,.sleep_ms=sleep_ms,
-            .timed=timed,.cancelled=cancelled};
+            .timed=timed,.cancelled=cancelled,.capture=capture};
         rc=script_execute(p,&b,result,count);
         if(rc!=J_OK)for(size_t i=0;i<argc;i++)io_config(args[i],0,0,0);
     }

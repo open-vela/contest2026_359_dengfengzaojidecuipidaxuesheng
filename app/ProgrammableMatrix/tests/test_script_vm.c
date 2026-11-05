@@ -7,10 +7,11 @@
 typedef struct {
     uint32_t clock,release_at,low_at,cancel_at;
     unsigned latch,mode,critical,entries;
-    int started,missing;
+    int started,missing,leading_low,truncated,slow;
+    unsigned captures;
     uint8_t bytes[5];
 } simulator;
-static uint32_t clock_us(void *v){return ((simulator*)v)->clock++;}
+static uint32_t clock_us(void *v){simulator *s=v;uint32_t now=s->clock;s->clock+=s->slow?50:1;return now;}
 static int mode(void *v,unsigned arg,unsigned m){assert(arg==0);((simulator*)v)->mode=m;return 0;}
 static int write_pin(void *v,unsigned arg,unsigned level)
 {
@@ -48,9 +49,33 @@ static void timed(void *v,int enter)
     else{assert(s->critical);s->critical=0;}
 }
 static int cancelled(void *v){simulator *s=v;return s->cancel_at && s->clock>=s->cancel_at;}
+static int capture(void *v,unsigned arg,unsigned idle_us,script_pulse_t *pulses,size_t *count)
+{
+    simulator *s=v;assert(arg==0 && idle_us==1000 && s->mode==2 && !s->critical);
+    s->captures++;
+    assert(write_pin(s,arg,1)==J_OK);
+    *count=0;
+    if(s->leading_low)pulses[(*count)++]=(script_pulse_t){4,0};
+    pulses[(*count)++]=(script_pulse_t){25,1};
+    if(!s->missing){
+        pulses[(*count)++]=(script_pulse_t){80,0};
+        pulses[(*count)++]=(script_pulse_t){80,1};
+        for(unsigned bit=0;bit<40;bit++){
+            pulses[(*count)++]=(script_pulse_t){50,0};
+            unsigned high=(s->bytes[bit/8]&(1u<<(7-bit%8)))?70:28;
+            pulses[(*count)++]=(script_pulse_t){high,1};
+        }
+        pulses[(*count)++]=(script_pulse_t){50,0};
+    }
+    pulses[(*count)++]=(script_pulse_t){idle_us,1};
+    if(s->truncated)*count=80;
+    s->clock+=6000;
+    return cancelled(s)?J_NOT_READY:J_OK;
+}
 static script_backend_t backend(simulator *s)
 {
-    script_backend_t b={s,clock_us,mode,write_pin,read_pin,delay,sleep_ms,timed,cancelled};return b;
+    script_backend_t b={.ctx=s,.now_us=clock_us,.mode=mode,.write=write_pin,.read=read_pin,
+        .delay_us=delay,.sleep_ms=sleep_ms,.timed=timed,.cancelled=cancelled,.capture=capture};return b;
 }
 static void instruction(script_program_t *p,unsigned kind,unsigned value)
 {
@@ -70,16 +95,21 @@ int main(int argc,char **argv)
     script_backend_t b=backend(&s);
     assert(script_execute(&p,&b,result,&count)==J_OK);
     assert(count==2 && result[0]==240 && result[1]==550);
-    assert(!s.critical && s.entries==1 && s.latch==1);
+    assert(!s.critical && s.entries==0 && s.captures==1 && s.latch==1);
+    s=(simulator){.latch=1,.leading_low=1,.slow=1,.bytes={55,0,24,0,79}};
+    assert(script_execute(&p,&b,result,&count)==J_OK);
+    assert(count==2 && result[0]==240 && result[1]==550);
     s=(simulator){.latch=1,.bytes={55,0,24,0,78}};
     assert(script_execute(&p,&b,result,&count)==J_HARDWARE && count==0);
     assert(!s.critical);
     s=(simulator){.latch=1,.missing=1};
-    assert(script_execute(&p,&b,result,&count)==J_TIMEOUT && count==0);
+    assert(script_execute(&p,&b,result,&count)==J_HARDWARE && count==0);
+    s=(simulator){.latch=1,.truncated=1,.bytes={55,0,24,0,79}};
+    assert(script_execute(&p,&b,result,&count)==J_HARDWARE && count==0);
     assert(!s.critical);
     s=(simulator){.latch=1,.cancel_at=22500,.bytes={55,0,24,0,79}};
     assert(script_execute(&p,&b,result,&count)==J_NOT_READY && count==0);
-    assert(!s.critical && s.entries==1);
+    assert(!s.critical && s.captures==1);
 
     p=(script_program_t){0};
     instruction(&p,SC_PUSH,65535);instruction(&p,SC_PUSH,2);
@@ -100,5 +130,19 @@ int main(int argc,char **argv)
     instruction(&p,SC_PUSH,1);instruction(&p,SC_PUSH,32);
     instruction(&p,SC_SHL,0);instruction(&p,SC_EMIT_VALUE,0);
     assert(script_execute(&p,&b,result,&count)==J_BAD_ARG && count==0);
-    puts("VM: uploaded DHT11 waveform/decode/checksum, timeout, cancellation, arithmetic and validation PASS");
+    p=(script_program_t){.argc=1};instruction(&p,SC_PULSE_COUNT,0);
+    assert(script_validate(&p)==J_BAD_ARG);
+    p=(script_program_t){.argc=1};
+    instruction(&p,SC_TIMED_BEGIN,0);instruction(&p,SC_CAPTURE_RELEASE,1000);
+    instruction(&p,SC_TIMED_END,0);assert(script_validate(&p)==J_BAD_ARG);
+    p=(script_program_t){.argc=1};instruction(&p,SC_CAPTURE_RELEASE,1000);
+    instruction(&p,SC_PUSH,191);instruction(&p,SC_PULSE_US,0);instruction(&p,SC_EMIT_VALUE,0);
+    s=(simulator){.mode=2,.latch=0,.low_at=0,.clock=20000,.bytes={55,0,24,0,79}};
+    assert(script_execute(&p,&b,result,&count)==J_BAD_ARG && count==0);
+    // The legacy polling VM remains available, including timeout cleanup.
+    p=(script_program_t){.argc=1};instruction(&p,SC_TIMED_BEGIN,0);
+    instruction(&p,SC_WAIT_LOW,100);instruction(&p,SC_TIMED_END,0);
+    s=(simulator){.latch=1,.missing=1};
+    assert(script_execute(&p,&b,result,&count)==J_TIMEOUT && !s.critical);
+    puts("VM: RMT-buffered DHT11 decode/checksum, slow decoder, bounds, cancellation and legacy polling PASS");
 }

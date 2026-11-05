@@ -133,7 +133,7 @@ int main(void)
     const cJSON *next=cJSON_GetObjectItem(page,"nextCursor");snprintf(cursor,sizeof(cursor),"%s",cJSON_IsString(next)?next->valuestring:"");
     cJSON_Delete(page);pages++;assert(pages<=4);
   }while(cursor[0]);
-  assert(pages>1&&total==54);
+  assert(pages>1&&total==55);
   assert(config.call_cap("mcp_list_tools","{\"server\":\"board\",\"cursor\":123}",NULL,&out,config.cap_user_ctx)!=ESP_OK);free(out);
   glass_agent_set_board_assistant(NULL);free(expanded);
   puts("ASSISTANT_BRIDGE_OK: direct native tools, duplicate-field rejection, mode boundaries and bounded board discovery pagination");
