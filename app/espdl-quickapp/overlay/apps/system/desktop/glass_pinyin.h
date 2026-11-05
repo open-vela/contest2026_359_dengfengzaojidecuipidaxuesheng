@@ -5,6 +5,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Nonblocking prepare. False means loading or unavailable; retry from UI timer. */
 bool glass_pinyin_init(void);
 void glass_pinyin_reset(void);
 unsigned glass_pinyin_search(const char *input);

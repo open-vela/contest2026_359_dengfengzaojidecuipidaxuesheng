@@ -266,6 +266,7 @@ static void glass_local_voice_open(lv_event_t *event)
   ui->result=detail_tile(card,212,108,788,224);lv_obj_add_flag(ui->result,LV_OBJ_FLAG_SCROLLABLE);
   ui->output=home_text(ui->result,"",22,22,740,20,detail_ink());lv_label_set_long_mode(ui->output,LV_LABEL_LONG_WRAP);
   ui->input=lv_textarea_create(card);lv_obj_set_pos(ui->input,212,354);lv_obj_set_size(ui->input,788,66);
+  glass_ime_prepare_input(ui->input);
   lv_obj_set_style_text_font(ui->input,home_font(18),0);lv_obj_set_style_text_color(ui->input,lv_color_hex(detail_ink()),0);
   lv_obj_set_style_bg_color(ui->input,lv_color_hex(detail_paper()),0);lv_obj_set_style_radius(ui->input,12,0);
   lv_textarea_set_max_length(ui->input,256);lv_textarea_set_placeholder_text(ui->input,"输入文字，开始对话或朗读");

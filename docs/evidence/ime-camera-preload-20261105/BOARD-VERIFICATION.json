@@ -1,0 +1,85 @@
+{
+  "status": "PASSED_REQUESTED_BOARD_SCOPE",
+  "firmware_sha256": "7fc37780eda29f108b9f6f5db7e626997ec68e8fa2fa7e7a41fa02175e6f754f",
+  "flash": {
+    "flashed_verified": true,
+    "independent_app_readback": true,
+    "data_partition_preserved": true,
+    "warm_boot_verified": true,
+    "cold_power_cycle_tested": false
+  },
+  "input_method": {
+    "passed": true,
+    "ready_before_keyboard": true,
+    "preload_ready_observed_ms_after_page_return": 3437.3,
+    "first_letter_pointer_command_round_trip_ms": 425.0,
+    "latency_scope": "Serial command round trip includes transport/dispatch overhead; not physical touch latency",
+    "preload_render_max_us": 430000,
+    "input_render_max_us": 120000,
+    "heap_ready": {
+      "total": 25362432,
+      "used": 8652392,
+      "free": 16710040,
+      "maxused": 8717888,
+      "maxfree": 16611760,
+      "nused": 7193,
+      "nfree": 14
+    },
+    "heap_after_first": {
+      "total": 25362432,
+      "used": 8653144,
+      "free": 16709288,
+      "maxused": 8724936,
+      "maxfree": 16611760,
+      "nused": 7493,
+      "nfree": 18
+    },
+    "chinese_candidate": "你",
+    "immediate_input_observation": "The initial music-page check typed before background loading finished: keys responded but candidates were not ready at the sampled instant. Pending Pinyin was retained. Later candidate readiness and confirmation passed.",
+    "model_or_network_search_submitted": false
+  },
+  "camera": {
+    "passed": true,
+    "source": "CSI SC2336 1024x600",
+    "physical_return_tap": true,
+    "user_confirmed_no_stall_or_flicker": true,
+    "capture_thread_retired": true,
+    "returned_home": true,
+    "pan_errors": 0,
+    "photos_unchanged": true,
+    "images_saved_or_uploaded": false
+  },
+  "ble_identity": {
+    "address": "D8:70:46:D8:07:1B",
+    "address_little_endian": [
+      27,
+      7,
+      216,
+      70,
+      112,
+      216
+    ],
+    "address_type": "static-random",
+    "name": "OpenVela Mouse-46D8071B",
+    "store_path": "/data/config/ble_d87046d8071b.bin",
+    "store_temp": "/data/config/.ble_d87046d8071b.tmp",
+    "purpose_path": "/data/config/bh_d87046d8071b.bin",
+    "purpose_temp": "/data/config/.bh_d87046d8071b.tmp",
+    "header_sha256": "aaee70981f9a7bfe611c049485ff49886a4c55b49db75d3bc48f98077cf4180e"
+  },
+  "limits": [
+    "Only CSI was tested; USB camera was not connected.",
+    "Physical camera exit was tested by tapping the return area; other gesture directions retain host verification only.",
+    "Tests used hardware reset; a physical power-disconnect cold start was not verified.",
+    "BLE identity was recorded; new pairing and reboot persistence were outside this input/camera test.",
+    "The initial dictionary preparation remains asynchronous and takes a few seconds; Chinese candidates appear after it finishes."
+  ],
+  "evidence": {
+    "host": "HOST-VERIFIED.json",
+    "image_sources": "VERIFIED-IMAGE-SOURCES.json",
+    "source_match": "PUBLICATION-SOURCE-MATCH.json"
+  },
+  "archive_note": "The firmware ZIP contains the original pre-flash build-time verification snapshot. This report records subsequent board acceptance.",
+  "original_private_report_sha256": "37b532e034eb4ec08658386f49b9f93f0d037b6188dd2bc06ad119cd2a365b99",
+  "publication_note": "Physical results apply to the frozen 7fc37780 image. Fixes are merged onto newer upstream source without replacing unrelated JBox work; merged-source host validation is recorded separately."
+}

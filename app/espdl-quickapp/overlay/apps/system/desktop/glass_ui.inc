@@ -726,6 +726,7 @@ static void glass_settings(lv_event_t *e);
  * LVGL's Latin-only theme font. Keep keyboard symbols in Montserrat. */
 static void glass_input_style(lv_obj_t *input)
 {
+  glass_ime_prepare_input(input);
   glass_app_input_style(input,glass_app_palette(g_desktop.light_theme));
   lv_obj_set_style_text_font(input, zh_font(20), LV_PART_MAIN);
   lv_obj_set_style_text_font(input, zh_font(20), LV_PART_TEXTAREA_PLACEHOLDER);

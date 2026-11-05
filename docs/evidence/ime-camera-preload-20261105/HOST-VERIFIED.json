@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "inherited_report_sha256": "666930f011d0daf3bf15f4a3aa93bc70d91cfba15b89367bd221402840657fcc",
+  "lvgl_ime_regression": true,
+  "input_preload_before_keyboard": true,
+  "dropdown_exclusion": true,
+  "source_sha256": {
+    "glass_pinyin.cpp": "f850bbba40e9996c695961d8b4ebf350b162e4eb658f9400d5b235621bd92358",
+    "glass_pinyin.h": "40771896d8cd58a1cbc522118ce2dd65c02ee7d6e48d860a24de3220d4010d0f",
+    "glass_ime.c": "470626b027f1a081b70bff179a43385dd04de7280b2b6182cd7cba9f85f3c081",
+    "glass_ime.h": "52f174b8f86230816b819de525ba2ac3a0421a6d71110b83dd4c0742b25e1976",
+    "qpk_runtime.c": "e94ca6bc6789056bbbae616a77768eba7a795c7abc9f7385ee0b3e0d93fbabd4",
+    "qpk_runtime.h": "74dd6dd7f0f5229d294d77250000899677be69486898341558d51923f2d515be",
+    "camera_reference_layout.h": "7af38203b301780598e4723a36649ff184ee89fcc3fbeebdf925b436f8ab3cab",
+    "desktop_main.c": "95b9d8a7cb86d1818ef614c628634baa565d7291fa9685fc78967551021a2776",
+    "glass_ui.inc": "f17f940a9108cbe246a654ddb24fd643e09ac517e74221302f2ecb4468bea29c",
+    "glass_local_voice_ui.inc": "b6a1cfc7379cbaf74a7ba32d073881785cab2f6db0b0dc5dfb196df2b604b2d7"
+  },
+  "original_report_sha256": "6947e704cd2b2925af8caf662d6b00716f0997daac64dec1865338bc8a6031a7",
+  "scope": "Original frozen-image host checks. Merged-source checks are recorded in MERGED-HOST-VERIFIED.json."
+}

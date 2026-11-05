@@ -1788,6 +1788,11 @@ static uint32_t desktop_loop_once(void)
     }
 
   desktop_camera_album_service();
+  if(qpk_runtime_camera_take_exit()){
+    /* Cleanup confirmed the parked scanout before the shell deletes the app. */
+    panel_hide(NULL);
+    lv_obj_invalidate(lv_screen_active());
+  }
   if (!qpk_runtime_camera_active())
     {
       idle = lv_timer_handler();

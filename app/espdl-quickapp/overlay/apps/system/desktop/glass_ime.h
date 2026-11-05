@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #pragma once
 #include <lvgl/lvgl.h>
+/* Start background dictionary preparation when an input field is created,
+ * before focus or keyboard creation. Safe to call repeatedly. UI thread. */
+void glass_ime_prepare_input(lv_obj_t *input);
 /* Reserve 48 px above the keyboard. Owned by the keyboard's lifetime.
  * Uses white/black in light mode and black/white in dark mode, selected from
  * caller foreground brightness. */
