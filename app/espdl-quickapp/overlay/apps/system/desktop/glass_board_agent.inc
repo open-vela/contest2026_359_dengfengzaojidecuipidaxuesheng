@@ -43,7 +43,7 @@ static const char *board_operations[] = {
   "jbox.i2cSetup", "jbox.i2cTransfer", "jbox.i2cClose",
   "jbox.spiSetup", "jbox.spiTransfer", "jbox.spiClose",
   "jbox.uartSetup", "jbox.uartWrite", "jbox.uartRead", "jbox.uartClose",
-  "jbox.functionLoad", "jbox.functionCall", "jbox.functionClear"
+  "jbox.functionLoad", "jbox.functionCompile", "jbox.functionCall", "jbox.functionClear"
 };
 static const char board_tool_catalog[] =
 "{\"tools\":["

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "qpk_jbox.h"
 #include "glass_portal.h"
+#include "jbox_script.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <limits.h>
@@ -195,7 +196,8 @@ static int encode(const char *op,const cJSON *a,uint8_t *b,size_t *n,uint8_t *cm
   }
   if(!strcmp(op,"functionCall")||!strcmp(op,"functionClear")){
     bool call=!strcmp(op,"functionCall");int slot=number(a,"slot",0,0,3);
-    if(!only(a,call?",generation,,slot,,ios,":",generation,,slot,")||slot<0)return -EINVAL;
+    if(!only(a,call?",generation,,slot,,ios,,delayMs,":",generation,,slot,")||slot<0||
+       (call&&number(a,"delayMs",0,0,5000)<0))return -EINVAL;
     *cmd=call?0x81:0x82;b[0]=slot;*n=1;
     if(call){int count=bytes(a,"ios",b+2,4);if(count<0)return -EINVAL;unsigned seen=0;
       for(int i=0;i<count;i++){if(b[2+i]>17||(seen&(1u<<b[2+i])))return -EINVAL;seen|=1u<<b[2+i];}
@@ -211,7 +213,21 @@ static int decode(uint8_t cmd,const uint8_t *request,const uint8_t *b,size_t n,c
        (b[4]|(unsigned)b[5]<<8)!=4096||(b[6]|(unsigned)b[7]<<8)!=JBOX_PORT)return -EPROTO;
     cJSON_AddNumberToObject(out,"version",b[0]);cJSON_AddNumberToObject(out,"nodes",b[1]);
     cJSON_AddNumberToObject(out,"nets",b[2]);cJSON_AddNumberToObject(out,"ioCount",b[3]);
-    cJSON_AddNumberToObject(out,"maxTransfer",b[4]|(unsigned)b[5]<<8);return byte_result(out,"ioGpios",b+8,18);
+    cJSON_AddNumberToObject(out,"maxTransfer",b[4]|(unsigned)b[5]<<8);
+    int ret=byte_result(out,"ioGpios",b+8,18);if(ret)return ret;
+    cJSON *map=cJSON_AddObjectToObject(out,"boardMap");if(!map)return -ENOMEM;
+    cJSON_AddStringToObject(map,"format","CN rows are [oddPin,evenPin,matrixNode]; each odd/even pair is internally joined");
+    for(unsigned connector=0;connector<2;connector++){
+      cJSON *rows=cJSON_AddArrayToObject(map,connector?"CN2":"CN1");if(!rows)return -ENOMEM;
+      for(unsigned pair=0;pair<20;pair++){
+        int values[3]={(int)(pair*2+1),(int)(pair*2+2),(int)(connector*20+pair)};
+        cJSON *row=cJSON_CreateIntArray(values,3);if(!row)return -ENOMEM;cJSON_AddItemToArray(rows,row);
+      }
+    }
+    cJSON_AddStringToObject(map,"external","node40..48=EXT1..9=IO0..8; actual S3 GPIO from ioGpios[io]");
+    cJSON_AddStringToObject(map,"power","node49=5V,node50=3.3V,node51=GND; never mix power rails or route 5V to a signal IO");
+    cJSON_AddStringToObject(out,"jboxScript","functionCompile accepts bounded source or program=dht11; uploads only, never runs. functionCall uses IO ids. DHT11 returns [temperature*10,humidity*10]; >=2s between reads. RMT opcodes 34..37 require updated S3 firmware; remote capability is not reported by v1 caps.");
+    return 0;
   }
   if(cmd==0x11){
     if(n!=108)return -EPROTO;
@@ -272,11 +288,57 @@ static int execute(void **opaque,const char *op,const cJSON *a,cJSON *out,struct
   uint8_t *request=malloc(JBOX_MAX_PAYLOAD),*reply=malloc(JBOX_MAX_PAYLOAD);
   if(!request||!reply){free(request);free(reply);return -ENOMEM;}
   uint8_t cmd=0;size_t n=0,received=0;int32_t remote=0;
-  int ret=encode(op,a,request,&n,&cmd);
+  struct jbox_script_program *compiled=NULL;
+  int ret=0;
+  if(!strcmp(op,"functionCompile")){
+    const char *source=text(a,"source",NULL),*program=text(a,"program",NULL);
+    int slot=number(a,"slot",0,0,3);
+    if(!only(a,",generation,,slot,,source,,program,")||slot<0||
+       (!!cJSON_GetObjectItemCaseSensitive(a,"source")+!!cJSON_GetObjectItemCaseSensitive(a,"program"))!=1)
+      ret=-EINVAL;
+    if(!ret&&program){source=jbox_script_example(program);if(!source)ret=-EINVAL;}
+    if(!ret&&!source)ret=-EINVAL;
+    if(!ret){compiled=calloc(1,sizeof(*compiled));if(!compiled)ret=-ENOMEM;}
+    if(!ret)ret=jbox_script_compile(source,compiled);
+    if(ret&&compiled)cJSON_AddNumberToObject(out,"compileErrorOffset",compiled->error_offset);
+    if(!ret){
+      cmd=0x80;request[0]=slot;request[1]=compiled->arguments;p16(request+2,compiled->count);
+      memcpy(request+4,compiled->code,compiled->count*4);n=4+compiled->count*4;
+      if(n>JBOX_MAX_PAYLOAD)ret=-E2BIG;
+    }
+  }else ret=encode(op,a,request,&n,&cmd);
+  if(!ret&&p&&atomic_load(&p->cancel))ret=-ECANCELED;
+  if(!ret&&!strcmp(op,"functionCall")){
+    unsigned delay=(unsigned)number(a,"delayMs",0,0,5000);
+    for(unsigned elapsed=0;elapsed<delay;){
+      if(p&&atomic_load(&p->cancel)){ret=-ECANCELED;break;}
+      unsigned step=delay-elapsed>20?20:delay-elapsed;
+      struct timespec wait={0,(long)step*1000000};
+      while(nanosleep(&wait,&wait)<0&&errno==EINTR){
+        if(p&&atomic_load(&p->cancel)){ret=-ECANCELED;break;}
+      }
+      if(ret)break;
+      elapsed+=step;
+    }
+  }
   if(!ret)ret=jbox_rpc(s->client,cmd,request,n,reply,JBOX_MAX_PAYLOAD,&received,&remote,p);
   if(!ret&&remote){cJSON_AddNumberToObject(out,"remoteStatus",remote);ret=-EREMOTEIO;}
   else if(!ret){ret=decode(cmd,request,reply,received,out);if(ret==-EPROTO){jbox_close(s->client);s->client=NULL;}}
   if(p&&atomic_load(&p->cancel)){jbox_close(s->client);s->client=NULL;ret=-ECANCELED;}
+  if(!ret&&compiled){
+    cJSON_AddBoolToObject(out,"compiled",true);cJSON_AddBoolToObject(out,"uploaded",true);
+    cJSON_AddBoolToObject(out,"executed",false);
+    cJSON_AddNumberToObject(out,"slot",request[0]);cJSON_AddStringToObject(out,"name",compiled->name);
+    cJSON_AddNumberToObject(out,"instructions",compiled->count);
+    cJSON *parameters=cJSON_AddArrayToObject(out,"parameters");
+    if(!parameters)ret=-ENOMEM;
+    else for(unsigned i=0;i<compiled->arguments;i++){
+      cJSON *parameter=cJSON_CreateString(compiled->parameters[i]);if(!parameter){ret=-ENOMEM;break;}
+      cJSON_AddItemToArray(parameters,parameter);
+    }
+    if(text(a,"program",NULL))cJSON_AddStringToObject(out,"resultUnits","[temperatureC_x10,humidityPercent_x10]; only a successful functionCall yields measurements");
+  }
+  free(compiled);
   cJSON_AddNumberToObject(out,"generation",s->generation);
   cJSON_AddBoolToObject(out,"connected",jbox_connected(s->client));
   free(request);free(reply);return ret;

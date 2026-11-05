@@ -46,3 +46,10 @@ description: 在 ESPClaw/openvela 项目中指导 P4 首次连接 JBOX-S3，发�
 从 `app/espdl-quickapp/overlay/apps/system/desktop/` 的 `qpk_jbox.c`、`qpk_jbox_transport.c`、`qpk_hardware.h` 和 `desktop_main.c` 追踪实际实现。保持 QuickJS、助手直接调用和 board MCP 的权限、参数与回执一致，不把配对接口加入助手操作列表。
 
 专用工具 schema／分派源文件为 `tools/generate_jbox_tools.py`，修改后重新生成 `glass_jbox_tools.h`；提示词修改后重新生成 Agent profile。在 Linux／WSL 用隔离对端运行 `tools/test_jbox.py --apps <apps路径> --output <临时目录>`，MCP 改动加跑 `tools/test_jbox_tools.py`；绑定存储或助手路径变更分别加跑 `tools/test_portal_storage.py`、`tools/test_agent.py`，参数见连接文档。测试不向真实局域网广播，不操作真实配置或设备。分别报告 skill／文档检查、宿主测试、固件构建与实板联调；没有实板证据不能声称已经配对、部署或控制真实 JBOX。
+
+
+## CN 接线与 JBoxScript
+
+先读 caps.boardMap、ioGpios 和当前 status。CN1 第 r 行（0..19）的奇偶脚内部相连，对应 node r；CN2 对应 node20+r。EXT1..9=node40..48=IO0..8；node49=5V、50=3.3V、51=GND。不能由历史接法推断用户当前实物，不能将5V接到GPIO信号。
+
+使用 jbox_function_compile({generation,slot,program:"dht11"}) 或 source（两者互斥）；仅编译上传，不执行。远端须有支持 RMT 的固件，旧 v1 caps 未协商该能力。DHT11 根据用户确认的 VCC/DATA/GND 建路，由真实 DATA 对应的 IO 调用 jbox_function_call，首次上电 delayMs:2000；返回两个数分别为温度°C×10、湿度%×10。每次动作必须轮询真实回执；单次请求不自动重复读取，失败不重放。routeSet 替换全路由，不能覆盖未知电路。参考映射、边界、测试与实板记录见 docs/JBOX_P4.md。

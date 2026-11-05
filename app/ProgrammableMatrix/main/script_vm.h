@@ -7,6 +7,8 @@
 #define SCRIPT_MAX_RESULTS 128u
 #define SCRIPT_MAX_TIME_US 500000u
 #define SCRIPT_TIMED_US 10000u
+#define SCRIPT_CAPTURE_US 50000u
+#define SCRIPT_MAX_PULSES 192u
 
 enum script_opcode {
     SC_LOW=1, SC_HIGH, SC_INPUT, SC_OUTPUT, SC_OPEN_DRAIN,
@@ -16,6 +18,7 @@ enum script_opcode {
     SC_PUSH, SC_LOAD, SC_STORE, SC_ADD, SC_SUB, SC_MUL, SC_SHL, SC_SHR,
     SC_AND, SC_OR, SC_XOR, SC_GT, SC_EQ, SC_ASSERT, SC_EMIT_VALUE,
     SC_MEASURE_LOW, SC_MEASURE_HIGH, SC_SAMPLE_VALUE,
+    SC_CAPTURE_RELEASE, SC_PULSE_COUNT, SC_PULSE_US, SC_PULSE_LEVEL,
 };
 
 // Instructions are four wire bytes: opcode, argument index, value (u16 LE).
@@ -24,6 +27,11 @@ typedef struct {
     uint16_t count;
     uint8_t code[SCRIPT_MAX_OPS*4];
 } script_program_t;
+
+typedef struct {
+    uint32_t duration_us;
+    unsigned level;
+} script_pulse_t;
 
 typedef struct {
     void *ctx;
@@ -35,6 +43,7 @@ typedef struct {
     void (*sleep_ms)(void *ctx,unsigned ms);
     void (*timed)(void *ctx,int enter);
     int (*cancelled)(void *ctx);
+    int (*capture)(void *ctx,unsigned arg,unsigned idle_us,script_pulse_t *pulses,size_t *count);
 } script_backend_t;
 
 int script_validate(const script_program_t *program);

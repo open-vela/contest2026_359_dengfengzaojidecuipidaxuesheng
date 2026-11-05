@@ -5,7 +5,7 @@ static unsigned operand(const uint8_t *op) {return op[2]|((unsigned)op[3]<<8);}
 static int pin_op(unsigned op) {
     return op==SC_LOW || op==SC_HIGH || op==SC_INPUT || op==SC_OUTPUT ||
            op==SC_OPEN_DRAIN || (op>=SC_WAIT_LOW && op<=SC_SAMPLE) ||
-           op==SC_MEASURE_LOW || op==SC_MEASURE_HIGH || op==SC_SAMPLE_VALUE;
+           op==SC_MEASURE_LOW || op==SC_MEASURE_HIGH || op==SC_SAMPLE_VALUE || op==SC_CAPTURE_RELEASE;
 }
 static int wait_op(unsigned op) {
     return (op>=SC_WAIT_LOW && op<=SC_CAPTURE_HIGH) || op==SC_MEASURE_LOW || op==SC_MEASURE_HIGH;
@@ -15,11 +15,11 @@ int script_validate(const script_program_t *p)
 {
     if(!p || p->argc>SCRIPT_MAX_ARGS || !p->count || p->count>SCRIPT_MAX_OPS)return J_BAD_ARG;
     unsigned total=0,section=0,outputs=0,stack=0,initialized=0;
-    int timed=0;
+    int timed=0,captured=0;
     for(unsigned i=0;i<p->count;i++) {
         const uint8_t *op=p->code+4*i;
         unsigned kind=op[0],arg=op[1],v=operand(op),cost=1;
-        if(kind<SC_LOW || kind>SC_SAMPLE_VALUE)return J_BAD_ARG;
+        if(kind<SC_LOW || kind>SC_PULSE_LEVEL)return J_BAD_ARG;
         if(pin_op(kind) ? arg>=p->argc : arg!=0)return J_BAD_ARG;
         if(kind==SC_TIMED_BEGIN) {
             if(timed || v)return J_BAD_ARG;
@@ -33,13 +33,18 @@ int script_validate(const script_program_t *p)
         }else if(kind==SC_DELAY_US || wait_op(kind)) {
             if(!v || v>SCRIPT_TIMED_US)return J_BAD_ARG;
             cost+=v;
+        }else if(kind==SC_CAPTURE_RELEASE) {
+            if(timed || !v || v>SCRIPT_TIMED_US)return J_BAD_ARG;
+            cost+=SCRIPT_CAPTURE_US;captured=1;
         }else if(kind==SC_LOAD || kind==SC_STORE) {
             if(v>=16)return J_BAD_ARG;
         }else if(kind!=SC_EMIT && kind!=SC_PUSH && v) {
             return J_BAD_ARG;
         }
         if(timed && (kind==SC_INPUT || kind==SC_OUTPUT || kind==SC_OPEN_DRAIN))return J_BAD_ARG;
-        if(kind==SC_PUSH || kind==SC_SAMPLE_VALUE || kind==SC_MEASURE_LOW || kind==SC_MEASURE_HIGH)stack++;
+        if(kind>=SC_PULSE_COUNT && !captured)return J_BAD_ARG;
+        if(kind==SC_PULSE_US || kind==SC_PULSE_LEVEL){if(!stack)return J_BAD_ARG;}
+        if(kind==SC_PUSH || kind==SC_SAMPLE_VALUE || kind==SC_MEASURE_LOW || kind==SC_MEASURE_HIGH || kind==SC_PULSE_COUNT)stack++;
         if(kind==SC_LOAD){if(!(initialized&(1u<<v)))return J_BAD_ARG;stack++;}
         if(kind==SC_STORE){if(!stack)return J_BAD_ARG;stack--;initialized|=1u<<v;}
         if(kind>=SC_ADD && kind<=SC_EQ){if(stack<2)return J_BAD_ARG;stack--;}
@@ -64,6 +69,7 @@ int script_execute(const script_program_t *p,const script_backend_t *b,
     uint32_t started=b->now_us(b->ctx),section_start=0;
     int timed=0;
     uint32_t stack[32]={0},locals[16]={0};unsigned sp=0;
+    script_pulse_t pulses[SCRIPT_MAX_PULSES];size_t pulse_count=0;
     for(unsigned i=0;i<p->count;i++) {
         const uint8_t *op=p->code+4*i;
         unsigned kind=op[0],arg=op[1],v=operand(op),level=0;
@@ -90,6 +96,19 @@ int script_execute(const script_program_t *p,const script_backend_t *b,
         case SC_STORE:locals[v]=stack[--sp];break;
         case SC_ASSERT:if(!stack[--sp])rc=J_HARDWARE;break;
         case SC_EMIT_VALUE:result[(*count)++]=stack[--sp];break;
+        case SC_CAPTURE_RELEASE:
+            if(!b->capture){rc=J_UNAVAILABLE;break;}
+            pulse_count=0;
+            rc=b->capture(b->ctx,arg,v,pulses,&pulse_count);
+            if(rc==J_OK && pulse_count>SCRIPT_MAX_PULSES)rc=J_OVERFLOW;
+            break;
+        case SC_PULSE_COUNT:stack[sp++]=(uint32_t)pulse_count;break;
+        case SC_PULSE_US:case SC_PULSE_LEVEL: {
+            uint32_t index=stack[sp-1];
+            if(index>=pulse_count){rc=J_BAD_ARG;break;}
+            stack[sp-1]=kind==SC_PULSE_US?pulses[index].duration_us:pulses[index].level;
+            break;
+        }
         case SC_SAMPLE_VALUE:
             rc=b->read(b->ctx,arg,&level);
             if(rc==J_OK)stack[sp++]=level;

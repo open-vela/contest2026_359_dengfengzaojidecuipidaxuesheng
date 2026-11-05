@@ -1,5 +1,5 @@
 // Sent to the ESP32 at runtime. No DHT driver is built into the firmware.
-// data is an API IO ID argument; the viewer uses IO0 = physical GPIO1.
+// data is an API IO ID argument; the viewer defaults to IO8 = physical GPIO9 (matrix EXT9).
 fn read_dht11(data) {
     let rh = 0;
     let rh_decimal = 0;
@@ -11,32 +11,46 @@ fn read_dht11(data) {
     sleep_ms(2);
     low(data);
     sleep_ms(20);
-    timed {
-        release(data);
-        wait(data, high, 80);
-        wait(data, low, 100);
-        wait(data, high, 100);
-        wait(data, low, 100);
-        repeat(8) {
-            wait(data, high, 100);
-            rh = (rh << 1) | (measure(data, low, 100) > 45);
-        }
-        repeat(8) {
-            wait(data, high, 100);
-            rh_decimal = (rh_decimal << 1) | (measure(data, low, 100) > 45);
-        }
-        repeat(8) {
-            wait(data, high, 100);
-            temperature = (temperature << 1) | (measure(data, low, 100) > 45);
-        }
-        repeat(8) {
-            wait(data, high, 100);
-            temperature_decimal = (temperature_decimal << 1) | (measure(data, low, 100) > 45);
-        }
-        repeat(8) {
-            wait(data, high, 100);
-            checksum = (checksum << 1) | (measure(data, low, 100) > 45);
-        }
+    // RMT arms first, releases DATA, and records pulses at 1us resolution.
+    // Decoding happens only after the complete waveform is in memory.
+    capture(data, 1000);
+    assert(pulse_count() > 82);
+    // The hardware may include the final fragment of our start LOW.
+    let start = (pulse_level(0) == 0);
+    assert(pulse_count() > (start + 82));
+    assert(pulse_level(start) == 1);
+    assert(pulse_level(start + 1) == 0);
+    assert(pulse_level(start + 2) == 1);
+    assert(pulse_us(start + 1) > 50);
+    assert((pulse_us(start + 1) > 120) == 0);
+    assert(pulse_us(start + 2) > 50);
+    assert((pulse_us(start + 2) > 120) == 0);
+    let index = start + 4;
+    assert(pulse_level(index) == 1);
+    repeat(8) {
+        assert((pulse_us(index) > 100) == 0);
+        rh = (rh << 1) | (pulse_us(index) > 45);
+        index = index + 2;
+    }
+    repeat(8) {
+        assert((pulse_us(index) > 100) == 0);
+        rh_decimal = (rh_decimal << 1) | (pulse_us(index) > 45);
+        index = index + 2;
+    }
+    repeat(8) {
+        assert((pulse_us(index) > 100) == 0);
+        temperature = (temperature << 1) | (pulse_us(index) > 45);
+        index = index + 2;
+    }
+    repeat(8) {
+        assert((pulse_us(index) > 100) == 0);
+        temperature_decimal = (temperature_decimal << 1) | (pulse_us(index) > 45);
+        index = index + 2;
+    }
+    repeat(8) {
+        assert((pulse_us(index) > 100) == 0);
+        checksum = (checksum << 1) | (pulse_us(index) > 45);
+        index = index + 2;
     }
     release(data);
     assert(((rh + rh_decimal + temperature + temperature_decimal) & 255) == checksum);

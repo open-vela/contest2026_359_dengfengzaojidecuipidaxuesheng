@@ -9,7 +9,8 @@ OPS = dict(zip(('low', 'high', 'input', 'output', 'open_drain', 'delay_us', 'sle
                 'wait_low', 'wait_high', 'capture_low', 'capture_high', 'sample_emit',
                 'emit_const', 'timed_begin', 'timed_end', 'push', 'load', 'store',
                 'add', 'sub', 'mul', 'shl', 'shr', 'and', 'or', 'xor', 'gt', 'eq',
-                'assert', 'emit_value', 'measure_low', 'measure_high', 'sample'), range(1, 34)))
+                'assert', 'emit_value', 'measure_low', 'measure_high', 'sample',
+                'capture', 'pulse_count', 'pulse_us', 'pulse_level'), range(1, 38)))
 TOKEN = re.compile(r'\s+|//[^\n]*|\#[^\n]*|==|<<|>>|[A-Za-z_]\w*|\d+|[{}(),;=+*|^&>\-]')
 PRECEDENCE = {'|': 1, '^': 2, '&': 3, '==': 4, '>': 5, '<<': 6, '>>': 6, '+': 7, '-': 7, '*': 8}
 ARITHMETIC = {'|': 'or', '^': 'xor', '&': 'and', '==': 'eq', '>': 'gt',
@@ -95,6 +96,10 @@ class Compiler:
                 if name == 'measure':
                     pin, high, duration = self.wait_args()
                     self.emit('measure_high' if high else 'measure_low', pin, duration)
+                elif name == 'pulse_count':
+                    self.take(')'); self.emit('pulse_count')
+                elif name in ('pulse_us', 'pulse_level'):
+                    self.expression(); self.take(')'); self.emit(name)
                 elif name == 'sample':
                     pin = self.pin(); self.take(')'); self.emit('sample', pin)
                 else:
@@ -145,6 +150,9 @@ class Compiler:
                 elif name in ('low', 'high', 'release', 'input', 'output', 'open_drain'):
                     pin = self.pin(); self.take(')')
                     self.emit('high' if name == 'release' else name, pin)
+                elif name == 'capture':
+                    pin = self.pin(); self.take(','); idle = self.number(); self.take(')')
+                    self.emit('capture', pin, idle)
                 elif name in ('delay_us', 'sleep_ms'):
                     duration = self.number(); self.take(')'); self.emit(name, value=duration)
                 elif name == 'wait':
@@ -170,7 +178,7 @@ class Compiler:
         self.take(')'); self.block()
         if self.peek():
             raise ValueError('每次上传一个函数，函数后不能有其他文本')
-        timed, section, total, outputs = False, 0, 0, 0
+        timed, captured, section, total, outputs = False, False, 0, 0, 0
         for kind, arg, value in self.code:
             cost = 1
             if kind == OPS['timed_begin']:
@@ -183,6 +191,14 @@ class Compiler:
                 if timed or not 1 <= value <= 250:
                     raise ValueError('sleep_ms 只能在 timed 外使用，范围 1～250ms')
                 cost += value * 1000
+            elif kind == OPS['capture']:
+                if timed or not 1 <= value <= 10000:
+                    raise ValueError('capture 必须在 timed 外使用，空闲时间为 1～10000us')
+                captured = True
+                cost += 50000
+            elif kind in (OPS['pulse_count'], OPS['pulse_us'], OPS['pulse_level']):
+                if not captured:
+                    raise ValueError('读取脉冲前必须先 capture')
             elif kind in (6, 8, 9, 31, 32):
                 if not 1 <= value <= 10000:
                     raise ValueError('微秒等待必须在 1～10000us 内')

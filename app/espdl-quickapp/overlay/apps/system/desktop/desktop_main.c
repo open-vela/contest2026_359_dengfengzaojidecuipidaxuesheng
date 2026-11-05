@@ -1993,6 +1993,16 @@ int main(int argc, FAR char *argv[])
     int ret=qpk_jbox_bind(argv[2],argv[3]);
     printf("JBOX_BIND saved=%u result=%d\n",ret==0,ret);return ret;
   }
+  if(argc==7&&!strcmp(argv[1],"jbox-dht11")){
+    unsigned wiring[5];
+    for(unsigned i=0;i<5;i++){
+      char *end;unsigned long value=strtoul(argv[i+2],&end,10);
+      if(!*argv[i+2]||*end||value>51)return -EINVAL;
+      wiring[i]=(unsigned)value;
+    }
+    extern int qpk_jbox_dht11_probe(unsigned,unsigned,unsigned,unsigned,unsigned);
+    return qpk_jbox_dht11_probe(wiring[0],wiring[1],wiring[2],wiring[3],wiring[4]);
+  }
 #ifdef GLASS_LOCAL_SPEECH
   if(argc>1&&!strcmp(argv[1],"speech")){
     /* A temporary NSH task must not own the recognition worker. */

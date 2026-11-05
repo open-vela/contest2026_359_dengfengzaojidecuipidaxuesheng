@@ -42,6 +42,7 @@ int main(void){
     assert(mapped_chip(19)==1 && mapped_x(19)==3); // CN1-39 -> U3 X3
     assert(mapped_chip(18)==1 && mapped_x(18)==2); // CN1-37 -> U3 X2
     assert(mapped_chip(16)==1 && mapped_x(16)==0); // CN1-33 -> U3 X0
+    assert(mapped_chip(17)==1 && mapped_x(17)==1); // CN1-35 -> U3 X1
     assert(mapped_chip(40)==2 && mapped_x(40)==8); // GPIO1 -> U4 X8
     assert(mapped_chip(49)==3 && mapped_x(49)==1); // 5V -> U5 X1
     assert(mapped_chip(50)==3 && mapped_x(50)==2); // 3.3V -> U5 X2

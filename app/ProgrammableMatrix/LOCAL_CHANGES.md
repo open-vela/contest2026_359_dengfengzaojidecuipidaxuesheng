@@ -15,3 +15,6 @@ P4「设置 → JBOX 扩展板」负责从自身当前 STA 读取网络并加密
 宿主验证：`python tests/test_serial_pair.py`（GCC 在 PATH）。既有 `tests/run_native_tests.py`、客户端及脚本测试仍适用。构建仍采用本目录 ESP-IDF 工程和既有分区表；更新应用时保留 NVS。
 
 Windows 构建注意：本机官方 GCC `esp-14.2.0_20251107` 在过长的工程路径宏映射下，于 SDK `esp_lcd_panel_rgb.c` 的 IRA 阶段稳定触发内部编译器崩溃；降低并发无效。同一源码、配置复制到短路径后全量构建通过。遇到此问题将本目录复制到短路径（例如 `D:/jbox`）重新构建，保留原配置和分区检查，不删除 SDK 模块或关闭编译检查。
+
+
+2026-11-05 JBoxScript 同步：从本地 ProgrammableMatrixS3 同步 RMT capture 后端、VM capture/pulse 指令、编译器、DHT11 模板/查看器、说明和原生测试。P4 新增有界 C 编译上传入口及 CN1/CN2 能力映射；接口及实板数据见 ../../docs/JBOX_P4.md。上游导入摘要仍记录首次导入，不将本次集成文件冒充原始上游。

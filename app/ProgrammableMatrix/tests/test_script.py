@@ -17,8 +17,11 @@ class LanguageTests(unittest.TestCase):
         function = compile_function(PROGRAM.read_text())
         instructions = list(struct.iter_unpack('<BBH', function.code))
         self.assertEqual(function.parameters, ('data',))
-        self.assertEqual(sum(op == OPS['measure_low'] for op, _, _ in instructions), 40)
-        self.assertEqual(sum(op == OPS['assert'] for op, _, _ in instructions), 5)
+        self.assertEqual(sum(op == OPS['capture'] for op, _, _ in instructions), 1)
+        self.assertEqual(sum(op == OPS['pulse_us'] for op, _, _ in instructions), 84)
+        self.assertFalse(any(op in (OPS['wait_high'], OPS['measure_low'], OPS['timed_begin'])
+                             for op, _, _ in instructions))
+        self.assertEqual(sum(op == OPS['assert'] for op, _, _ in instructions), 55)
         self.assertEqual(sum(op == OPS['emit_value'] for op, _, _ in instructions), 2)
 
     def test_compiler_rejects_unbounded_or_invalid_code(self):
@@ -34,6 +37,12 @@ class LanguageTests(unittest.TestCase):
             'fn x(p){let a=a+1;}',
             'fn x(p){repeat(128){emit(1);emit(2);}}',
             'fn x(p){low(other);}',
+            'fn x(p){timed {capture(p,1000);}}',
+            'fn x(p){capture(p,0);}',
+            'fn x(p){capture(p,10001);}',
+            'fn x(p){emit(pulse_count());}',
+            'fn x(p){emit(pulse_us(0));}',
+            'fn x(p){repeat(11){capture(p,1000);}}',
         ]
         for source in sources:
             with self.subTest(source=source), self.assertRaises(ValueError):
@@ -62,7 +71,7 @@ class LanguageTests(unittest.TestCase):
         board = Mock()
         stop = Mock()
         stop.wait.return_value = True
-        window = SimpleNamespace(events=queue.Queue())
+        window = SimpleNamespace(events=queue.Queue(), data_io=0)
         device = {'host': '192.0.2.1', 'pairing_open': False}
         with patch('client.dht11_viewer.discover_devices', return_value=[device]), \
              patch('client.dht11_viewer.MatrixClient', return_value=board) as create:
@@ -73,7 +82,7 @@ class LanguageTests(unittest.TestCase):
 
     def test_blank_host_does_not_guess_when_discovery_is_ambiguous(self):
         for devices in ([], [{'host': '192.0.2.1'}, {'host': '192.0.2.2'}]):
-            window = SimpleNamespace(events=queue.Queue())
+            window = SimpleNamespace(events=queue.Queue(), data_io=0)
             with patch('client.dht11_viewer.discover_devices', return_value=devices), \
                  patch('client.dht11_viewer.MatrixClient') as create:
                 DHTWindow.run_sensor(window, '', Mock())
@@ -86,7 +95,7 @@ class LanguageTests(unittest.TestCase):
         stop = Mock()
         stop.is_set.return_value = False
         stop.wait.side_effect = [False, True]
-        window = SimpleNamespace(events=queue.Queue())
+        window = SimpleNamespace(events=queue.Queue(), data_io=0)
         with patch('client.dht11_viewer.discover_devices', return_value=[]), \
              patch('client.dht11_viewer.MatrixClient', return_value=board):
             DHTWindow.run_sensor(window, '127.0.0.1', stop)
@@ -96,14 +105,25 @@ class LanguageTests(unittest.TestCase):
         board.close.assert_called_once()
         self.assertIn('sensor_error', [event[0] for event in list(window.events.queue)])
 
+    def test_gpio48_bypasses_the_matrix_data_route(self):
+        board = Mock()
+        function = configure_sensor(board, data_io=17)
+        self.assertEqual(board.route_set.call_args.args[0], [[19, 49], [], [17, 51]])
+        board.gpio_config.assert_called_once_with(17, mode=2, pull=1, initial=1)
+        function.return_value = [240, 550]
+        self.assertEqual(read_values(function, data_io=17), (24, 55))
+        function.assert_called_once_with(data=17)
+        with self.assertRaises(ValueError):
+            configure_sensor(board, data_io=18)
+
     def test_viewer_routes_and_returned_values(self):
         board = Mock()
         board.upload_function.return_value.return_value = [245, 603]
         function = configure_sensor(board)
-        self.assertEqual(board.route_set.call_args.args[0], [[19, 49], [18, 40], [16, 51]])
-        self.assertNotIn(17, sum(DHT_ROUTES, []))
+        self.assertEqual(board.route_set.call_args.args[0], [[19, 49], [18, 48], [17, 51]])
+        self.assertNotIn(16, sum(DHT_ROUTES, []))
         self.assertEqual(read_values(function), (24.5, 60.3))
-        function.assert_called_once_with(data=0)
+        function.assert_called_once_with(data=8)
         function.return_value = [500, 1001]
         with self.assertRaises(ValueError):
             read_values(function)

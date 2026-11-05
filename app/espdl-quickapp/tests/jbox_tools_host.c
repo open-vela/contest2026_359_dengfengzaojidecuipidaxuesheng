@@ -71,7 +71,7 @@ static cJSON *discover(struct glass_agent *a)
     const cJSON *next=cJSON_GetObjectItem(r,"nextCursor");snprintf(cursor,sizeof(cursor),"%s",cJSON_IsString(next)?next->valuestring:"");
     cJSON_Delete(r);assert(++pages<10);
   }while(cursor[0]);
-  assert(cJSON_GetArraySize(all)==39);return all;
+  assert(cJSON_GetArraySize(all)==40);return all;
 }
 static const struct {const char *name,*operation,*args;} cases[]={
   {"jbox_discover","jbox.discover","{\"timeoutMs\":100}"},
@@ -100,6 +100,7 @@ static const struct {const char *name,*operation,*args;} cases[]={
   {"jbox_uart_read","jbox.uartRead","{\"generation\":1,\"bus\":0,\"length\":512,\"timeoutMs\":100}"},
   {"jbox_uart_close","jbox.uartClose","{\"generation\":1,\"bus\":0}"},
   {"jbox_function_load","jbox.functionLoad","{\"generation\":1,\"slot\":0,\"arguments\":0,\"code\":[0,0,0,0]}"},
+  {"jbox_function_compile","jbox.functionCompile","{\"generation\":1,\"slot\":0,\"program\":\"dht11\"}"},
   {"jbox_function_call","jbox.functionCall","{\"generation\":1,\"slot\":0,\"ios\":[0,1]}"},
   {"jbox_function_clear","jbox.functionClear","{\"generation\":1,\"slot\":0}"}
 };
@@ -125,7 +126,7 @@ int main(void)
       assert(cJSON_Compare(expected,cJSON_GetObjectItem(result,"arguments"),true));cJSON_Delete(expected);cJSON_Delete(r);
     }
   }
-  cJSON_Delete(direct);cJSON_Delete(catalog);assert(atomic_load(&executed)==56);
+  cJSON_Delete(direct);cJSON_Delete(catalog);assert(atomic_load(&executed)==58);
   const struct {const char *name,*args;} bad[]={
     {"jbox_pair","{}"},{"jbox_factory_reset","{}"},{"jbox_status","{}"},
     {"jbox_status","{\"generation\":0}"},{"jbox_status","{\"generation\":1.5}"},
@@ -142,10 +143,13 @@ int main(void)
     {"jbox_spi_transfer","{\"generation\":1,\"bus\":0,\"data\":[256]}"},
     {"jbox_spi_transfer","{\"generation\":1,\"bus\":0,\"data\":[1.5]}"},
     {"jbox_function_call","{\"generation\":1,\"ios\":[0,0]}"},
-    {"jbox_function_load","{\"generation\":1,\"code\":[0,0,0]}"}
+    {"jbox_function_load","{\"generation\":1,\"code\":[0,0,0]}"},
+    {"jbox_function_compile","{\"generation\":1,\"source\":123}"},
+    {"jbox_function_compile","{\"generation\":1,\"program\":\"python\"}"},
+    {"jbox_function_call","{\"generation\":1,\"ios\":[8],\"delayMs\":5001}"}
   };
   for(unsigned i=0;i<sizeof(bad)/sizeof(bad[0]);i++)for(unsigned mcp=0;mcp<2;mcp++)cJSON_Delete(invoke(a,bad[i].name,bad[i].args,mcp,true));
-  assert(atomic_load(&executed)==56);
+  assert(atomic_load(&executed)==58);
   struct glass_agent *other=glass_agent_create(&cancel,AGENT_MODE_ASSISTANT);assert(other);
   cJSON_Delete(invoke(other,"jbox_status","{\"generation\":1}",false,true));glass_agent_destroy(other);
   /* Cancel the actual queued/running scheduler job; no replay is submitted. */
@@ -164,6 +168,6 @@ int main(void)
     cJSON_Delete(invoke(a,"jbox_status","{\"generation\":1}",true,true));glass_agent_destroy(a);
   }
   for(unsigned i=0;i<100&&!atomic_load(&destroyed);i++)usleep(10000);assert(atomic_load(&destroyed));
-  puts("JBOX_TOOLS_OK: 28 tools via direct and MCP routes; identical schemas; bounded pagination; strict rejection; mode/owner/job limits; cancellation and cleanup; no network/config writes");
+  puts("JBOX_TOOLS_OK: 29 tools via direct and MCP routes; identical schemas; bounded pagination; strict rejection; mode/owner/job limits; cancellation and cleanup; no network/config writes");
   return 0;
 }

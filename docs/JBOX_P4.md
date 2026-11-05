@@ -169,3 +169,20 @@ P4 使用已校验并烧录的固件 SHA256 `91fbadbb942759ba48a2636affceb71be9c
 - 连续运行后出现 socket 资源分配失败：实板 `sock_file_poll` setup 返回 -16，配网页面最终报告 -104，另一只读发现返回 -12。内核固定 devif callback 池为 32，尚未证明耗尽来源或修复底层问题。P4 软件重启后发现、绑定和鉴权通过。遇到失败应先排查或显式重新开始，不能自动重发配置／绑定。
 
 GPIO10 实际按键、180 秒窗口到期、断电冷启动、GPIO／矩阵输出、真实传感器和显示闪屏观察仍需分别验收。配网权限保持本地 UI／串口授权，Agent／MCP 不能借通用 UI 点击进入此流程；无 PoP BLE 与 LAN 绑定仅用于可信现场环境。
+
+
+## 2026-11-05 CN 映射、JBoxScript 与 DHT11 实板验收
+
+当前 `jbox.caps` 增加 boardMap：CN1 的第 r 行（r=0..19）奇偶脚 2r+1/2r+2 内部相连，均对应 node r；CN2 同行对应 node 20+r。EXT1..9 对应 node40..48、IO0..8，实际 GPIO 仍读取 ioGpios。node49=5V、node50=3.3V、node51=GND。这些编号不能互换，5V 不得接 DATA。
+
+新增第29个专用工具 `jbox_function_compile`，直接调用、board MCP 与 QuickJS `system.jbox.functionCompile` 使用相同 C 校验。参数包含当前 generation、slot，以及二选一的 source 或 program:"dht11"。原生有界编译器支持参考工程 JBoxScript，包括 RMT capture/pulse 操作；编译后仅上传，不执行或自动连线。远端 S3 必须包含本次同步的 RMT VM/驱动；v1 caps 没有远端 RMT 版本协商，不能仅凭 caps 宣称旧 S3 支持。functionCall 可指定 delayMs（0..5000），取消期间不发送调用，不自动重试。
+
+用户确认实物接线 CN1-1=VCC、CN1-3=DATA、CN1-5=GND；按参考工程 VCC=5V、DATA 上拉3.3V，IO8=GPIO9。对应 nets 为 [[0,49],[1,48],[2,51]]。先读取状态，已有线路须明确处理，routeSet 替换全部线路。编译 program:dht11 到 slot0 后，functionCall 使用 ios:[8]、上电 delayMs:2000；结果 [temperature10,humidity10] 分别除以10得到 °C 与 %RH。继续采样须显式授权并保持传感器间隔，失败不重放。
+
+宿主：原生 C/Python 编译器156项有效语料逐字节对照、26项拒绝、2000项随机输入，以及10000项 ASan/UBSan 随机执行通过；真实 S3 VM 校验器接受 DHT11 的940条指令。24项协议回归、29工具直接/MCP权限与参数测试、Agent 全套回归和 S3 native/script 测试通过。
+
+固件：P4 独立工作区构建通过，镜像 SHA256 `61c11b2ec5485fcf6ff3b1b488ba8955d9927c4c49db349548b6637f6c6ee8d4`。app-only 烧录与独立读回校验通过，用户数据摘要前后相同；软件复位后 UI、Wi-Fi、XIP 启动状态正常。候选 BLE 身份 D9:47:8C:B0:01:4B，广播 OpenVela Mouse-8CB0014B；未进行该身份的电脑首次配对/HID验收。
+
+实板：P4 原生诊断经实际 JBOX 依次读到26.4°C/51.0%、26.4°C/51.0%、26.3°C/51.0%，三次 RMT 数据校验通过，诊断结束释放连接。随后真实助手单轮完成 caps、脚本编译上传、路由及状态回读和一次采样，返回原始 [268,540]，即26.8°C/54.0%，CHAT_DONE、error=0。该助手按既有约定保留连接及供电线路，没有自动重读。
+
+S3 当前实测镜像 SHA256 `b91049510bdab1d3df75dcbd2a1d5d27bcf9833285b8f90e48921efc2060a21c`，本轮未重烧 S3。此结果覆盖上述接线与一次真实 AI 流程，不代表其他外设、冷断电、实体屏幕或旧 BLE 身份兼容性验收。此前 Wi-Fi worker 旧状态及 socket 资源问题没有在本次修复。

@@ -19,7 +19,7 @@ static const char *const qpk_hw_operations[] = {
   "jbox.i2cSetup", "jbox.i2cTransfer", "jbox.i2cClose",
   "jbox.spiSetup", "jbox.spiTransfer", "jbox.spiClose",
   "jbox.uartSetup", "jbox.uartWrite", "jbox.uartRead", "jbox.uartClose",
-  "jbox.functionLoad", "jbox.functionCall", "jbox.functionClear"
+  "jbox.functionLoad", "jbox.functionCompile", "jbox.functionCall", "jbox.functionClear"
 };
 static JSValue js_hw_submit(JSContext *c, JSValueConst self, int argc, JSValueConst *argv, int magic)
 {

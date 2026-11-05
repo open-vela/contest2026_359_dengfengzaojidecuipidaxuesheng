@@ -52,6 +52,53 @@ static int check_result(struct qpk_hw_session *session, const char *op,
 }
 static int check(struct qpk_hw_session *s, const char *op, const char *args)
 { return check_result(s, op, args, 0, NULL); }
+/* Explicit local-console fixture. Empty routes only; never infer wiring or
+ * replace another circuit. The session is released on every exit. */
+int qpk_jbox_dht11_probe(unsigned vcc,unsigned data,unsigned ground,unsigned io,unsigned power)
+{
+  if(vcc>=40||data>=40||ground>=40||io>=9||(power!=49&&power!=50)||
+     vcc==data||vcc==ground||data==ground)return -EINVAL;
+  if(pthread_mutex_trylock(&probe_lock))return -EBUSY;
+  struct qpk_hw_session *s=qpk_hw_create("hardware-diagnostic");
+  cJSON *out=NULL;char args[256];int ret=s?0:-ENOMEM;unsigned generation=0;
+  if(!ret)ret=check_result(s,"jbox.connect","{}",0,&out);
+  if(!ret){int value=number(out,"generation");if(value<1)ret=-EPROTO;else generation=(unsigned)value;}
+  cJSON_Delete(out);out=NULL;
+  snprintf(args,sizeof(args),"{\"generation\":%u}",generation);
+  if(!ret)ret=check_result(s,"jbox.caps",args,0,&out);
+  if(!ret){char *text=cJSON_PrintUnformatted(out);printf("JBOX_CAPS %s\n",text?text:"{}");free(text);}
+  cJSON_Delete(out);out=NULL;
+  if(!ret)ret=check_result(s,"jbox.status",args,0,&out);
+  if(!ret){
+    cJSON *nets=cJSON_GetObjectItemCaseSensitive(out,"nets");
+    if(!cJSON_IsArray(nets)||cJSON_GetArraySize(nets)!=8)ret=-EPROTO;
+    else for(const cJSON *net=nets->child;net;net=net->next)if(cJSON_GetArraySize(net))ret=-EBUSY;
+  }
+  cJSON_Delete(out);out=NULL;
+  snprintf(args,sizeof(args),"{\"generation\":%u,\"program\":\"dht11\",\"slot\":0}",generation);
+  if(!ret)ret=check(s,"jbox.functionCompile",args);
+  snprintf(args,sizeof(args),"{\"generation\":%u,\"nets\":[[%u,%u],[%u,%u],[%u,51]]}",
+    generation,vcc,power,data,40+io,ground);
+  if(!ret)ret=check(s,"jbox.routeSet",args);
+  for(unsigned sample=0;!ret&&sample<3;sample++){
+    snprintf(args,sizeof(args),"{\"generation\":%u,\"slot\":0,\"ios\":[%u],\"delayMs\":%u}",
+      generation,io,sample?2500:2000);
+    ret=check_result(s,"jbox.functionCall",args,0,&out);
+    if(!ret){
+      cJSON *values=cJSON_GetObjectItemCaseSensitive(out,"values");
+      if(!cJSON_IsArray(values)||cJSON_GetArraySize(values)!=2)ret=-EPROTO;
+      else {
+        cJSON *t=cJSON_GetArrayItem(values,0),*h=cJSON_GetArrayItem(values,1);
+        if(!cJSON_IsNumber(t)||!cJSON_IsNumber(h)||t->valueint<0||t->valueint>509||h->valueint<0||h->valueint>1009)ret=-ERANGE;
+        else printf("JBOX_DHT11 sample=%u temperature10=%d humidity10=%d checksum=passed\n",sample+1,t->valueint,h->valueint);
+      }
+    }
+    cJSON_Delete(out);out=NULL;
+  }
+  if(s)qpk_hw_release_wait(s);
+  printf("JBOX_DHT11 result=%d released=1 no_automatic_retry=1\n",ret);fflush(stdout);
+  pthread_mutex_unlock(&probe_lock);return ret;
+}
 /* Each operation/JSON pair shares one owner. "wait" accepts milliseconds,
  * which permits a scan or stream to finish without losing its task group. */
 int qpk_hw_call(int argc,char **argv)

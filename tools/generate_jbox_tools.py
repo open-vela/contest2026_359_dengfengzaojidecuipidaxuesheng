@@ -49,7 +49,9 @@ tool('jbox_connect', 'connect',
 tool('jbox_disconnect', 'disconnect',
      'Disconnect this JBOX session; S3 clears routes, releases buses and restores high-impedance IO.')
 tool('jbox_caps', 'caps',
-     'Read actual JBOX capabilities and ioGpios mapping. JBOX IO ids and matrix nodes are not P4 GPIOs.')
+     'Read JBOX capabilities, actual ioGpios and boardMap CN1/CN2 odd/even pin-to-node rows. '
+     'CN1 pins1/2=node0,3/4=node1,...39/40=node19; CN2 starts at node20. '
+     'IO ids, matrix nodes and P4 GPIOs are distinct. Read this before wiring.')
 tool('jbox_status', 'status',
      'Read JBOX uptimeMs, heapFree, actual nets, ioMode and ioLease without changing outputs.')
 tool('jbox_safe', 'safe',
@@ -118,9 +120,23 @@ tool('jbox_function_load', 'functionLoad',
      'code length must be a multiple of four bytes; arguments is the function IO parameter count.',
      dict(slot=slot, arguments=integer(0, 4, default=0),
           code=array(integer(0, 255), 4096, 4)), ('code',))
+
+tool('jbox_function_compile', 'functionCompile',
+     'Compile and upload bounded JBoxScript to an S3 RAM slot. Supply exactly one of source '
+     'or program="dht11". No Python/JS/eval and no execution on upload. Source syntax is '
+     'fn name(pin){open_drain(pin);low(pin);sleep_ms(20);capture(pin,1000);emit(pulse_count());}. '
+     'The reviewed dht11 program captures via S3 RMT, validates handshake/40 bits/checksum, '
+     'and emits [temperatureC*10,humidityPercent*10]. Then function_call with ios=[dataIO]. '
+     'Requires S3 RMT-capable firmware; do not assume support from v1 caps. Read current routes, '
+     'use user-confirmed wiring and wait >=2s after power-up/between samples. '
+     'Does not set routing, power or repeatedly sample. No automatic retry after failure.',
+     dict(slot=slot, source=dict(type='string',minLength=1,maxLength=32768),
+          program=dict(type='string',enum=['dht11'])))
 tool('jbox_function_call', 'functionCall',
-     'Call an explicitly requested S3 function with unique JBOX IO ids; poll returns up to 128 uint32 values.',
-     dict(slot=slot, ios=array(io, 4, uniqueItems=True)), ('ios',))
+     'Call an explicitly requested S3 function with unique JBOX IO ids; poll returns up to 128 uint32 values. '
+     'delayMs optionally waits before this one call (0..5000ms, cancellable), e.g. 2000ms after '
+     'DHT11 power-up or 2500ms between successful samples. A failure never retries.',
+     dict(slot=slot, ios=array(io, 4, uniqueItems=True),delayMs=integer(0,5000,default=0)), ('ios',))
 tool('jbox_function_clear', 'functionClear', 'Clear one S3 function slot.', dict(slot=slot))
 
 root = Path(__file__).resolve().parents[1]

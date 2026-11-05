@@ -8,26 +8,31 @@ import time
 import tkinter as tk
 
 try:
-    from .jbox_api import MatrixClient, APIError, discover_devices, pair_device
+    from .jbox_api import MatrixClient, APIError, discover_devices, pair_device, GPIO_LIST
 except ImportError:
-    from jbox_api import MatrixClient, APIError, discover_devices, pair_device
+    from jbox_api import MatrixClient, APIError, discover_devices, pair_device, GPIO_LIST
 
 PROGRAM = Path(__file__).with_name('programs') / 'dht11.jbox'
-# CN1: 39/40 VCC, 37/38 DATA, 35/36 NC, 33/34 GND.
-# VCC uses 5V through the matrix; DATA retains GPIO1's internal 3.3V pull-up.
-DHT_ROUTES = [[19, 49], [18, 40], [16, 51]]
+# CN1: 39/40 VCC, 37/38 DATA, 35/36 GND; 33/34 unused.
+# VCC uses 5V; DATA has an external 3.3V pull-up and an internal pull-up.
+DEFAULT_DATA_IO = 8  # GPIO9 / EXT9: verified matrix data path.
+DHT_ROUTES = [[19, 49], [18, 48], [17, 51]]
 
 
-def configure_sensor(board, source=None):
+def configure_sensor(board, source=None, data_io=DEFAULT_DATA_IO):
+    if type(data_io) is not int or not 0 <= data_io < len(GPIO_LIST):
+        raise ValueError('无效的 DATA IO 编号')
     # Upload first: old firmware is rejected before any sensor power is routed.
     read_sensor = board.upload_function(source or PROGRAM.read_text(encoding='utf-8'))
-    board.gpio_config(0, mode=2, pull=1, initial=1)
-    board.route_set(DHT_ROUTES)
+    board.gpio_config(data_io, mode=2, pull=1, initial=1)
+    routes = [net[:] for net in DHT_ROUTES]
+    routes[1] = [18, 40 + data_io] if data_io < 9 else []
+    board.route_set(routes)
     return read_sensor
 
 
-def read_values(read_sensor):
-    values = read_sensor(data=0)
+def read_values(read_sensor, data_io=DEFAULT_DATA_IO):
+    values = read_sensor(data=data_io)
     if len(values) != 2 or not 0 <= values[0] <= 500 or not 0 <= values[1] <= 1000:
         raise ValueError('传感器返回值无效')
     return values[0] / 10, values[1] / 10
@@ -37,7 +42,7 @@ def error_text(error):
     if isinstance(error, APIError):
         return {-5: '请先烧录支持 JBoxScript 的新固件',
                 -6: '传感器无响应：检查实际供电与连线',
-                -3: '传感器数据校验失败，正在重试',
+                -3: '未收到完整有效波形或校验失败，正在重试',
                 -7: '请短按 GPIO10 后重新连接',
                 -10: '设备上的函数已清除，请重新连接上传'}.get(error.status, str(error))
     if 'paired' in str(error):
@@ -46,17 +51,21 @@ def error_text(error):
 
 
 class DHTWindow(tk.Tk):
-    def __init__(self, host):
+    def __init__(self, host, data_io=DEFAULT_DATA_IO):
         super().__init__()
         self.tk.call('tk', 'scaling', 96 / 72)
         self.title('DHT11')
         self.geometry('430x285')
         self.resizable(False, False)
         self.configure(bg='#111b29')
+        self.data_io = data_io
         self.host = tk.StringVar(value=host)
         self.temperature = tk.StringVar(value='— °C')
         self.humidity = tk.StringVar(value='— %')
-        self.status = tk.StringVar(value='CN1：39 5V · 37 DATA · 35 NC · 33 GND')
+        wiring = f'CN1：39 5V · 35 GND · DATA→GPIO{GPIO_LIST[data_io]}'
+        if data_io < 9:
+            wiring += '（经 CN1-37）'
+        self.status = tk.StringVar(value=wiring)
         self.events = queue.Queue()
         self.stop_event = None
         self.thread = None
@@ -108,21 +117,21 @@ class DHTWindow(tk.Tk):
                 pair_device(host, device.get('id'))
             board = MatrixClient(host, timeout=10)
             board.connect()
-            read_sensor = configure_sensor(board)
+            read_sensor = configure_sensor(board, data_io=self.data_io)
             self.events.put(('status', '程序已上传，等待传感器上电稳定…'))
             if stop.wait(2):
                 return
             while not stop.is_set():
                 started = time.monotonic()
                 try:
-                    temperature, humidity = read_values(read_sensor)
+                    temperature, humidity = read_values(read_sensor, self.data_io)
                     self.events.put(('values', (temperature, humidity)))
                 except APIError as error:
                     if error.status not in (-6, -3):
                         raise
                     # The VM releases GPIOs to floating inputs on errors. Restore
                     # the DHT bus idle level before waiting for the next attempt.
-                    board.gpio_config(0, mode=2, pull=1, initial=1)
+                    board.gpio_config(self.data_io, mode=2, pull=1, initial=1)
                     self.events.put(('sensor_error', error_text(error)))
                 if stop.wait(max(0, 2.5 - (time.monotonic() - started))):
                     break
@@ -171,6 +180,8 @@ class DHTWindow(tk.Tk):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', default='', help='设备 IP；留空自动发现唯一设备')
+    parser.add_argument('--data-gpio', type=int, choices=GPIO_LIST, default=9,
+                        help='DATA 的物理 GPIO；1～9 经 CN1-37，其他为直出（如 48）')
     parser.add_argument('--connect', action='store_true', help='打开窗口后连接并上传小程序')
     args = parser.parse_args()
     try:
@@ -178,7 +189,7 @@ def main():
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
     except (AttributeError, OSError):
         pass
-    window = DHTWindow(args.host)
+    window = DHTWindow(args.host, data_io=GPIO_LIST.index(args.data_gpio))
     if args.connect:
         window.after(250, window.toggle)
     window.mainloop()

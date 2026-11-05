@@ -2,8 +2,6 @@
 
 目标：ESP32-S3-WROOM-1-N16R8 + 4×CH446Q。ESP-IDF **v5.5.x**。
 
-大赛集成版本新增 UART0 本地命令 `jbox pair`／`jbox provision`，可由 P4 自动共享当前 Wi-Fi；操作、边界和测试见 [LOCAL_CHANGES.md](LOCAL_CHANGES.md)。`UPSTREAM.json` 保留首次导入的来源摘要。
-
 短按实体按钮授权临时配网/绑定；手机通过 BLE 给设备送入 Wi-Fi SSID/密码；电脑经局域网发现设备并自动领用、保存设备控制密钥。以后二次连接自动 HMAC 鉴权。
 
 ## 1. 一颗按钮的交互
@@ -157,9 +155,12 @@ with MatrixClient('192.168.1.100') as board:
     print(program())  # [42]，由 ESP32 计算后返回
 ```
 
-DHT11 简洁显示窗口：双击 `start_dht11.cmd`，或运行 `python client/dht11_viewer.py --host 192.168.1.100 --connect`。窗口会上传 `client/programs/dht11.jbox`，配置 CN1 的 39=5V、37=DATA(GPIO1)、35=NC、33=GND。DATA 使用 GPIO1 内部的 3.3V 弱上拉，可按需要增加约 4.7kΩ 到 3.3V 的外部上拉。采集、解码与校验均在 ESP 上完成，电脑显示结果。需要此版本固件，运行前请断开主连线工具的控制会话。
+DHT11 简洁显示窗口：双击 `start_dht11.cmd`，或运行 `python client/dht11_viewer.py --host 192.168.1.100 --connect`。当前接线为 **CN1-39=5V、37=DATA、35=GND，33 不接**，DATA 外部上拉到 **3.3V**。默认数据通路为矩阵 EXT9 / GPIO9，仍通过 CN1-37 接传感器。窗口 IP 留空时自动选择局域网唯一发现的设备，也可手动填写。
 
-DHT11 示例仍处于实板调试阶段：上传函数和整数计算已在设备验证，DHT11 实机目前未收到有效响应，尚未确认 DATA 矩阵通路和解释器的微秒时序。主机波形模拟通过不代表传感器实测通过。窗口 IP 留空时自动选择局域网唯一发现的设备，也可手动填写。
+可用 `--data-gpio 1` 对照 EXT1，或 `--data-gpio 48` 使用直出 GPIO48；直出模式不连接 CN1-37 的矩阵 DATA 路由，DATA 需物理接到对应直出 GPIO。需要支持 RMT 的固件，运行前先断开主连线工具的控制会话。
+
+DHT11 示例用 RMT 硬件采集高低电平时长，上传的小程序在采集结束后完成解码与校验。通用 GPIO 操作也直接访问已验证的目标引脚，减少每位扫描整个 IO 表的开销。实板已经验证 GPIO48 直出能连续读取；旧板在新接线和 3.3V 外部上拉下，EXT9 / GPIO9 可读取，EXT1 / GPIO1、EXT5 / GPIO5 未收到波形。2026-10-25 换用第二块同型号板、同一 RMT 固件后，EXT1、EXT5、EXT9 各连续读取 3 次均通过校验，每条路径均采到 85 段脉冲。这支持旧板存在硬件通路问题，具体故障点仍未定位；短时测试不代表所有通道和电气条件都已验证。
+
 
 ### 传输与授权
 
@@ -208,3 +209,10 @@ python tests/run_native_tests.py
 无屏幕/无 UART 提示时，建议硬件后续增加状态 LED：等待配网、配网中、联网、配对成功、错误各有不同闪烁状态（此版不占用第 9 个直出 IO 实现 LED）。
 
 官方文档：[ESP-IDF Wi-Fi BLE Provisioning](https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/provisioning/wifi_provisioning.html)；[CH446Q](https://www.wch.cn/downloads/CH446DS1_PDF.html)。
+
+
+### 本地串口打开配网窗口
+
+UART0（GPIO43/44，CH340 对应 COM9）使用 115200 8N1，发送 `jbox pair` 加换行。该命令与 GPIO10 短按共用同一执行线程：未配网时开启 180 秒 BLE 配网，已有配置时开启 120 秒 LAN 绑定窗口。不会清除 Wi-Fi、控制密钥或现有线路；不接受串口密码，不回显输入。请仅在可信的本地串口使用。GPIO10 原有短按与长按行为保留。
+
+已有 Wi-Fi 配置但需要与 P4 重新同网时，发送 `jbox provision` 加换行。设备通过一次软件重启进入 180 秒 BLE 配网窗口，进入窗口不擦除 NVS；超时重启不自动重开窗口。收到新配置后按 ESP-IDF 配网流程保存，联网后打开 120 秒 LAN 绑定窗口，保留现有控制密钥。
